@@ -30,6 +30,7 @@ def _parse_args():
     args.add_argument("--debug-dump", action="store_true", default=False)
 
     parsed = args.parse_args()
+    parsed.model_path = f"{parsed.artifact_path}/models/{parsed.model}"
     parsed.artifact_path = f"{parsed.artifact_path}/{parsed.model}"
     if parsed.target == "auto":
         if system() == "Darwin":
@@ -160,7 +161,7 @@ if __name__ == "__main__":
     use_cache = ARGS.use_cache and os.path.isfile(cache_path)
     if not use_cache:
         from transformers import AutoModelForCausalLM
-        hf_model = AutoModelForCausalLM.from_pretrained(f"{ARGS.artifact_path}/models")
+        hf_model = AutoModelForCausalLM.from_pretrained(ARGS.model_path)
         config = utils.get_config(hf_model.config, ARGS.model)
         mod = get_models(config, ARGS.model)
         params = get_params(config, hf_model)

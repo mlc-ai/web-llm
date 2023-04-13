@@ -1,6 +1,6 @@
 First put your model into the artifact path (default to be dist/).
 ```
-ln -s your_model_path dist/vicuna-7b/models
+ln -s your_model_path dist/models/vicuna-7b
 ```
 Then build a model into a TVM executable
 

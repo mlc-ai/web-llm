@@ -19,6 +19,7 @@ def _parse_args():
     args.add_argument("--max-gen-len", type=int, default=128)
     args.add_argument("--run-torch-model", action="store_true", default=False)
     parsed = args.parse_args()
+    parsed.model_path = f"{parsed.artifact_path}/models/{parsed.model}"
     parsed.artifact_path = f"{parsed.artifact_path}/{parsed.model}"
     if parsed.device_name == "auto":
         if tvm.cuda().exist:
@@ -186,7 +187,7 @@ def get_pytorch_model(args):
 
 if __name__ == "__main__":
     ARGS = _parse_args()
-    tokenizer = AutoTokenizer.from_pretrained(f"{ARGS.artifact_path}/models")
+    tokenizer = AutoTokenizer.from_pretrained(ARGS.model_path)
     tokenizer.pad_token_id = tokenizer.eos_token_id
     if not ARGS.run_torch_model:
         model = ModelWrapper(get_tvm_model(ARGS), tokenizer)
