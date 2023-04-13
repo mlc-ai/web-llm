@@ -117,6 +117,7 @@ def mod_transform_before_build(
     mod = relax.transform.FuseTIR()(mod)
 
     mod = web_llm.transform.GroupQuantize(group_size=32, sym=False)(mod)
+    mod = web_llm.transform.FuseDecodeNTMatmulEwise()(mod)
     mod = relax.transform.DeadCodeElimination(model_names)(mod)
     mod = relax.transform.LiftTransformParams()(mod)
     mod_transform, mod_deploy = utils.split_transform_deploy_mod(mod, model_names)
