@@ -15,6 +15,7 @@ from web_llm import utils
 from web_llm.relax_model import llama
 
 
+
 def _parse_args():
     args = argparse.ArgumentParser()
     args.add_argument("--model", type=str, default="vicuna-7b")
@@ -30,8 +31,8 @@ def _parse_args():
     args.add_argument("--debug-dump", action="store_true", default=False)
 
     parsed = args.parse_args()
-    parsed.model_path = f"{parsed.artifact_path}/models/{parsed.model}"
-    parsed.artifact_path = f"{parsed.artifact_path}/{parsed.model}"
+    parsed.model_path = os.path.join(parsed.artifact_path, "models", parsed.model)
+    parsed.artifact_path = os.path.join(parsed.artifact_path, parsed.model)
     if parsed.target == "auto":
         if system() == "Darwin":
             target = tvm.target.Target("apple/m1-gpu")

@@ -1,5 +1,6 @@
 from typing import List, Optional
 import argparse
+import os
 
 import torch
 from web_llm import utils
@@ -19,8 +20,8 @@ def _parse_args():
     args.add_argument("--max-gen-len", type=int, default=128)
     args.add_argument("--run-torch-model", action="store_true", default=False)
     parsed = args.parse_args()
-    parsed.model_path = f"{parsed.artifact_path}/models/{parsed.model}"
-    parsed.artifact_path = f"{parsed.artifact_path}/{parsed.model}"
+    parsed.model_path = os.path.join(parsed.artifact_path, "models", parsed.model)
+    parsed.artifact_path = os.path.join(parsed.artifact_path, parsed.model)
     if parsed.device_name == "auto":
         if tvm.cuda().exist:
             parsed.device_name = "cuda"
@@ -135,7 +136,7 @@ def chat(model_wrapper, args):
 def get_tvm_model(args):
     device = tvm.device(args.device_name)
     const_params = utils.load_params(args.artifact_path, device)
-    ex = tvm.runtime.load_module(f"{args.artifact_path}/{args.model}_{args.device_name}.so")
+    ex = tvm.runtime.load_module(os.path.join(args.artifact_path, f"{args.model}_{args.device_name}.so"))
     vm = relax.VirtualMachine(ex, device)
 
     class Model:

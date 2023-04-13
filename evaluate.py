@@ -24,8 +24,8 @@ def _parse_args():
     args.add_argument("--prompt", type=str, default="The capital of Canada is")
     args.add_argument("--model", type=str, default="vicuna-7b")
     parsed = args.parse_args()
-    parsed.model_path = f"{parsed.artifact_path}/models/{parsed.model}"
-    parsed.artifact_path = f"{parsed.artifact_path}/{parsed.model}"
+    parsed.model_path = os.path.join(parsed.artifact_path, "models", parsed.model)
+    parsed.artifact_path = os.path.join(parsed.artifact_path, parsed.model)
     
     if parsed.device_name == "auto":
         if tvm.cuda().exist:
@@ -40,7 +40,7 @@ def _parse_args():
 def deploy_to_pipeline(args) -> None:
     device = tvm.device(args.device_name)
     const_params = utils.load_params(args.artifact_path, device)
-    ex = tvm.runtime.load_module(f"{args.artifact_path}/{args.model}_{args.device_name}.so")
+    ex = tvm.runtime.load_module(os.path.join(args.artifact_path, f"{args.model}_{args.device_name}.so"))
     vm = relax.VirtualMachine(ex, device)
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_path)
