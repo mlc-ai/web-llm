@@ -1,0 +1,3 @@
+[submodule "3rdparty/sentencepiece-js"]
+	path = 3rdparty/sentencepiece-js
+	url = https://github.com/tqchen/sentencepiece-js

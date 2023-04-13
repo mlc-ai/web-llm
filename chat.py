@@ -1,5 +1,6 @@
 from typing import List, Optional
 import argparse
+import os
 
 import torch
 from web_llm import utils
@@ -19,7 +20,9 @@ def _parse_args():
     args.add_argument("--max-gen-len", type=int, default=128)
     args.add_argument("--run-torch-model", action="store_true", default=False)
     parsed = args.parse_args()
-    parsed.artifact_path = f"{parsed.artifact_path}/{parsed.model}"
+    parsed.model_path = os.path.join(parsed.artifact_path, "models", parsed.model)
+    parsed.artifact_path = os.path.join(parsed.artifact_path, parsed.model)
+
     if parsed.device_name == "auto":
         if tvm.cuda().exist:
             parsed.device_name = "cuda"
@@ -63,7 +66,7 @@ class ModelWrapper:
                 next_token = sample_top_p(probs, top_p)
             else:
                 next_token = torch.argmax(logits, dim=-1)
-            next_token = next_token.reshape(-1)          
+            next_token = next_token.reshape(-1)
             tokens[:, cur_pos] = next_token
             # the following code assumes bsz == 1
             if next_token[0] == tokenizer.eos_token_id:
@@ -143,7 +146,9 @@ def get_tvm_model(args):
             self.kv_cache = []
             for i in range(64):  # num_layer
                 kv_cache = fcreate_cache(
-                    tvm.nd.empty((32, 32, 128), device=device, dtype="float32")
+                    tvm.nd.empty((1, 32, 128), device=device, dtype="float32"),
+                    tvm.runtime.ShapeTuple([32, 32, 128]),
+                    0
                 )
                 self.kv_cache.append(kv_cache)
 
@@ -186,7 +191,7 @@ def get_pytorch_model(args):
 
 if __name__ == "__main__":
     ARGS = _parse_args()
-    tokenizer = AutoTokenizer.from_pretrained(f"{ARGS.artifact_path}/models")
+    tokenizer = AutoTokenizer.from_pretrained(ARGS.model_path)
     tokenizer.pad_token_id = tokenizer.eos_token_id
     if not ARGS.run_torch_model:
         model = ModelWrapper(get_tvm_model(ARGS), tokenizer)

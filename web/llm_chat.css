@@ -64,6 +64,10 @@
   color: #f15959;
 }
 
+.init-msg .msg-bubble {
+  border-bottom-left-radius: 0;
+}
+
  .right-msg {
    flex-direction: row-reverse;
  }

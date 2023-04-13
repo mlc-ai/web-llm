@@ -30,7 +30,8 @@ def _parse_args():
     args.add_argument("--debug-dump", action="store_true", default=False)
 
     parsed = args.parse_args()
-    parsed.artifact_path = f"{parsed.artifact_path}/{parsed.model}"
+    parsed.model_path = os.path.join(parsed.artifact_path, "models", parsed.model)
+    parsed.artifact_path = os.path.join(parsed.artifact_path, parsed.model)
     if parsed.target == "auto":
         if system() == "Darwin":
             target = tvm.target.Target("apple/m1-gpu")
@@ -139,6 +140,7 @@ def build(mod_deploy: tvm.IRModule, args: Dict) -> None:
             mod_deploy = relax.transform.MetaScheduleApplyDatabase()(mod_deploy)
             mod_deploy = web_llm.transform.DispatchTIROperator()(mod_deploy)
             mod_deploy = tvm.tir.transform.DefaultGPUSchedule()(mod_deploy)
+            mod_deploy = tvm.tir.transform.ForceNarrowIndexToInt32()(mod_deploy)
 
     debug_dump_script(mod_deploy, "mod_build_stage.py", args)
 
@@ -160,7 +162,7 @@ if __name__ == "__main__":
     use_cache = ARGS.use_cache and os.path.isfile(cache_path)
     if not use_cache:
         from transformers import AutoModelForCausalLM
-        hf_model = AutoModelForCausalLM.from_pretrained(f"{ARGS.artifact_path}/models")
+        hf_model = AutoModelForCausalLM.from_pretrained(ARGS.model_path)
         config = utils.get_config(hf_model.config, ARGS.model)
         mod = get_models(config, ARGS.model)
         params = get_params(config, hf_model)

@@ -19,8 +19,9 @@ export SENTENCEPIECE_JS_HOME="3rdparty/sentencepiece-js"
 
 mkdir -p dist
 cd ${TVM_HOME}/web && make && npm install && npm run bundle && cd -
-git submodule update --init
+git submodule update --init --recursive
 cd ${SENTENCEPIECE_JS_HOME} && npm install && npm run build && cd -
+git submodule update --init --recursive
 rm -rf dist/sentencepiece
 cp -r ${SENTENCEPIECE_JS_HOME}/dist dist/sentencepiece
 
