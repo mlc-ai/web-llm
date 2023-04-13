@@ -283,6 +283,7 @@ class LLMChatPipeline {
 
   async evaluate() {
     // run a canonicla evaluateion fo the flow
+    this.#clearKVCache();
     const testPrompt = "The capital of Canada is";
     const ids = await this.tokenizer.encodeIds(testPrompt);
     const inputPromptSize = ids.length;
