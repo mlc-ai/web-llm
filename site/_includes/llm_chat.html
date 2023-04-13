@@ -1,0 +1,37 @@
+<script>
+  var tvmjsGlobalEnv = tvmjsGlobalEnv || {};
+</script>
+
+<script type="module">
+  async function getTokenizer(url) {
+    const mod = await import("./dist/sentencepiece/index.js");
+    return await mod.sentencePieceProcessor(url);
+  }
+  tvmjsGlobalEnv.sentencePieceProcessor = getTokenizer;
+</script>
+<script>
+  function handleChatUIInputEnter(event) {
+    if (event.keyCode === 13) {
+      tvmjsGlobalEnv.asyncOnGenerate();
+    }
+  }
+  async function getTokenizer(url) {
+    const mod = await import("./dist/sentencepiece/index.js");
+    return await mod.sentencePieceProcessor(url);
+  }
+  tvmjsGlobalEnv.sentencePieceProcessor = getTokenizer;
+</script>
+
+<script src="dist/llm_chat.js"></script>
+<link href="dist/llm_chat.css" rel="stylesheet" type="text/css"/>
+<h2>Chat</h2>
+
+<div class="chatui">
+  <div class="chatui-chat" id="chatui-chat" height="100">
+  </div>
+
+  <div class="chatui-inputarea">
+    <input id="chatui-input" type="text" class="chatui-input" onkeypress="handleChatUIInputEnter(event)" placeholder="Enter your message...">
+    <button class="chatui-send-btn" onclick="tvmjsGlobalEnv.asyncOnGenerate()">Send</button>
+  </div>
+</div>
