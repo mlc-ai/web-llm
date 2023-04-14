@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>WebLLM | Home</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <link rel="stylesheet"
+              href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css"
+              integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb"
+              crossorigin="anonymous">
+        <link rel="stylesheet"
+              href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+        <link rel="stylesheet" href="/web-llm/assets/css/main.css">
+        <link rel="stylesheet" href="/web-llm/assets/css/group.css">
+        <!-- <link rel="stylesheet" href="/web-llm/css/table.css">          -->
+        <link rel="shortcut icon" href="/web-llm/assets/img/logo/mlc-favicon.png">
+        <meta http-equiv="origin-trial" content="Agx76XA0ITxMPF0Z8rbbcMllwuxsyp9qdtQaXlLqu1JUrdHB6FPonuyIKJ3CsBREUkeioJck4nn3KO0c0kkwqAMAAABJeyJvcmlnaW4iOiJodHRwOi8vbG9jYWxob3N0Ojg4ODgiLCJmZWF0dXJlIjoiV2ViR1BVIiwiZXhwaXJ5IjoxNjkxNzExOTk5fQ==">
+<meta http-equiv="origin-trial" content="AnmwqQ1dtYDQTYkZ5iMtHdINCaxjE94uWQBKp2yOz1wPTcjSRtOHUGQG+r2BxsEuM0qhxTVnuTjyh31HgTeA8gsAAABZeyJvcmlnaW4iOiJodHRwczovL21sYy5haTo0NDMiLCJmZWF0dXJlIjoiV2ViR1BVIiwiZXhwaXJ5IjoxNjkxNzExOTk5LCJpc1N1YmRvbWFpbiI6dHJ1ZX0=">
+<script src="dist/tvmjs_runtime.wasi.js"></script>
+<script src="dist/tvmjs.bundle.js"></script>
+
+    </head>
+    <body>
+        <div class="container">
+            <!-- This is a bit nasty, but it basically says be a column first, and on larger screens be a spaced out row -->
+            <div class="header d-flex
+                        flex-column
+                        flex-md-row justify-content-md-between">
+              <a href="/" id="navtitle">
+                  <img src="/web-llm/assets/img/logo/mlc-logo-with-text-landscape.svg" height="70px"
+                       alt="MLC" id="logo">
+              </a>
+              <ul id="topbar" class="nav nav-pills justify-content-center">
+                    
+                    
+
+                        
+
+                        
+                        
+                        
+
+                      <li class="nav-item">
+                         
+                            <a class="nav-link active"
+                               href="/web-llm/">
+                                Home
+                            </a>
+                         
+                        </li>
+
+                    
+
+                        
+
+                        
+                        
+                        
+
+                      <li class="nav-item">
+                         
+                            <a class="nav-link "
+                               href="https://github.com/mlc-ai/web-llm">
+                                Github
+                            </a>
+                         
+                        </li>
+
+                    
+
+                </ul>
+            </div>
+
+            
+
+            
+            <!-- Schedule  -->
+            
+                <h3 id="demo">Demo</h3>
+
+<script>
+  var tvmjsGlobalEnv = tvmjsGlobalEnv || {};
+</script>
+
+<script type="module">
+  async function getTokenizer(url) {
+    const mod = await import("./dist/sentencepiece/index.js");
+    return await mod.sentencePieceProcessor(url);
+  }
+  tvmjsGlobalEnv.sentencePieceProcessor = getTokenizer;
+</script>
+
+<script>
+  function handleChatUIInputEnter(event) {
+    if (event.keyCode === 13) {
+      tvmjsGlobalEnv.asyncOnGenerate();
+    }
+  }
+  async function getTokenizer(url) {
+    const mod = await import("./dist/sentencepiece/index.js");
+    return await mod.sentencePieceProcessor(url);
+  }
+  tvmjsGlobalEnv.sentencePieceProcessor = getTokenizer;
+</script>
+
+<script src="dist/llm_chat.js"></script>
+
+<link href="dist/llm_chat.css" rel="stylesheet" type="text/css" />
+
+<h2>Chat</h2>
+
+<div class="chatui">
+  <div class="chatui-chat" id="chatui-chat" height="100">
+  </div>
+
+  <div class="chatui-inputarea">
+    <input id="chatui-input" type="text" class="chatui-input" onkeypress="handleChatUIInputEnter(event)" placeholder="Enter your message..." />
+    <button class="chatui-send-btn" onclick="tvmjsGlobalEnv.asyncOnGenerate()">Send</button>
+  </div>
+</div>
+
+
+            
+        </div> <!-- /container -->
+
+        <!-- Support retina images. -->
+        <script type="text/javascript"
+                src="/web-llm/assets/js/srcset-polyfill.js"></script>
+    </body>
+
+</html>
