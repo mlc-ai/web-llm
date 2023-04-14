@@ -24,7 +24,7 @@ Besides supporting WebGPU, this project also provides the harness for other kind
 
 ## Inference on native GPU runtime with command line interface
 
-- Install TVM Unity. 
+- Install MLC package. 
 
   ```
   pip3 install mlc-ai-nightly -f https://mlc.ai/wheels
@@ -34,8 +34,8 @@ Besides supporting WebGPU, this project also provides the harness for other kind
 
   You need to retrieve model weights first before building model.
 
-  - Vicuna: See here  for instructions on getting vicuna weights.
-  - LLaMA: Get the original LLaMA weights in the huggingface format by following the instructions here
+  - Vicuna: See [here](https://github.com/lm-sys/FastChat#vicuna-weights)  for instructions on getting vicuna weights.
+  - LLaMA: Get the original LLaMA weights in the huggingface format by following the instructions [here](https://huggingface.co/docs/transformers/main/model_doc/llama)
 
   Create a soft link of your model path under dist/models
 
@@ -95,13 +95,16 @@ WebGPU works by translating WGSL shaders to native shaders. We observed that the
 Some of the current gaps are caused by chrome's WebGPU implementation inserts bound clips for all array index access, such that `a[i]` becomes `a[min(i, a.size)]`. This can be optimized out as the webgpu support continues to mature
 
 You can get around this by using a special flag to launch chrome(Thanks to Dawn developers for providing the pointers), by exiting chrome completely, then in command line, type
+
 ```
 /path/to/chrome --enable-dawn-features=disable_robustness
 ```
+
 Then you will find that the execution speed is as fast as native gpu environment. We anticipate this problem will get resolved as WebGPU matures. WebGPU just shipped and we are excited to see opportunities it can unblock. There are also a lot of exciting upcoming features we can leverage to further improve things such as fp16 extensions.
 
 
 ## Acknowledgement
+
 This project is made possible thanks to collaboration with 
 
 <a href="https://www.scs.cmu.edu">
