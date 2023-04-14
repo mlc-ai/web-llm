@@ -70,8 +70,8 @@ def encoding_func_asym(group_size: int, transpose: bool=True):
 
     return te_encode_asym
 
-
-def decoding_func_asym(group_size: int, data_transposed: bool=True):
+from tvm import topi
+def decoding_func_asym(group_size: int, data_transposed: bool=True, transpose_output: bool=False):
     def te_decode_asym(data: te.Tensor, scale_bias_bf16x2: te.Tensor):
         def f_decode_asym(i, j):
             if data_transposed:
@@ -80,10 +80,14 @@ def decoding_func_asym(group_size: int, data_transposed: bool=True):
             else:
                 data_f32 = _tir_u32_to_i4_to_f32(data[i, j // 8], j % 8)
                 scale_f32, bias_f32 = _tir_u32_to_bf16x2_to_f32x2(scale_bias_bf16x2[i, j // group_size])
-            return data_f32 * scale_f32 + bias_f32
+            w = data_f32 * scale_f32 + bias_f32
+            return w
 
         shape = (data.shape[0] * 8, data.shape[1]) if data_transposed else (data.shape[0], data.shape[1] * 8)
-        return te.compute(shape=shape, fcompute=f_decode_asym, name="decode")
+        w = te.compute(shape=shape, fcompute=f_decode_asym, name="decode")
+        if transpose_output:
+            w = topi.transpose(w)
+        return w
 
     return te_decode_asym
 # fmt: on
@@ -135,21 +139,29 @@ class GroupQuantize:
                 decode_args[1] = self.builder_.emit(stop_lift_params(decode_args[1]))
                 return decode_args
 
-            def quantize_permute_dims(self, call: relax.Call):
-                if (
-                    call.attrs.axes is not None
-                    or call.args[0].struct_info.ndim != 2
-                    or call.args[0] not in self._params
-                ):
-                    return call
+            def quantize_matmul(self, call:relax.Call):
+                x = call.args[0]
+                call_arg = self.lookup_binding(call.args[1])
+                if call_arg.op == tvm.ir.Op.get("relax.permute_dims"): 
+                    if (
+                        call_arg.attrs.axes is not None
+                        or call_arg.args[0].struct_info.ndim != 2
+                        or call_arg.args[0] not in self._params
+                    ):
+                        return call
+                    transpose_output = x.struct_info.shape[-2] !=1
 
-                decode_args = self.emit_encoding(call.args[0], transpose=True)
-                return self.builder_.call_te(
-                    decoding_func_asym(self.group_size, data_transposed=True),
-                    *decode_args,
-                    primfunc_name_hint="decode"
-                )
-
+                    decode_args = self.emit_encoding(call_arg.args[0], transpose=True)
+                    quantized_permute_dims = self.builder_.call_te(
+                        decoding_func_asym(self.group_size, data_transposed=True, transpose_output=transpose_output),
+                        *decode_args,
+                        primfunc_name_hint="decode"
+                    )
+                    if transpose_output:
+                        quantized_permute_dims = self.builder_.emit(relax.op.permute_dims(quantized_permute_dims))
+                    return self.builder_.emit(relax.op.matmul(call.args[0], quantized_permute_dims))
+                return call
+            
             def quantize_take(self, call: relax.Call):
                 if (
                     call.attrs.axis is not None
@@ -171,8 +183,8 @@ class GroupQuantize:
             def visit_call_(self, call):
                 call = self.visit_expr_post_order(call)
 
-                if call.op == tvm.ir.Op.get("relax.permute_dims"):
-                    return self.quantize_permute_dims(call)
+                if call.op == tvm.ir.Op.get("relax.matmul"):
+                    return self.quantize_matmul(call)
                 elif call.op == tvm.ir.Op.get("relax.take"):
                     return self.quantize_take(call)
                 else:
