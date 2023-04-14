@@ -22,7 +22,7 @@ We also do not want to only do it for just one model. Instead, we would like to 
 
 Besides supporting WebGPU, this project also provides the harness for other kinds of GPU backends that TVM supports (such as CUDA, OpenCL, vulkan) and really enables accessible deployment of LLM models.
 
-## Inference on native GPU runtime with command line interface
+## Inference on native GPU runtime with command line interface (Coming soon)
 
 - Install MLC package. 
 
