@@ -159,7 +159,7 @@ class GroupQuantize:
                     )
                     if transpose_output:
                         quantized_permute_dims = self.builder_.emit(relax.op.permute_dims(quantized_permute_dims))
-                    return self.builder_.emit(relax.op.matmul(call.args[0], quantized_permute_dims))
+                    return relax.op.matmul(call.args[0], quantized_permute_dims)
                 return call
             
             def quantize_take(self, call: relax.Call):
