@@ -13,13 +13,21 @@ def check_x_1dim(ctx: relax.transform.PatternCheckContext) -> bool:
 
 def check_decoding(ctx: relax.transform.PatternCheckContext) -> bool:
     call = ctx.annotated_expr["w"]
+    if (not isinstance(call, relax.Call)):
+        return False
     gv = call.args[0]
+    if (not isinstance(gv, relax.GlobalVar)):
+        return False
     return gv.name_hint.startswith("decode")
 
 
 def check_matmul(ctx: relax.transform.PatternCheckContext) -> bool:
     call = ctx.annotated_expr["matmul"]
+    if (not isinstance(call, relax.Call)):
+        return False
     gv = call.args[0]
+    if (not isinstance(gv, relax.GlobalVar)):
+        return False
     return gv.name_hint.startswith("matmul") or gv.name_hint.startswith("fused_matmul")
 
 
