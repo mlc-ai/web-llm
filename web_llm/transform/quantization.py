@@ -4,7 +4,7 @@ from typing import List
 
 import tvm
 from tvm import relax
-from tvm import te, tir
+from tvm import te, tir, topi
 from tvm.ir.module import IRModule
 from tvm.relax.expr_functor import mutator, PyExprMutator
 from tvm.relax.analysis import remove_all_unused
@@ -86,6 +86,21 @@ def decoding_func_asym(group_size: int, data_transposed: bool=True):
         return te.compute(shape=shape, fcompute=f_decode_asym, name="decode")
 
     return te_decode_asym
+
+
+def decoding_after_taking_func_asym(group_size: int):
+    def te_take_decode_asym(data: te.Tensor, scale_bias_bf16x2: te.Tensor, indices: te.Tensor):
+        assert len(indices.shape) == 1
+
+        def f_decode_asym(i, j):
+            data_f32 = _tir_u32_to_i4_to_f32(data[indices[i], j // 8], j % 8)
+            scale_f32, bias_f32 = _tir_u32_to_bf16x2_to_f32x2(scale_bias_bf16x2[indices[i], j // group_size])
+            return data_f32 * scale_f32 + bias_f32
+
+        shape = (indices.shape[0], data.shape[1] * 8)
+        return te.compute(shape=shape, fcompute=f_decode_asym, name="take_decode")
+
+    return te_take_decode_asym
 # fmt: on
 
 
@@ -160,12 +175,11 @@ class GroupQuantize:
                     return call
 
                 decode_args = self.emit_encoding(call.args[0], transpose=False)
-                decode_args[0] = self.builder_.emit(relax.op.take(decode_args[0], call.args[1], 0))
-                decode_args[1] = self.builder_.emit(relax.op.take(decode_args[1], call.args[1], 0))
+                decode_args += (call.args[1],)
                 return self.builder_.call_te(
-                    decoding_func_asym(self.group_size, data_transposed=False),
+                    decoding_after_taking_func_asym(self.group_size),
                     *decode_args,
-                    primfunc_name_hint="decode"
+                    primfunc_name_hint="take_decode"
                 )
 
             def visit_call_(self, call):
