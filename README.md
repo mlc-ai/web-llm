@@ -117,7 +117,7 @@ This project is made possible thanks to collaboration with
 <img src="site/img/logo/octoml.png" alt="OctoML" height="50"/>
 </a>
 <a href="https://www.cs.washington.edu/">
-<img src="site/img/logo/uw.svg" alt="UW" height="50"/>
+<img src="site/img/logo/uw.jpg" alt="UW" height="50"/>
 </a>
 <a href="https://en.sjtu.edu.cn/">
 <img src="site/img/logo/sjtu.png" alt="SJTU" height="50"/>
