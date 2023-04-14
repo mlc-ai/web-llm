@@ -36,6 +36,10 @@ class Conversation {
     return ret;
   }
 
+  reset() {
+    this.messages = [];
+  }
+
   getStopStr() {
     return this.seps[this.seps.length - 1];
   }
@@ -229,6 +233,11 @@ class LLMChatPipeline {
       throw Error("Exceed max window length curr=" + tokens.length);
     }
     return tokens;
+  }
+
+  resetChat() {
+    this.conversation.reset();
+    this.#clearKVCache();
   }
 
   async generate(inputPrompt, callbackUpdateResponse) {
@@ -487,6 +496,18 @@ class LLMChatInstance {
     }
   }
 
+  resetChat() {
+    if (this.requestInProgress) return;
+    const clearTags = ["left", "right"];
+    for (const tag of clearTags) {
+      const matches = this.uiChat.getElementsByClassName(`msg ${tag}-msg`);
+      for (const item of matches) {
+        item.remove();
+      }
+    }
+    this.pipeline.resetChat();
+  }
+
   /**
    * Run generate
    */
@@ -560,4 +581,8 @@ localLLMChatIntance = new LLMChatInstance();
 
 tvmjsGlobalEnv.asyncOnGenerate = async function () {
   await localLLMChatIntance.generate();
+};
+
+tvmjsGlobalEnv.asyncOnReset = async function () {
+  await localLLMChatIntance.resetChat();
 };

@@ -97,17 +97,30 @@
    background: #ddd;
  }
 
- .chatui-send-btn {
+ .chatui-reset-btn {
    margin-left: 10px;
-   background: #579ffb;
-   color: #fff;
+   background: #ececec;
    font-weight: bold;
+   border-radius: 8px;
+   width: 200px;
    cursor: pointer;
  }
 
- .chatui-send-btn:hover {
-   background: #577bfb;
- }
+ .chatui-reset-btn:hover {
+  background: #dcdada;
+}
+
+ .chatui-send-btn {
+  margin-left: 10px;
+  background: #579ffb;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.chatui-send-btn:hover {
+  background: #577bfb;
+}
 
  .chatui-chat {
    background-color: #fcfcfe;
