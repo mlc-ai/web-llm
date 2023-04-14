@@ -1885,7 +1885,87 @@ def fused_NT_matmul3_add1_after(p_lv43: T.handle, linear_weight5: T.Buffer((T.in
                                     var_T_add_intermediate[v_i0 + v0, v_i1_o * T.int64(32) + v1, v2] = lv36[v_i0 + v0, v_i1_o * T.int64(32) + v1, v2] + var_NT_matmul_intermediate_pad_local[v0, v1, v2]
 # fmt: on
 
+@T.prim_func
+def decode6(rxplaceholder: T.Buffer((T.int64(512), T.int64(4096)), "uint32"), rxplaceholder_1: T.Buffer((T.int64(128), T.int64(4096)), "uint32"), T_transpose: T.Buffer((T.int64(4096), T.int64(4096)), "float32")):
+    T.func_attr({"op_pattern": 2, "tir.noalias": T.bool(True)})
+    # with T.block("root"):
+    decode = T.alloc_buffer((T.int64(4096), T.int64(4096)))
+    for i, j in T.grid(T.int64(4096), T.int64(4096)):
+        with T.block("decode"):
+            v_i, v_j = T.axis.remap("SS", [i, j])
+            T.reads(rxplaceholder[v_i // T.int64(8), v_j], rxplaceholder_1[v_i // T.int64(32), v_j])
+            T.writes(decode[v_i, v_j])
+            decode[v_i, v_j] = T.Cast("float32", T.bitwise_and(T.shift_right(rxplaceholder[v_i // T.int64(8), v_j], T.Cast("uint32", v_i % T.int64(8) * T.int64(4))), T.uint32(15))) * T.reinterpret("float32", T.shift_left(T.bitwise_and(rxplaceholder_1[v_i // T.int64(32), v_j], T.uint32(65535)), T.uint32(16))) + T.reinterpret("float32", T.shift_left(T.bitwise_and(T.shift_right(rxplaceholder_1[v_i // T.int64(32), v_j], T.uint32(16)), T.uint32(65535)), T.uint32(16)))
+    for ax0, ax1 in T.grid(T.int64(4096), T.int64(4096)):
+        with T.block("T_transpose"):
+            v_ax0, v_ax1 = T.axis.remap("SS", [ax0, ax1])
+            T.reads(decode[v_ax1, v_ax0])
+            T.writes(T_transpose[v_ax0, v_ax1])
+            T_transpose[v_ax0, v_ax1] = decode[v_ax1, v_ax0]
 
+@T.prim_func
+def decode7(rxplaceholder: T.Buffer((T.int64(512), T.int64(11008)), "uint32"), rxplaceholder_1: T.Buffer((T.int64(128), T.int64(11008)), "uint32"), T_transpose: T.Buffer((T.int64(11008), T.int64(4096)), "float32")):
+    T.func_attr({"op_pattern": 2, "tir.noalias": T.bool(True)})
+    # with T.block("root"):
+    decode = T.alloc_buffer((T.int64(4096), T.int64(11008)))
+    for i, j in T.grid(T.int64(4096), T.int64(11008)):
+        with T.block("decode"):
+            v_i, v_j = T.axis.remap("SS", [i, j])
+            T.reads(rxplaceholder[v_i // T.int64(8), v_j], rxplaceholder_1[v_i // T.int64(32), v_j])
+            T.writes(decode[v_i, v_j])
+            decode[v_i, v_j] = T.Cast("float32", T.bitwise_and(T.shift_right(rxplaceholder[v_i // T.int64(8), v_j], T.Cast("uint32", v_i % T.int64(8) * T.int64(4))), T.uint32(15))) * T.reinterpret("float32", T.shift_left(T.bitwise_and(rxplaceholder_1[v_i // T.int64(32), v_j], T.uint32(65535)), T.uint32(16))) + T.reinterpret("float32", T.shift_left(T.bitwise_and(T.shift_right(rxplaceholder_1[v_i // T.int64(32), v_j], T.uint32(16)), T.uint32(65535)), T.uint32(16)))
+    for ax0, ax1 in T.grid(T.int64(11008), T.int64(4096)):
+        with T.block("T_transpose"):
+            v_ax0, v_ax1 = T.axis.remap("SS", [ax0, ax1])
+            T.reads(decode[v_ax1, v_ax0])
+            T.writes(T_transpose[v_ax0, v_ax1])
+            T_transpose[v_ax0, v_ax1] = decode[v_ax1, v_ax0]
+
+@T.prim_func
+def decode8(rxplaceholder: T.Buffer((T.int64(1376), T.int64(4096)), "uint32"), rxplaceholder_1: T.Buffer((T.int64(344), T.int64(4096)), "uint32"), T_transpose: T.Buffer((T.int64(4096), T.int64(11008)), "float32")):
+    T.func_attr({"op_pattern": 2, "tir.noalias": T.bool(True)})
+    # with T.block("root"):
+    decode = T.alloc_buffer((T.int64(11008), T.int64(4096)))
+    for i, j in T.grid(T.int64(11008), T.int64(4096)):
+        with T.block("decode"):
+            v_i, v_j = T.axis.remap("SS", [i, j])
+            T.reads(rxplaceholder[v_i // T.int64(8), v_j], rxplaceholder_1[v_i // T.int64(32), v_j])
+            T.writes(decode[v_i, v_j])
+            decode[v_i, v_j] = T.Cast("float32", T.bitwise_and(T.shift_right(rxplaceholder[v_i // T.int64(8), v_j], T.Cast("uint32", v_i % T.int64(8) * T.int64(4))), T.uint32(15))) * T.reinterpret("float32", T.shift_left(T.bitwise_and(rxplaceholder_1[v_i // T.int64(32), v_j], T.uint32(65535)), T.uint32(16))) + T.reinterpret("float32", T.shift_left(T.bitwise_and(T.shift_right(rxplaceholder_1[v_i // T.int64(32), v_j], T.uint32(16)), T.uint32(65535)), T.uint32(16)))
+    for ax0, ax1 in T.grid(T.int64(4096), T.int64(11008)):
+        with T.block("T_transpose"):
+            v_ax0, v_ax1 = T.axis.remap("SS", [ax0, ax1])
+            T.reads(decode[v_ax1, v_ax0])
+            T.writes(T_transpose[v_ax0, v_ax1])
+            T_transpose[v_ax0, v_ax1] = decode[v_ax1, v_ax0]
+            
+def decode_sch_func(orig_func):
+    sch = tvm.tir.Schedule(orig_func)
+    b0 = sch.get_block(name="decode", func_name="main")
+    l1, l2 = sch.get_loops(block=b0)
+    l3, l4 = sch.split(loop=l1, factors=[None, 8], preserve_unit_iters=True)
+    v5, v6, v7 = sch.sample_perfect_tile(loop=l3, n=3, max_innermost_factor=4, decision=[32, 8, 2])
+    l8, l9, l10 = sch.split(loop=l3, factors=[v5, v6, v7], preserve_unit_iters=True)
+    v11, v12 = sch.sample_perfect_tile(loop=l2, n=2, max_innermost_factor=16, decision=[256, 16])
+    l13, l14 = sch.split(loop=l2, factors=[v11, v12], preserve_unit_iters=True)
+    sch.reorder(l8, l13, l9, l14, l10, l4)
+    sch.bind(loop=l8, thread_axis="blockIdx.y")
+    sch.bind(loop=l13, thread_axis="blockIdx.x")
+    sch.bind(loop=l9, thread_axis="threadIdx.y")
+    sch.bind(loop=l14, thread_axis="threadIdx.x")
+    sch.unroll(loop=l4)
+    b15 = sch.cache_write(block=b0, write_buffer_index=0, storage_scope="shared")
+    sch.compute_inline(block=b15)
+    b16 = sch.get_block(name="T_transpose", func_name="main")
+    sch.reverse_compute_at(block=b16, loop=l13, preserve_unit_loops=True, index=-1)
+    b17 = sch.get_block(name="T_transpose", func_name="main")
+    l18, l19, l20, l21 = sch.get_loops(block=b17)
+    l22 = sch.fuse(l20, l21, preserve_unit_iters=True)
+    l23, l24, l25 = sch.split(loop=l22, factors=[None, v12, 4], preserve_unit_iters=True)
+    sch.bind(loop=l24, thread_axis="threadIdx.x")
+    sch.vectorize(loop=l25)
+    sch.storage_align(block=b0, buffer_index=0, axis=0, factor=32, offset=1)
+    return sch.mod["main"].with_attr("tir.is_scheduled", 1)
 ################################################
 
 tir_dispatch_dict = {
@@ -1914,6 +1994,9 @@ tir_dispatch_dict = {
     ): fused_NT_matmul2_multiply_after,
     tvm.ir.structural_hash(fused_NT_matmul2_silu_before): fused_NT_matmul2_silu_after,
     tvm.ir.structural_hash(fused_NT_matmul3_add1_before): fused_NT_matmul3_add1_after,
+    tvm.ir.structural_hash(decode6): decode_sch_func(decode6),
+    tvm.ir.structural_hash(decode7): decode_sch_func(decode7),
+    tvm.ir.structural_hash(decode8): decode_sch_func(decode8),
 }
 
 
@@ -1929,7 +2012,6 @@ class DispatchTIROperator:
     def transform_module(
         self, mod: IRModule, ctx: tvm.transform.PassContext
     ) -> IRModule:
-
         for gv in mod.functions:
             scheduled_func = lookup_func(mod[gv])
             if scheduled_func is not None:
