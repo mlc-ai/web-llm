@@ -23,6 +23,7 @@ Won’t it be even more amazing if we can simply open up a browser and directly 
 ## Instructions
 
 WebGPU just shipped to Chrome and is in beta. We do our experiments in [Chrome Canary](https://www.google.com/chrome/canary/).  You can also try out the latest Chrome 113. Chrome version ≤ 112 is not supported.
+We have tested it on windows and mac, you will need a gpu with about 6.4G memory.
 
 If you have a Mac computer with Apple silicon, here are the instructions for you to run the chatbot demo on your browser locally:
 
