@@ -8,7 +8,7 @@ notitle: true
 
 This project brings large-language model and LLM-based chatbot to web browsers. **Everything runs inside the browser with no server support and accelerated with WebGPU.** This opens up a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration. Please check out our [GitHub repo](https://github.com/mlc-ai/web-llm) to see how we did it. There is also a [demo](#chat-demo) which you can try out.
 
-<img src="img/fig/pitts.png"/>
+<img src="img/fig/pitts.png" width="100%">
 
 We have been seeing amazing progress in generative AI and LLM recently. Thanks to the open-source efforts like LLaMA, Alpaca, Vicuna and Dolly, we start to see an exciting future of building our own open source language models and personal AI assistant.
 
