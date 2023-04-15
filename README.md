@@ -2,7 +2,7 @@
 
 This project brings language model chats directly onto web browsers. **Everything runs inside the browser with no server support.**
 
-<screen shot>
+<img src="site/img/fig/demo.gif">
 
 We have been seeing amazing progress in generative AI and LLM recently. Thanks to the open-source efforts like LLaMA, Alpaca, Vicuna, and Dolly, we can now see an exciting future of building our own open-source language models and personal AI assistant.
 
