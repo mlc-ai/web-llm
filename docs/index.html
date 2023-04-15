@@ -80,6 +80,8 @@
 
 <p>This project brings large-language model and LLM-based chatbot to web browsers. <strong>Everything runs inside the browser with no server support and accelerated with WebGPU.</strong> This opens up a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration. Please check out our <a href="https://github.com/mlc-ai/web-llm">GitHub repo</a> to see how we did it. There is also a <a href="#chat-demo">demo</a> which you can try out.</p>
 
+<p><img src="img/fig/pitts.png" /></p>
+
 <p>We have been seeing amazing progress in generative AI and LLM recently. Thanks to the open-source efforts like LLaMA, Alpaca, Vicuna and Dolly, we start to see an exciting future of building our own open source language models and personal AI assistant.</p>
 
 <p>These models are usually big and compute-heavy. To build a chat service, we will need a large cluster to run an inference server, while clients send requests to servers and retrieve the inference output. We also usually have to run on a specific type of GPUs where popular deep-learning frameworks are readily available.</p>
@@ -90,7 +92,7 @@
 
 <h2 id="instructions">Instructions</h2>
 
-<p>WebGPU just shipped to Chrome and is in beta. We do our experiments in <a href="https://www.google.com/chrome/canary/">Chrome Canary</a>.  You can also try out the latest Chrome 113.</p>
+<p>WebGPU just shipped to Chrome and is in beta. We do our experiments in <a href="https://www.google.com/chrome/canary/">Chrome Canary</a>.  You can also try out the latest Chrome 113. Chrome version ≤ 112 is not supported.</p>
 
 <p>If you have a Mac computer with Apple silicon, here are the instructions for you to run the chatbot demo on your browser locally:</p>
 
