@@ -589,7 +589,7 @@
 	            const adapterInfo = yield adapter.requestAdapterInfo();
 	            const device = yield adapter.requestDevice({
 	                requiredLimits: {
-	                    maxBufferSize: 1 << 30,
+	                    maxBufferSize: 256 << 20,
 	                    maxStorageBufferBindingSize: 1 << 30,
 	                    maxComputeWorkgroupStorageSize: 32 << 10,
 	                }
