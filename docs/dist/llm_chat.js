@@ -99,6 +99,11 @@ class LLMChatPipeline {
     this.meanGenLength = config.meanGenLength;
     this.streamInterval = 1;
 
+    this.decodingTotalTime = 0;
+    this.decodingTotalTokens = 0;
+    this.encodingTotalTime = 0;
+    this.encodingTotalTokens = 0;
+
     this.conversation = defaultConversation();
 
     this.device = this.tvm.webgpu();
@@ -238,6 +243,10 @@ class LLMChatPipeline {
   resetChat() {
     this.conversation.reset();
     this.#clearKVCache();
+    this.decodingTotalTime = 0;
+    this.encodingTotalTime = 0;
+    this.decodingTotalTokens = 0;
+    this.encodingTotalTokens = 0;
   }
 
   async generate(inputPrompt, callbackUpdateResponse) {
@@ -257,6 +266,8 @@ class LLMChatPipeline {
     for (let step = 0; step < maxGenLen; ++step) {
       this.tvm.beginScope();
       var inputData;
+
+      let tstart = performance.now();
       if (step == 0) {
         inputData = this.tvm.empty([1, tokens.length], "int32", this.device);
         inputData.copyFrom(tokens);
@@ -283,6 +294,15 @@ class LLMChatPipeline {
         outputPrompt = outputPrompt.substring(0, stopPos);
         break;
       }
+      let tend = performance.now();
+      if (step != 0) {
+        this.decodingTotalTokens += 1;
+        this.decodingTotalTime += (tend - tstart) / 1000;
+      } else {
+        this.encodingTotalTime += (tend - tstart) / 1000;
+        this.encodingTotalTokens += inputTokenLength;
+      }
+
       if (step % this.streamInterval == 0) {
         callbackUpdateResponse(step, outputPrompt);
       }
@@ -335,6 +355,13 @@ class LLMChatPipeline {
    */
   async asyncLoadWebGPUPiplines() {
     await this.tvm.asyncLoadWebGPUPiplines(this.vm.getInternalModule());
+  }
+
+  runtimeStatsText() {
+    return (
+      `encoding: ${(this.encodingTotalTokens / this.encodingTotalTime).toFixed(4)} tokens/sec, ` +
+      `decoding: ${(this.decodingTotalTokens / this.decodingTotalTime).toFixed(4)} tokens/sec`
+    )
   }
 }
 
@@ -425,6 +452,7 @@ class LLMChatInstance {
     this.config = await (await fetch("llm-chat-config.json")).json();
     this.uiChat = document.getElementById("chatui-chat");
     this.uiChatInput = document.getElementById("chatui-input");
+    this.uiChatInfoLabel = document.getElementById("chatui-info-label");
   }
 
   /**
@@ -498,6 +526,7 @@ class LLMChatInstance {
         item.remove();
       }
     }
+    this.uiChatInfoLabel.innerHTML = "";
     this.pipeline.resetChat();
   }
 
@@ -549,6 +578,7 @@ class LLMChatInstance {
     try {
       const output = await this.pipeline.generate(prompt, callbackUpdateResponse);
       this.updateLastMessage("left", output);
+      this.uiChatInfoLabel.innerHTML = this.pipeline.runtimeStatsText();
     } catch (err) {
       this.appendMessage("error", "Generate error, " + err.toString());
       console.log(err.stack);

@@ -78,11 +78,7 @@
             
                 <h1 id="web-llm">Web LLM</h1>
 
-<p>This project brings chat with open large language models (LLMs)  directly onto web browsers. Everything runs inside the browser with no server support.</p>
-
-<p>This project brings large-language model and LLM-based chatbot to web browsers.
-Everything runs inside the browser with no need of server support.
-Please check out our <a href="https://github.com/mlc-ai/web-llm">GitHub repo</a> to see how we did it. There is also a <a href="#chat-demo">demo</a> which you can try out.</p>
+<p>This project brings large-language model and LLM-based chatbot to web browsers. <strong>Everything runs inside the browser with no server support and accelerated with WebGPU.</strong> This opens up a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration. Please check out our <a href="https://github.com/mlc-ai/web-llm">GitHub repo</a> to see how we did it. There is also a <a href="#chat-demo">demo</a> which you can try out.</p>
 
 <p>We have been seeing amazing progress in generative AI and LLM recently. Thanks to the open-source efforts like LLaMA, Alpaca, Vicuna and Dolly, we start to see an exciting future of building our own open source language models and personal AI assistant.</p>
 
@@ -109,6 +105,8 @@ Please check out our <a href="https://github.com/mlc-ai/web-llm">GitHub repo</a>
 </ul>
 
 <h2 id="chat-demo">Chat Demo</h2>
+
+<p>The chat demo is based on <a href="https://huggingface.co/lmsys/vicuna-7b-delta-v0">vicuna-7b-v0</a> model. More model support are on the way.</p>
 
 <script>
   var tvmjsGlobalEnv = tvmjsGlobalEnv || {};
@@ -151,6 +149,7 @@ Please check out our <a href="https://github.com/mlc-ai/web-llm">GitHub repo</a>
 
 <div class="chatui-extra-control">
   <button class="chatui-reset-btn" onclick="tvmjsGlobalEnv.asyncOnReset()">Reset</button>
+  <label id="chatui-info-label"></label>
 </div>
 
 <h2 id="disclaimer">Disclaimer</h2>
