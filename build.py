@@ -105,10 +105,11 @@ def mod_transform_before_build(
     """First-stage: Legalize ops and trace"""
     model_names = ["encoding", "decoding", "encoding_without_cache"]
 
+    mod = web_llm.transform.GroupQuantize(group_size=32, sym=False)(mod)
     mod = web_llm.transform.FuseTransposeMatmul()(mod)
+
     # NOTE: enable pipeline after fusion getting fixed.
     # mod = relax.pipeline.get_pipeline()(mod)
-
     mod = relax.transform.LegalizeOps()(mod)
     mod = relax.transform.AnnotateTIROpPattern()(mod)
     mod["full"] = mod["full"].with_attr("op_pattern", 8)
@@ -116,7 +117,7 @@ def mod_transform_before_build(
     mod = relax.transform.FuseOps()(mod)
     mod = relax.transform.FuseTIR()(mod)
 
-    mod = web_llm.transform.GroupQuantize(group_size=32, sym=False)(mod)
+    mod = web_llm.transform.FuseDecodeMatmulEwise()(mod)
     mod = relax.transform.DeadCodeElimination(model_names)(mod)
     mod = relax.transform.LiftTransformParams()(mod)
     mod_transform, mod_deploy = utils.split_transform_deploy_mod(mod, model_names)
