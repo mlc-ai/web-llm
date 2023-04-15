@@ -6,11 +6,7 @@ notitle: true
 
 # Web LLM
 
-This project brings chat with open large language models (LLMs)  directly onto web browsers. Everything runs inside the browser with no server support.
-
-This project brings large-language model and LLM-based chatbot to web browsers.
-Everything runs inside the browser with no need of server support.
-Please check out our [GitHub repo](https://github.com/mlc-ai/web-llm) to see how we did it. There is also a [demo](#chat-demo) which you can try out.
+This project brings chat with open large language models (LLMs) directly onto web browsers. **Everything runs inside the browser with no server support.** Please check out our [GitHub repo](https://github.com/mlc-ai/web-llm) to see how we did it. There is also a [demo](#chat-demo) which you can try out.
 
 We have been seeing amazing progress in generative AI and LLM recently. Thanks to the open-source efforts like LLaMA, Alpaca, Vicuna and Dolly, we start to see an exciting future of building our own open source language models and personal AI assistant.
 
