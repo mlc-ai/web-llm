@@ -59,6 +59,24 @@ def debug_dump_script(mod, name, args):
     print(f"Dump mod to {dump_path}")
 
 
+def debug_dump_shader(ex, name, args):
+    """Debug dump mode"""
+    if not args.debug_dump:
+        return
+    target_kind = args.target.kind.default_keys[0]
+    suffix_map = {
+        "webgpu": ".wgsl",
+        "cuda": ".cu",
+        "metal": ".mtl",
+    }
+    suffix = suffix_map.get(target_kind, ".txt")
+    dump_path = os.path.join(args.artifact_path, "debug", name + suffix)
+    source = ex.mod.imported_modules[0].imported_modules[0].get_source()
+    with open(dump_path, "w") as outfile:
+        outfile.write(source)
+    print(f"Dump shader to {dump_path}")
+
+
 def get_models(config, model):
     if "vicuna" in model or "llama" in model:
         bb = relax.BlockBuilder()
@@ -152,6 +170,7 @@ def build(mod_deploy: tvm.IRModule, args: Dict) -> None:
     else:
         output_filename = f"{args.model}_{target_kind}.so"
 
+    debug_dump_shader(ex, f"{args.model}_{target_kind}", args)
     ex.export_library(os.path.join(args.artifact_path, output_filename))
 
 
