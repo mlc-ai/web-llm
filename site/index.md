@@ -6,11 +6,7 @@ notitle: true
 
 # Web LLM
 
-This project brings chat with open large language models (LLMs)  directly onto web browsers. Everything runs inside the browser with no server support.
-
-This project brings large-language model and LLM-based chatbot to web browsers.
-Everything runs inside the browser with no need of server support.
-Please check out our [GitHub repo](https://github.com/mlc-ai/web-llm) to see how we did it. There is also a [demo](#chat-demo) which you can try out.
+This project brings large-language model and LLM-based chatbot to web browsers. **Everything runs inside the browser with no server support and accelerated with WebGPU.** This opens up a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration. Please check out our [GitHub repo](https://github.com/mlc-ai/web-llm) to see how we did it. There is also a [demo](#chat-demo) which you can try out.
 
 We have been seeing amazing progress in generative AI and LLM recently. Thanks to the open-source efforts like LLaMA, Alpaca, Vicuna and Dolly, we start to see an exciting future of building our own open source language models and personal AI assistant.
 
@@ -35,6 +31,8 @@ If you have a Mac computer with Apple silicon, here are the instructions for you
 - Enter your inputs, click “Send” – we are ready to go! The chat bot will first fetch model parameters into local cache. The download may take a few minutes, only for the first run. The subsequent refreshes and runs will be faster.
 
 ## Chat Demo
+
+The chat demo is based on [vicuna-7b-v0](https://huggingface.co/lmsys/vicuna-7b-delta-v0) model. More model support are on the way.
 
 {% include llm_chat.html %}
 
