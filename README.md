@@ -4,60 +4,27 @@ This project brings language model chats directly onto web browsers. Everything 
 
 <screen shot>
 
-We have been seeing amazing progress in generative AI and LLM recently. Thanks to the open-source efforts like Llama, alpaca, vicuna and dolly, we start to see an exciting future of building our own open source language models and personal AI assistant.
+We have been seeing amazing progress in generative AI and LLM recently. Thanks to the open-source efforts like Llama, Alpaca, Vicuna, and Dolly, we can now see an exciting future of building our own open-source language models and personal AI assistant.
 
 These models are usually big and compute-heavy. To build a chat service, we will need a large cluster to run an inference server, while clients send requests to servers and retrieve the inference output. We also usually have to run on a specific type of GPUs where popular deep-learning frameworks are readily available.
 
-This project is our step to bring more diversity to the ecosystem. Specifically, can we simply bake LLMs directly into the client side and directly run them inside a browser? If that can be realized, we could offer support for client personal AI models with the benefit of cost reduction, enhancement for personalization and privacy protection. The client side is getting pretty powerful. For example, the latest MacBook Pro can have more than 60G+ unified GPU RAM that can be used to store the model weights and a reasonably powerful GPU to run many of the workloads.
+This project is our step to bring more diversity to the ecosystem. Specifically, can we simply bake LLMs directly into the client side and directly run them inside a browser? If that can be realized, we could offer support for client personal AI models with the benefit of cost reduction, enhancement for personalization, and privacy protection. The client side is getting pretty powerful. For example, the latest MacBook Pro can have more than 60G+ unified GPU RAM that can be used to store the model weights and a reasonably powerful GPU to run many workloads.
 
-Won’t it be even more amazing if we can simply open up a browser and directly bring AI natively to your browser tab? There is some level of readiness in the ecosystem. WebGPU just shipped and enables native GPU executions on the browser.
+Won’t it be even more amazing if we can simply open up a browser and directly bring AI natively to your browser tab? There is some level of readiness in the ecosystem. WebGPU has just shipped and enables native GPU executions on the browser.
 
 Still, there are big hurdles to cross, to name a few:
 
-- We need to bring the models somewhere without the relevant GPU accelerated python frameworks.
-- Most of the AI frameworks have a heavy reliance on optimized computed libraries that are maintained by hardware vendors. We need to start from zero.
-- Careful planning of memory usage, and aggressive compression of weights so we can fit the models into memory. 
+- We need to bring the models somewhere without the relevant GPU-accelerated Python frameworks.
+- Most of the AI frameworks rely heavily on optimized computed libraries that are maintained by hardware vendors. We need to start from scratch.
+- Careful planning of memory usage, and aggressive compression of weights so that we can fit the models into memory. 
 
-We also do not want to only do it for just one model. Instead, we would like to present a repeatable and hackable workflow that enables anyone to easily develop and optimize these models in a productive python first approach, and universally deploy them everywhere, including the web. 
+We also do not want to only do it for just one model. Instead, we would like to present a repeatable and hackable workflow that enables anyone to easily develop and optimize these models in a productive Python-first approach, and deploy them universally, including on the web.
 
-Besides supporting WebGPU, this project also provides the harness for other kinds of GPU backends that TVM supports (such as CUDA, OpenCL, vulkan) and really enables accessible deployment of LLM models.
+Besides supporting WebGPU, this project also provides the harness for other kinds of GPU backends that TVM supports (such as CUDA, OpenCL, and Vulkan) and really enables accessible deployment of LLM models.
 
-## Inference on native GPU runtime with command line interface (Coming soon)
+## Inference on native GPU runtime with command line interface
 
-- Install MLC package. 
-
-  ```
-  pip3 install mlc-ai-nightly -f https://mlc.ai/wheels
-  ```
-
-- Get Model
-
-  You need to retrieve model weights first before building model.
-
-  - Vicuna: See [here](https://github.com/lm-sys/FastChat#vicuna-weights)  for instructions on getting vicuna weights.
-  - LLaMA: Get the original LLaMA weights in the huggingface format by following the instructions [here](https://huggingface.co/docs/transformers/main/model_doc/llama)
-
-  Create a soft link of your model path under dist/models
-
-  ```
-  ln -s your_model_path dist/models/your_model
-  ```
-
-  Supported models for now: vicuna-7b, llama-7b
-
-- Import, optimize and build model
-
-  ```
-  python3 build.py —model vicuna-7b
-  ```
-
-- To run chat bot on a native GPU runtime 
-
-  ```
-  python3 chat.py --model vicuna-7b [--max-gen-len 512 (default to 128)]
-  ```
-
-
+ - Coming soon
 
 ## How 
 
