@@ -362,15 +362,7 @@ class LLMChatInstance {
     if (this.tvm !== undefined) {
       return;
     }
-
-    if (document.getElementById("log") !== undefined) {
-      this.logger = function(message) {
-        console.log(message);
-        const d = document.createElement("div");
-        d.innerHTML = message;
-        document.getElementById("log").appendChild(d);
-      };
-    }
+    this.logger = console.log;
 
     const wasmSource = await (
       await fetch(wasmUrl)
