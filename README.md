@@ -24,10 +24,6 @@ We also do not want to only do it for just one model. Instead, we would like to 
 
 Besides supporting WebGPU, this project also provides the harness for other kinds of GPU backends that TVM supports (such as CUDA, OpenCL, and Vulkan) and really enables accessible deployment of LLM models.
 
-## Inference on native GPU runtime with command line interface
-
- - Coming soon
-
 ## How 
 
 The key technology here is machine learning compilation (MLC). Our solution builds on the shoulders of the open source ecosystem, including Hugging Face, model variants from LLaMA and Vicuna, wasm and WebGPU. The main flow builds on Apache TVM Unity, an exciting ongoing development in the [Apache TVM Community](https://github.com/apache/tvm/) 
