@@ -1,6 +1,6 @@
 # Web LLM
 
-This project brings language model chats directly onto web browsers. **Everything runs inside the browser with no server support.**
+This project brings language model chats directly onto web browsers. **Everything runs inside the browser with no server support and accelerated with WebGPU.** We can bring a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration.
 
 **[Check out our demo webpage to try out!](https://mlc.ai/web-llm/)**
 
