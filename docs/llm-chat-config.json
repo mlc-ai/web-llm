@@ -5,9 +5,9 @@
         "dtype": "float32"
     },
     "wasmUrl": "dist/vicuna-7b/vicuna-7b_webgpu.wasm",
-    "cacheUrl": "https://huggingface.co/mlc-ai/web-lm/resolve/main/vicuna-v0/",
+    "cacheUrl": "https://huggingface.co/mlc-ai/web-lm/resolve/main/vicuna-0b/",
     "tokenizer": "dist/vicuna-7b/tokenizer.model",
-    "maxGenLength": 256,
+    "maxGenLength": 512,
     "meanGenLength": 128,
     "maxWindowLength": 2048
 }
