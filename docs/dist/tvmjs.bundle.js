@@ -586,12 +586,36 @@
 	            if (adapter == null) {
 	                throw Error("Cannot find adapter that matches the request");
 	            }
+	            const computeMB = (value) => {
+	                return Math.ceil(value / (1 << 20)) + "MB";
+	            };
+	            // more detailed error message
+	            const requiedMaxBufferSize = 1 << 30;
+	            if (requiedMaxBufferSize > adapter.limits.maxBufferSize) {
+	                throw Error(`Cannot initialize runtime because of requested maxBufferSize ` +
+	                    `exceeds limit. requested=${computeMB(requiedMaxBufferSize)}, ` +
+	                    `limit=${computeMB(adapter.limits.maxBufferSize)}. ` +
+	                    `This error may be caused by an older version of the browser (e.g. Chrome 112). ` +
+	                    `You can try to upgrade your browser to Chrome 113 or later.`);
+	            }
+	            const requiredMaxStorageBufferBindingSize = 1 << 30;
+	            if (requiredMaxStorageBufferBindingSize > adapter.limits.maxStorageBufferBindingSize) {
+	                throw Error(`Cannot initialize runtime because of requested maxStorageBufferBindingSize ` +
+	                    `exceeds limit. requested=${computeMB(requiredMaxStorageBufferBindingSize)}, ` +
+	                    `limit=${computeMB(adapter.limits.maxStorageBufferBindingSize)}. `);
+	            }
+	            const requiredMaxComputeWorkgroupStorageSize = 32 << 10;
+	            if (requiredMaxComputeWorkgroupStorageSize > adapter.limits.maxComputeWorkgroupStorageSize) {
+	                throw Error(`Cannot initialize runtime because of requested maxComputeWorkgroupStorageSize ` +
+	                    `exceeds limit. requested=${requiredMaxComputeWorkgroupStorageSize}, ` +
+	                    `limit=${computeMB(adapter.limits.maxComputeWorkgroupStorageSize)}. `);
+	            }
 	            const adapterInfo = yield adapter.requestAdapterInfo();
 	            const device = yield adapter.requestDevice({
 	                requiredLimits: {
-	                    maxBufferSize: 1 << 30,
-	                    maxStorageBufferBindingSize: 1 << 30,
-	                    maxComputeWorkgroupStorageSize: 32 << 10,
+	                    maxBufferSize: requiedMaxBufferSize,
+	                    maxStorageBufferBindingSize: requiredMaxStorageBufferBindingSize,
+	                    maxComputeWorkgroupStorageSize: requiredMaxComputeWorkgroupStorageSize,
 	                }
 	            });
 	            return {
