@@ -22,7 +22,7 @@ Won’t it be even more amazing if we can simply open up a browser and directly 
 
 ## Instructions
 
-WebGPU just shipped to Chrome and is in beta. We do our experiments in [Chrome Canary](https://www.google.com/chrome/canary/).  You can also try out the latest Chrome 113. Chrome version ≤ 112 is not supported.
+WebGPU just shipped to Chrome and is in beta. We do our experiments in [Chrome Canary](https://www.google.com/chrome/canary/).  You can also try out the latest Chrome 113. Chrome version ≤ 112 is not supported, and if you are using it, the demo will raise an error like `Find an error initializing the WebGPU device OperationError: Required limit (1073741824) is greater than the supported limit (268435456). - While validating maxBufferSize - While validating required limits.`
 We have tested it on windows and mac, you will need a gpu with about 6.4G memory.
 
 If you have a Mac computer with Apple silicon, here are the instructions for you to run the chatbot demo on your browser locally:
