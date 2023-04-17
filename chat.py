@@ -1,14 +1,19 @@
-from typing import List, Optional
 import argparse
 import os
+from typing import Callable
 
 import torch
-from web_llm import utils
-
-from transformers import AutoTokenizer, AutoModelForCausalLM
 import tvm
+from transformers import AutoModelForCausalLM, AutoTokenizer
 from tvm import relax
+
+from web_llm import utils
 from web_llm.conversation import SeparatorStyle, conv_templates
+from web_llm.relax_model import dolly
+
+NUM_HIDDEN_LAYERS = 32
+HIDDEN_DIM = 4096
+NUM_ATTENTION_HEADS = 32
 
 
 def _parse_args():
@@ -16,12 +21,36 @@ def _parse_args():
     args.add_argument("--device-name", type=str, default="auto")
     args.add_argument("--debug-dump", action="store_true", default=False)
     args.add_argument("--artifact-path", type=str, default="dist")
-    args.add_argument("--model", type=str, default="vicuna-7b-v1")
+    args.add_argument(
+        "--model",
+        type=str,
+        default="dolly-v2-3b",
+        choices=[
+            "vicuna-7b-v1",
+            "dolly-v2-3b",
+            "dolly-v2-7b",
+            "dolly-v2-12b",
+        ],
+    )
     args.add_argument("--max-gen-len", type=int, default=128)
     args.add_argument("--run-torch-model", action="store_true", default=False)
     parsed = args.parse_args()
     parsed.model_path = os.path.join(parsed.artifact_path, "models", parsed.model)
     parsed.artifact_path = os.path.join(parsed.artifact_path, parsed.model)
+
+    if parsed.model in ["vicuna-7b"]:
+        parsed.hf_model_path = parsed.model_path
+    elif parsed.model in ["dolly-v2-3b", "dolly-v2-7b", "dolly-v2-12b"]:
+        parsed.hf_model_path = "databricks/" + parsed.model
+        cfg, _ = getattr(dolly, parsed.model.replace("-", "_"))(config_only=True)
+        global NUM_HIDDEN_LAYERS
+        global HIDDEN_DIM
+        global NUM_ATTENTION_HEADS
+        NUM_HIDDEN_LAYERS = cfg.num_hidden_layers
+        HIDDEN_DIM = cfg.hidden_size
+        NUM_ATTENTION_HEADS = cfg.num_attention_heads
+    else:
+        raise ValueError(f"Unknown model {parsed.model}")
 
     if parsed.device_name == "auto":
         if tvm.cuda().exist:
@@ -34,7 +63,7 @@ def _parse_args():
 
 
 class ModelWrapper:
-    def __init__(self, model: callable, tokenizer):
+    def __init__(self, model: Callable, tokenizer):
         self.model = model
         self.tokenizer = tokenizer
 
@@ -50,10 +79,8 @@ class ModelWrapper:
         prompt_tokens = self.tokenizer.encode(prompt)
 
         total_len = max_gen_len + len(prompt_tokens)
-        tokens = torch.full((1, total_len), self.tokenizer.pad_token_id).to(
-            torch.int32
-        )
-        tokens[0, :len(prompt_tokens)] = torch.tensor(prompt_tokens)
+        tokens = torch.full((1, total_len), self.tokenizer.pad_token_id).to(torch.int32)
+        tokens[0, : len(prompt_tokens)] = torch.tensor(prompt_tokens)
         start_pos = len(prompt_tokens)
         for cur_pos in range(start_pos, total_len):
             if cur_pos == start_pos:
@@ -99,7 +126,6 @@ def sample_top_p(probs, p):
 
 
 def chat(model_wrapper, args):
-
     # Chat
     conv = conv_templates["vicuna_v1.1"].copy()
     while True:
@@ -137,7 +163,9 @@ def chat(model_wrapper, args):
 def get_tvm_model(args):
     device = tvm.device(args.device_name)
     const_params = utils.load_params(args.artifact_path, device)
-    ex = tvm.runtime.load_module(f"{args.artifact_path}/{args.model}_{args.device_name}.so")
+    ex = tvm.runtime.load_module(
+        f"{args.artifact_path}/{args.model}_{args.device_name}.so"
+    )
     vm = relax.VirtualMachine(ex, device)
 
     class Model:
@@ -146,14 +174,20 @@ def get_tvm_model(args):
             self.kv_cache = []
             for i in range(64):  # num_layer
                 kv_cache = fcreate_cache(
-                    tvm.nd.empty((1, 32, 128), device=device, dtype="float32"),
-                    tvm.runtime.ShapeTuple([32, 32, 128]),
-                    0
+                    tvm.nd.empty(
+                        (1, NUM_ATTENTION_HEADS, HIDDEN_DIM // NUM_ATTENTION_HEADS),
+                        device=device,
+                        dtype="float32",
+                    ),
+                    tvm.runtime.ShapeTuple(
+                        [32, NUM_ATTENTION_HEADS, HIDDEN_DIM // NUM_ATTENTION_HEADS]
+                    ),
+                    0,
                 )
                 self.kv_cache.append(kv_cache)
 
         def __init__(self) -> None:
-            self.kv_cache = None
+            self.kv_cache = None  # type: ignore
             self.new_cache()
 
         def forward(
@@ -180,7 +214,7 @@ def get_tvm_model(args):
 
 
 def get_pytorch_model(args):
-    model = AutoModelForCausalLM.from_pretrained(args.model_path)
+    model = AutoModelForCausalLM.from_pretrained(args.hf_model_path)
 
     def forward(inputs: torch.Tensor) -> torch.Tensor:
         logits = model(inputs, use_cache=False).logits
@@ -191,7 +225,7 @@ def get_pytorch_model(args):
 
 if __name__ == "__main__":
     ARGS = _parse_args()
-    tokenizer = AutoTokenizer.from_pretrained(ARGS.model_path)
+    tokenizer = AutoTokenizer.from_pretrained(ARGS.hf_model_path)
     tokenizer.pad_token_id = tokenizer.eos_token_id
     if not ARGS.run_torch_model:
         model = ModelWrapper(get_tvm_model(ARGS), tokenizer)

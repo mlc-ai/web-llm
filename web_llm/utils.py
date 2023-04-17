@@ -1,8 +1,9 @@
+from typing import List, Tuple, Union
+
 import tvm
-from tvm import relax
-from typing import List, Tuple
 import tvm.testing
 from tvm import meta_schedule as ms
+from tvm import relax
 
 
 def get_config(hf_config, model):
@@ -25,9 +26,8 @@ def get_config(hf_config, model):
             eos_token_id=hf_config.eos_token_id,
             tie_word_embeddings=hf_config.tie_word_embeddings,
         )
-    else:
-        raise ValueError(f"Model {model} not supported")
-    
+    raise ValueError(f"Model {model} not supported")
+
 
 def split_transform_deploy_mod(
     mod: tvm.IRModule, model_names: List[str]
@@ -61,8 +61,11 @@ def split_transform_deploy_mod(
 
 
 def transform_params(
-    mod_transform: tvm.IRModule, model_params: List[tvm.nd.NDArray]
+    mod_transform: tvm.IRModule,
+    model_params: Union[List[tvm.nd.NDArray], List[Tuple[str, tvm.nd.NDArray]]],
 ) -> List[tvm.nd.NDArray]:
+    if not isinstance(model_params[0], tvm.nd.NDArray):
+        model_params = [p for _, p in model_params]
     transform_func_name = None
     for gv, func in mod_transform.functions.items():
         if isinstance(func, relax.Function):
