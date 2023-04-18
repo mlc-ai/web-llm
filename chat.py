@@ -101,7 +101,7 @@ def sample_top_p(probs, p):
 def chat(model_wrapper, args):
 
     # Chat
-    conv = conv_templates["v1"].copy()
+    conv = conv_templates["vicuna_v1.1"].copy()
     while True:
         try:
             inp = input(f"{conv.roles[0]}: ")
