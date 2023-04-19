@@ -53,7 +53,7 @@ function defaultConversation(maxWindowLength = 512) {
   return new Conversation({
     system: "A chat between a curious user and an artificial intelligence assistant. " +
             "The assistant gives helpful, detailed, and polite answers to the user's questions.",
-    roles: ["User", "Assistant"],
+    roles: ["USER", "ASSISTANT"],
     maxWindowLength: maxWindowLength,
     messages: [],
     offset: 0,
@@ -285,6 +285,7 @@ class LLMChatPipeline {
         callbackUpdateResponse(step, outputPrompt);
       }
     }
+    this.conversation.messages[this.conversation.messages.length - 1][1] = outputPrompt;
     return outputPrompt;
   }
 
