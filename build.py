@@ -17,7 +17,7 @@ from web_llm.relax_model import llama
 
 def _parse_args():
     args = argparse.ArgumentParser()
-    args.add_argument("--model", type=str, default="vicuna-7b")
+    args.add_argument("--model", type=str, default="vicuna-7b-v1")
     args.add_argument("--target", type=str, default="auto")
     args.add_argument("--db-path", type=str, default="log_db/")
     args.add_argument("--artifact-path", type=str, default="dist")

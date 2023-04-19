@@ -16,7 +16,7 @@ def _parse_args():
     args.add_argument("--device-name", type=str, default="auto")
     args.add_argument("--debug-dump", action="store_true", default=False)
     args.add_argument("--artifact-path", type=str, default="dist")
-    args.add_argument("--model", type=str, default="vicuna-7b")
+    args.add_argument("--model", type=str, default="vicuna-7b-v1")
     args.add_argument("--max-gen-len", type=int, default=128)
     args.add_argument("--run-torch-model", action="store_true", default=False)
     parsed = args.parse_args()

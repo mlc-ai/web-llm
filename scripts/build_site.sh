@@ -19,10 +19,10 @@ cp dist/tvmjs_runtime.wasi.js site/dist
 cp dist/tvmjs.bundle.js site/dist
 cp -r dist/sentencepiece site/dist
 
-if [ -d "dist/vicuna-7b/params" ]; then
-    mkdir -p site/dist/vicuna-7b
-    cp -rf dist/models/vicuna-7b/tokenizer.model site/dist/vicuna-7b/
-    cp -rf dist/vicuna-7b/vicuna-7b_webgpu.wasm site/dist/vicuna-7b/
+if [ -d "dist/vicuna-7b-v1/params" ]; then
+    mkdir -p site/dist/vicuna-7b-v1
+    cp -rf dist/models/vicuna-7b-v1/tokenizer.model site/dist/vicuna-7b-v1/
+    cp -rf dist/vicuna-7b-v1/vicuna-7b-v1_webgpu.wasm site/dist/vicuna-7b-v1/
 fi
 
 cd site && jekyll b && cd ..

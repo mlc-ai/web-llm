@@ -22,7 +22,7 @@ def _parse_args():
     args.add_argument("--debug-dump", action="store_true", default=False)
     args.add_argument("--artifact-path", type=str, default="dist")
     args.add_argument("--prompt", type=str, default="The capital of Canada is")
-    args.add_argument("--model", type=str, default="vicuna-7b")
+    args.add_argument("--model", type=str, default="vicuna-7b-v1")
     args.add_argument("--profile", action="store_true", default=False)
     parsed = args.parse_args()
     parsed.model_path = os.path.join(parsed.artifact_path, "models", parsed.model)
