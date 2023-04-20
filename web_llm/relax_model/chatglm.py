@@ -125,16 +125,15 @@ def gelu(x: relax.Expr):
 
 
 def apply_rotary_pos_emb_index(q, k, cos, sin, position_ids):
-    # TODO: cos: [sq, 1, hn] -> cos: [sq, hn]
-    # position_id: [sq, b], q, k: [sq, b, np, hn], cos: [sq, 1, hn] -> [sq, b, 1, hn]
+    # position_id: [sq, b], q, k: [sq, b, np, hn], cos: [sq, hn] -> [sq, b, 1, hn]
     def f_rotary_embedding(tensor, cos, sin, position_ids):
         n_feat_half = tensor.shape[-1] // 2
 
         def rotary_compute(*idx):
             i, j = idx[0], idx[-1]
             offset = position_ids[i, 0]
-            return cos[offset + i, j] * tensor(*idx) + sin[
-                offset + i, j
+            return cos[offset, j] * tensor(*idx) + sin[
+                offset, j
             ] * tvm.tir.Select(
                 j >= n_feat_half,
                 tensor[idx[0], i, idx[2], j - n_feat_half],
@@ -184,8 +183,8 @@ def attention_fn(
     )
     kv_cache_shape = R.shape([kv_seq_len, kv_states_shape[2], kv_states_shape[3]])
     if past_key_value is not None:
-        squeezed_key = nn.emit(squeeze(key_states, axis=1))
-        squeezed_value = nn.emit(squeeze(value_states, axis=1))
+        squeezed_key = nn.emit(squeeze(key_layer, axis=1))
+        squeezed_value = nn.emit(squeeze(value_layer, axis=1))
         k_cache, v_cache = past_key_value
         f_kv_cache_append = relax.extern("vm.builtin.attention_kv_cache_append")
         k_cache = nn.emit(
@@ -218,18 +217,18 @@ def attention_fn(
                 sinfo_args=[R.Tensor(kv_cache_shape, kv_states_dtype)],
             )
         )
-        key_states = nn.emit(reshape(k_cache, kv_states_shape))
-        value_states = nn.emit(reshape(v_cache, kv_states_shape))
+        key_layer = nn.emit(reshape(k_cache, kv_states_shape))
+        value_layer = nn.emit(reshape(v_cache, kv_states_shape))
 
     # seqlen, batch, num_attention_heads, hidden_size_per_attention_head
-    seq_len, bsz, num_heads, head_dim = key_layer.shape
+    seq_len, bsz, num_heads, head_dim = key_layer.struct_info.shape.values
 
     query_key_layer_scaling_coeff = float(layer_id + 1)
 
     query_layer = nn.emit(
         query_layer
         / (
-            relax.const(math.sqrt(head_dim), query_layer.struct_info.dtype)
+            relax.const(math.sqrt(head_dim.value), query_layer.struct_info.dtype)
             * relax.const(query_key_layer_scaling_coeff, query_layer.struct_info.dtype)
         )
     )
@@ -321,14 +320,12 @@ def attention_fn(
     context_layer = nn.emit(permute_dims(context_layer, [2, 0, 1, 3]))
 
     # [sq, b, np, hn] --> [sq, b, hp]
-    new_context_layer_shape = context_layer.struct_info.shape[:-2] + (
+    new_context_layer_shape = context_layer.struct_info.shape.values[:-2] + [
         hidden_size_per_partition,
-    )
+    ]
     context_layer = nn.emit(reshape(context_layer, new_context_layer_shape))
 
-    outputs = (context_layer, past_key_value, attention_probs)
-
-    return outputs
+    return context_layer, ((None, None) if past_key_value is None else past_key_value)
 
 
 class SelfAttention(nn.Module):
@@ -366,29 +363,13 @@ class SelfAttention(nn.Module):
 
         self.dense = Linear(self.inner_hidden_size, hidden_size, bias=bias)
 
-    def split_tensor_along_last_dim(self, tensor: relax.Expr, num_partitions):
-        """Split a tensor along its last dimension.
-        Arguments:
-            tensor: input tensor.
-            contiguous_split_chunks: If True, make each chunk contiguous
-                                    in memory.
-        """
-        from tvm.relax.op import split
-
-        # Get the size and dimension.
-        last_dim = tensor.struct_info.ndim - 1
-        # Split.
-        tensor_list = nn.emit(split(tensor, num_partitions, axis=last_dim))
-
-        return tensor_list
-
     def forward(
         self,
         hidden_states: relax.Expr,
         cos_cached: relax.Expr,
         sin_cache: relax.Expr,
         all_seq_len_shape: relax.Expr,
-        position_ids: relax.Expr,
+        position_ids: Tuple[relax.Expr],
         attention_mask: relax.Expr,
         layer_id: int,
         past_key_value: Optional[Tuple[relax.Expr]] = None,
@@ -397,35 +378,81 @@ class SelfAttention(nn.Module):
         hidden_states: [seq_len, batch, hidden_size]
         attention_mask: [(1, 1), seq_len, seq_len]
         """
-        from tvm.relax.op import reshape
+        from tvm.relax.op import reshape, permute_dims, split, concat, squeeze
 
         # [seq_len, batch, 3 * hidden_size]
         mixed_raw_layer = self.query_key_value(hidden_states)
 
         # [seq_len, batch, 3 * hidden_size] --> [seq_len, batch, num_attention_heads, 3 * hidden_size_per_attention_head]
-        new_tensor_shape = mixed_raw_layer.struct_info.shape[:-1] + (
+        new_tensor_shape = mixed_raw_layer.struct_info.shape.values[:-1] + [
             self.num_attention_heads_per_partition,
             3 * self.hidden_size_per_attention_head,
-        )
+        ]
         mixed_raw_layer = nn.emit(reshape(mixed_raw_layer, new_tensor_shape))
 
         # [seq_len, batch, num_attention_heads, hidden_size_per_attention_head]
-        (query_layer, key_layer, value_layer) = self.split_tensor_along_last_dim(
-            mixed_raw_layer, 3
+        splited_layers = nn.emit(
+            split(mixed_raw_layer, 3, axis=mixed_raw_layer.struct_info.ndim - 1)
         )
+        query_layer = nn.emit(splited_layers[0])
+        key_layer = nn.emit(splited_layers[1])
+        value_layer = nn.emit(splited_layers[2])
 
-        # cos, sin = self.rotary_emb(q1, seq_len=position_ids.max() + 1)
-        # position_ids, block_position_ids = position_ids[:, 0, :].transpose(0, 1).contiguous(), \
-        #     position_ids[:, 1, :].transpose(0, 1).contiguous()
-        position_ids, block_position_ids = position_ids[0], position_ids[1]
+        split_position_ids = nn.emit(
+            split(position_ids, 2, axis=1)
+        )
+        position_ids = nn.emit(squeeze(split_position_ids[0], axis=1))
+        block_position_ids = nn.emit(squeeze(split_position_ids[1], axis=1))
+        
+        # [b, sq] -> [sq, b]
+        position_ids = nn.emit(
+            permute_dims(
+                position_ids,
+                [1, 0]
+            )
+        )
+        block_position_ids = nn.emit(
+            permute_dims(
+                block_position_ids,
+                [1, 0]
+            )
+        )
+        splited_query = nn.emit(
+            split(
+                query_layer,
+                2,
+                query_layer.struct_info.ndim - 1
+            )
+        )
+        splited_key = nn.emit(
+            split(
+                key_layer,
+                2,
+                key_layer.struct_info.ndim - 1
+            )
+        )
+        q1 = nn.emit(splited_query[0])
+        q2 = nn.emit(splited_query[1])
+        k1 = nn.emit(splited_key[0])
+        k2 = nn.emit(splited_key[1])
         q1, k1 = apply_rotary_pos_emb_index(q1, k1, cos_cached, sin_cache, position_ids)
-        q2, k2 = apply_rotary_pos_emb_index(
-            q2, k2, cos_cached, sin_cache, block_position_ids
+        q2, k2 = apply_rotary_pos_emb_index(q2, k2, cos_cached, sin_cache, block_position_ids)
+        
+        query_layer = nn.emit(
+            concat(
+                [q1, q2],
+                axis=q1.struct_info.ndim-1
+            )
+        )
+        key_layer = nn.emit(
+            concat(
+                [k1, k2],
+                axis=k1.struct_info.ndim-1
+            )
         )
 
         # [seq_len, batch, hidden_size]
-        context_layer, past_key_value, attention_probs = attention_fn(
-            self=self,
+        context_layer, present_key_value = attention_fn(
             query_layer=query_layer,
             key_layer=key_layer,
             value_layer=value_layer,
@@ -438,12 +465,10 @@ class SelfAttention(nn.Module):
 
         output = self.dense(context_layer)
 
-        outputs = (output, past_key_value)
-
         # if output_attentions:
         #     outputs += (attention_probs,)
 
-        return outputs  # output, present, attention_probs
+        return output, present_key_value  # output, present, attention_probs
 
 
 class GLU(nn.Module):
@@ -519,7 +544,7 @@ class GLMBlock(nn.Module):
         cos_cached: relax.Expr,
         sin_cached: relax.Expr,
         all_seq_len_shape: relax.Expr,
-        position_ids: relax.Expr,
+        position_ids: Tuple[relax.Expr],
         attention_mask: relax.Expr,
         layer_id: int,
         past_key_value: Optional[Tuple[relax.Expr]] = None,
@@ -534,7 +559,7 @@ class GLMBlock(nn.Module):
         attention_input = self.input_layernorm(hidden_states)
 
         # Self attention.
-        attention_output, past_key_value = self.attention(
+        attention_output, present_key_value = self.attention(
             hidden_states=attention_input,
             cos_cached=cos_cached,
             sin_cache=sin_cached,
@@ -563,7 +588,7 @@ class GLMBlock(nn.Module):
             + mlp_output
         )
 
-        return output, past_key_value  # hidden_states, present, attentions
+        return output, present_key_value  # hidden_states, present, attentions
 
 
 class ChatGLMModel(nn.Module):
@@ -619,7 +644,7 @@ class ChatGLMModel(nn.Module):
         input_ids: relax.Expr,
         cos_cached: relax.Expr,
         sin_cached: relax.Expr,
-        position_ids: relax.Expr,
+        position_ids: Tuple[relax.Expr],
         attention_mask: relax.Expr,
         all_seq_len_shape: relax.Expr,
         past_key_values: Optional[List[relax.Expr]] = None,
@@ -671,26 +696,25 @@ class ChatGLMForConditionalGeneration(nn.Module):
 
         ############ Rotary embedding constants ############
         assert config.hidden_size % config.num_attention_heads == 0
-        head_dim = config.hidden_size // config.num_attention_heads
         self.cos_cached = nn.Parameter(
-            (config.max_sequence_length, head_dim), name="cos_cached"
+            (config.max_sequence_length, config.hidden_size // (config.num_attention_heads * 2)), name="cos_cached"
         )
         self.sin_cached = nn.Parameter(
-            (config.max_sequence_length, head_dim), name="sin_cached"
+            (config.max_sequence_length, config.hidden_size // (config.num_attention_heads * 2)), name="sin_cached"
         )
         ############ End ############
 
     def forward(
         self,
         input_ids: relax.Expr,
-        position_ids: relax.Expr,
+        position_ids: Tuple[relax.Expr],
         attention_mask: relax.Expr,
         all_seq_len_shape: relax.Expr,
         past_key_values: Optional[List[relax.Expr]] = None,
     ):
         from tvm.relax.op import permute_dims
 
-        hidden_states, past_key_values = self.transformer(
+        hidden_states, key_value_cache = self.transformer(
             input_ids=input_ids,
             cos_cached=self.cos_cached,
             sin_cached=self.sin_cached,
@@ -699,7 +723,89 @@ class ChatGLMForConditionalGeneration(nn.Module):
             all_seq_len_shape=all_seq_len_shape,
             past_key_values=past_key_values,
         )
-
+        
+        def te_slicing(x: te.Tensor):
+            return te.compute(
+                shape=(1, 1, x.shape[-1]),
+                fcompute=lambda i, j, k: x[i, x.shape[1] - 1, k],
+                name="slice",
+            )
+        
         lm_logits = nn.emit(permute_dims(self.lm_head(hidden_states), [1, 0, 2]))
+        
+        logits = nn.emit_te(te_slicing, lm_logits, primfunc_name_hint="slice")
 
-        return lm_logits, past_key_values
+        return logits, key_value_cache
+
+
+def create_encoding_func(bb: relax.BlockBuilder, config: ChatGLMConfig) -> None:
+    bsz = 1
+    seq_len = tvm.tir.Var("n", "int64")
+    
+    with bb.function("encoding"):
+        model = ChatGLMForConditionalGeneration(config)
+        input_ids = nn.Placeholder((bsz, seq_len), dtype="int32", name="input_ids")
+        position_ids = nn.Placeholder((bsz, 2, seq_len), dtype="int32", name="position_ids")
+        attention_mask = nn.Placeholder((1, 1, seq_len, seq_len), dtype="bool", name="input_ids")
+        all_seq_len_shape = relax.Var("all_seq_len", relax.ShapeStructInfo((seq_len,)))
+        past_key_values = relax.Var(
+            "kv_cache",
+            relax.TupleStructInfo(
+                [relax.ObjectStructInfo() for _ in range(config.num_layers * 2)]
+            )
+        )
+        
+        with bb.dataflow():
+            logits, key_value_cache = model(
+                input_ids, position_ids, attention_mask, all_seq_len_shape, past_key_values
+            )
+            params = [
+                input_ids,
+                position_ids,
+                attention_mask,
+                all_seq_len_shape,
+                past_key_values
+            ] + model.parameters()
+            gv = bb.emit_output((logits, relax.Tuple(key_value_cache)))
+        bb.emit_func_output(gv, params)
+
+    mod = bb.get()
+    gv = mod.get_global_var("encoding")
+    bb.update_func(gv, mod[gv].with_attr("num_input", 5))
+        
+        
+def create_decoding_func(bb: relax.BlockBuilder, config: ChatGLMConfig) -> None:
+    bsz = 1
+    seq_len = tvm.tir.Var("n", "int64")
+    
+    with bb.function("decoding"):
+        model = ChatGLMForConditionalGeneration(config)
+        input_ids = nn.Placeholder((bsz, 1), dtype="int32", name="input_ids")
+        position_ids = nn.Placeholder((bsz, 2, 1), dtype="int32", name="position_ids") # 1,2,seq_len
+        attention_mask = nn.Placeholder((1, 1), dtype="bool", name="input_ids") # 1,1,seq_len,seq_len
+        all_seq_len_shape = relax.Var("all_seq_len", relax.ShapeStructInfo((seq_len,)))
+        past_key_values = relax.Var(
+            "kv_cache",
+            relax.TupleStructInfo(
+                [relax.ObjectStructInfo() for _ in range(config.num_layers * 2)]
+            )
+        )
+        
+        with bb.dataflow():
+            logits, key_value_cache = model(
+                input_ids, position_ids, attention_mask, all_seq_len_shape, past_key_values
+            )
+            params = [
+                input_ids,
+                position_ids,
+                attention_mask,
+                all_seq_len_shape,
+                past_key_values
+            ] + model.parameters()
+            gv = bb.emit_output((logits, relax.Tuple(key_value_cache)))
+        bb.emit_func_output(gv, params)
+
+    mod = bb.get()
+    gv = mod.get_global_var("decoding")
+    bb.update_func(gv, mod[gv].with_attr("num_input", 5))
+        
