@@ -25,6 +25,25 @@ def get_config(hf_config, model):
             eos_token_id=hf_config.eos_token_id,
             tie_word_embeddings=hf_config.tie_word_embeddings,
         )
+    elif "chatglm" in model:
+        from .relax_model.chatglm import ChatGLMConfig as RelaxConfig
+        return RelaxConfig(
+            vocab_size=hf_config.vocab_size,
+            hidden_size=hf_config.hidden_size,
+            num_layers=hf_config.num_layers,
+            num_attention_heads=hf_config.num_attention_heads,
+            layernorm_epsilon=hf_config.layernorm_epsilon,
+            bos_token_id=hf_config.bos_token_id,
+            eos_token_id=hf_config.eos_token_id,
+            mask_token_id=hf_config.mask_token_id,
+            gmask_token_id=hf_config.gmask_token_id,
+            pad_token_id=hf_config.pad_token_id,
+            max_sequence_length=hf_config.max_sequence_length,
+            inner_hidden_size=hf_config.inner_hidden_size,
+            position_encoding_2d=hf_config.position_encoding_2d,
+            pre_seq_len=hf_config.pre_seq_len,
+            prefix_projection=hf_config.prefix_projection
+        )
     else:
         raise ValueError(f"Model {model} not supported")
     

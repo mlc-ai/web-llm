@@ -9,6 +9,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import tvm
 from tvm import relax
 from web_llm.conversation import SeparatorStyle, conv_templates
+from web_llm.chatglm_utils import prepare_inputs_chatglm, process_logits_chatglm, process_response
 
 
 def _parse_args():
@@ -34,9 +35,10 @@ def _parse_args():
 
 
 class ModelWrapper:
-    def __init__(self, model: callable, tokenizer):
+    def __init__(self, model: callable, tokenizer, model_name):
         self.model = model
         self.tokenizer = tokenizer
+        self.model_name = model_name
 
     def generate(
         self,
@@ -57,15 +59,20 @@ class ModelWrapper:
         start_pos = len(prompt_tokens)
         for cur_pos in range(start_pos, total_len):
             if cur_pos == start_pos:
-                logits = self.model(tokens[:, :cur_pos], cur_pos, clear_cache=True)
+                logits = self.model(tokens[:, :cur_pos], cur_pos, tokens[:, :cur_pos], clear_cache=True)
             else:
-                logits = self.model(tokens[:, cur_pos - 1 : cur_pos], cur_pos)
+                logits = self.model(tokens[:, cur_pos - 1 : cur_pos], cur_pos, tokens[:, :cur_pos])
             logits = logits[:, -1, :]
-            if temperature > 0:
-                probs = torch.softmax(logits / temperature, dim=-1)
-                next_token = sample_top_p(probs, top_p)
+            if "chatglm" in self.model_name:
+                logits = process_logits_chatglm(logits)
+                probs = torch.softmax(logits, dim=-1)
+                next_token = torch.multinomial(probs, num_samples=1)
             else:
-                next_token = torch.argmax(logits, dim=-1)
+                if temperature > 0:
+                    probs = torch.softmax(logits / temperature, dim=-1)
+                    next_token = sample_top_p(probs, top_p)
+                else:
+                    next_token = torch.argmax(logits, dim=-1)
             next_token = next_token.reshape(-1)
             tokens[:, cur_pos] = next_token
             # the following code assumes bsz == 1
@@ -78,7 +85,7 @@ class ModelWrapper:
             if i % stream_interval == 0 or i == max_gen_len - 1 or stopped:
                 output = tokens[0, : cur_pos + 1]
                 output = tokenizer.decode(output, skip_special_tokens=True)
-                pos = output.rfind(stop_str, len(prompt))
+                pos = output.rfind(stop_str, len(prompt)) if stop_str is not None else -1
                 if pos != -1:
                     output = output[:pos]
                     stopped = True
@@ -101,7 +108,7 @@ def sample_top_p(probs, p):
 def chat(model_wrapper, args):
 
     # Chat
-    conv = conv_templates["v1"].copy()
+    conv = conv_templates["chatglm_v1"].copy() if "chatglm" in args.model else conv_templates["v1"].copy()
     while True:
         try:
             inp = input(f"{conv.roles[0]}: ")
@@ -117,21 +124,42 @@ def chat(model_wrapper, args):
 
         print(f"{conv.roles[1]}: ", end="", flush=True)
         pre = 0
-        for outputs in model_wrapper.generate(
-            prompt,
-            args.max_gen_len,
-            stop_str=conv.sep if conv.sep_style == SeparatorStyle.SINGLE else conv.sep2,
-        ):
-            outputs = outputs[len(prompt) + 1 :].strip()
-            outputs = outputs.split(" ")
-            now = len(outputs)
-            if now - 1 > pre:
-                print(" ".join(outputs[pre : now - 1]), end=" ", flush=True)
-                pre = now - 1
-        print(" ".join(outputs[pre:]), flush=True)
+        if "chatglm" in args.model:
+            for outputs in model_wrapper.generate(
+                prompt,
+                args.max_gen_len,
+                stop_str=conv.sep if conv.sep_style == SeparatorStyle.SINGLE else conv.sep2,
+            ):
+                outputs = outputs[len(prompt) + 1 :].strip()
+                now = len(outputs)
+                if now - 1 > pre:
+                    print(outputs[pre : now - 1], flush=True)
+                    pre = now - 1
+            print(outputs[pre:], flush=True)
 
-        conv.messages[-1][-1] = " ".join(outputs)
-        print("\n", {"prompt": prompt, "outputs": outputs}, "\n")
+            conv.messages[-1][-1] = outputs
+            print("\n", {"prompt": prompt, "outputs": outputs}, "\n")
+        else:
+            for outputs in model_wrapper.generate(
+                prompt,
+                args.max_gen_len,
+                stop_str=conv.sep if conv.sep_style == SeparatorStyle.SINGLE else conv.sep2,
+            ):
+                outputs = outputs[len(prompt) + 1 :].strip()
+                outputs = outputs.split(" ")
+                now = len(outputs)
+                if now - 1 > pre:
+                    print(" ".join(outputs[pre : now - 1]), end=" ", flush=True)
+                    pre = now - 1
+            print(" ".join(outputs[pre:]), flush=True)
+
+            conv.messages[-1][-1] = " ".join(outputs)
+            print("\n", {"prompt": prompt, "outputs": outputs}, "\n")
+
+
+def prepare_inputs_default(input_ids: torch.Tensor, device: tvm.device, tokens: torch.Tensor, is_encoder: bool):
+    input_ids = tvm.nd.array(input_ids.numpy(), device=device)
+    return (input_ids, )
 
 
 def get_tvm_model(args):
@@ -144,7 +172,8 @@ def get_tvm_model(args):
         def new_cache(self):
             fcreate_cache = tvm.get_global_func("vm.builtin.attention_kv_cache_create")
             self.kv_cache = []
-            for i in range(64):  # num_layer
+            num_caches = 56 if "chatglm" in args.model else 64
+            for i in range(num_caches):  # num_layer
                 kv_cache = fcreate_cache(
                     tvm.nd.empty((1, 32, 128), device=device, dtype="float32"),
                     tvm.runtime.ShapeTuple([32, 32, 128]),
@@ -157,19 +186,21 @@ def get_tvm_model(args):
             self.new_cache()
 
         def forward(
-            self, inputs: torch.Tensor, cur_pos: int, clear_cache: bool = False
+            self, inputs: torch.Tensor, cur_pos: int, tokens: torch.Tensor, clear_cache: bool = False
         ) -> torch.Tensor:
             if clear_cache:
                 self.new_cache()
-            inputs = tvm.nd.array(inputs.numpy(), device=device)
+            prepare_input_function = prepare_inputs_chatglm if "chatglm" in args.model else prepare_inputs_default
             seq_len_shape = tvm.runtime.ShapeTuple([cur_pos])
             if inputs.shape[1] > 1:
+                inputs = prepare_input_function(inputs, device, tokens, is_encoder=True)
                 logits, kv_cache = vm["encoding"](
-                    inputs, seq_len_shape, self.kv_cache, const_params
+                    *inputs, seq_len_shape, self.kv_cache, const_params
                 )
             else:
+                inputs = prepare_input_function(inputs, device, tokens, is_encoder=False)
                 logits, kv_cache = vm["decoding"](
-                    inputs, seq_len_shape, self.kv_cache, const_params
+                    *inputs, seq_len_shape, self.kv_cache, const_params
                 )
             self.kv_cache = kv_cache
 
@@ -191,10 +222,14 @@ def get_pytorch_model(args):
 
 if __name__ == "__main__":
     ARGS = _parse_args()
-    tokenizer = AutoTokenizer.from_pretrained(ARGS.model_path)
-    tokenizer.pad_token_id = tokenizer.eos_token_id
-    if not ARGS.run_torch_model:
-        model = ModelWrapper(get_tvm_model(ARGS), tokenizer)
+    
+    if "chatglm" in ARGS.model:
+        tokenizer = AutoTokenizer.from_pretrained("THUDM/chatglm-6b", trust_remote_code=True)
     else:
-        model = ModelWrapper(get_pytorch_model(ARGS), tokenizer)
+        tokenizer = AutoTokenizer.from_pretrained(ARGS.model_path)
+        tokenizer.pad_token_id = tokenizer.eos_token_id
+    if not ARGS.run_torch_model:
+        model = ModelWrapper(get_tvm_model(ARGS), tokenizer, ARGS.model)
+    else:
+        model = ModelWrapper(get_pytorch_model(ARGS), tokenizer, ARGS.model)
     chat(model, ARGS)

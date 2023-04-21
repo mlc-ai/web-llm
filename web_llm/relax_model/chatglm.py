@@ -745,7 +745,7 @@ def create_encoding_func(bb: relax.BlockBuilder, config: ChatGLMConfig) -> None:
     with bb.function("encoding"):
         model = ChatGLMForConditionalGeneration(config)
         input_ids = nn.Placeholder((bsz, seq_len), dtype="int32", name="input_ids")
-        position_ids = nn.Placeholder((bsz, 2, seq_len), dtype="int32", name="position_ids")
+        position_ids = nn.Placeholder((bsz, 2, seq_len), dtype="int64", name="position_ids")
         attention_mask = nn.Placeholder((1, 1, seq_len, seq_len), dtype="bool", name="input_ids")
         all_seq_len_shape = relax.Var("all_seq_len", relax.ShapeStructInfo((seq_len,)))
         past_key_values = relax.Var(
@@ -781,7 +781,7 @@ def create_decoding_func(bb: relax.BlockBuilder, config: ChatGLMConfig) -> None:
     with bb.function("decoding"):
         model = ChatGLMForConditionalGeneration(config)
         input_ids = nn.Placeholder((bsz, 1), dtype="int32", name="input_ids")
-        position_ids = nn.Placeholder((bsz, 2, 1), dtype="int32", name="position_ids") # 1,2,seq_len
+        position_ids = nn.Placeholder((bsz, 2, 1), dtype="int64", name="position_ids") # 1,2,seq_len
         attention_mask = nn.Placeholder((1, 1), dtype="bool", name="input_ids") # 1,1,seq_len,seq_len
         all_seq_len_shape = relax.Var("all_seq_len", relax.ShapeStructInfo((seq_len,)))
         past_key_values = relax.Var(

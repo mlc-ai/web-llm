@@ -12,7 +12,7 @@ from tvm import relax
 
 import web_llm
 from web_llm import utils
-from web_llm.relax_model import llama
+from web_llm.relax_model import llama, chatglm
 
 
 def _parse_args():
@@ -91,27 +91,52 @@ def get_models(config, model):
                 mod[gv] = func.with_attr("tir_var_upper_bound", {"n": config.max_sequence_length})
 
         return mod
+    elif "chatglm" in model:
+        bb = relax.BlockBuilder()
+        chatglm.create_encoding_func(bb, config)
+        chatglm.create_decoding_func(bb, config)
+        mod = bb.get()
+        
+        for gv in mod.functions:
+            func = mod[gv]
+            if isinstance(func, relax.Function):
+                mod[gv] = func.with_attr("tir_var_upper_bound", {"n": config.max_sequence_length})
+
+        return mod
     else:
         raise ValueError(f"Model {model} not supported")
 
-def get_params(config, model):
+
+def get_params(config, model, model_name):
     import numpy as np
 
     param_list = []
     for _, param in model.named_parameters():
         param_list.append(tvm.nd.array(param.detach().cpu().numpy(), tvm.cpu()))
 
+    if "chatglm" in model_name:
+        # add the final linear
+        param_list.append(tvm.nd.array(model.get_output_embeddings().weight.detach().cpu().numpy(), tvm.cpu()))
+
     ############ Rotary embedding constants ############
-    head_dim = config.hidden_size / config.num_attention_heads
+    hidden_size = config.hidden_size
+    num_attention_heads = config.num_attention_heads
+    if "chatglm" in model_name:
+        # position_encoding_2d
+        position_embedding_base = 10000
+        head_dim = hidden_size / (num_attention_heads * 2) 
+    else:
+        position_embedding_base = config.position_embedding_base
+        head_dim = hidden_size / num_attention_heads
     inv_freq = 1.0 / (
-        config.position_embedding_base ** (np.arange(0, head_dim, 2).astype("float32") / head_dim)
+        position_embedding_base ** (np.arange(0, head_dim, 2).astype("float32") / head_dim)
     )
 
     t = np.arange(config.max_sequence_length, dtype=inv_freq.dtype)
     freqs = np.einsum("i,j->ij", t, inv_freq)
-    emb = np.concatenate((freqs, freqs), axis=-1)
-    param_list.append(tvm.nd.array(np.cos(emb), tvm.cpu()))
-    param_list.append(tvm.nd.array(np.sin(emb), tvm.cpu()))
+    emb = np.concatenate((freqs, freqs), axis=-1).astype("float32")
+    param_list.append(tvm.nd.array(np.cos(emb).astype("float32"), tvm.cpu()))
+    param_list.append(tvm.nd.array(np.sin(emb).astype("float32"), tvm.cpu()))
     ############ End ############
 
     return param_list
@@ -121,10 +146,10 @@ def mod_transform_before_build(
     mod: tvm.IRModule, model_params: List[tvm.nd.NDArray], args: Dict
 ) -> tvm.IRModule:
     """First-stage: Legalize ops and trace"""
-    model_names = ["encoding", "decoding", "encoding_without_cache"]
+    model_names = ["encoding", "decoding"]
 
-    mod = web_llm.transform.GroupQuantize(group_size=32, sym=False)(mod)
-    mod = web_llm.transform.FuseTransposeMatmul()(mod)
+    # mod = web_llm.transform.GroupQuantize(group_size=32, sym=False)(mod)
+    # mod = web_llm.transform.FuseTransposeMatmul()(mod)
 
     # NOTE: enable pipeline after fusion getting fixed.
     # mod = relax.pipeline.get_pipeline()(mod)
@@ -135,7 +160,7 @@ def mod_transform_before_build(
     mod = relax.transform.FuseOps()(mod)
     mod = relax.transform.FuseTIR()(mod)
 
-    mod = web_llm.transform.FuseDecodeMatmulEwise()(mod)
+    # mod = web_llm.transform.FuseDecodeMatmulEwise()(mod)
     mod = relax.transform.DeadCodeElimination(model_names)(mod)
     mod = relax.transform.LiftTransformParams()(mod)
     mod_transform, mod_deploy = utils.split_transform_deploy_mod(mod, model_names)
@@ -157,9 +182,9 @@ def build(mod_deploy: tvm.IRModule, args: Dict) -> None:
         db = ms.database.create(work_dir=args.db_path)
         with db, tvm.target.Target("apple/m1-gpu-restricted"):
             mod_deploy = relax.transform.MetaScheduleApplyDatabase()(mod_deploy)
-            mod_deploy = web_llm.transform.DispatchTIROperator()(mod_deploy)
+            # mod_deploy = web_llm.transform.DispatchTIROperator()(mod_deploy)
             mod_deploy = tvm.tir.transform.DefaultGPUSchedule()(mod_deploy)
-            mod_deploy = tvm.tir.transform.ForceNarrowIndexToInt32()(mod_deploy)
+            # mod_deploy = tvm.tir.transform.ForceNarrowIndexToInt32()(mod_deploy)
 
     debug_dump_script(mod_deploy, "mod_build_stage.py", args)
 
@@ -181,11 +206,15 @@ if __name__ == "__main__":
     cache_path = os.path.join(ARGS.artifact_path, "mod_cache_before_build.pkl")
     use_cache = ARGS.use_cache and os.path.isfile(cache_path)
     if not use_cache:
-        from transformers import AutoModelForCausalLM
-        hf_model = AutoModelForCausalLM.from_pretrained(ARGS.model_path)
+        if "chatglm" in ARGS.model:
+            from transformers import AutoModel
+            hf_model = AutoModel.from_pretrained("THUDM/chatglm-6b", trust_remote_code=True).cuda().eval()
+        else:
+            from transformers import AutoModelForCausalLM
+            hf_model = AutoModelForCausalLM.from_pretrained(ARGS.model_path)
         config = utils.get_config(hf_model.config, ARGS.model)
         mod = get_models(config, ARGS.model)
-        params = get_params(config, hf_model)
+        params = get_params(config, hf_model, ARGS.model)
         del hf_model
         mod = mod_transform_before_build(mod, params, ARGS)
         with open(cache_path, "wb") as outfile:

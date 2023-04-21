@@ -10,6 +10,7 @@ class SeparatorStyle(Enum):
 
     SINGLE = auto()
     TWO = auto()
+    ChatGLM = auto()
 
 
 @dataclasses.dataclass
@@ -44,6 +45,20 @@ class Conversation:
                     ret += role + ": " + message + seps[i % 2]
                 else:
                     ret += role + ":"
+            return ret
+        elif self.sep_style == SeparatorStyle.ChatGLM:
+            ret = ""
+            # return query as prompt for the first message
+            if len(self.messages) == 2 and self.messages[1][1] is None:
+                return self.messages[0][1]
+            for i, (role, message) in enumerate(self.messages):
+                if i % 2 == 0:
+                    ret += "[Round {}]\n".format(i//2)
+                # use chinese colon
+                if message:
+                    ret += role + "：" + message + "\n"
+                else:
+                    ret += role + "："
             return ret
         else:
             raise ValueError(f"Invalid style: {self.sep_style}")
@@ -159,11 +174,21 @@ conv_bair_v1 = Conversation(
     sep2="</s>",
 )
 
+conv_chatglm_v1 = Conversation(
+    system=None,
+    roles=("问", "答"),
+    messages=(),
+    offset=0,
+    sep_style=SeparatorStyle.ChatGLM,
+    sep=None
+)
+
 
 default_conversation = conv_v1_2
 conv_templates = {
     "v1": conv_v1_2,
     "bair_v1": conv_bair_v1,
+    "chatglm_v1": conv_chatglm_v1,
 }
 
 
