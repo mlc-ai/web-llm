@@ -620,13 +620,13 @@ def NT_matmul_after(var_rxplaceholder: T.handle, rxplaceholder: T.Buffer((T.int6
 
 
 @T.prim_func
-def NT_matmul4_before(var_rxplaceholder: T.handle, rxplaceholder: T.Buffer((T.int64(32001), T.int64(4096)), "float32"), var_NT_matmul: T.handle):
+def NT_matmul4_before(var_rxplaceholder: T.handle, rxplaceholder: T.Buffer((T.int64(32000), T.int64(4096)), "float32"), var_NT_matmul: T.handle):
     T.func_attr({"op_pattern": 4, "tir.noalias": T.bool(True)})
     n = T.int64()
     rxplaceholder_1 = T.match_buffer(var_rxplaceholder, (T.int64(1), n, T.int64(4096)))
-    NT_matmul = T.match_buffer(var_NT_matmul, (T.int64(1), n, T.int64(32001)))
+    NT_matmul = T.match_buffer(var_NT_matmul, (T.int64(1), n, T.int64(32000)))
     # with T.block("root"):
-    for i0, i1, i2, k in T.grid(T.int64(1), n, T.int64(32001), T.int64(4096)):
+    for i0, i1, i2, k in T.grid(T.int64(1), n, T.int64(32000), T.int64(4096)):
         with T.block("NT_matmul"):
             v_i0, v_i1, v_i2, v_k = T.axis.remap("SSSR", [i0, i1, i2, k])
             T.reads(rxplaceholder_1[v_i0, v_i1, v_k], rxplaceholder[v_i2, v_k])
@@ -693,7 +693,7 @@ def NT_matmul4_sch_func():
     sch.bind(loop=l80, thread_axis="threadIdx.x")
     b82 = sch.get_block(name="root", func_name="main")
     sch.unannotate(block_or_loop=b82, ann_key="meta_schedule.unroll_explicit")
-    _, _, b83, b84, b85, b86, _ = sch.get_child_blocks(b82)
+    _, b83, b84, b85, b86, _ = sch.get_child_blocks(b82)
     _, l87, l88, l89, l90, l91, l92, l93 = sch.get_loops(block=b83)
     sch.annotate(block_or_loop=l87, ann_key="pragma_auto_unroll_max_step", ann_val=512)
     sch.annotate(block_or_loop=l87, ann_key="pragma_unroll_explicit", ann_val=1)
@@ -711,18 +711,16 @@ def NT_matmul4_sch_func():
     b132 = sch.decompose_reduction(block=b119, loop=l123)
     b1 = sch.get_block("rxplaceholder_1_pad")
     sch.compute_inline(b1)
-    b2 = sch.get_block("rxplaceholder_pad")
-    sch.compute_inline(b2)
     b3 = sch.get_block("NT_matmul_pad")
     sch.reverse_compute_inline(b3)
     return sch.mod["main"].with_attr("tir.is_scheduled", 1)
 
 
 @T.prim_func
-def NT_matmul9_before(rxplaceholder: T.Buffer((T.int64(1), T.int64(1), T.int64(4096)), "float32"), rxplaceholder_1: T.Buffer((T.int64(32001), T.int64(4096)), "float32"), NT_matmul: T.Buffer((T.int64(1), T.int64(1), T.int64(32001)), "float32")):
+def NT_matmul9_before(rxplaceholder: T.Buffer((T.int64(1), T.int64(1), T.int64(4096)), "float32"), rxplaceholder_1: T.Buffer((T.int64(32000), T.int64(4096)), "float32"), NT_matmul: T.Buffer((T.int64(1), T.int64(1), T.int64(32000)), "float32")):
     T.func_attr({"op_pattern": 4, "tir.noalias": T.bool(True)})
     # with T.block("root"):
-    for i0, i1, i2, k in T.grid(T.int64(1), T.int64(1), T.int64(32001), T.int64(4096)):
+    for i0, i1, i2, k in T.grid(T.int64(1), T.int64(1), T.int64(32000), T.int64(4096)):
         with T.block("NT_matmul"):
             v_i0, v_i1, v_i2, v_k = T.axis.remap("SSSR", [i0, i1, i2, k])
             T.reads(rxplaceholder[v_i0, v_i1, v_k], rxplaceholder_1[v_i2, v_k])
@@ -734,8 +732,6 @@ def NT_matmul9_before(rxplaceholder: T.Buffer((T.int64(1), T.int64(1), T.int64(4
 
 def NT_matmul9_sch_func():
     sch = tvm.tir.Schedule(NT_matmul9_before)
-    b0 = sch.get_block("NT_matmul")
-    sch.pad_einsum(b0, [1, 1, 256, 1])
     b0 = sch.get_block(name="NT_matmul", func_name="main")
     b1 = sch.get_block(name="root", func_name="main")
     sch.annotate(block_or_loop=b0, ann_key="meta_schedule.tiling_structure", ann_val="SSSRRSRS")
@@ -786,7 +782,7 @@ def NT_matmul9_sch_func():
     sch.bind(loop=l80, thread_axis="threadIdx.x")
     b82 = sch.get_block(name="root", func_name="main")
     sch.unannotate(block_or_loop=b82, ann_key="meta_schedule.unroll_explicit")
-    _, b83, b84, b85, b86, _ = sch.get_child_blocks(b82)
+    b83, b84, b85, b86 = sch.get_child_blocks(b82)
     l87, l88, l89, l90, l91, l92, l93 = sch.get_loops(block=b83)
     sch.annotate(block_or_loop=l87, ann_key="pragma_auto_unroll_max_step", ann_val=1024)
     sch.annotate(block_or_loop=l87, ann_key="pragma_unroll_explicit", ann_val=1)
@@ -802,10 +798,6 @@ def NT_matmul9_sch_func():
     b119 = sch.get_block(name="NT_matmul", func_name="main")
     l120, l121, l122, l123, l124, l125, l126, l127, l128, l129, l130, l131 = sch.get_loops(block=b119)
     b132 = sch.decompose_reduction(block=b119, loop=l123)
-    b1 = sch.get_block("rxplaceholder_1_pad")
-    sch.compute_inline(b1)
-    b2 = sch.get_block("NT_matmul_pad")
-    sch.reverse_compute_inline(b2)
     return sch.mod["main"].with_attr("tir.is_scheduled", 1)
 
 
@@ -1972,34 +1964,34 @@ def decode_sch_func(orig_func):
 
 
 @T.prim_func
-def fused_decode3_matmul1_before(lv2931: T.Buffer((T.int64(512), T.int64(32001)), "uint32"), lv2932: T.Buffer((T.int64(128), T.int64(32001)), "uint32"), lv1511: T.Buffer((T.int64(1), T.int64(1), T.int64(4096)), "float32"), var_matmul_intermediate: T.Buffer((T.int64(1), T.int64(1), T.int64(32001)), "float32")):
-    T.func_attr({"tir.noalias": T.bool(True)})
-    # with T.block("root"):
-    var_decode_intermediate = T.alloc_buffer((T.int64(4096), T.int64(32001)))
-    for i, j in T.grid(T.int64(4096), T.int64(32001)):
-        with T.block("decode"):
-            v_i, v_j = T.axis.remap("SS", [i, j])
-            T.reads(lv2931[v_i // T.int64(8), v_j], lv2932[v_i // T.int64(32), v_j])
-            T.writes(var_decode_intermediate[v_i, v_j])
-            var_decode_intermediate[v_i, v_j] = T.Cast("float32", T.bitwise_and(T.shift_right(lv2931[v_i // T.int64(8), v_j], T.Cast("uint32", v_i % T.int64(8) * T.int64(4))), T.uint32(15))) * T.reinterpret("float32", T.shift_left(T.bitwise_and(lv2932[v_i // T.int64(32), v_j], T.uint32(65535)), T.uint32(16))) + T.reinterpret("float32", T.shift_left(T.bitwise_and(T.shift_right(lv2932[v_i // T.int64(32), v_j], T.uint32(16)), T.uint32(65535)), T.uint32(16)))
-    for i0, i1, i2, k in T.grid(T.int64(1), T.int64(1), T.int64(32001), T.int64(4096)):
-        with T.block("matmul"):
-            v_i0, v_i1, v_i2, v_k = T.axis.remap("SSSR", [i0, i1, i2, k])
-            T.reads(lv1511[v_i0, v_i1, v_k], var_decode_intermediate[v_k, v_i2])
-            T.writes(var_matmul_intermediate[v_i0, v_i1, v_i2])
-            with T.init():
-                var_matmul_intermediate[v_i0, v_i1, v_i2] = T.float32(0)
-            var_matmul_intermediate[v_i0, v_i1, v_i2] = var_matmul_intermediate[v_i0, v_i1, v_i2] + lv1511[v_i0, v_i1, v_k] * var_decode_intermediate[v_k, v_i2]
+def fused_decode3_matmul1_before(lv2931: T.Buffer((T.int64(512), T.int64(32000)), "uint32"), lv2932: T.Buffer((T.int64(128), T.int64(32000)), "uint32"), lv1511: T.Buffer((T.int64(1), T.int64(1), T.int64(4096)), "float32"), var_matmul_intermediate: T.Buffer((T.int64(1), T.int64(1), T.int64(32000)), "float32")):
+        T.func_attr({"tir.noalias": T.bool(True)})
+        # with T.block("root"):
+        var_decode_intermediate = T.alloc_buffer((T.int64(4096), T.int64(32000)))
+        for i, j in T.grid(T.int64(4096), T.int64(32000)):
+            with T.block("decode"):
+                v_i, v_j = T.axis.remap("SS", [i, j])
+                T.reads(lv2931[v_i // T.int64(8), v_j], lv2932[v_i // T.int64(32), v_j])
+                T.writes(var_decode_intermediate[v_i, v_j])
+                var_decode_intermediate[v_i, v_j] = T.Cast("float32", T.bitwise_and(T.shift_right(lv2931[v_i // T.int64(8), v_j], T.Cast("uint32", v_i % T.int64(8) * T.int64(4))), T.uint32(15))) * T.reinterpret("float32", T.shift_left(T.bitwise_and(lv2932[v_i // T.int64(32), v_j], T.uint32(65535)), T.uint32(16))) + T.reinterpret("float32", T.shift_left(T.bitwise_and(T.shift_right(lv2932[v_i // T.int64(32), v_j], T.uint32(16)), T.uint32(65535)), T.uint32(16)))
+        for i0, i1, i2, k in T.grid(T.int64(1), T.int64(1), T.int64(32000), T.int64(4096)):
+            with T.block("matmul"):
+                v_i0, v_i1, v_i2, v_k = T.axis.remap("SSSR", [i0, i1, i2, k])
+                T.reads(lv1511[v_i0, v_i1, v_k], var_decode_intermediate[v_k, v_i2])
+                T.writes(var_matmul_intermediate[v_i0, v_i1, v_i2])
+                with T.init():
+                    var_matmul_intermediate[v_i0, v_i1, v_i2] = T.float32(0)
+                var_matmul_intermediate[v_i0, v_i1, v_i2] = var_matmul_intermediate[v_i0, v_i1, v_i2] + lv1511[v_i0, v_i1, v_k] * var_decode_intermediate[v_k, v_i2]
 
 
 @T.prim_func
-def fused_decode3_matmul1_after(lv1123: T.Buffer((T.int64(512), T.int64(32001)), "uint32"), lv1124: T.Buffer((T.int64(128), T.int64(32001)), "uint32"), lv1511: T.Buffer((T.int64(1), T.int64(1), T.int64(4096)), "float32"), var_matmul_intermediate: T.Buffer((T.int64(1), T.int64(1), T.int64(32001)), "float32")):
+def fused_decode3_matmul1_after(lv1123: T.Buffer((T.int64(512), T.int64(32000)), "uint32"), lv1124: T.Buffer((T.int64(128), T.int64(32000)), "uint32"), lv1511: T.Buffer((T.int64(1), T.int64(1), T.int64(4096)), "float32"), var_matmul_intermediate: T.Buffer((T.int64(1), T.int64(1), T.int64(32000)), "float32")):
     T.func_attr({"global_symbol": "main", "tir.noalias": T.bool(True), "tir.is_scheduled": 1})
     # with T.block("root"):
-    var_decode_intermediate_pad_local = T.alloc_buffer((T.int64(4096), T.int64(35072)), scope="local")
-    var_matmul_intermediate_pad_local = T.alloc_buffer((T.int64(1), T.int64(1), T.int64(35072)), scope="local")
+    var_decode_intermediate_pad_local = T.alloc_buffer((T.int64(4096), T.int64(32000)), scope="local")
+    var_matmul_intermediate_pad_local = T.alloc_buffer((T.int64(1), T.int64(1), T.int64(32000)), scope="local")
     lv1511_shared = T.alloc_buffer((T.int64(1), T.int64(1), T.int64(4096)), scope="shared")
-    for i0_i1_i2_0_fused in T.thread_binding(T.int64(137), thread="blockIdx.x", annotations={"pragma_auto_unroll_max_step": 16, "pragma_unroll_explicit": 1}):
+    for i0_i1_i2_0_fused in T.thread_binding(T.int64(125), thread="blockIdx.x", annotations={"pragma_auto_unroll_max_step": 16, "pragma_unroll_explicit": 1}):
         for i2_1 in T.thread_binding(T.int64(1), thread="vthread.x"):
             for i2_2 in T.thread_binding(T.int64(256), thread="threadIdx.x"):
                 for ax0, ax1_ax2_fused_0 in T.grid(T.int64(1), T.int64(4)):
@@ -2016,7 +2008,7 @@ def fused_decode3_matmul1_after(lv1123: T.Buffer((T.int64(512), T.int64(32001)),
                 with T.block("matmul_init"):
                     v_i0 = T.axis.spatial(T.int64(1), T.int64(0))
                     v_i1 = T.axis.spatial(T.int64(1), T.int64(0))
-                    v_i2 = T.axis.spatial(T.int64(35072), i0_i1_i2_0_fused * T.int64(256) + i2_1 * T.int64(256) + i2_2)
+                    v_i2 = T.axis.spatial(T.int64(32000), i0_i1_i2_0_fused * T.int64(256) + i2_1 * T.int64(256) + i2_2)
                     T.reads()
                     T.writes(var_matmul_intermediate_pad_local[v_i0, v_i1, v_i2])
                     var_matmul_intermediate_pad_local[v_i0, v_i1, v_i2] = T.float32(0)
@@ -2026,15 +2018,15 @@ def fused_decode3_matmul1_after(lv1123: T.Buffer((T.int64(512), T.int64(32001)),
                             for ax1 in range(T.int64(1)):
                                 with T.block("var_decode_intermediate_pad"):
                                     v0 = T.axis.spatial(T.int64(4096), k_0_0 * T.int64(64) + ax0_0 * T.int64(8) + ax0_1)
-                                    v1 = T.axis.spatial(T.int64(35072), i0_i1_i2_0_fused * T.int64(256) + i2_2 + ax1)
+                                    v1 = T.axis.spatial(T.int64(32000), i0_i1_i2_0_fused * T.int64(256) + i2_2 + ax1)
                                     T.reads(lv1123[v0 // T.int64(8), v1], lv1124[v0 // T.int64(32), v1])
                                     T.writes(var_decode_intermediate_pad_local[v0, v1])
-                                    var_decode_intermediate_pad_local[v0, v1] = T.if_then_else(v1 < T.int64(32001), T.Cast("float32", T.bitwise_and(T.shift_right(lv1123[v0 // T.int64(8), v1], T.Cast("uint32", v0 % T.int64(8) * T.int64(4))), T.uint32(15))) * T.reinterpret("float32", T.shift_left(T.bitwise_and(lv1124[v0 // T.int64(32), v1], T.uint32(65535)), T.uint32(16))) + T.reinterpret("float32", T.shift_left(T.bitwise_and(T.shift_right(lv1124[v0 // T.int64(32), v1], T.uint32(16)), T.uint32(65535)), T.uint32(16))), T.float32(0))
+                                    var_decode_intermediate_pad_local[v0, v1] = T.Cast("float32", T.bitwise_and(T.shift_right(lv1123[v0 // T.int64(8), v1], T.Cast("uint32", v0 % T.int64(8) * T.int64(4))), T.uint32(15))) * T.reinterpret("float32", T.shift_left(T.bitwise_and(lv1124[v0 // T.int64(32), v1], T.uint32(65535)), T.uint32(16))) + T.reinterpret("float32", T.shift_left(T.bitwise_and(T.shift_right(lv1124[v0 // T.int64(32), v1], T.uint32(16)), T.uint32(65535)), T.uint32(16)))
                     for k_0_1_k_1_fused in range(T.int64(64)):
                         with T.block("matmul_update"):
                             v_i0 = T.axis.spatial(T.int64(1), T.int64(0))
                             v_i1 = T.axis.spatial(T.int64(1), T.int64(0))
-                            v_i2 = T.axis.spatial(T.int64(35072), i0_i1_i2_0_fused * T.int64(256) + i2_1 * T.int64(256) + i2_2)
+                            v_i2 = T.axis.spatial(T.int64(32000), i0_i1_i2_0_fused * T.int64(256) + i2_1 * T.int64(256) + i2_2)
                             v_k = T.axis.reduce(T.int64(4096), k_0_0 * T.int64(64) + k_0_1_k_1_fused)
                             T.reads(var_matmul_intermediate_pad_local[v_i0, v_i1, v_i2], lv1511_shared[v_i0, v_i1, v_k], var_decode_intermediate_pad_local[v_k, v_i2])
                             T.writes(var_matmul_intermediate_pad_local[v_i0, v_i1, v_i2])
@@ -2042,11 +2034,10 @@ def fused_decode3_matmul1_after(lv1123: T.Buffer((T.int64(512), T.int64(32001)),
                 for ax0, ax1, ax2 in T.grid(T.int64(1), T.int64(1), T.int64(1)):
                     with T.block("var_matmul_intermediate_pad_local"):
                         v0, v1 = T.axis.remap("SS", [ax0, ax1])
-                        v2 = T.axis.spatial(T.int64(35072), i0_i1_i2_0_fused * T.int64(256) + i2_2 + ax2)
+                        v2 = T.axis.spatial(T.int64(32000), i0_i1_i2_0_fused * T.int64(256) + i2_2 + ax2)
                         T.reads(var_matmul_intermediate_pad_local[v0, v1, v2])
                         T.writes(var_matmul_intermediate[v0, v1, v2])
-                        if v2 < T.int64(32001):
-                            var_matmul_intermediate[v0, v1, v2] = var_matmul_intermediate_pad_local[v0, v1, v2]
+                        var_matmul_intermediate[v0, v1, v2] = var_matmul_intermediate_pad_local[v0, v1, v2]
                  
        
 @T.prim_func

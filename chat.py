@@ -16,7 +16,7 @@ def _parse_args():
     args.add_argument("--device-name", type=str, default="auto")
     args.add_argument("--debug-dump", action="store_true", default=False)
     args.add_argument("--artifact-path", type=str, default="dist")
-    args.add_argument("--model", type=str, default="vicuna-7b")
+    args.add_argument("--model", type=str, default="vicuna-7b-v1")
     args.add_argument("--max-gen-len", type=int, default=128)
     args.add_argument("--run-torch-model", action="store_true", default=False)
     parsed = args.parse_args()
@@ -101,7 +101,7 @@ def sample_top_p(probs, p):
 def chat(model_wrapper, args):
 
     # Chat
-    conv = conv_templates["v1"].copy()
+    conv = conv_templates["vicuna_v1.1"].copy()
     while True:
         try:
             inp = input(f"{conv.roles[0]}: ")

@@ -4,9 +4,9 @@
         "shape": [32, 32, 128],
         "dtype": "float32"
     },
-    "wasmUrl": "dist/vicuna-7b/vicuna-7b_webgpu.wasm",
+    "wasmUrl": "dist/vicuna-7b-v1/vicuna-7b-v1_webgpu.wasm",
     "cacheUrl": "https://huggingface.co/mlc-ai/web-lm/resolve/main/vicuna-0b/",
-    "tokenizer": "dist/vicuna-7b/tokenizer.model",
+    "tokenizer": "dist/vicuna-7b-v1/tokenizer.model",
     "maxGenLength": 512,
     "meanGenLength": 128,
     "maxWindowLength": 2048
