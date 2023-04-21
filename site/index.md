@@ -32,7 +32,7 @@ If you have a Mac computer with Apple silicon, here are the instructions for you
   ```
   /Applications/Google\ Chrome\ Canary.app/Contents/MacOS/Google\ Chrome\ Canary --enable-dawn-features=disable_robustness
   ```
-  This command turns off the robustness check from Chrome Canary that slows down image generation to times. It is not necessary, but we strongly recommend you to start Chrome with this command.
+  This command turns off the robustness check from Chrome Canary that slows down chatbot reply to times. It is not necessary, but we strongly recommend you to start Chrome with this command.
 - Enter your inputs, click “Send” – we are ready to go! The chat bot will first fetch model parameters into local cache. The download may take a few minutes, only for the first run. The subsequent refreshes and runs will be faster.
 
 ## Chat Demo
