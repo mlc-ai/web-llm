@@ -88,7 +88,7 @@ def get_models(config, model):
         for gv in mod.functions:
             func = mod[gv]
             if isinstance(func, relax.Function):
-                mod[gv] = func.with_attr("tir_var_upper_bound", {"n": config.max_sequence_length})
+                mod[gv] = func.with_attr("tir_var_upper_bound", {"n": config.max_sequence_length, "m": config.max_sequence_length})
 
         return mod
     else:

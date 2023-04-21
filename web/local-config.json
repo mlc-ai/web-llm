@@ -7,7 +7,7 @@
     "wasmUrl": "dist/vicuna-7b-v1/vicuna-7b-v1_webgpu.wasm",
     "cacheUrl": "vicuna-7b-v1-params/",
     "tokenizer": "dist/vicuna-7b-v1/tokenizer.model",
-    "maxGenLength": 512,
-    "meanGenLength": 128,
-    "maxWindowLength": 1024
+    "maxGenLength": 1024,
+    "meanGenLength": 256,
+    "maxWindowLength": 2048
 }
