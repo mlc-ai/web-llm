@@ -36,6 +36,57 @@ class Conversation {
     return ret;
   }
 
+  /**
+   * Get prompt arrays that has not been fed as input
+   *
+   * @returns The prompt array.
+   */
+  getPromptArrayUnproccessed() {
+    if (this.seps.length == 0) {
+      throw Error("Need seps to work")
+    }
+    if (this.messages.length < 3) {
+      throw Error("needs to call getLastPromptArray for the first message");
+    }
+    let ret = [this.seps[this.seps.length - 1]];
+    for (let i = this.messages.length - 2; i < this.messages.length; ++i) {
+      const item = this.messages[i];
+      const role = item[0];
+      const message = item[1];
+      if (message !== undefined && message != "") {
+        ret.push(role + ": " + message + this.seps[i % this.seps.length]);
+      } else {
+        ret.push(role + ":");
+      }
+    }
+    return ret;
+
+  }
+
+  /**
+   * Get last prompt array with prefix as system.
+   *
+   * @returns The prompt array.
+   */
+  getLastPromptArray() {
+    if (this.seps.length == 0) {
+      throw Error("Need seps to work")
+    }
+    let ret = [this.system + this.seps[0]];
+
+    for (let i = this.messages.length - 2; i < this.messages.length; ++i) {
+      const item = this.messages[i];
+      const role = item[0];
+      const message = item[1];
+      if (message !== undefined && message != "") {
+        ret.push(role + ": " + message + this.seps[i % this.seps.length]);
+      } else {
+        ret.push(role + ":");
+      }
+    }
+    return ret;
+  }
+
   reset() {
     this.messages = [];
   }
@@ -52,12 +103,12 @@ class Conversation {
 function defaultConversation(maxWindowLength = 512) {
   return new Conversation({
     system: "A chat between a curious user and an artificial intelligence assistant. " +
-            "The assistant gives helpful, detailed, and polite answers to the user's questions.",
+      "The assistant gives helpful, detailed, and polite answers to the user's questions.",
     roles: ["USER", "ASSISTANT"],
     maxWindowLength: maxWindowLength,
     messages: [],
     offset: 0,
-    seps:[" ", "</s>"],
+    seps: [" ", "</s>"],
   });
 };
 
@@ -120,6 +171,9 @@ class LLMChatPipeline {
     this.kvCache = this.tvm.detachFromCurrentScope(this.tvm.makeTVMArray(kvList));
     // fill with pad token
     this.logitsOnCPU = undefined;
+
+    this.kvCacheLength = 0;
+    this.clearCache = true
   }
 
 
@@ -167,7 +221,7 @@ class LLMChatPipeline {
         this.tvm.empty(logits.shape, logits.dtype, this.tvm.cpu())
       );
     } else {
-      if(logits.shape[0] != this.logitsOnCPU.shape[0]) {
+      if (logits.shape[0] != this.logitsOnCPU.shape[0]) {
         throw Error("We expect the size of logits to remain unchanged");
       }
     }
@@ -183,35 +237,56 @@ class LLMChatPipeline {
   }
 
   async getInputTokens() {
-    const tokens = [this.bosTokenId];
-    const prompts = this.conversation.getPromptArray();
+    let tokens = [this.bosTokenId];
+    let prompts = ""
+    if (this.conversation.messages.length <= 2) {
+      prompts = this.conversation.getPromptArray();
+    } else {
+      tokens.pop();
+      prompts = this.conversation.getPromptArrayUnproccessed();
+    }
     tokens.push(...await this.tokenizer.encodeIds(prompts[0]));
-
     let ctxLength = tokens.length;
-    const context = [];
+    let context = [];
+    let need_shift_window = false;
     for (let i = prompts.length - 1; i > 0; --i) {
       const encoded = this.tokenizer.encodeIds(prompts[i]);
       ctxLength += encoded.length;
-      if (ctxLength + this.meanGenLength >= this.maxWindowLength && i + 2 < prompts.length) {
-        this.logger("Shift window at " + i);
+      if (this.kvCacheLength + ctxLength + this.meanGenLength >= this.maxWindowLength) {
+        need_shift_window = true;
         break;
       }
       context.unshift(encoded);
     }
-    const followMessage = [];
-    for (const ctx of context) {
-      followMessage.push(...ctx);
-    }
-
-    if (followMessage.length + tokens.length + this.meanGenLength >= this.maxWindowLength) {
-      const maxMsgLen = this.maxWindowLength - tokens.length - this.meanGenLength;
-      if (maxMsgLen < this.meanGenLength) {
-        throw Error("Too small window config tokens.length=" + tokens.length);
+    if (!need_shift_window) {
+      for (const ctx of context) {
+        tokens.push(...ctx);
       }
-      this.logger("Slice message " + followMessage.length + " to " + maxMsgLen);
-      followMessage = followMessage.slice(followMessage.length - maxMsgLen);
+      return tokens;
     }
-    tokens.push(...followMessage);
+    // need shift window and re-encode
+    this.logger("need shift window")
+    this.kvCacheLength = 0;
+    this.clearCache = true;
+    // abandon all tokens we collected
+    tokens = [this.bosTokenId]
+    let all_prompts = this.conversation.getPromptArray();
+    tokens.push(...await this.tokenizer.encodeIds(all_prompts[0]));
+    context = [];
+    ctxLength = tokens.length;
+    //only keep 10% of the window context
+    const fill_factor = 0.1
+    for (let i = all_prompts.length - 1; i > 0; --i) {
+      const encoded = this.tokenizer.encodeIds(all_prompts[i]);
+      ctxLength += encoded.length;
+      if (ctxLength >= fill_factor * this.maxWindowLength && i + 2 < all_prompts.length) {
+        break;
+      }
+      context.unshift(encoded);
+    }
+    for (const ctx of context) {
+      tokens.push(...ctx);
+    }
     if (tokens.length + this.meanGenLength >= this.maxWindowLength) {
       throw Error("Exceed max window length curr=" + tokens.length);
     }
@@ -235,16 +310,18 @@ class LLMChatPipeline {
     const inputTokenLength = tokens.length;
 
     var outputPrompt = "";
-    this.#clearKVCache();
+    if (this.clearCache) {
+      this.#clearKVCache();
+      this.clearCache = false;
+    }
     const maxGenLen = Math.min(this.maxGenLength, this.maxWindowLength - tokens.length);
     if (maxGenLen < this.meanGenLength) {
       throw Error("Too small window size config");
     }
-
-    for (let step = 0; step < maxGenLen; ++step) {
+    let step = 0;
+    for (; step < maxGenLen && this.kvCacheLength + inputTokenLength + step < this.maxWindowLength; ++step) {
       this.tvm.beginScope();
       var inputData;
-
       let tstart = performance.now();
       if (step == 0) {
         inputData = this.tvm.empty([1, tokens.length], "int32", this.device);
@@ -254,7 +331,7 @@ class LLMChatPipeline {
         inputData.copyFrom(tokens.slice(tokens.length - 1));
       }
       const logits = this.tvm.detachFromCurrentScope(
-        this.#forward(inputData, inputTokenLength + step)
+        this.#forward(inputData, this.kvCacheLength + inputTokenLength + step)
       );
       this.tvm.endScope();
 
@@ -285,6 +362,7 @@ class LLMChatPipeline {
         callbackUpdateResponse(step, outputPrompt);
       }
     }
+    this.kvCacheLength += tokens.length - 1;
     this.conversation.messages[this.conversation.messages.length - 1][1] = outputPrompt;
     return outputPrompt;
   }
@@ -358,12 +436,12 @@ class LLMChatInstance {
     this.logger = console.log;
     this.debugTest = false;
   }
- /**
-   * Initialize TVM
-   * @param wasmUrl URL to wasm source.
-   * @param cacheUrl URL to NDArray cache.
-   * @param logger Custom logger.
-   */
+  /**
+    * Initialize TVM
+    * @param wasmUrl URL to wasm source.
+    * @param cacheUrl URL to NDArray cache.
+    * @param logger Custom logger.
+    */
   async #asyncInitTVM(wasmUrl, cacheUrl) {
     if (this.tvm !== undefined) {
       return;
@@ -395,7 +473,7 @@ class LLMChatInstance {
         this.reset();
         throw Error("This browser env do not support WebGPU");
       }
-    } catch(err) {
+    } catch (err) {
       this.appendMessage("error", "Find an error initializing the WebGPU device " + err.toString());
       console.log(err.stack);
       this.reset();
@@ -444,7 +522,7 @@ class LLMChatInstance {
     // initialize UX and tokenizer
     const tokenizer = await tvmjsGlobalEnv.sentencePieceProcessor(this.config.tokenizer);
     this.pipeline = this.tvm.withNewScope(() => {
-      return new LLMChatPipeline(this.tvm, tokenizer,  this.tvm.cacheMetadata, this.config);
+      return new LLMChatPipeline(this.tvm, tokenizer, this.tvm.cacheMetadata, this.config);
     });
     await this.pipeline.asyncLoadWebGPUPiplines();
     this.updateLastMessage("init", "All initialization finished.");
@@ -521,7 +599,7 @@ class LLMChatInstance {
 
     try {
       await this.asyncInit();
-    } catch(err) {
+    } catch (err) {
       this.appendMessage("error", "Init error, " + err.toString());
       console.log(err.stack);
       this.reset();

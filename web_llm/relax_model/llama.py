@@ -360,13 +360,18 @@ class LlamaDecoderLayer(nn.Module):
         return hidden_states, present_key_value
 
 
-def _make_causal_mask(input_ids_shape, dtype):
+def _make_causal_mask(input_ids_shape, dtype, src_len):
     from tvm.relax.op import broadcast_to, full, triu
 
     bsz, tgt_len = input_ids_shape
     mask = full((tgt_len, tgt_len), relax.const(tvm.tir.min_value(dtype).value, dtype))
     mask = triu(mask, k=1)
-    return nn.emit(broadcast_to(mask, (bsz, 1, tgt_len, tgt_len)))
+    diag_mask = nn.emit(broadcast_to(mask, (bsz, 1, tgt_len, tgt_len)))
+    if src_len == tgt_len:
+        return diag_mask
+    def extend_te(x, tgt_len, src_len):
+        return te.compute((bsz, 1, tgt_len, src_len), lambda b, _, i, j: te.if_then_else(j < src_len - tgt_len, 0, x[b, _, i, j - (src_len-tgt_len)]), name="concat_te")
+    return nn.emit_te(extend_te, diag_mask, tgt_len, src_len)
 
 
 class LlamaModel(nn.Module):
@@ -383,7 +388,7 @@ class LlamaModel(nn.Module):
         # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
         combined_attention_mask = None
         if isinstance(input_shape[-1], tvm.tir.Var) or input_shape[-1] > 1:
-            combined_attention_mask = _make_causal_mask(input_shape, dtype)
+            combined_attention_mask = _make_causal_mask(input_shape, dtype, src_len)
         else:
             # Get src_len from input parameters
             # [bsz, seq_len] -> [bsz, 1, tgt_seq_len, src_seq_len]
@@ -479,11 +484,11 @@ class LlamaForCausalLM(nn.Module):
 def create_encoding_func(bb: relax.BlockBuilder, config: LlamaConfig) -> None:
     bsz = 1
     seq_len = tvm.tir.Var("n", "int64")
-
+    all_seq_len = tvm.tir.Var("m", "int64")
     with bb.function("encoding"):
         model = LlamaForCausalLM(config)
         input_ids = nn.Placeholder((bsz, seq_len), dtype="int32", name="input_ids")
-        all_seq_len_shape = relax.Var("all_seq_len", relax.ShapeStructInfo((seq_len,)))
+        all_seq_len_shape = relax.Var("all_seq_len", relax.ShapeStructInfo((all_seq_len,)))
         past_key_values = relax.Var(
             "kv_cache",
             relax.TupleStructInfo(

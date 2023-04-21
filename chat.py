@@ -17,7 +17,7 @@ def _parse_args():
     args.add_argument("--debug-dump", action="store_true", default=False)
     args.add_argument("--artifact-path", type=str, default="dist")
     args.add_argument("--model", type=str, default="vicuna-7b-v1")
-    args.add_argument("--max-gen-len", type=int, default=128)
+    args.add_argument("--max-gen-len", type=int, default=2048)
     args.add_argument("--run-torch-model", action="store_true", default=False)
     parsed = args.parse_args()
     parsed.model_path = os.path.join(parsed.artifact_path, "models", parsed.model)
@@ -46,9 +46,11 @@ class ModelWrapper:
         top_p: float = 0.95,
         stream_interval: int = 2,
         stop_str: str = None,
+        add_bos = True,
     ):
         prompt_tokens = self.tokenizer.encode(prompt)
-
+        if not add_bos:
+            prompt_tokens = prompt_tokens[1:]
         total_len = max_gen_len + len(prompt_tokens)
         tokens = torch.full((1, total_len), self.tokenizer.pad_token_id).to(
             torch.int32
@@ -57,9 +59,9 @@ class ModelWrapper:
         start_pos = len(prompt_tokens)
         for cur_pos in range(start_pos, total_len):
             if cur_pos == start_pos:
-                logits = self.model(tokens[:, :cur_pos], cur_pos, clear_cache=True)
+                logits = self.model(tokens[:, :cur_pos])
             else:
-                logits = self.model(tokens[:, cur_pos - 1 : cur_pos], cur_pos)
+                logits = self.model(tokens[:, cur_pos - 1 : cur_pos])
             logits = logits[:, -1, :]
             if temperature > 0:
                 probs = torch.softmax(logits / temperature, dim=-1)
@@ -102,6 +104,7 @@ def chat(model_wrapper, args):
 
     # Chat
     conv = conv_templates["vicuna_v1.1"].copy()
+    add_bos = True
     while True:
         try:
             inp = input(f"{conv.roles[0]}: ")
@@ -113,14 +116,14 @@ def chat(model_wrapper, args):
 
         conv.append_message(conv.roles[0], inp)
         conv.append_message(conv.roles[1], None)
-        prompt = conv.get_prompt()
-
+        prompt = conv.get_prompt_unprocessed()
         print(f"{conv.roles[1]}: ", end="", flush=True)
         pre = 0
         for outputs in model_wrapper.generate(
             prompt,
             args.max_gen_len,
             stop_str=conv.sep if conv.sep_style == SeparatorStyle.SINGLE else conv.sep2,
+            add_bos = add_bos,
         ):
             outputs = outputs[len(prompt) + 1 :].strip()
             outputs = outputs.split(" ")
@@ -131,6 +134,7 @@ def chat(model_wrapper, args):
         print(" ".join(outputs[pre:]), flush=True)
 
         conv.messages[-1][-1] = " ".join(outputs)
+        add_bos = False
         print("\n", {"prompt": prompt, "outputs": outputs}, "\n")
 
 
@@ -154,15 +158,15 @@ def get_tvm_model(args):
 
         def __init__(self) -> None:
             self.kv_cache = None
+            self.tot_seq_len = 0
             self.new_cache()
 
         def forward(
-            self, inputs: torch.Tensor, cur_pos: int, clear_cache: bool = False
+            self, inputs: torch.Tensor
         ) -> torch.Tensor:
-            if clear_cache:
-                self.new_cache()
             inputs = tvm.nd.array(inputs.numpy(), device=device)
-            seq_len_shape = tvm.runtime.ShapeTuple([cur_pos])
+            self.tot_seq_len+=inputs.shape[1]
+            seq_len_shape = tvm.runtime.ShapeTuple([self.tot_seq_len])
             if inputs.shape[1] > 1:
                 logits, kv_cache = vm["encoding"](
                     inputs, seq_len_shape, self.kv_cache, const_params

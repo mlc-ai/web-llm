@@ -1,4 +1,4 @@
-# copied from vicuna repo
+# modified from vicuna repo
 import dataclasses
 from enum import auto, Enum
 from typing import List, Tuple, Any
@@ -21,11 +21,12 @@ class Conversation:
     sep_style: SeparatorStyle = SeparatorStyle.SINGLE
     sep: str = "###"
     sep2: str = None
+    cur = 0
 
     # Used for gradio server
     skip_next: bool = False
     conv_id: Any = None
-
+    
     def get_prompt(self):
         if self.sep_style == SeparatorStyle.SINGLE:
             ret = self.system
@@ -54,6 +55,29 @@ class Conversation:
                         ret += "\n\n"
                 else:
                     ret += role + ":\n"
+            return ret
+        else:
+            raise ValueError(f"Invalid style: {self.sep_style}")
+
+    def get_prompt_unprocessed(self):
+        if self.sep_style == SeparatorStyle.TWO:
+            seps = [self.sep, self.sep2]
+            if self.cur == 0:
+                ret = self.system + seps[0]
+                for i, (role, message) in enumerate(self.messages):
+                    if message:
+                        ret += role + ": " + message + seps[i % 2]
+                    else:
+                        ret += role + ":"
+            else:
+                ret = seps[1]
+                assert self.cur % 2 == 1
+                for i, (role, message) in enumerate(self.messages[self.cur + 1:]):
+                    if message:
+                        ret += role + ": " + message + seps[i % 2]
+                    else:
+                        ret += role + ":"
+            self.cur = len(self.messages) - 1
             return ret
         else:
             raise ValueError(f"Invalid style: {self.sep_style}")
