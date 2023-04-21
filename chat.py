@@ -145,21 +145,10 @@ def get_tvm_model(args):
     vm = relax.VirtualMachine(ex, device)
 
     class Model:
-        def new_cache(self):
-            fcreate_cache = tvm.get_global_func("vm.builtin.attention_kv_cache_create")
-            self.kv_cache = []
-            for i in range(64):  # num_layer
-                kv_cache = fcreate_cache(
-                    tvm.nd.empty((1, 32, 128), device=device, dtype="float32"),
-                    tvm.runtime.ShapeTuple([32, 32, 128]),
-                    0
-                )
-                self.kv_cache.append(kv_cache)
 
         def __init__(self) -> None:
-            self.kv_cache = None
             self.tot_seq_len = 0
-            self.new_cache()
+            self.kv_cache = vm["create_kv_cache"]()
 
         def forward(
             self, inputs: torch.Tensor

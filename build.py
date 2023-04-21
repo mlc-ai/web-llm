@@ -81,8 +81,8 @@ def get_models(config, model):
     if "vicuna" in model or "llama" in model:
         bb = relax.BlockBuilder()
         llama.create_encoding_func(bb, config)
-        llama.create_encoding_func_without_cache(bb, config)
         llama.create_decoding_func(bb, config)
+        llama.create_kv_cache_func(bb, config)
         mod = bb.get()
 
         for gv in mod.functions:
@@ -121,7 +121,7 @@ def mod_transform_before_build(
     mod: tvm.IRModule, model_params: List[tvm.nd.NDArray], args: Dict
 ) -> tvm.IRModule:
     """First-stage: Legalize ops and trace"""
-    model_names = ["encoding", "decoding", "encoding_without_cache"]
+    model_names = ["encoding", "decoding", "create_kv_cache"]
 
     mod = web_llm.transform.GroupQuantize(group_size=32, sym=False)(mod)
     mod = web_llm.transform.FuseTransposeMatmul()(mod)
