@@ -14,6 +14,7 @@ from web_llm.relax_model import dolly
 NUM_HIDDEN_LAYERS = 32
 HIDDEN_DIM = 4096
 NUM_ATTENTION_HEADS = 32
+CONV = "vicuna_v1.1"
 
 
 def _parse_args():
@@ -43,12 +44,11 @@ def _parse_args():
     elif parsed.model in ["dolly-v2-3b", "dolly-v2-7b", "dolly-v2-12b"]:
         parsed.hf_model_path = "databricks/" + parsed.model
         cfg, _ = getattr(dolly, parsed.model.replace("-", "_"))(config_only=True)
-        global NUM_HIDDEN_LAYERS
-        global HIDDEN_DIM
-        global NUM_ATTENTION_HEADS
+        global NUM_HIDDEN_LAYERS, HIDDEN_DIM, NUM_ATTENTION_HEADS, CONV
         NUM_HIDDEN_LAYERS = cfg.num_hidden_layers
         HIDDEN_DIM = cfg.hidden_size
         NUM_ATTENTION_HEADS = cfg.num_attention_heads
+        CONV = "dolly"
     else:
         raise ValueError(f"Unknown model {parsed.model}")
 
@@ -127,7 +127,7 @@ def sample_top_p(probs, p):
 
 def chat(model_wrapper, args):
     # Chat
-    conv = conv_templates["vicuna_v1.1"].copy()
+    conv = conv_templates[CONV].copy()
     while True:
         try:
             inp = input(f"{conv.roles[0]}: ")
