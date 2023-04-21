@@ -56,9 +56,9 @@ class Linear(nn.Module):
     def __init__(self, in_features, out_features, bias=True):
         self.in_features = in_features
         self.out_features = out_features
-        self.weight = nn.Parameter((out_features, in_features), name="linear_weight")
+        self.weight = nn.Parameter((out_features, in_features), name="linear_weight", dtype="float32")
         if bias:
-            self.bias = nn.Parameter((out_features,), name="linear_bias")
+            self.bias = nn.Parameter((out_features,), name="linear_bias", dtype="float32")
         else:
             self.bias = None
 
@@ -68,8 +68,8 @@ class Linear(nn.Module):
 
 class LayerNorm(nn.Module):
     def __init__(self, hidden_size, eps=1e-5):
-        self.weight = nn.Parameter((hidden_size,), name="layer_norm_weight")
-        self.bias = nn.Parameter((hidden_size,), name="layer_norm_bias")
+        self.weight = nn.Parameter((hidden_size,), name="layer_norm_weight", dtype="float32")
+        self.bias = nn.Parameter((hidden_size,), name="layer_norm_bias", dtype="float32")
         self.eps = eps
 
     def forward(self, hidden_states):
@@ -89,7 +89,7 @@ class Embedding(nn.Module):
         self.num_embeddings = num_embeddings
         self.embedding_dim = embedding_dim
         self.weight = nn.Parameter(
-            (num_embeddings, embedding_dim), name="embedding_weight"
+            (num_embeddings, embedding_dim), dtype="float32", name="embedding_weight"
         )
 
     def forward(self, x: relax.Expr) -> relax.Var:
@@ -136,8 +136,8 @@ def apply_rotary_pos_emb_index(q, k, cos, sin, position_ids):
                 offset, j
             ] * tvm.tir.Select(
                 j >= n_feat_half,
-                tensor[idx[0], i, idx[2], j - n_feat_half],
-                -tensor[idx[0], i, idx[2], j + n_feat_half],
+                tensor[i, idx[1], idx[2], j - n_feat_half], # true
+                -tensor[i, idx[1], idx[2], j + n_feat_half], # false
             )
 
         return tvm.te.compute(tensor.shape, rotary_compute, name="rotary")
@@ -697,10 +697,10 @@ class ChatGLMForConditionalGeneration(nn.Module):
         ############ Rotary embedding constants ############
         assert config.hidden_size % config.num_attention_heads == 0
         self.cos_cached = nn.Parameter(
-            (config.max_sequence_length, config.hidden_size // (config.num_attention_heads * 2)), name="cos_cached"
+            (config.max_sequence_length, config.hidden_size // (config.num_attention_heads * 2)), name="cos_cached", dtype="float32"
         )
         self.sin_cached = nn.Parameter(
-            (config.max_sequence_length, config.hidden_size // (config.num_attention_heads * 2)), name="sin_cached"
+            (config.max_sequence_length, config.hidden_size // (config.num_attention_heads * 2)), name="sin_cached", dtype="float32"
         )
         ############ End ############
 
