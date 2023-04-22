@@ -145,30 +145,16 @@ class LLMChatPipeline {
     this.decoding = this.tvm.detachFromCurrentScope(
       this.vm.getFunction("decoding")
     );
-    this.encodingWithoutCache = this.tvm.detachFromCurrentScope(
-      this.vm.getFunction("encoding_without_cache")
-    );
     this.params = this.tvm.detachFromCurrentScope(
       this.tvm.getParamsFromCache("param", cacheMetadata.ParamSize)
     );
-    const fcreateCache = this.tvm.getGlobalFunc("vm.builtin.attention_kv_cache_create");
+    const fcreateCache = this.vm.getFunction("create_kv_cache");
     this.fclearKVCaches = this.tvm.detachFromCurrentScope(
       this.tvm.getGlobalFunc("vm.builtin.attention_kv_cache_array_clear")
     );
 
     // use extern config for now
-    // move to kv generation vm function
-    const kvList = [];
-    const kvConfig = config.kvConfig;
-    for (let i = 0; i < kvConfig.numLayers; ++i) {
-      const item = fcreateCache(
-        this.tvm.empty(kvConfig.shape, kvConfig.dtype, this.device),
-        this.tvm.makeShapeTuple(kvConfig.shape),
-        this.tvm.scalar(0, "int")
-      );
-      kvList.push(item);
-    }
-    this.kvCache = this.tvm.detachFromCurrentScope(this.tvm.makeTVMArray(kvList));
+    this.kvCache = this.tvm.detachFromCurrentScope(fcreateCache());
     // fill with pad token
     this.logitsOnCPU = undefined;
 
@@ -180,7 +166,6 @@ class LLMChatPipeline {
   dispose() {
     // note: tvm instance is not owned by this class
     this.params.dispose();
-    this.encodingWithoutCache.dispose();
     this.decoding.dispose();
     this.encoding.dispose();
     this.vm.dispose();
@@ -368,7 +353,7 @@ class LLMChatPipeline {
   }
 
   async evaluate() {
-    // run a canonicla evaluateion fo the flow
+    // run a canonical evaluation of the flow
     this.#clearKVCache();
     const testPrompt = "The capital of Canada is";
     const ids = await this.tokenizer.encodeIds(testPrompt);

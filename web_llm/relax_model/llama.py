@@ -178,7 +178,7 @@ class LlamaAttention(nn.Module):
         cos_cached: relax.Expr,
         sin_cached: relax.Expr,
         all_seq_len_shape: relax.Expr,
-        past_key_value: Optional[Tuple[relax.Expr]] = None,
+        past_key_value: Tuple[relax.Expr],
         attention_mask: Optional[relax.Expr] = None,
     ) -> Tuple[relax.Expr, Optional[relax.Expr], Optional[Tuple[relax.Expr]]]:
         from tvm.relax.op import astype, matmul, maximum, permute_dims, reshape, squeeze
@@ -221,43 +221,43 @@ class LlamaAttention(nn.Module):
             [kv_states_shape[0], kv_seq_len, kv_states_shape[2], kv_states_shape[3]]
         )
         kv_cache_shape = R.shape([kv_seq_len, kv_states_shape[2], kv_states_shape[3]])
-        if past_key_value is not None:
-            squeezed_key = nn.emit(squeeze(key_states, axis=0))
-            squeezed_value = nn.emit(squeeze(value_states, axis=0))
-            k_cache, v_cache = past_key_value
-            f_kv_cache_append = relax.extern("vm.builtin.attention_kv_cache_append")
-            k_cache = nn.emit(
-                relax.Call(
-                    f_kv_cache_append,
-                    args=[k_cache, squeezed_key],
-                    sinfo_args=[relax.ObjectStructInfo()],
-                )
+
+        squeezed_key = nn.emit(squeeze(key_states, axis=0))
+        squeezed_value = nn.emit(squeeze(value_states, axis=0))
+        k_cache, v_cache = past_key_value
+        f_kv_cache_append = relax.extern("vm.builtin.attention_kv_cache_append")
+        k_cache = nn.emit(
+            relax.Call(
+                f_kv_cache_append,
+                args=[k_cache, squeezed_key],
+                sinfo_args=[relax.ObjectStructInfo()],
             )
-            v_cache = nn.emit(
-                relax.Call(
-                    f_kv_cache_append,
-                    args=[v_cache, squeezed_value],
-                    sinfo_args=[relax.ObjectStructInfo()],
-                )
+        )
+        v_cache = nn.emit(
+            relax.Call(
+                f_kv_cache_append,
+                args=[v_cache, squeezed_value],
+                sinfo_args=[relax.ObjectStructInfo()],
             )
-            past_key_value = (k_cache, v_cache)
-            f_kv_cache_view = relax.extern("vm.builtin.attention_kv_cache_view")
-            k_cache = nn.emit(
-                relax.Call(
-                    f_kv_cache_view,
-                    args=[k_cache, kv_cache_shape],
-                    sinfo_args=[R.Tensor(kv_cache_shape, kv_states_dtype)],
-                )
+        )
+        past_key_value = (k_cache, v_cache)
+        f_kv_cache_view = relax.extern("vm.builtin.attention_kv_cache_view")
+        k_cache = nn.emit(
+            relax.Call(
+                f_kv_cache_view,
+                args=[k_cache, kv_cache_shape],
+                sinfo_args=[R.Tensor(kv_cache_shape, kv_states_dtype)],
             )
-            v_cache = nn.emit(
-                relax.Call(
-                    f_kv_cache_view,
-                    args=[v_cache, kv_cache_shape],
-                    sinfo_args=[R.Tensor(kv_cache_shape, kv_states_dtype)],
-                )
+        )
+        v_cache = nn.emit(
+            relax.Call(
+                f_kv_cache_view,
+                args=[v_cache, kv_cache_shape],
+                sinfo_args=[R.Tensor(kv_cache_shape, kv_states_dtype)],
             )
-            key_states = nn.emit(reshape(k_cache, kv_states_shape))
-            value_states = nn.emit(reshape(v_cache, kv_states_shape))
+        )
+        key_states = nn.emit(reshape(k_cache, kv_states_shape))
+        value_states = nn.emit(reshape(v_cache, kv_states_shape))
 
         query_states = nn.emit(permute_dims(query_states, [0, 2, 1, 3]))
         key_states = nn.emit(permute_dims(key_states, [0, 2, 1, 3]))
@@ -333,8 +333,8 @@ class LlamaDecoderLayer(nn.Module):
         cos_cached: relax.Expr,
         sin_cached: relax.Expr,
         all_seq_len_shape: relax.Expr,
+        past_key_value: Tuple[relax.Expr],
         attention_mask: Optional[relax.Expr] = None,
-        past_key_value: Optional[Tuple[relax.Expr]] = None,
     ) -> Tuple[relax.Expr, Optional[Tuple[relax.Expr, relax.Expr]]]:
         residual = hidden_states
 
@@ -402,7 +402,7 @@ class LlamaModel(nn.Module):
         cos_cached: relax.Expr,
         sin_cached: relax.Expr,
         all_seq_len_shape: relax.Expr,
-        past_key_values: Optional[relax.Expr] = None,
+        past_key_values: relax.Expr,
     ):
         # retrieve input_ids
         batch_size, seq_length = input_ids.struct_info.shape
@@ -421,11 +421,8 @@ class LlamaModel(nn.Module):
         next_decoder_cache = ()
 
         for idx, decoder_layer in enumerate(self.layers):
-            past_key_value = (
-                (past_key_values[idx * 2], past_key_values[idx * 2 + 1])
-                if past_key_values is not None
-                else None
-            )
+            assert past_key_values is not None
+            past_key_value = (past_key_values[idx * 2], past_key_values[idx * 2 + 1])
 
             hidden_states, key_value_cache = decoder_layer(
                 hidden_states,
@@ -459,7 +456,7 @@ class LlamaForCausalLM(nn.Module):
         self,
         input_ids: relax.Expr,
         all_seq_len_shape: relax.Expr,
-        past_key_values: Optional[List[relax.Expr]] = None,
+        past_key_values: relax.Expr,
     ):
         hidden_states, key_value_cache = self.model(
             input_ids=input_ids,
@@ -543,20 +540,24 @@ def create_decoding_func(bb: relax.BlockBuilder, config: LlamaConfig) -> None:
     bb.update_func(gv, mod[gv].with_attr("num_input", 3))
 
 
-def create_encoding_func_without_cache(bb: relax.BlockBuilder, config: LlamaConfig) -> None:
-    bsz = 1
-    seq_len = tvm.tir.Var("n", "int64")
-
-    with bb.function("encoding_without_cache"):
-        model = LlamaForCausalLM(config)
-        input_ids = nn.Placeholder((bsz, seq_len), dtype="int32", name="input_ids")
-        all_seq_len_shape = relax.Var("all_seq_len", relax.ShapeStructInfo((seq_len,)))
+def create_kv_cache_func(bb: relax.BlockBuilder, config: LlamaConfig) -> None:
+    init_shape = relax.ShapeExpr(
+        (1, config.num_attention_heads, config.hidden_size // config.num_attention_heads)
+    )
+    with bb.function("create_kv_cache", []):
         with bb.dataflow():
-            logits, _ = model(input_ids, all_seq_len_shape)
-            params = [input_ids, all_seq_len_shape] + model.parameters()
-            gv = bb.emit_output(logits)
-        bb.emit_func_output(gv, params)
-
-    mod = bb.get()
-    gv = mod.get_global_var("encoding_without_cache")
-    bb.update_func(gv, mod[gv].with_attr("num_input", 2))
+            zeros = bb.emit(relax.op.zeros(init_shape, "float32"))
+            caches = []
+            f_kv_cache_create = relax.extern("vm.builtin.attention_kv_cache_create")
+            for _ in range(config.num_hidden_layers * 2):
+                caches.append(
+                    bb.emit(
+                        relax.Call(
+                            f_kv_cache_create,
+                            args=[zeros, init_shape, relax.PrimValue(0)],
+                            sinfo_args=[relax.ObjectStructInfo()],
+                        )
+                    )
+                )
+            gv = bb.emit_output(caches)
+        bb.emit_func_output(gv)
