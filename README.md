@@ -69,7 +69,7 @@ Besides supporting WebGPU, this project also provides the harness for other kind
         ```shell
         python3 build.py --target webgpu --model llama-7b
         ```
-        Note: build.py can be run on MacOS with 32GB memory and other OS with at least 50GB memory. We are currently optimizing the memory usage to enable more people to try out locally.
+        Note: build.py can be run on MacOS with 32GB memory and other OS with at least 50GB CPU memory. We are currently optimizing the memory usage to enable more people to try out locally.
 
 4. Deploy the model on web with WebGPU runtime
 
