@@ -54,10 +54,13 @@ Besides supporting WebGPU, this project also provides the harness for other kind
 
         1. Get the original LLaMA weights in the huggingface format by following the instructions [here](https://huggingface.co/docs/transformers/main/model_doc/llama).
         2. Use instructions [here](https://github.com/lm-sys/FastChat#vicuna-weights) to get vicuna weights.
-        3. Create a soft link to the model path under the specified directory
+        3. Create a soft link to the model path under dist/models
             ```
             mkdir -p dist/models
             ln -s your_model_path dist/models/model_name
+
+            # For example:
+            # ln -s path/to/vicuna-7b-v1 dist/models/vicuna-7b-v1
             ```
     * Optimize and build model to webgpu backend and export the executable to disk in the WebAssembly file format.
 
