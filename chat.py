@@ -172,7 +172,7 @@ def get_tvm_model(args):
         def new_cache(self):
             fcreate_cache = tvm.get_global_func("vm.builtin.attention_kv_cache_create")
             self.kv_cache = []
-            for i in range(64):  # num_layer
+            for i in range(NUM_HIDDEN_LAYERS * 2):
                 kv_cache = fcreate_cache(
                     tvm.nd.empty(
                         (1, NUM_ATTENTION_HEADS, HIDDEN_DIM // NUM_ATTENTION_HEADS),
