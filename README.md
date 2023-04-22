@@ -59,7 +59,8 @@ Besides supporting WebGPU, this project also provides the harness for other kind
             mkdir -p dist/models
             ln -s your_model_path dist/models/model_name
             ```
-    * Optimize and build model to webgpu backend and export the executable to disk in the WebAssembly file format
+    * Optimize and build model to webgpu backend and export the executable to disk in the WebAssembly file format.
+
 
         ```shell
         python3 build.py --target webgpu
@@ -68,6 +69,7 @@ Besides supporting WebGPU, this project also provides the harness for other kind
         ```shell
         python3 build.py --target webgpu --model llama-7b
         ```
+        Note: build.py can be run on MacOS with 32GB memory and other OS with at least 50GB memory. We are currently optimizing the memory usage to enable more people to try out locally.
 
 4. Deploy the model on web with WebGPU runtime
 
@@ -81,7 +83,7 @@ Besides supporting WebGPU, this project also provides the harness for other kind
     ./scripts/local_deploy_site.sh
     ```
 
-    With the site set up, you can go to `localhost:8888/web-llm/` in Chrome Canary to try out the demo on your local machine. Don’t forget to use
+    With the site set up, you can go to `localhost:8888/web-llm/` in Chrome Canary to try out the demo on your local machine. Remember: you will need 6.4G GPU memory to run the demo. Don’t forget to use
     ```shell
     /Applications/Google\ Chrome\ Canary.app/Contents/MacOS/Google\ Chrome\ Canary --enable-dawn-features=disable_robustness
     ```
