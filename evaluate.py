@@ -6,7 +6,7 @@ from typing import List
 import numpy as np
 import torch
 import tvm
-from transformers import AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer  # type: ignore[import]
 from tvm import relax
 from tvm.relax.testing.lib_comparator import LibCompareVMInstrument
 from tvm.runtime import ShapeTuple
@@ -109,17 +109,48 @@ def create_kv_caches(device, num_input_tokens):
     return kv_caches
 
 
+def run_hugging_face(args) -> None:
+    if not args.debug_dump:
+        return
+    print("[HF] Loading...")
+    tokenizer = AutoTokenizer.from_pretrained(args.hf_model_path)
+    model = AutoModelForCausalLM.from_pretrained(args.hf_model_path)
+    print("[HF] Encoding...")
+    input_ids = tokenizer(args.prompt, return_tensors="pt").input_ids
+    outputs = model(
+        input_ids,
+        use_cache=True,
+    )
+    logits, past_key_values = outputs.logits, outputs.past_key_values
+    logits = logits[0, -1, :].detach().numpy()
+    first_k_cache = past_key_values[0][0].detach().numpy().squeeze(0)
+    print(f"logits.shape: {logits.shape}")
+    print(f"logits:\n{logits}")
+    print(f"first_k_cache:\n{first_k_cache}")
+    print("[HF] Decoding...")
+    outputs = model(
+        input_ids=torch.from_numpy(np.array([[6234]]).astype("int32")),
+        use_cache=True,
+        past_key_values=past_key_values,
+    )
+    logits, past_key_values = outputs.logits, outputs.past_key_values
+    logits = logits[0, -1, :].detach().numpy()
+    first_k_cache = past_key_values[0][0].detach().numpy().squeeze(0)
+    print(f"logits.shape: {logits.shape}")
+    print(f"logits:\n{logits}")
+    print(f"first_k_cache:\n{first_k_cache}")
+    print("[HF] Done")
+
+
 def deploy_to_pipeline(args) -> None:
     device = tvm.device(args.device_name)
+    print("[MLC] Loading...")
     const_params = utils.load_params(args.artifact_path, device)
     ex = tvm.runtime.load_module(
         os.path.join(args.artifact_path, f"{args.model}_{args.device_name}.so")
     )
     vm = relax.VirtualMachine(ex, device)
-
     tokenizer = AutoTokenizer.from_pretrained(args.hf_model_path)
-
-    print("Tokenizing...")
     inputs = tvm.nd.array(
         tokenizer(args.prompt, return_tensors="pt").input_ids.to(torch.int32).numpy(),
         device,
@@ -129,30 +160,49 @@ def deploy_to_pipeline(args) -> None:
     seq_len_shape = tvm.runtime.ShapeTuple([num_input_tokens])
     second_seq_len_shape = tvm.runtime.ShapeTuple([num_input_tokens + 1])
     kv_caches = create_kv_caches(device, num_input_tokens)
-    print("Running inference...")
+    print("[MLC] Encoding...")
     start = time.time()
     logits, kv_caches = vm["encoding"](inputs, seq_len_shape, kv_caches, const_params)
+    if args.debug_dump:
+        print(f"logits.shape: {logits.numpy().shape}")
+        print(f"logits:\n{logits.numpy()}")
+        fcache_view = tvm.get_global_func("vm.builtin.attention_kv_cache_view")
+        first_k_cache = fcache_view(
+            kv_caches[0],
+            ShapeTuple(
+                [
+                    num_input_tokens,
+                    NUM_ATTENTION_HEADS,
+                    HIDDEN_DIM // NUM_ATTENTION_HEADS,
+                ]
+            ),
+        )
+        first_k_cache = first_k_cache.numpy().transpose(1, 0, 2)
+        print(f"first_k_cache:\n{first_k_cache}")
     device.sync()
     encoding_end = time.time()
+    print("[MLC] Decoding...")
     logits, kv_caches = vm["decoding"](
         first_sampled_token, second_seq_len_shape, kv_caches, const_params
     )
     device.sync()
     end = time.time()
-    fcache_view = tvm.get_global_func("vm.builtin.attention_kv_cache_view")
-    first_k_cache = fcache_view(
-        kv_caches[0],
-        ShapeTuple(
-            [
-                num_input_tokens + 1,
-                NUM_ATTENTION_HEADS,
-                HIDDEN_DIM // NUM_ATTENTION_HEADS,
-            ]
-        ),
-    )
     if args.debug_dump:
-        print(f"output kv_cache[0]:\n{first_k_cache.numpy().transpose(1, 0, 2)}")
-        print(f"output logits:\n{logits.numpy()}")
+        print(f"logits.shape: {logits.numpy().shape}")
+        print(f"logits:\n{logits.numpy()}")
+        fcache_view = tvm.get_global_func("vm.builtin.attention_kv_cache_view")
+        first_k_cache = fcache_view(
+            kv_caches[0],
+            ShapeTuple(
+                [
+                    num_input_tokens + 1,
+                    NUM_ATTENTION_HEADS,
+                    HIDDEN_DIM // NUM_ATTENTION_HEADS,
+                ]
+            ),
+        )
+        first_k_cache = first_k_cache.numpy().transpose(1, 0, 2)
+        print(f"first_k_cache:\n{first_k_cache}")
     print(
         f"Time elapsed: encoding {(encoding_end - start)} seconds, decoding {end - encoding_end} secs"
     )
@@ -183,4 +233,5 @@ def deploy_to_pipeline(args) -> None:
 
 if __name__ == "__main__":
     ARGS = _parse_args()
+    run_hugging_face(ARGS)
     deploy_to_pipeline(ARGS)

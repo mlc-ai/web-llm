@@ -33,7 +33,7 @@ def _parse_args():
             "dolly-v2-12b",
         ],
     )
-    args.add_argument("--max-gen-len", type=int, default=128)
+    args.add_argument("--max-gen-len", type=int, default=1280)
     args.add_argument("--run-torch-model", action="store_true", default=False)
     parsed = args.parse_args()
     parsed.model_path = os.path.join(parsed.artifact_path, "models", parsed.model)
