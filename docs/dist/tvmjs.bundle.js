@@ -582,7 +582,7 @@
 	function detectGPUDevice() {
 	    return __awaiter(this, void 0, void 0, function* () {
 	        if (typeof navigator !== "undefined" && navigator.gpu !== undefined) {
-	            const adapter = yield navigator.gpu.requestAdapter();
+	            const adapter = yield navigator.gpu.requestAdapter({ "powerPreference": "high-performance" });
 	            if (adapter == null) {
 	                throw Error("Cannot find adapter that matches the request");
 	            }
@@ -608,7 +608,7 @@
 	            if (requiredMaxComputeWorkgroupStorageSize > adapter.limits.maxComputeWorkgroupStorageSize) {
 	                throw Error(`Cannot initialize runtime because of requested maxComputeWorkgroupStorageSize ` +
 	                    `exceeds limit. requested=${requiredMaxComputeWorkgroupStorageSize}, ` +
-	                    `limit=${computeMB(adapter.limits.maxComputeWorkgroupStorageSize)}. `);
+	                    `limit=${adapter.limits.maxComputeWorkgroupStorageSize}. `);
 	            }
 	            const adapterInfo = yield adapter.requestAdapterInfo();
 	            const device = yield adapter.requestDevice({
@@ -1029,15 +1029,13 @@ fn fragment_clear(@location(0) uv : vec2<f32>) -> @location(0) vec4<f32> {
 	        }
 	        support.assert(paramWriteAccess.length == bufferArgIndices.length);
 	        // POD arguments are pass in the end
-	        if (podArgIndices.length != 0) {
-	            layoutEntries.push({
-	                binding: bufferArgIndices.length,
-	                visibility: GPUShaderStage.COMPUTE,
-	                buffer: {
-	                    type: "uniform"
-	                }
-	            });
-	        }
+	        layoutEntries.push({
+	            binding: bufferArgIndices.length,
+	            visibility: GPUShaderStage.COMPUTE,
+	            buffer: {
+	                type: "uniform"
+	            }
+	        });
 	        const bindGroupLayout = this.device.createBindGroupLayout({
 	            entries: layoutEntries
 	        });
@@ -1058,6 +1056,33 @@ fn fragment_clear(@location(0) uv : vec2<f32>) -> @location(0) vec4<f32> {
 	                const bindGroupEntries = [];
 	                const numBufferOrPodArgs = bufferArgIndices.length + podArgIndices.length;
 	                support.assert(args.length == numBufferOrPodArgs + dispatchToDim.length);
+	                const workDim = [1, 1, 1, 1, 1, 1];
+	                for (let i = 0; i < dispatchToDim.length; ++i) {
+	                    workDim[dispatchToDim[i]] = args[numBufferOrPodArgs + i];
+	                }
+	                // get around 65535 restriction of blockIdx.x
+	                if (workDim[2] != 1) {
+	                    throw Error("WebGPU: blockIdx.z is reserved for internal use");
+	                }
+	                const packDimX = workDim[0];
+	                // spread thinsg out into blockIdx.z
+	                if (workDim[0] >= (1 << 16)) {
+	                    let wl_x = workDim[0];
+	                    let wl_z = workDim[2];
+	                    while (wl_x >= (1 << 16)) {
+	                        if (wl_x % 2 == 0) {
+	                            wl_x = wl_x / 2;
+	                        }
+	                        else {
+	                            // pad up
+	                            wl_x = (wl_x + 1) / 2;
+	                        }
+	                        wl_z *= 2;
+	                    }
+	                    workDim[0] = wl_x;
+	                    workDim[2] = wl_z;
+	                    support.assert(wl_x * wl_z >= packDimX);
+	                }
 	                for (let i = 0; i < bufferArgIndices.length; ++i) {
 	                    bindGroupEntries.push({
 	                        binding: i,
@@ -1067,64 +1092,42 @@ fn fragment_clear(@location(0) uv : vec2<f32>) -> @location(0) vec4<f32> {
 	                    });
 	                }
 	                // push pod buffer
-	                if (podArgIndices.length != 0) {
-	                    const sizeOfI32 = 4;
-	                    const podArgBuffer = this.getPodArgsBuffer(podArgIndices.length * sizeOfI32);
-	                    const i32View = new Int32Array(podArgIndices.length);
-	                    const u32View = new Uint32Array(i32View.buffer);
-	                    const f32View = new Float32Array(i32View.buffer);
-	                    for (let i = 0; i < podArgIndices.length; ++i) {
-	                        const value = args[podArgIndices[i]];
-	                        const dtype = finfo.arg_types[podArgIndices[i]];
-	                        if (dtype.startsWith("int")) {
-	                            i32View[i] = value;
-	                        }
-	                        else if (dtype.startsWith("uint")) {
-	                            u32View[i] = value;
-	                        }
-	                        else if (dtype.startsWith("float")) {
-	                            f32View[i] = value;
-	                        }
-	                        else {
-	                            throw Error("Unknown pod dtype " + dtype);
-	                        }
+	                const sizeOfI32 = 4;
+	                const podArgBuffer = this.getPodArgsBuffer((podArgIndices.length + 1) * sizeOfI32);
+	                const i32View = new Int32Array(podArgIndices.length + 1);
+	                const u32View = new Uint32Array(i32View.buffer);
+	                const f32View = new Float32Array(i32View.buffer);
+	                for (let i = 0; i < podArgIndices.length; ++i) {
+	                    const value = args[podArgIndices[i]];
+	                    const dtype = finfo.arg_types[podArgIndices[i]];
+	                    if (dtype.startsWith("int")) {
+	                        i32View[i] = value;
 	                    }
-	                    this.device.queue.writeBuffer(podArgBuffer, 0, i32View.buffer);
-	                    bindGroupEntries.push({
-	                        binding: bufferArgIndices.length,
-	                        resource: {
-	                            buffer: podArgBuffer,
-	                            size: i32View.buffer.byteLength
-	                        }
-	                    });
+	                    else if (dtype.startsWith("uint")) {
+	                        u32View[i] = value;
+	                    }
+	                    else if (dtype.startsWith("float")) {
+	                        f32View[i] = value;
+	                    }
+	                    else {
+	                        throw Error("Unknown pod dtype " + dtype);
+	                    }
 	                }
+	                // always pass in dim z launching grid size in
+	                u32View[podArgIndices.length] = packDimX;
+	                this.device.queue.writeBuffer(podArgBuffer, 0, i32View.buffer);
+	                bindGroupEntries.push({
+	                    binding: bufferArgIndices.length,
+	                    resource: {
+	                        buffer: podArgBuffer,
+	                        size: i32View.buffer.byteLength
+	                    }
+	                });
 	                compute.setBindGroup(0, this.device.createBindGroup({
 	                    layout: bindGroupLayout,
 	                    entries: bindGroupEntries
 	                }));
-	                const wl = [1, 1, 1, 1, 1, 1];
-	                for (let i = 0; i < dispatchToDim.length; ++i) {
-	                    wl[dispatchToDim[i]] = args[numBufferOrPodArgs + i];
-	                }
-	                // get around 65535 restriction of blockIdx.x
-	                if (wl[2] != 1) {
-	                    throw Error("WebGPU: blockIdx.z is reserved for internal use");
-	                }
-	                // spread thinsg out into blockIdx.z
-	                if (wl[0] >= (1 << 16)) {
-	                    let wl_x = wl[0];
-	                    let wl_z = wl[2];
-	                    while (wl_x >= (1 << 16)) {
-	                        if (wl_x % 2 != 0) {
-	                            throw Error("WebGPU: cannot factorize big gridDim.x=" + wl[0].toString());
-	                        }
-	                        wl_x /= 2;
-	                        wl_z *= 2;
-	                    }
-	                    wl[0] = wl_x;
-	                    wl[2] = wl_z;
-	                }
-	                compute.dispatchWorkgroups(wl[0], wl[1], wl[2]);
+	                compute.dispatchWorkgroups(workDim[0], workDim[1], workDim[2]);
 	                compute.end();
 	                const command = commandEncoder.finish();
 	                this.device.queue.submit([command]);
@@ -1205,6 +1208,10 @@ fn fragment_clear(@location(0) uv : vec2<f32>) -> @location(0) vec4<f32> {
 	    }
 	    // DeviceAPI
 	    deviceAllocDataSpace(nbytes) {
+	        // allocate 0 bytes buffer as 1 bytes buffer.
+	        if (nbytes == 0) {
+	            nbytes = 1;
+	        }
 	        const buffer = this.device.createBuffer({
 	            size: nbytes,
 	            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
@@ -1452,12 +1459,12 @@ fn fragment_clear(@location(0) uv : vec2<f32>) -> @location(0) vec4<f32> {
 	        this.arrayGetSize = getGlobalFunc("runtime.ArraySize");
 	        this.arrayMake = getGlobalFunc("runtime.Array");
 	        this.getSysLib = getGlobalFunc("runtime.SystemLib");
-	        this.arrayCacheGet = getGlobalFunc("tvmjs.ndarray_cache.get");
-	        this.arrayCacheRemove = getGlobalFunc("tvmjs.ndarray_cache.remove");
-	        this.arrayCacheUpdate = getGlobalFunc("tvmjs.ndarray_cache.update");
-	        this.arrayCacheClear = getGlobalFunc("tvmjs.ndarray_cache.clear");
+	        this.arrayCacheGet = getGlobalFunc("vm.builtin.ndarray_cache.get");
+	        this.arrayCacheRemove = getGlobalFunc("vm.builtin.ndarray_cache.remove");
+	        this.arrayCacheUpdate = getGlobalFunc("vm.builtin.ndarray_cache.update");
+	        this.arrayCacheClear = getGlobalFunc("vm.builtin.ndarray_cache.clear");
 	        this.arrayDecodeStorage = getGlobalFunc("tvmjs.array.decode_storage");
-	        this.paramModuleFromCache = getGlobalFunc("tvmjs.param_module_from_cache");
+	        this.paramModuleFromCache = getGlobalFunc("vm.builtin.param_module_from_cache");
 	        this.makeShapeTuple = getGlobalFunc("runtime.ShapeTuple");
 	        this.ndarrayCreateView = getGlobalFunc("runtime.TVMArrayCreateView");
 	        this.sampleTopPFromLogits = getGlobalFunc("vm.builtin.sample_top_p_from_logits");
