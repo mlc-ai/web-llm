@@ -24,6 +24,74 @@ We also do not want to only do it for just one model. Instead, we would like to 
 
 Besides supporting WebGPU, this project also provides the harness for other kinds of GPU backends that TVM supports (such as CUDA, OpenCL, and Vulkan) and really enables accessible deployment of LLM models.
 
+## Instructions for local deployment
+
+1. Install TVM Unity. 
+
+    ```shell
+    pip3 install mlc-ai-nightly -f https://mlc.ai/wheels
+    ```
+
+2. Install all the prerequisite for web deployment:
+    1. [emscripten](https://emscripten.org). It is an LLVM-based compiler which compiles C/C++ source code to WebAssembly.
+        - Follow the [installation instruction](https://emscripten.org/docs/getting_started/downloads.html#installation-instructions-using-the-emsdk-recommended) to install the latest emsdk.
+        - Source `emsdk_env.sh` by `source path/to/emsdk_env.sh`, so that `emcc` is reachable from PATH and the command `emcc` works.
+    2. [Rust](https://www.rust-lang.org/tools/install).
+    3. [`wasm-pack`](https://rustwasm.github.io/wasm-pack/installer/). It helps build Rust-generated WebAssembly, which used for tokenizer in our case here.
+    4. Install jekyll by following the [official guides](https://jekyllrb.com/docs/installation/). It is the package we use for website.
+    5. Install jekyll-remote-theme by command
+        ```shell
+        gem install jekyll-remote-theme
+        ```
+    6. Install [Chrome Canary](https://www.google.com/chrome/canary/). It is a developer version of Chrome that enables the use of WebGPU.
+
+    We can verify the success installation by trying out `emcc`, `jekyll` and `wasm-pack` in terminal respectively.
+
+3. Import, optimize and build the LLM model:
+    * Get Model Weight
+
+        Currently we support LLaMA and Vicuna.
+
+        1. Get the original LLaMA weights in the huggingface format by following the instructions [here](https://huggingface.co/docs/transformers/main/model_doc/llama).
+        2. Use instructions [here](https://github.com/lm-sys/FastChat#vicuna-weights) to get vicuna weights.
+        3. Create a soft link to the model path under dist/models
+            ```shell
+            mkdir -p dist/models
+            ln -s your_model_path dist/models/model_name
+
+            # For example:
+            # ln -s path/to/vicuna-7b-v1 dist/models/vicuna-7b-v1
+            ```
+    * Optimize and build model to webgpu backend and export the executable to disk in the WebAssembly file format.
+
+
+        ```shell
+        python3 build.py --target webgpu
+        ```
+        By default `build.py` takes `vicuna-7b-v1` as model name. You can also specify model name as
+        ```shell
+        python3 build.py --target webgpu --model llama-7b
+        ```
+        Note: build.py can be run on MacOS with 32GB memory and other OS with at least 50GB CPU memory. We are currently optimizing the memory usage to enable more people to try out locally.
+
+4. Deploy the model on web with WebGPU runtime
+
+    Prepare all the necessary dependencies for web build:
+    ```shell
+    ./scripts/prep_deps.sh
+    ```
+
+    The last thing to do is setting up the site with
+    ```shell
+    ./scripts/local_deploy_site.sh
+    ```
+
+    With the site set up, you can go to `localhost:8888/web-llm/` in Chrome Canary to try out the demo on your local machine. Remember: you will need 6.4G GPU memory to run the demo. Don’t forget to use
+    ```shell
+    /Applications/Google\ Chrome\ Canary.app/Contents/MacOS/Google\ Chrome\ Canary --enable-dawn-features=disable_robustness
+    ```
+    to launch Chrome Canary to turn off the robustness check from Chrome.
+
 
 ## How
 
