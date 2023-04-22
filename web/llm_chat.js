@@ -466,9 +466,8 @@ class LLMChatInstance {
     }
     this.appendMessage("init", "");
     this.tvm = tvm;
-    self = this;
-    function initProgressCallback(report) {
-      self.updateLastMessage("init", report.text);
+    const initProgressCallback = (report) => {
+      this.updateLastMessage("init", report.text);
     }
     tvm.registerInitProgressCallback(initProgressCallback);
     if (!cacheUrl.startsWith("http")) {
