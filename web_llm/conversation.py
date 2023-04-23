@@ -224,7 +224,7 @@ def get_default_conv_template(model_name):
         return conv_vicuna_v1_1
     elif "koala" in model_name:
         return conv_koala_v1
-    elif "dolly-v2" in model_name:
+    elif "dolly" in model_name:
         return conv_dolly
     elif "oasst" in model_name and "pythia" in model_name:
         return conv_oasst
