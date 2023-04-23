@@ -8,7 +8,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from tvm import relax
 
 from web_llm import utils
-from web_llm.conversation import SeparatorStyle, conv_templates
+from web_llm.conversation import SeparatorStyle, conv_templates, compute_skip_echo_len
 from web_llm.relax_model import dolly
 
 NUM_HIDDEN_LAYERS = 32
@@ -143,12 +143,13 @@ def chat(model_wrapper, args):
 
         print(f"{conv.roles[1]}: ", end="", flush=True)
         pre = 0
+        skip_echo_len = compute_skip_echo_len(CONV, conv, prompt)
         for outputs in model_wrapper.generate(
             prompt,
             args.max_gen_len,
             stop_str=conv.sep if conv.sep_style == SeparatorStyle.SINGLE else conv.sep2,
         ):
-            outputs = outputs[len(prompt) + 1 :].strip()
+            outputs = outputs[skip_echo_len :].strip()
             outputs = outputs.split(" ")
             now = len(outputs)
             if now - 1 > pre:
@@ -214,13 +215,18 @@ def get_tvm_model(args):
 
 
 def get_pytorch_model(args):
-    model = AutoModelForCausalLM.from_pretrained(args.hf_model_path)
-
-    def forward(inputs: torch.Tensor) -> torch.Tensor:
-        logits = model(inputs, use_cache=False).logits
-        return logits
-
-    return forward
+    model = AutoModelForCausalLM.from_pretrained(args.hf_model_path, device_map="auto")
+    
+    class Model:
+        def __init__(self):
+            self.past_key_values = None
+        
+        def forward(self, inputs: torch.Tensor, *args, **kwargs) -> torch.Tensor:
+            output = model(inputs, use_cache=True, past_key_values=self.past_key_values)
+            self.past_key_values = output.past_key_values
+            return output.logits
+    wrapped_model = Model()
+    return wrapped_model.forward
 
 
 if __name__ == "__main__":
