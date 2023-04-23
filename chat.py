@@ -31,6 +31,7 @@ def _parse_args():
             "dolly-v2-3b",
             "dolly-v2-7b",
             "dolly-v2-12b",
+            "stablelm-tuned-alpha-3b"
         ],
     )
     args.add_argument("--max-gen-len", type=int, default=1280)
@@ -49,6 +50,14 @@ def _parse_args():
         HIDDEN_DIM = cfg.hidden_size
         NUM_ATTENTION_HEADS = cfg.num_attention_heads
         CONV = "dolly"
+    elif parsed.model in ["stablelm-tuned-alpha-3b"]:
+        parsed.hf_model_path = "stabilityai/" + parsed.model
+        cfg, _ = getattr(dolly, parsed.model.replace("-", "_"))(config_only=True)
+        # global NUM_HIDDEN_LAYERS, HIDDEN_DIM, NUM_ATTENTION_HEADS, CONV
+        NUM_HIDDEN_LAYERS = cfg.num_hidden_layers
+        HIDDEN_DIM = cfg.hidden_size
+        NUM_ATTENTION_HEADS = cfg.num_attention_heads
+        CONV = "stablelm"
     else:
         raise ValueError(f"Unknown model {parsed.model}")
 
@@ -71,15 +80,16 @@ class ModelWrapper:
         self,
         prompt: str,
         max_gen_len: int,
-        temperature: float = -1,
+        temperature: float = 0.7,
         top_p: float = 0.95,
         stream_interval: int = 2,
         stop_str: str = None,
+        stop_tokens = None,
     ):
         prompt_tokens = self.tokenizer.encode(prompt)
-
+        stop_tokens = [tokenizer.eos_token_id] if stop_tokens is None else stop_tokens
         total_len = max_gen_len + len(prompt_tokens)
-        tokens = torch.full((1, total_len), self.tokenizer.pad_token_id).to(torch.int32)
+        tokens = torch.full((1, total_len), 0).to(torch.int32)
         tokens[0, : len(prompt_tokens)] = torch.tensor(prompt_tokens)
         start_pos = len(prompt_tokens)
         for cur_pos in range(start_pos, total_len):
@@ -96,7 +106,7 @@ class ModelWrapper:
             next_token = next_token.reshape(-1)
             tokens[:, cur_pos] = next_token
             # the following code assumes bsz == 1
-            if next_token[0] == tokenizer.eos_token_id:
+            if next_token[0] in stop_tokens:
                 stopped = True
             else:
                 stopped = False
@@ -105,10 +115,11 @@ class ModelWrapper:
             if i % stream_interval == 0 or i == max_gen_len - 1 or stopped:
                 output = tokens[0, : cur_pos + 1]
                 output = tokenizer.decode(output, skip_special_tokens=True)
-                pos = output.rfind(stop_str, len(prompt))
-                if pos != -1:
-                    output = output[:pos]
-                    stopped = True
+                if stop_str:
+                    pos = output.rfind(stop_str, len(prompt))
+                    if pos != -1:
+                        output = output[:pos]
+                        stopped = True
                 yield output
             if stopped:
                 break
@@ -148,6 +159,7 @@ def chat(model_wrapper, args):
             prompt,
             args.max_gen_len,
             stop_str=conv.sep if conv.sep_style == SeparatorStyle.SINGLE else conv.sep2,
+            stop_tokens = [50278, 50279, 50277, 1, 0] if CONV == "stablelm" else None,
         ):
             outputs = outputs[skip_echo_len :].strip()
             outputs = outputs.split(" ")

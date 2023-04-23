@@ -215,6 +215,7 @@ conv_templates = {
     "koala_v1": conv_koala_v1,
     "dolly": conv_dolly,
     "oasst": conv_oasst,
+    "stablelm": conv_stablelm,
 }
 
 

@@ -78,6 +78,18 @@ def dolly_v2_12b(config_only: bool = False):
     )
     return config, instruct_pipeline
 
+def stablelm_tuned_alpha_3b(config_only: bool = False):
+    config = GPTNeoXConfig(
+        hidden_size=4096,
+        intermediate_size=16384,
+        num_attention_heads=32,
+        num_hidden_layers=16,
+        vocab_size=50688
+    )
+    if config_only:
+        return config, None
+    instruct_pipeline = pipeline(model="stabilityai/stablelm-tuned-alpha-3b", trust_remote_code=True)
+    return config, instruct_pipeline
 
 def _min_value(dtype) -> relax.Expr:
     return relax.const(tvm.tir.min_value(dtype).value, dtype)

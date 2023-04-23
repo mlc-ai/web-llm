@@ -26,6 +26,7 @@ def _parse_args():
             "dolly-v2-3b",
             "dolly-v2-7b",
             "dolly-v2-12b",
+            "stablelm-tuned-alpha-3b",
         ],
     )
     args.add_argument("--target", type=str, default="auto")
@@ -106,7 +107,7 @@ def get_models(
                     "tir_var_upper_bound", {"n": max_sequence_length}
                 )
         return mod
-    elif model in ["dolly-v2-3b", "dolly-v2-7b", "dolly-v2-12b"]:
+    elif model in ["dolly-v2-3b", "dolly-v2-7b", "dolly-v2-12b", "stablelm-tuned-alpha-3b"]:
         bb = relax.BlockBuilder()
         dolly.create_encoding_func(bb, config, params)
         dolly.create_decoding_func(bb, config, params)
@@ -279,11 +280,12 @@ if __name__ == "__main__":
             with open(cache_path, "wb") as outfile:
                 pickle.dump(mod, outfile)
             print(f"Save a cached module to {cache_path}.")
-        elif ARGS.model in ["dolly-v2-3b", "dolly-v2-7b", "dolly-v2-12b"]:
+        elif ARGS.model in ["dolly-v2-3b", "dolly-v2-7b", "dolly-v2-12b", "stablelm-tuned-alpha-3b"]:
             config, hf_model = {
                 "dolly-v2-3b": dolly.dolly_v2_3b,
                 "dolly-v2-7b": dolly.dolly_v2_7b,
                 "dolly-v2-12b": dolly.dolly_v2_12b,
+                "stablelm-tuned-alpha-3b": dolly.stablelm_tuned_alpha_3b,
             }[ARGS.model]()
             params = get_named_params(config, hf_model.model, split_qkv=True)
             mod = get_models(
