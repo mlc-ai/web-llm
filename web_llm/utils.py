@@ -10,7 +10,7 @@ def get_config(hf_config, model):
         from .relax_model.llama import LlamaConfig as RelaxConfig
 
         return RelaxConfig(
-            max_sequence_length=hf_config.max_sequence_length,
+            #max_sequence_length=hf_config.max_sequence_length,
             vocab_size=hf_config.vocab_size,
             hidden_size=hf_config.hidden_size,
             intermediate_size=hf_config.intermediate_size,
