@@ -71,7 +71,7 @@ class ModelWrapper:
         self,
         prompt: str,
         max_gen_len: int,
-        temperature: float = 0.8,
+        temperature: float = -1,
         top_p: float = 0.95,
         stream_interval: int = 2,
         stop_str: str = None,
@@ -232,7 +232,9 @@ def get_pytorch_model(args):
 if __name__ == "__main__":
     ARGS = _parse_args()
     tokenizer = AutoTokenizer.from_pretrained(ARGS.hf_model_path)
-    tokenizer.pad_token_id = tokenizer.eos_token_id
+    if "dolly" in ARGS.hf_model_path:
+        # 50277 means "### End"
+        tokenizer.eos_token_id = 50277
     if not ARGS.run_torch_model:
         model = ModelWrapper(get_tvm_model(ARGS), tokenizer)
     else:
