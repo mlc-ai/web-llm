@@ -26,10 +26,10 @@ Besides supporting WebGPU, this project also provides the harness for other kind
 
 ## Instructions for local deployment
 
-1. Install TVM Unity. 
+1. Install TVM Unity. Open [mlc.ai wheels](https://mlc.ai/wheels) for more version.
 
     ```shell
-    pip3 install mlc-ai-nightly -f https://mlc.ai/wheels
+    pip3 install -r requirements.txt
     ```
 
 2. Install all the prerequisite for web deployment:
