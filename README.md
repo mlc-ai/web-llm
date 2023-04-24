@@ -39,7 +39,7 @@ Besides supporting WebGPU, this project also provides the harness for other kind
     2. [Rust](https://www.rust-lang.org/tools/install).
     3. [`wasm-pack`](https://rustwasm.github.io/wasm-pack/installer/). It helps build Rust-generated WebAssembly, which used for tokenizer in our case here.
     4. Install jekyll by following the [official guides](https://jekyllrb.com/docs/installation/). It is the package we use for website.
-    5. Install jekyll-remote-theme by command
+    5. Install jekyll-remote-theme by command. Try [gem mirror](https://gems.ruby-china.com/) if install blocked.
         ```shell
         gem install jekyll-remote-theme
         ```
