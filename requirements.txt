@@ -1,0 +1,5 @@
+mlc-ai-nightly
+pytest
+typing_extensions
+
+-f https://mlc.ai/wheels
