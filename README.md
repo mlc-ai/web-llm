@@ -138,6 +138,7 @@ Then you will find that the execution speed is as fast as native GPU environment
 ## Links
 
 - [Demo page](https://mlc.ai/web-llm/)
+- If you want to run LLM on native runtime, check out [MLC-LLM](https://github.com/mlc-ai/mlc-llm)
 - You might also be interested in [Web Stable Diffusion](https://github.com/mlc-ai/web-stable-diffusion/).
 
 ## Acknowledgement
