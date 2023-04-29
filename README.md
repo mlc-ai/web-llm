@@ -4,6 +4,8 @@ This project brings language model chats directly onto web browsers. **Everythin
 
 **[Check out our demo webpage to try out!](https://mlc.ai/web-llm/)**
 
+You might also be interested in [MLC LLM](https://github.com/mlc-ai/mlc-llm), our companion project that runs LLMs natively on iphone and other native local environments.
+
 <img src="site/img/fig/demo.gif">
 
 We have been seeing amazing progress in generative AI and LLM recently. Thanks to the open-source efforts like LLaMA, Alpaca, Vicuna, and Dolly, we can now see an exciting future of building our own open-source language models and personal AI assistant.
