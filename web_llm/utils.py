@@ -6,7 +6,7 @@ from tvm import meta_schedule as ms
 
 
 def get_config(hf_config, model):
-    if "vicuna" in model or "llama" in model:
+    if "vicuna" in model or "llama" in model or "wizardlm" in model:
         from .relax_model.llama import LlamaConfig as RelaxConfig
 
         return RelaxConfig(

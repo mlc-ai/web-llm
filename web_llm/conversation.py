@@ -160,6 +160,15 @@ conv_vicuna_v1_1 = Conversation(
     sep2="</s>",
 )
 
+conv_wizardlm = Conversation(
+    system="You are an AI assistant that gives helpful, detailed, and polite answers to the user's questions.",
+    roles=("", "### Response"),
+    messages=(),
+    offset=0,
+    sep_style=SeparatorStyle.TWO,
+    sep="\n\n",
+    sep2="</s>",
+)
 
 conv_koala_v1 = Conversation(
     system="BEGINNING OF CONVERSATION:",
@@ -187,6 +196,7 @@ conv_templates = {
     "vicuna_v1.1": conv_vicuna_v1_1,
     "koala_v1": conv_koala_v1,
     "dolly": conv_dolly,
+    "wizardlm": conv_wizardlm
 }
 
 
@@ -198,4 +208,6 @@ def get_default_conv_template(model_name):
         return conv_koala_v1
     elif "dolly" in model_name:
         return conv_dolly
+    elif "wizardlm" in model_name:
+        return conv_wizardlm
     return conv_one_shot
