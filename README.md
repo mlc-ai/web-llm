@@ -145,7 +145,7 @@ Then you will find that the execution speed is as fast as native GPU environment
 
 ## Acknowledgement
 
-This project is made possible thanks to collaboration with
+This project is initiated by members from CMU catalyst, UW SAMPL, SJTU, OctoML and the MLC community. We would love to continue developing and supporting the open-source ML community.
 
 <a href="https://www.scs.cmu.edu">
 <img src="site/img/logo/cmuscs.png" alt="CMU School of Computer Science" height="60"/>
