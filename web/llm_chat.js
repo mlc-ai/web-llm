@@ -537,8 +537,13 @@ class LLMChatInstance {
     const msgText = msg.getElementsByClassName("msg-text");
     if (msgText.length != 1) throw Error("Expect msg-text");
     if (msgText[0].innerHTML == text) return;
-    text = text.replaceAll("\n", "<br>");
-    msgText[0].innerHTML = text;
+    const list = text.split('\n').map((t) => {
+      const item = document.createElement('div');
+      item.textContent = t;
+      return item;
+    });
+    msgText[0].innerHTML = '';
+    list.forEach((item) => msgText[0].append(item));
     this.uiChat.scrollTo(0, this.uiChat.scrollHeight);
   }
 
