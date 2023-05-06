@@ -178,6 +178,7 @@ class LLMChatPipeline {
 
   #clearKVCache() {
     this.fclearKVCaches(this.kvCache);
+    this.kvCacheLength = 0;
   }
 
   #forward(inputs, curPos) {
