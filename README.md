@@ -83,7 +83,7 @@ Besides supporting WebGPU, this project also provides the harness for other kind
     ./scripts/prep_deps.sh
     ```
 
-    The last thing to do is setting up the site with
+    The last thing to do is setting up the site with:
     ```shell
     ./scripts/local_deploy_site.sh
     ```
@@ -97,7 +97,7 @@ Besides supporting WebGPU, this project also provides the harness for other kind
 
 ## How
 
-The key technology here is machine learning compilation (MLC). Our solution builds on the shoulders of the open source ecosystem, including Hugging Face, model variants from LLaMA and Vicuna, wasm and WebGPU. The main flow builds on Apache TVM Unity, an exciting ongoing development in the [Apache TVM Community](https://github.com/apache/tvm/)
+The key technology here is machine learning compilation (MLC). Our solution builds on the shoulders of the open source ecosystem, including Hugging Face, model variants from LLaMA and Vicuna, wasm and WebGPU. The main flow builds on Apache TVM Unity, an exciting ongoing development in the [Apache TVM Community](https://github.com/apache/tvm/).
 
 - We bake a language model's IRModule in TVM with native dynamic shape support, avoiding the need of padding to max length and reducing both computation amount and memory usage.
 - Each function in TVM’s IRModule can be further transformed and generate runnable code that can be deployed universally on any environment that is supported by minimum tvm runtime (JavaScript being one of them).
@@ -129,7 +129,7 @@ WebGPU works by translating WGSL shaders to native shaders. We observed that the
 
 Some of the current gaps are caused by Chrome's WebGPU implementation inserts bound clips for all array index access, such that `a[i]` becomes `a[min(i, a.size)]`. This can be optimized out as the WebGPU support continues to mature.
 
-You can get around this by using a special flag to launch Chrome (thanks to Dawn developers for providing the pointers), by exiting Chrome completely, then in command line, type
+You can get around this by using a special flag to launch Chrome (thanks to Dawn developers for providing the pointers), by exiting Chrome completely, then in command line, type:
 
 ```
 /path/to/Chrome --enable-dawn-features=disable_robustness
