@@ -78,7 +78,7 @@ def debug_dump_shader(ex, name, args):
 
 
 def get_models(config, model):
-    if "vicuna" in model or "llama" in model:
+    if "vicuna" in model or "llama" in model or "wizardlm" in model:
         bb = relax.BlockBuilder()
         llama.create_encoding_func(bb, config)
         llama.create_decoding_func(bb, config)

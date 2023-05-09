@@ -24,5 +24,10 @@ if [ -d "dist/vicuna-7b-v1/params" ]; then
     cp -rf dist/models/vicuna-7b-v1/tokenizer.model site/dist/vicuna-7b-v1/
     cp -rf dist/vicuna-7b-v1/vicuna-7b-v1_webgpu.wasm site/dist/vicuna-7b-v1/
 fi
+if [ -d "dist/wizardlm-7b/params" ]; then
+    mkdir -p site/dist/wizardlm-7b
+    cp -rf dist/models/wizardlm-7b/tokenizer.model site/dist/wizardlm-7b/
+    cp -rf dist/wizardlm-7b/wizardlm-7b_webgpu.wasm site/dist/wizardlm-7b/
+fi
 
 cd site && jekyll b && cd ..

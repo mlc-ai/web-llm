@@ -26,3 +26,11 @@ if [ -d "dist/vicuna-7b-v1/params" ]; then
     rm -rf ${TVM_HOME}/web/.ndarray_cache/vicuna-7b-v1-params
     ln -s `pwd`/dist/vicuna-7b-v1/params ${TVM_HOME}/web/.ndarray_cache/vicuna-7b-v1-params
 fi
+
+if [ -d "dist/wizardlm-7b/params" ]; then
+    mkdir -p ${TVM_HOME}/web/dist/www/dist/wizardlm-7b
+    cp -rf dist/models/wizardlm-7b/tokenizer.model ${TVM_HOME}/web/dist/www/dist/wizardlm-7b/
+    cp -rf dist/wizardlm-7b/wizardlm-7b_webgpu.wasm ${TVM_HOME}/web/dist/www/dist/wizardlm-7b/
+    rm -rf ${TVM_HOME}/web/.ndarray_cache/wizardlm-7b-params
+    ln -s `pwd`/dist/wizardlm-7b/params ${TVM_HOME}/web/.ndarray_cache/wizardlm-7b-params
+fi
