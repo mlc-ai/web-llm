@@ -100,16 +100,29 @@ class Conversation {
   }
 }
 
-function defaultConversation(maxWindowLength = 512) {
-  return new Conversation({
-    system: "A chat between a curious user and an artificial intelligence assistant. " +
-      "The assistant gives helpful, detailed, and polite answers to the user's questions.",
-    roles: ["USER", "ASSISTANT"],
-    maxWindowLength: maxWindowLength,
-    messages: [],
-    offset: 0,
-    seps: [" ", "</s>"],
-  });
+function getConversation(model, maxWindowLength = 512) {
+  if (model.includes("vicuna")) {
+    return new Conversation({
+      system: "A chat between a curious user and an artificial intelligence assistant. " +
+        "The assistant gives helpful, detailed, and polite answers to the user's questions.",
+      roles: ["USER", "ASSISTANT"],
+      maxWindowLength: maxWindowLength,
+      messages: [],
+      offset: 0,
+      seps: [" ", "</s>"],
+    });
+  } else if (model.includes("wizardlm")) {
+    return new Conversation({
+      system: "You are an AI assistant that gives helpful, detailed, and polite answers to the user's questions.",
+      roles: ["", "### Response"],
+      maxWindowLength: maxWindowLength,
+      messages: [],
+      offset: 0,
+      seps: ["\n\n", "</s>"],
+    })
+  } else {
+    throw Error("Unknown model "+ model);
+  }
 };
 
 class LLMChatPipeline {
@@ -133,7 +146,8 @@ class LLMChatPipeline {
     this.encodingTotalTime = 0;
     this.encodingTotalTokens = 0;
 
-    this.conversation = defaultConversation();
+    this.model = config.model;
+    this.conversation = getConversation(this.model, this.maxWindowLength);
 
     this.device = this.tvm.webgpu();
     this.vm = this.tvm.detachFromCurrentScope(
