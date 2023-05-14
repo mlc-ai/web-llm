@@ -9,7 +9,7 @@ rm -rf site/dist
 mkdir -p site/dist site/_inlcudes
 
 echo "Copy local configurations.."
-cp $1 site/llm-chat-config.json
+cp $1 site/global_config.json
 echo "Copy files..."
 cp web/llm_chat.html site/_includes
 cp web/llm_chat.js site/dist/
