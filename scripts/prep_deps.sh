@@ -22,8 +22,8 @@ cd ${TVM_HOME}/web && make && npm install && npm run bundle && cd -
 git submodule update --init --recursive
 cd ${SENTENCEPIECE_JS_HOME} && npm install && npm run build && cd -
 git submodule update --init --recursive
-rm -rf dist/sentencepiece
-cp -r ${SENTENCEPIECE_JS_HOME}/dist dist/sentencepiece
+rm -rf mlc-llm/dist/sentencepiece
+cp -r ${SENTENCEPIECE_JS_HOME}/dist mlc-llm/dist/sentencepiece
 
 echo "Exporting tvmjs runtime dist files"
-python -c "from tvm.contrib import tvmjs; tvmjs.export_runtime(\"dist\")"
+python3 -c "from tvm.contrib import tvmjs; tvmjs.export_runtime(\"mlc-llm/dist\")"
