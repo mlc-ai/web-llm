@@ -1,9 +1,7 @@
 #!/bin/bash
 set -euxo pipefail
 
-cp `pwd`/web/global_config.json site/global_config.json
-
-scripts/build_site.sh web/local-config.json
+scripts/build_site.sh web/global_config.json
 
 echo "symlink parameter location to site.."
 
