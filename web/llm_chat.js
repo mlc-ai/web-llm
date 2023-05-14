@@ -100,8 +100,8 @@ class Conversation {
   }
 }
 
-function getConversation(model, maxWindowLength = 512) {
-  if (model.includes("vicuna")) {
+function getConversation(conv_template, maxWindowLength = 512) {
+  if (conv_template == "vicuna-v1.1") {
     return new Conversation({
       system: "A chat between a curious user and an artificial intelligence assistant. " +
         "The assistant gives helpful, detailed, and polite answers to the user's questions.",
@@ -111,7 +111,7 @@ function getConversation(model, maxWindowLength = 512) {
       offset: 0,
       seps: [" ", "</s>"],
     });
-  } else if (model.includes("wizardlm")) {
+  } else if (conv_template == "wizardlm") {
     return new Conversation({
       system: "You are an AI assistant that gives helpful, detailed, and polite answers to the user's questions.",
       roles: ["", "### Response"],
@@ -138,7 +138,7 @@ class LLMChatPipeline {
 
     this.temperature = config.temperature;
     this.top_p = config.top_p;
-    this.maxWindowLength = config.maxWindowLength;
+    this.maxWindowLength = config.max_seq_len;
     this.maxGenLength = config.maxGenLength;
     this.meanGenLength = config.meanGenLength;
     this.streamInterval = 1;
@@ -148,10 +148,7 @@ class LLMChatPipeline {
     this.encodingTotalTime = 0;
     this.encodingTotalTokens = 0;
 
-    this.model_name = config.model_name;
-    this.logger("model name is " + this.model_name)
-    this.logger("max window length is " + this.maxWindowLength)
-    this.conversation = getConversation(this.model_name, this.maxWindowLength);
+    this.conversation = getConversation(config.conv_template, this.maxWindowLength);
 
     this.device = this.tvm.webgpu();
     this.vm = this.tvm.detachFromCurrentScope(
@@ -439,7 +436,7 @@ class LLMChatInstance {
     this.uiChatInput = undefined;
     this.logger = console.log;
     this.debugTest = false;
-    this.model_name = "vicuna-v1-7b";
+    this.model_name = "vicuna-v1-7b-q4f32_0";
 
   }
 
@@ -524,15 +521,18 @@ class LLMChatInstance {
     this.uiChat = document.getElementById("chatui-chat");
     this.uiChatInput = document.getElementById("chatui-input");
     this.uiChatInfoLabel = document.getElementById("chatui-info-label");
-    var model_configs = await (await fetch("model_configs.json")).json();
+    var global_config = await (await fetch("global_config.json")).json();
 
-    this.logger(model_configs)
+
+    var model_config_url = global_config.url_dict[this.model_name];
     this.config = await (
-      await fetch(model_configs.url_dict[this.model_name])
+      await fetch(model_config_url)
     ).json();
-    this.config.cacheUrl = this.config.modelUrl+ "params/";
-    this.config.tokenizer = this.config.modelUrl + "tokenizer.model";
-    this.logger(this.config)
+    this.config.wasmUrl = global_config.model_lib_map[this.config.model_lib]
+    var last_slash = model_config_url.lastIndexOf("/");
+    var base_url = model_config_url.substring(0, last_slash + 1);
+    this.config.cacheUrl = base_url + this.config.model_url;
+    this.config.tokenizer = base_url + this.config.tokenizer_files[0];
 
   }
 

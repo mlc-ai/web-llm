@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euxo pipefail
 
+cp `pwd`/web/global_config.json site/global_config.json
+
 scripts/build_site.sh web/local-config.json
 
 echo "symlink parameter location to site.."
@@ -15,7 +17,6 @@ if [ -d "mlc-llm/dist/wizardlm-7b/params" ]; then
     ln -s `pwd`/mlc-llm/dist/wizardlm-7b/params site/_site/dist/wizardlm-7b-params
 fi
 
-cp `pwd`/web/model_configs.json site/model_configs.json
-cp `pwd`/vicuna-model-url/model_config.json site/model_config.json
+
 
 cd site && jekyll serve  --skip-initial-build --host localhost --baseurl /web-llm --port 8888
