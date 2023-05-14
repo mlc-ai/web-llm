@@ -136,6 +136,8 @@ class LLMChatPipeline {
     this.bosTokenId = 1;
     this.eosTokenId = 2;
 
+    this.temperature = config.temperature;
+    this.top_p = config.top_p;
     this.maxWindowLength = config.maxWindowLength;
     this.maxGenLength = config.maxGenLength;
     this.meanGenLength = config.meanGenLength;
@@ -146,8 +148,10 @@ class LLMChatPipeline {
     this.encodingTotalTime = 0;
     this.encodingTotalTokens = 0;
 
-    this.model = config.model;
-    this.conversation = getConversation(this.model, this.maxWindowLength);
+    this.model_name = config.model_name;
+    this.logger("model name is " + this.model_name)
+    this.logger("max window length is " + this.maxWindowLength)
+    this.conversation = getConversation(this.model_name, this.maxWindowLength);
 
     this.device = this.tvm.webgpu();
     this.vm = this.tvm.detachFromCurrentScope(
@@ -335,7 +339,7 @@ class LLMChatPipeline {
       );
       this.tvm.endScope();
 
-      const nextToken = await this.sampleTokenFromLogits(logits);
+      const nextToken = await this.sampleTokenFromLogits(logits, this.temperature, this.top_p);
       logits.dispose();
 
       tokens.push(nextToken);
@@ -435,7 +439,19 @@ class LLMChatInstance {
     this.uiChatInput = undefined;
     this.logger = console.log;
     this.debugTest = false;
+    this.model_name = "vicuna-v1-7b";
+
   }
+
+  reboot() {
+    this.config = undefined;
+    this.pipeline = undefined;
+    if (this.tvm !== undefined) {
+      this.tvm.dispose();
+      this.tvm = undefined;
+    }
+  }
+
   /**
     * Initialize TVM
     * @param wasmUrl URL to wasm source.
@@ -505,10 +521,19 @@ class LLMChatInstance {
    */
   async #asyncInitConfig() {
     if (this.config !== undefined) return;
-    this.config = await (await fetch("llm-chat-config.json")).json();
     this.uiChat = document.getElementById("chatui-chat");
     this.uiChatInput = document.getElementById("chatui-input");
     this.uiChatInfoLabel = document.getElementById("chatui-info-label");
+    var model_configs = await (await fetch("model_configs.json")).json();
+
+    this.logger(model_configs)
+    this.config = await (
+      await fetch(model_configs.url_dict[this.model_name])
+    ).json();
+    this.config.cacheUrl = this.config.modelUrl+ "params/";
+    this.config.tokenizer = this.config.modelUrl + "tokenizer.model";
+    this.logger(this.config)
+
   }
 
   /**
@@ -670,3 +695,16 @@ tvmjsGlobalEnv.asyncOnGenerate = async function () {
 tvmjsGlobalEnv.asyncOnReset = async function () {
   await localLLMChatIntance.resetChat();
 };
+
+function handle_drop_down() {
+  var e = document.getElementById("model-name");
+  function onChange() {
+    localLLMChatIntance.reboot();
+    localLLMChatIntance.model_name = e.value;
+    localLLMChatIntance.logger("model name changed to " +e.value)
+  }
+  e.onchange = onChange;
+}
+
+handle_drop_down()
+
