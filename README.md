@@ -55,25 +55,23 @@ Besides supporting WebGPU, this project also provides the harness for other kind
         Currently we support LLaMA and Vicuna.
 
         1. Get the original LLaMA weights in the huggingface format by following the instructions [here](https://huggingface.co/docs/transformers/main/model_doc/llama).
-        2. Use instructions [here](https://github.com/lm-sys/FastChat#vicuna-weights) to get vicuna weights.
-        3. Create a soft link to the model path under dist/models
+        2. Use instructions [here](https://github.com/lm-sys/FastChat#vicuna-weights) to get vicuna weights
+        3. Create a soft link to the model path under mlc-llm/dist/models.
             ```shell
-            mkdir -p dist/models
-            ln -s your_model_path dist/models/model_name
+            mkdir -p mlc-llm/dist/models
+            ln -s your_model_path mlc-llm/dist/models/model_name
 
             # For example:
-            # ln -s path/to/vicuna-7b-v1 dist/models/vicuna-7b-v1
+            # ln -s path/to/vicuna-7b-v1 mlc-llm/dist/models/vicuna-7b-v1
             ```
+
+            If you want to use your own mlc-llm branch, set `MLC_LLM_HOME` to that path and link weights under `$MLC_LLM_HOME/dist/models/model_name`
     * Optimize and build model to webgpu backend and export the executable to disk in the WebAssembly file format.
-
-
         ```shell
-        python3 build.py --target webgpu
+        ./build.sh --quantization q4f32_0
         ```
-        By default `build.py` takes `vicuna-7b-v1` as model name. You can also specify model name as
-        ```shell
-        python3 build.py --target webgpu --model llama-7b
-        ```
+        By default `build.sh` takes `vicuna-7b-v1` as model name
+
         Note: build.py can be run on MacOS with 32GB memory and other OS with at least 50GB CPU memory. We are currently optimizing the memory usage to enable more people to try out locally.
 
 4. Deploy the model on web with WebGPU runtime
