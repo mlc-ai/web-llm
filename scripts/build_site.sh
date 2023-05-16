@@ -15,9 +15,9 @@ cp web/llm_chat.html site/_includes
 cp web/llm_chat.js site/dist/
 cp web/llm_chat.css site/dist/
 
-cp $MLC_LLM_HOME/dist/tvmjs_runtime.wasi.js site/dist
-cp $MLC_LLM_HOME/dist/tvmjs.bundle.js site/dist
-cp -r $MLC_LLM_HOME/dist/sentencepiece site/dist
+cp dist/tvmjs_runtime.wasi.js site/dist
+cp dist/tvmjs.bundle.js site/dist
+cp -r dist/sentencepiece site/dist
 
 if [ -d "$MLC_LLM_HOME/dist/vicuna-v1-7b-q4f32_0/params" ]; then
     mkdir -p site/dist/vicuna-v1-7b-q4f32_0
