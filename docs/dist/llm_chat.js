@@ -100,16 +100,29 @@ class Conversation {
   }
 }
 
-function defaultConversation(maxWindowLength = 512) {
-  return new Conversation({
-    system: "A chat between a curious user and an artificial intelligence assistant. " +
-      "The assistant gives helpful, detailed, and polite answers to the user's questions.",
-    roles: ["USER", "ASSISTANT"],
-    maxWindowLength: maxWindowLength,
-    messages: [],
-    offset: 0,
-    seps: [" ", "</s>"],
-  });
+function getConversation(conv_template, maxWindowLength = 512) {
+  if (conv_template == "vicuna-v1.1") {
+    return new Conversation({
+      system: "A chat between a curious user and an artificial intelligence assistant. " +
+        "The assistant gives helpful, detailed, and polite answers to the user's questions.",
+      roles: ["USER", "ASSISTANT"],
+      maxWindowLength: maxWindowLength,
+      messages: [],
+      offset: 0,
+      seps: [" ", "</s>"],
+    });
+  } else if (conv_template == "wizardlm") {
+    return new Conversation({
+      system: "You are an AI assistant that gives helpful, detailed, and polite answers to the user's questions.",
+      roles: ["", "### Response"],
+      maxWindowLength: maxWindowLength,
+      messages: [],
+      offset: 0,
+      seps: ["\n\n", "</s>"],
+    })
+  } else {
+    throw Error("Unknown model "+ model);
+  }
 };
 
 class LLMChatPipeline {
@@ -123,7 +136,9 @@ class LLMChatPipeline {
     this.bosTokenId = 1;
     this.eosTokenId = 2;
 
-    this.maxWindowLength = config.maxWindowLength;
+    this.temperature = config.temperature;
+    this.top_p = config.top_p;
+    this.maxWindowLength = config.max_seq_len;
     this.maxGenLength = config.maxGenLength;
     this.meanGenLength = config.meanGenLength;
     this.streamInterval = 1;
@@ -133,7 +148,7 @@ class LLMChatPipeline {
     this.encodingTotalTime = 0;
     this.encodingTotalTokens = 0;
 
-    this.conversation = defaultConversation();
+    this.conversation = getConversation(config.conv_template, this.maxWindowLength);
 
     this.device = this.tvm.webgpu();
     this.vm = this.tvm.detachFromCurrentScope(
@@ -178,6 +193,7 @@ class LLMChatPipeline {
 
   #clearKVCache() {
     this.fclearKVCaches(this.kvCache);
+    this.kvCacheLength = 0;
   }
 
   #forward(inputs, curPos) {
@@ -320,7 +336,7 @@ class LLMChatPipeline {
       );
       this.tvm.endScope();
 
-      const nextToken = await this.sampleTokenFromLogits(logits);
+      const nextToken = await this.sampleTokenFromLogits(logits, this.temperature, this.top_p);
       logits.dispose();
 
       tokens.push(nextToken);
@@ -420,7 +436,19 @@ class LLMChatInstance {
     this.uiChatInput = undefined;
     this.logger = console.log;
     this.debugTest = false;
+    this.model_name = "vicuna-v1-7b-q4f32_0";
+
   }
+
+  reboot() {
+    this.config = undefined;
+    this.pipeline = undefined;
+    if (this.tvm !== undefined) {
+      this.tvm.dispose();
+      this.tvm = undefined;
+    }
+  }
+
   /**
     * Initialize TVM
     * @param wasmUrl URL to wasm source.
@@ -466,9 +494,8 @@ class LLMChatInstance {
     }
     this.appendMessage("init", "");
     this.tvm = tvm;
-    self = this;
-    function initProgressCallback(report) {
-      self.updateLastMessage("init", report.text);
+    const initProgressCallback = (report) => {
+      this.updateLastMessage("init", report.text);
     }
     tvm.registerInitProgressCallback(initProgressCallback);
     if (!cacheUrl.startsWith("http")) {
@@ -491,10 +518,22 @@ class LLMChatInstance {
    */
   async #asyncInitConfig() {
     if (this.config !== undefined) return;
-    this.config = await (await fetch("llm-chat-config.json")).json();
     this.uiChat = document.getElementById("chatui-chat");
     this.uiChatInput = document.getElementById("chatui-input");
     this.uiChatInfoLabel = document.getElementById("chatui-info-label");
+    var global_config = await (await fetch("global_config.json")).json();
+
+
+    var model_config_url = global_config.url_dict[this.model_name];
+    this.config = await (
+      await fetch(model_config_url)
+    ).json();
+    this.config.wasmUrl = global_config.model_lib_map[this.config.model_lib]
+    var last_slash = model_config_url.lastIndexOf("/");
+    var base_url = model_config_url.substring(0, last_slash + 1);
+    this.config.cacheUrl = base_url + this.config.model_url;
+    this.config.tokenizer = base_url + this.config.tokenizer_files[0];
+
   }
 
   /**
@@ -538,8 +577,13 @@ class LLMChatInstance {
     const msgText = msg.getElementsByClassName("msg-text");
     if (msgText.length != 1) throw Error("Expect msg-text");
     if (msgText[0].innerHTML == text) return;
-    text = text.replaceAll("\n", "<br>");
-    msgText[0].innerHTML = text;
+    const list = text.split('\n').map((t) => {
+      const item = document.createElement('div');
+      item.textContent = t;
+      return item;
+    });
+    msgText[0].innerHTML = '';
+    list.forEach((item) => msgText[0].append(item));
     this.uiChat.scrollTo(0, this.uiChat.scrollHeight);
   }
 
@@ -651,3 +695,16 @@ tvmjsGlobalEnv.asyncOnGenerate = async function () {
 tvmjsGlobalEnv.asyncOnReset = async function () {
   await localLLMChatIntance.resetChat();
 };
+
+function handle_drop_down() {
+  var e = document.getElementById("model-name");
+  function onChange() {
+    localLLMChatIntance.reboot();
+    localLLMChatIntance.model_name = e.value;
+    localLLMChatIntance.logger("model name changed to " +e.value)
+  }
+  e.onchange = onChange;
+}
+
+handle_drop_down()
+
