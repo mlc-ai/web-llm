@@ -3,4 +3,4 @@
 	url = https://github.com/mlc-ai/mlc-llm
 [submodule "3rdparty/tokenizers-cpp"]
 	path = 3rdparty/tokenizers-cpp
-	url = https://github.com/mlc-ai/tokenizers-cpp/tree/main
+	url = https://github.com/mlc-ai/tokenizers-cpp
