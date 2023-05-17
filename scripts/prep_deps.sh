@@ -15,15 +15,15 @@ if [[ -z ${TVM_HOME_SET} ]]; then
     export TVM_HOME="${TVM_HOME:-3rdparty/tvm}"
 fi
 
-export SENTENCEPIECE_JS_HOME="3rdparty/sentencepiece-js"
+export TOKENIZERS_CPP_HOME="3rdparty/tokenizers-cpp/web"
 
 mkdir -p dist
 cd ${TVM_HOME}/web && make && npm install && npm run bundle && cd -
 git submodule update --init --recursive
-cd ${SENTENCEPIECE_JS_HOME} && npm install && npm run build && cd -
+cd ${TOKENIZERS_CPP_HOME} && npm install && npm run build && cd -
 git submodule update --init --recursive
-rm -rf dist/sentencepiece
-cp -r ${SENTENCEPIECE_JS_HOME}/dist dist/sentencepiece
+rm -rf dist/tokenizers-cpp
+cp -r ${TOKENIZERS_CPP_HOME}/dist dist/tokenizers-cpp
 
 echo "Exporting tvmjs runtime dist files"
 python -c "from tvm.contrib import tvmjs; tvmjs.export_runtime(\"dist\")"

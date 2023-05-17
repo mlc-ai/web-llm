@@ -246,12 +246,12 @@ class LLMChatPipeline {
       tokens.pop();
       prompts = this.conversation.getPromptArrayUnproccessed();
     }
-    tokens.push(...await this.tokenizer.encodeIds(prompts[0]));
+    tokens.push(...await this.tokenizer.encode(prompts[0]));
     let ctxLength = tokens.length;
     let context = [];
     let need_shift_window = false;
     for (let i = prompts.length - 1; i > 0; --i) {
-      const encoded = this.tokenizer.encodeIds(prompts[i]);
+      const encoded = this.tokenizer.encode(prompts[i]);
       ctxLength += encoded.length;
       if (this.kvCacheLength + ctxLength + this.meanGenLength >= this.maxWindowLength) {
         need_shift_window = true;
@@ -272,13 +272,13 @@ class LLMChatPipeline {
     // abandon all tokens we collected
     tokens = [this.bosTokenId]
     let all_prompts = this.conversation.getPromptArray();
-    tokens.push(...await this.tokenizer.encodeIds(all_prompts[0]));
+    tokens.push(...await this.tokenizer.encode(all_prompts[0]));
     context = [];
     ctxLength = tokens.length;
     //only keep 10% of the window context
     const fill_factor = 0.1
     for (let i = all_prompts.length - 1; i > 0; --i) {
-      const encoded = this.tokenizer.encodeIds(all_prompts[i]);
+      const encoded = this.tokenizer.encode(all_prompts[i]);
       ctxLength += encoded.length;
       if (ctxLength >= fill_factor * this.maxWindowLength && i + 2 < all_prompts.length) {
         break;
@@ -341,7 +341,7 @@ class LLMChatPipeline {
 
       tokens.push(nextToken);
       const outputTokens = tokens.slice(inputTokenLength);
-      outputPrompt = this.tokenizer.decodeIds(outputTokens);
+      outputPrompt = this.tokenizer.decode(outputTokens);
 
       if (nextToken == this.eosTokenId) break;
 
@@ -372,7 +372,7 @@ class LLMChatPipeline {
     // run a canonical evaluation of the flow
     this.#clearKVCache();
     const testPrompt = "The capital of Canada is";
-    const ids = await this.tokenizer.encodeIds(testPrompt);
+    const ids = await this.tokenizer.encode(testPrompt);
     const inputPromptSize = ids.length;
     const tokens = Array.from(ids);
     tokens.unshift(this.bosTokenId);
@@ -532,19 +532,28 @@ class LLMChatInstance {
     var last_slash = model_config_url.lastIndexOf("/");
     var base_url = model_config_url.substring(0, last_slash + 1);
     this.config.cacheUrl = base_url + this.config.model_url;
-    this.config.tokenizer = base_url + this.config.tokenizer_files[0];
-
+    this.config.tokenizer = new URL(this.config.tokenizer_files[0], this.config.cacheUrl);
   }
 
   /**
    * Initialize the pipeline
    *
-   * @param tokenizerModel The url to tokenizer model.
    */
   async #asyncInitPipeline() {
     if (this.pipeline !== undefined) return;
     // initialize UX and tokenizer
-    const tokenizer = await tvmjsGlobalEnv.sentencePieceProcessor(this.config.tokenizer);
+    var tokenizer = undefined;
+    if (this.config.tokenizer.toString().endsWith(".model")) {
+      const modelBuffer = await (await
+        fetch(this.config.tokenizer)
+      ).arrayBuffer();
+      tokenizer = await tvmjsGlobalEnv.tokenizerFromSentencePiece(modelBuffer);
+    } else if (this.config.tokenizer.toString().endsWith(".json")) {
+       const jsonBuffer = await (await
+        fetch(this.config.tokenizer)
+      ).arrayBuffer();
+      tokenizer = await tvmjsGlobalEnv.tokenizerFromJSON(jsonBuffer);
+    }
     this.pipeline = this.tvm.withNewScope(() => {
       return new LLMChatPipeline(this.tvm, tokenizer, this.tvm.cacheMetadata, this.config);
     });
@@ -590,13 +599,13 @@ class LLMChatInstance {
   async respondTestMessage(repeat) {
     this.appendMessage("left", "");
     const testMessage = "I am a friendly bot. Please ask questions.";
-    const encodedResult = await this.pipeline.tokenizer.encodeIds(testMessage);
+    const encodedResult = await this.pipeline.tokenizer.encode(testMessage);
 
     const currentIds = [];
     for (let k = 0; k < repeat; ++k) {
       for (let i = 0; i < encodedResult.length; ++i) {
         currentIds.push(encodedResult[i]);
-        const msg = this.pipeline.tokenizer.decodeIds(currentIds);
+        const msg = this.pipeline.tokenizer.decode(currentIds);
         this.updateLastMessage("left", msg);
         await new Promise(resolve => setTimeout(resolve, 50));
       }

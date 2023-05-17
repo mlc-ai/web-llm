@@ -3,11 +3,18 @@
 </script>
 
 <script type="module">
-  async function getTokenizer(url) {
-    const mod = await import("./dist/sentencepiece/index.js");
-    return await mod.sentencePieceProcessor(url);
+  import { Tokenizer } from './dist/tokenizers-cpp/index.js';
+
+  async function tokenizerFromJSON(jsonArrayBuffer) {
+    return await Tokenizer.fromJSON(jsonArrayBuffer);
   }
-  tvmjsGlobalEnv.sentencePieceProcessor = getTokenizer;
+  async function tokenizerFromSentencePiece(modelBuffer) {
+    return await Tokenizer.fromSentencePiece(modelBuffer);
+  }
+  tvmjsGlobalEnv.tokenizerFromJSON = tokenizerFromJSON;
+  tvmjsGlobalEnv.tokenizerFromSentencePiece = tokenizerFromSentencePiece;
+  console.log("init complete")
+
 </script>
 <script>
   function handleChatUIInputEnter(event) {
@@ -15,11 +22,6 @@
       tvmjsGlobalEnv.asyncOnGenerate();
     }
   }
-  async function getTokenizer(url) {
-    const mod = await import("./dist/sentencepiece/index.js");
-    return await mod.sentencePieceProcessor(url);
-  }
-  tvmjsGlobalEnv.sentencePieceProcessor = getTokenizer;
 </script>
 
 <form>
