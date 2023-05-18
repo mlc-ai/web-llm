@@ -1,6 +1,6 @@
-[submodule "3rdparty/sentencepiece-js"]
-	path = 3rdparty/sentencepiece-js
-	url = https://github.com/tqchen/sentencepiece-js
 [submodule "mlc-llm"]
 	path = mlc-llm
 	url = https://github.com/mlc-ai/mlc-llm
+[submodule "3rdparty/tokenizers-cpp"]
+	path = 3rdparty/tokenizers-cpp
+	url = https://github.com/mlc-ai/tokenizers-cpp

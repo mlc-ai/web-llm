@@ -23,7 +23,7 @@ cp web/llm_chat.css site/dist/
 
 cp dist/tvmjs_runtime.wasi.js site/dist
 cp dist/tvmjs.bundle.js site/dist
-cp -r dist/sentencepiece site/dist
+cp -r dist/tokenizers-cpp site/dist
 
 if [ -d "$MLC_LLM_HOME/dist/vicuna-v1-7b-q4f32_0/params" ]; then
     mkdir -p site/dist/vicuna-v1-7b-q4f32_0
