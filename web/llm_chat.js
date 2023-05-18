@@ -2,6 +2,7 @@
  * Helper to keep track of history conversations.
  */
 class Conversation {
+
   constructor(config) {
     this.system = config.system;
     this.roles = config.roles;
@@ -10,6 +11,7 @@ class Conversation {
     this.convId = null;
     this.messages = [];
     this.contextWindowStart = 0;
+    this.separator_style = "Two";
   }
 
   /**
@@ -21,19 +23,36 @@ class Conversation {
     if (this.seps.length == 0) {
       throw Error("Need seps to work")
     }
-    let ret = [this.system + this.seps[0]];
+    if (this.separator_style == "Two") {
+      let ret = [this.system + this.seps[0]];
 
-    for (let i = 0; i < this.messages.length; ++i) {
-      const item = this.messages[i];
-      const role = item[0];
-      const message = item[1];
-      if (message !== undefined && message != "") {
-        ret.push(role + ": " + message + this.seps[i % this.seps.length]);
-      } else {
-        ret.push(role + ":");
+      for (let i = 0; i < this.messages.length; ++i) {
+        const item = this.messages[i];
+        const role = item[0];
+        const message = item[1];
+        if (message !== undefined && message != "") {
+          ret.push(role + ": " + message + this.seps[i % this.seps.length] + "\n");
+        } else {
+          ret.push(role + ":");
+        }
       }
+      return ret;
+    } else if (this.separator_style == "RedPajamaChat") {
+      let ret = [this.system];
+
+      for (let i = 0; i < this.messages.length; ++i) {
+        const item = this.messages[i];
+        const role = item[0];
+        const message = item[1];
+        if (message !== undefined && message != "") {
+          ret.push(role + ": " + message + this.seps[i % this.seps.length]);
+        } else {
+          ret.push(role + ":");
+        }
+      }
+      return ret;
     }
-    return ret;
+    throw Error("Unknown separator style " + this.separator_style);
   }
 
   /**
@@ -46,53 +65,50 @@ class Conversation {
       throw Error("Need seps to work")
     }
     if (this.messages.length < 3) {
-      throw Error("needs to call getLastPromptArray for the first message");
+      throw Error("needs to call getPromptArray for the first message");
     }
-    let ret = [this.seps[this.seps.length - 1]];
-    for (let i = this.messages.length - 2; i < this.messages.length; ++i) {
-      const item = this.messages[i];
-      const role = item[0];
-      const message = item[1];
-      if (message !== undefined && message != "") {
-        ret.push(role + ": " + message + this.seps[i % this.seps.length]);
-      } else {
-        ret.push(role + ":");
+    if (this.separator_style == "Two") {
+      let ret = [this.seps[this.seps.length - 1]];
+      for (let i = this.messages.length - 2; i < this.messages.length; ++i) {
+        const item = this.messages[i];
+        const role = item[0];
+        const message = item[1];
+        if (message !== undefined && message != "") {
+          ret.push(role + ": " + message + this.seps[i % this.seps.length]);
+        } else {
+          ret.push(role + ":");
+        }
       }
+      return ret;
+    } else if (this.separator_style == "RedPajamaChat") {
+      let ret = [];
+      for (let i = this.messages.length - 2; i < this.messages.length; ++i) {
+        const item = this.messages[i];
+        const role = item[0];
+        const message = item[1];
+        if (message !== undefined && message != "") {
+          ret.push(message + this.seps[i % this.seps.length]+"\n");
+        } else {
+          ret.push(role + ":");
+        }
+      }
+      return ret;
     }
-    return ret;
-
+    throw Error("Unknown separator style " + this.separator_style);
   }
 
-  /**
-   * Get last prompt array with prefix as system.
-   *
-   * @returns The prompt array.
-   */
-  getLastPromptArray() {
-    if (this.seps.length == 0) {
-      throw Error("Need seps to work")
-    }
-    let ret = [this.system + this.seps[0]];
-
-    for (let i = this.messages.length - 2; i < this.messages.length; ++i) {
-      const item = this.messages[i];
-      const role = item[0];
-      const message = item[1];
-      if (message !== undefined && message != "") {
-        ret.push(role + ": " + message + this.seps[i % this.seps.length]);
-      } else {
-        ret.push(role + ":");
-      }
-    }
-    return ret;
-  }
 
   reset() {
     this.messages = [];
   }
 
   getStopStr() {
-    return this.seps[this.seps.length - 1];
+    if (this.separator_style == "Two") {
+      return this.seps[this.seps.length - 1];
+    } else if (this.separator_style == "RedPajamaChat") {
+      return "<human>:";
+    }
+    throw Error("Unknown separator style " + this.separator_style);
   }
 
   appendMessage(role, message) {
@@ -100,25 +116,34 @@ class Conversation {
   }
 }
 
-function getConversation(conv_template, maxWindowLength = 512) {
+function getConversation(conv_template) {
   if (conv_template == "vicuna-v1.1") {
     return new Conversation({
       system: "A chat between a curious user and an artificial intelligence assistant. " +
         "The assistant gives helpful, detailed, and polite answers to the user's questions.",
       roles: ["USER", "ASSISTANT"],
-      maxWindowLength: maxWindowLength,
       messages: [],
       offset: 0,
       seps: [" ", "</s>"],
+      separator_style: "Two",
     });
   } else if (conv_template == "wizardlm") {
     return new Conversation({
       system: "You are an AI assistant that gives helpful, detailed, and polite answers to the user's questions.",
       roles: ["", "### Response"],
-      maxWindowLength: maxWindowLength,
       messages: [],
       offset: 0,
       seps: ["\n\n", "</s>"],
+      separator_style: "Two",
+    })
+  } else if (conv_template == "redpajama-chat") {
+    return new Conversation({
+      system: "",
+      roles: ["<human>", "<bot>"],
+      messages: [],
+      offset: 0,
+      seps: ["",""],
+      separator_style: "RedPajamaChat",
     })
   } else {
     throw Error("Unknown model "+ model);
@@ -138,7 +163,7 @@ class LLMChatPipeline {
 
     this.temperature = config.temperature;
     this.top_p = config.top_p;
-    this.maxWindowLength = config.max_seq_len;
+
     this.meanGenLength = config.mean_gen_len;
     this.streamInterval = 1;
     this.shiftFillFactor = config.shift_fill_factor;
@@ -148,7 +173,7 @@ class LLMChatPipeline {
     this.encodingTotalTime = 0;
     this.encodingTotalTokens = 0;
 
-    this.conversation = getConversation(config.conv_template, this.maxWindowLength);
+    this.conversation = getConversation(config.conv_template);
 
     this.device = this.tvm.webgpu();
     this.vm = this.tvm.detachFromCurrentScope(
@@ -163,6 +188,12 @@ class LLMChatPipeline {
     this.params = this.tvm.detachFromCurrentScope(
       this.tvm.getParamsFromCache("param", cacheMetadata.ParamSize)
     );
+    const fgetMetadata = this.vm.getFunction("get_metadata");
+    const metadataStr = this.tvm.detachFromCurrentScope(fgetMetaData());
+    const metadata = JSON.parse(metadataStr);
+    this.maxWindowLength = metadata.max_window_size;
+    this.stopTokens = metadata.stop_tokens;
+
     const fcreateCache = this.vm.getFunction("create_kv_cache");
     this.fclearKVCaches = this.tvm.detachFromCurrentScope(
       this.tvm.getGlobalFunc("vm.builtin.attention_kv_cache_array_clear")
@@ -342,7 +373,7 @@ class LLMChatPipeline {
       const outputTokens = tokens.slice(inputTokenLength);
       outputPrompt = this.tokenizer.decode(outputTokens);
 
-      if (nextToken == this.eosTokenId) break;
+      if (this.stopTokens.includes(nextToken)) break;
 
       const stopPos = outputPrompt.lastIndexOf(stopStr);
       if (stopPos != -1) {
@@ -531,8 +562,26 @@ class LLMChatInstance {
     this.config.wasmUrl = global_config.model_lib_map[this.config.model_lib]
     var last_slash = model_config_url.lastIndexOf("/");
     var base_url = model_config_url.substring(0, last_slash + 1);
-    this.config.cacheUrl = base_url + this.config.model_url;
-    this.config.tokenizer = new URL(this.config.tokenizer_files[0], this.config.cacheUrl);
+    if (this.config.model_url !== undefined) {
+      this.config.cacheUrl = base_url + this.config.model_url;
+    } else {
+      this.config.cacheUrl = base_url;
+    }
+    this.logger(this.config)
+  }
+
+  async findTokenizerPath(base_url) {
+    const tokenizer_model_path = new URL("tokenizer.model", base_url);
+    var tokenizer_model = await fetch(tokenizer_model_path);
+    if (tokenizer_model !== undefined) {
+      return await tvmjsGlobalEnv.tokenizerFromSentencePiece(await tokenizer_model.arrayBuffer())
+    }
+    const tokenizer_json_path = new URL("tokenizer.json", base_url);
+    var tokenizer_json = await fetch(tokenizer_json_path);
+    if (tokenizer_json !== undefined) {
+      return await tvmjsGlobalEnv.tokenizerFromJSON(await tokenizer_json.arrayBuffer())
+    }
+    throw Error("Cannot find tokenizer model or json");
   }
 
   /**
@@ -542,18 +591,7 @@ class LLMChatInstance {
   async #asyncInitPipeline() {
     if (this.pipeline !== undefined) return;
     // initialize UX and tokenizer
-    var tokenizer = undefined;
-    if (this.config.tokenizer.toString().endsWith(".model")) {
-      const modelBuffer = await (await
-        fetch(this.config.tokenizer)
-      ).arrayBuffer();
-      tokenizer = await tvmjsGlobalEnv.tokenizerFromSentencePiece(modelBuffer);
-    } else if (this.config.tokenizer.toString().endsWith(".json")) {
-       const jsonBuffer = await (await
-        fetch(this.config.tokenizer)
-      ).arrayBuffer();
-      tokenizer = await tvmjsGlobalEnv.tokenizerFromJSON(jsonBuffer);
-    }
+    var tokenizer = this.findTokenizerPath(this.config.cacheUrl);
     this.pipeline = this.tvm.withNewScope(() => {
       return new LLMChatPipeline(this.tvm, tokenizer, this.tvm.cacheMetadata, this.config);
     });
