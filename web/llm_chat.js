@@ -11,7 +11,8 @@ class Conversation {
     this.convId = null;
     this.messages = [];
     this.contextWindowStart = 0;
-    this.separator_style = "Two";
+    this.separator_style = config.separator_style;
+    this.add_bos = config.add_bos;
   }
 
   /**
@@ -31,7 +32,7 @@ class Conversation {
         const role = item[0];
         const message = item[1];
         if (message !== undefined && message != "") {
-          ret.push(role + ": " + message + this.seps[i % this.seps.length] + "\n");
+          ret.push(role + ": " + message + this.seps[i % this.seps.length]);
         } else {
           ret.push(role + ":");
         }
@@ -45,7 +46,7 @@ class Conversation {
         const role = item[0];
         const message = item[1];
         if (message !== undefined && message != "") {
-          ret.push(role + ": " + message + this.seps[i % this.seps.length]);
+          ret.push(role + ": " + message + this.seps[i % this.seps.length] + "\n");
         } else {
           ret.push(role + ":");
         }
@@ -126,6 +127,7 @@ function getConversation(conv_template) {
       offset: 0,
       seps: [" ", "</s>"],
       separator_style: "Two",
+      add_bos: true,
     });
   } else if (conv_template == "wizardlm") {
     return new Conversation({
@@ -135,8 +137,9 @@ function getConversation(conv_template) {
       offset: 0,
       seps: ["\n\n", "</s>"],
       separator_style: "Two",
+      add_bos: true,
     })
-  } else if (conv_template == "redpajama-chat") {
+  } else if (conv_template == "redpajama_chat") {
     return new Conversation({
       system: "",
       roles: ["<human>", "<bot>"],
@@ -144,9 +147,10 @@ function getConversation(conv_template) {
       offset: 0,
       seps: ["",""],
       separator_style: "RedPajamaChat",
+      add_bos: false,
     })
   } else {
-    throw Error("Unknown model "+ model);
+    throw Error("Unknown conv template "+ conv_template);
   }
 };
 
@@ -172,9 +176,7 @@ class LLMChatPipeline {
     this.decodingTotalTokens = 0;
     this.encodingTotalTime = 0;
     this.encodingTotalTokens = 0;
-
     this.conversation = getConversation(config.conv_template);
-
     this.device = this.tvm.webgpu();
     this.vm = this.tvm.detachFromCurrentScope(
       this.tvm.createVirtualMachine(this.device)
@@ -189,7 +191,8 @@ class LLMChatPipeline {
       this.tvm.getParamsFromCache("param", cacheMetadata.ParamSize)
     );
     const fgetMetadata = this.vm.getFunction("get_metadata");
-    const metadataStr = this.tvm.detachFromCurrentScope(fgetMetaData());
+    var ret_value = fgetMetadata();
+    const metadataStr = this.tvm.detachFromCurrentScope(ret_value).toString();
     const metadata = JSON.parse(metadataStr);
     this.maxWindowLength = metadata.max_window_size;
     this.stopTokens = metadata.stop_tokens;
@@ -269,9 +272,12 @@ class LLMChatPipeline {
   }
 
   async getInputTokens() {
-    let tokens = [this.bosTokenId];
+    let tokens = [];
     let prompts = ""
     if (this.conversation.messages.length <= 2) {
+      if (this.conversation.add_bos) {
+        tokens.push(this.bosTokenId);
+      }
       prompts = this.conversation.getPromptArray();
     } else {
       tokens.pop();
@@ -301,7 +307,11 @@ class LLMChatPipeline {
     this.kvCacheLength = 0;
     this.clearCache = true;
     // abandon all tokens we collected
-    tokens = [this.bosTokenId]
+    if (this.conversation.add_bos) {
+      tokens = [this.bosTokenId];
+    } else {
+      tokens = [];
+    }
     let all_prompts = this.conversation.getPromptArray();
     tokens.push(...await this.tokenizer.encode(all_prompts[0]));
     context = [];
@@ -373,7 +383,9 @@ class LLMChatPipeline {
       const outputTokens = tokens.slice(inputTokenLength);
       outputPrompt = this.tokenizer.decode(outputTokens);
 
-      if (this.stopTokens.includes(nextToken)) break;
+      if (this.stopTokens.includes(nextToken)) {
+        break;
+      }
 
       const stopPos = outputPrompt.lastIndexOf(stopStr);
       if (stopPos != -1) {
@@ -567,18 +579,17 @@ class LLMChatInstance {
     } else {
       this.config.cacheUrl = base_url;
     }
-    this.logger(this.config)
   }
 
   async findTokenizerPath(base_url) {
     const tokenizer_model_path = new URL("tokenizer.model", base_url);
     var tokenizer_model = await fetch(tokenizer_model_path);
-    if (tokenizer_model !== undefined) {
+    if (tokenizer_model.ok) {
       return await tvmjsGlobalEnv.tokenizerFromSentencePiece(await tokenizer_model.arrayBuffer())
     }
     const tokenizer_json_path = new URL("tokenizer.json", base_url);
     var tokenizer_json = await fetch(tokenizer_json_path);
-    if (tokenizer_json !== undefined) {
+    if (tokenizer_json.ok) {
       return await tvmjsGlobalEnv.tokenizerFromJSON(await tokenizer_json.arrayBuffer())
     }
     throw Error("Cannot find tokenizer model or json");
@@ -591,7 +602,7 @@ class LLMChatInstance {
   async #asyncInitPipeline() {
     if (this.pipeline !== undefined) return;
     // initialize UX and tokenizer
-    var tokenizer = this.findTokenizerPath(this.config.cacheUrl);
+    var tokenizer = await this.findTokenizerPath(this.config.cacheUrl);
     this.pipeline = this.tvm.withNewScope(() => {
       return new LLMChatPipeline(this.tvm, tokenizer, this.tvm.cacheMetadata, this.config);
     });
