@@ -139,9 +139,9 @@ class LLMChatPipeline {
     this.temperature = config.temperature;
     this.top_p = config.top_p;
     this.maxWindowLength = config.max_seq_len;
-    this.maxGenLength = config.maxGenLength;
-    this.meanGenLength = config.meanGenLength;
+    this.meanGenLength = config.mean_gen_len;
     this.streamInterval = 1;
+    this.shiftFillFactor = config.shift_fill_factor;
 
     this.decodingTotalTime = 0;
     this.decodingTotalTokens = 0;
@@ -276,11 +276,10 @@ class LLMChatPipeline {
     context = [];
     ctxLength = tokens.length;
     //only keep 10% of the window context
-    const fill_factor = 0.1
     for (let i = all_prompts.length - 1; i > 0; --i) {
       const encoded = this.tokenizer.encode(all_prompts[i]);
       ctxLength += encoded.length;
-      if (ctxLength >= fill_factor * this.maxWindowLength && i + 2 < all_prompts.length) {
+      if (ctxLength >= this.shiftFillFactor * this.maxWindowLength && i + 2 < all_prompts.length) {
         break;
       }
       context.unshift(encoded);
@@ -315,7 +314,7 @@ class LLMChatPipeline {
       this.#clearKVCache();
       this.clearCache = false;
     }
-    const maxGenLen = Math.min(this.maxGenLength, this.maxWindowLength - tokens.length);
+    const maxGenLen = this.maxWindowLength - tokens.length;
     if (maxGenLen < this.meanGenLength) {
       throw Error("Too small window size config");
     }
@@ -512,6 +511,7 @@ class LLMChatInstance {
     await this.#asyncInitTVM(this.config.wasmUrl, this.config.cacheUrl);
     await this.#asyncInitPipeline();
   }
+
 
   /**
    * Async initialize config
