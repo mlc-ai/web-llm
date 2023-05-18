@@ -478,7 +478,7 @@ class LLMChatInstance {
     this.uiChatInput = undefined;
     this.logger = console.log;
     this.debugTest = false;
-    this.model_name = "vicuna-v1-7b-q4f32_0";
+    this.model = "vicuna-v1-7b-q4f32_0";
 
   }
 
@@ -565,12 +565,17 @@ class LLMChatInstance {
     this.uiChatInput = document.getElementById("chatui-input");
     this.uiChatInfoLabel = document.getElementById("chatui-info-label");
     var global_config = await (await fetch("global_config.json")).json();
-
-
-    var model_config_url = global_config.url_dict[this.model_name];
+    
+    var model_config_url = undefined;
+    if (global_config.url_dict[this.model] === undefined) {
+      model_config_url = this.model;
+    } else {
+      var model_config_url = global_config.url_dict[this.model];
+    }
     this.config = await (
       await fetch(model_config_url)
     ).json();
+    this.logger(this.config)
     this.config.wasmUrl = global_config.model_lib_map[this.config.model_lib]
     var last_slash = model_config_url.lastIndexOf("/");
     var base_url = model_config_url.substring(0, last_slash + 1);
@@ -754,15 +759,15 @@ tvmjsGlobalEnv.asyncOnReset = async function () {
   await localLLMChatIntance.resetChat();
 };
 
-function handle_drop_down() {
-  var e = document.getElementById("model-name");
+function handle_model_change() {
+  var e = document.getElementById("model");
   function onChange() {
     localLLMChatIntance.reboot();
-    localLLMChatIntance.model_name = e.value;
-    localLLMChatIntance.logger("model name changed to " +e.value)
+    localLLMChatIntance.model = e.value;
+    localLLMChatIntance.logger("model changed to " +e.value)
   }
   e.onchange = onChange;
 }
 
-handle_drop_down()
+handle_model_change()
 
