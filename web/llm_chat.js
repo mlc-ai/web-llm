@@ -88,7 +88,7 @@ class Conversation {
         const role = item[0];
         const message = item[1];
         if (message !== undefined && message != "") {
-          ret.push(message + this.seps[i % this.seps.length]+"\n");
+          ret.push(message + this.seps[i % this.seps.length] + "\n");
         } else {
           ret.push(role + ":");
         }
@@ -118,7 +118,7 @@ class Conversation {
 }
 
 function getConversation(conv_template) {
-  if (conv_template == "vicuna-v1.1") {
+  if (conv_template == "vicuna_v1.1") {
     return new Conversation({
       system: "A chat between a curious user and an artificial intelligence assistant. " +
         "The assistant gives helpful, detailed, and polite answers to the user's questions.",
@@ -145,12 +145,12 @@ function getConversation(conv_template) {
       roles: ["<human>", "<bot>"],
       messages: [],
       offset: 0,
-      seps: ["",""],
+      seps: ["", ""],
       separator_style: "RedPajamaChat",
       add_bos: false,
     })
   } else {
-    throw Error("Unknown conv template "+ conv_template);
+    throw Error("Unknown conv template " + conv_template);
   }
 };
 
@@ -580,8 +580,8 @@ class LLMChatInstance {
     this.uiChat = document.getElementById("chatui-chat");
     this.uiChatInput = document.getElementById("chatui-input");
     this.uiChatInfoLabel = document.getElementById("chatui-info-label");
-    var global_config = await (await fetch("global_config.json")).json();
-    
+    var global_config = await (await fetch("llm-chat-config.json")).json();
+
     var model_config_url = undefined;
     if (global_config.url_dict[this.model] === undefined) {
       model_config_url = this.model;
@@ -591,7 +591,6 @@ class LLMChatInstance {
     this.config = await (
       await fetch(model_config_url)
     ).json();
-    this.logger(this.config)
     this.config.wasmUrl = global_config.model_lib_map[this.config.model_lib]
     var last_slash = model_config_url.lastIndexOf("/");
     var base_url = model_config_url.substring(0, last_slash + 1);
@@ -603,6 +602,9 @@ class LLMChatInstance {
   }
 
   async findTokenizerPath(base_url) {
+    if (!base_url.startsWith("http")) {
+      base_url = new URL(base_url, document.URL).href;
+    }
     const tokenizer_model_path = new URL("tokenizer.model", base_url);
     var tokenizer_model = await fetch(tokenizer_model_path);
     if (tokenizer_model.ok) {
@@ -780,7 +782,7 @@ function handle_model_change() {
   function onChange() {
     localLLMChatIntance.reboot();
     localLLMChatIntance.model = e.value;
-    localLLMChatIntance.logger("model changed to " +e.value)
+    localLLMChatIntance.logger("model changed to " + e.value)
   }
   e.onchange = onChange;
 }
