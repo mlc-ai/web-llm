@@ -1,13 +1,10 @@
 {
-    "kvConfig": {
-        "numLayers": 64,
-        "shape": [32, 32, 128],
-        "dtype": "float32"
+    "url_dict": {
+        "vicuna-v1-7b-q4f32_0": "https://huggingface.co/mlc-ai/mlc-chat-vicuna-v1-7b-q4f32_0/resolve/main/mlc-chat-config.json",
+        "RedPajama-INCITE-Chat-3B-v1-q4f32_0": "https://huggingface.co/mlc-ai/mlc-chat-RedPajama-INCITE-Chat-3B-v1-q4f32_0/resolve/main/mlc-chat-config.json"
     },
-    "wasmUrl": "dist/vicuna-7b-v1/vicuna-7b-v1_webgpu.wasm",
-    "cacheUrl": "https://huggingface.co/mlc-ai/web-lm/resolve/main/vicuna-7b-v1/",
-    "tokenizer": "dist/vicuna-7b-v1/tokenizer.model",
-    "maxGenLength": 1024,
-    "meanGenLength": 256,
-    "maxWindowLength": 2048
+    "model_lib_map": {
+        "vicuna-v1-7b-q4f32_0": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/wasm/vicuna-v1-7b-q4f32_0-webgpu.wasm",
+        "RedPajama-INCITE-Chat-3B-v1-q4f32_0": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/wasm/RedPajama-INCITE-Chat-3B-v1-q4f32_0-webgpu.wasm"
+    }
 }
