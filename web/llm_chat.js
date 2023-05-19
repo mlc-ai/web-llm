@@ -69,7 +69,7 @@ class Conversation {
       throw Error("needs to call getPromptArray for the first message");
     }
     if (this.separator_style == "Two") {
-      let ret = [this.seps[this.seps.length - 1]];
+      let ret = [];
       for (let i = this.messages.length - 2; i < this.messages.length; ++i) {
         const item = this.messages[i];
         const role = item[0];
@@ -371,6 +371,7 @@ class LLMChatPipeline {
       throw Error("Too small window size config");
     }
     let step = 0;
+    var stop = false;
     for (; step < maxGenLen && this.kvCacheLength + inputTokenLength + step < this.maxWindowLength; ++step) {
       this.tvm.beginScope();
       var inputData;
@@ -386,6 +387,9 @@ class LLMChatPipeline {
         this.#forward(inputData, this.kvCacheLength + inputTokenLength + step)
       );
       this.tvm.endScope();
+      if (stop) {
+        break;
+      }
 
       const nextToken = await this.sampleTokenFromLogits(logits, this.temperature, this.top_p);
       logits.dispose();
@@ -396,13 +400,13 @@ class LLMChatPipeline {
       outputPrompt = this.tokenizer.decode(outputTokens);
 
       if (this.stopTokens.includes(nextToken)) {
-        break;
+        stop = true;
       }
 
       const stopPos = outputPrompt.lastIndexOf(stopStr);
       if (stopPos != -1) {
         outputPrompt = outputPrompt.substring(0, stopPos);
-        break;
+        stop = true;
       }
       let tend = performance.now();
       if (step != 0) {
@@ -417,7 +421,7 @@ class LLMChatPipeline {
         callbackUpdateResponse(step, outputPrompt);
       }
     }
-    this.kvCacheLength += tokens.length - 1;
+    this.kvCacheLength += tokens.length;
     this.conversation.messages[this.conversation.messages.length - 1][1] = outputPrompt;
     return outputPrompt;
   }
