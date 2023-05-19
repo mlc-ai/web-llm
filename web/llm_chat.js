@@ -167,6 +167,8 @@ class LLMChatPipeline {
 
     this.temperature = config.temperature;
     this.top_p = config.top_p;
+    this.repetitionPenalty = config.repetition_penalty
+    this.appeared_tokens = new Set();
 
     this.meanGenLength = config.mean_gen_len;
     this.streamInterval = 1;
@@ -268,7 +270,16 @@ class LLMChatPipeline {
     this.#updateLogitsOnCPU(logits);
     this.tvm.endScope();
     await this.device.sync();
-    return this.tvm.sampleTopPFromLogits(this.logitsOnCPU, temperature, top_p);
+    if (this.repetitionPenalty < 1.0 + 1e-6) {
+      return this.tvm.sampleTopPFromLogits(this.logitsOnCPU, temperature, top_p);
+    } else {
+      this.tvm.beginScope();
+      var appeared_tokens_ndarray = this.tvm.empty([1, this.appeared_tokens.size], "int32", this.tvm.cpu());
+      appeared_tokens_ndarray.copyFrom(Array.from(this.appeared_tokens));
+      this.tvm.applyRepetitionPenalty(this.logitsOnCPU, appeared_tokens_ndarray, this.repetitionPenalty);
+      this.tvm.endScope();
+      return this.tvm.sampleTopPFromLogits(this.logitsOnCPU, temperature, top_p);
+    }
   }
 
   async getInputTokens() {
@@ -380,6 +391,7 @@ class LLMChatPipeline {
       logits.dispose();
 
       tokens.push(nextToken);
+      this.appeared_tokens.add(nextToken);
       const outputTokens = tokens.slice(inputTokenLength);
       outputPrompt = this.tokenizer.decode(outputTokens);
 
