@@ -176,15 +176,15 @@ class LLMChatPipeline {
 
     this.decodingTotalTime = 0;
     this.decodingTotalTokens = 0;
-    this.encodingTotalTime = 0;
-    this.encodingTotalTokens = 0;
+    this.prefillTotalTime = 0;
+    this.prefillTotalTokens = 0;
     this.conversation = getConversation(config.conv_template);
     this.device = this.tvm.webgpu();
     this.vm = this.tvm.detachFromCurrentScope(
       this.tvm.createVirtualMachine(this.device)
     );
-    this.encoding = this.tvm.detachFromCurrentScope(
-      this.vm.getFunction("encoding")
+    this.prefill = this.tvm.detachFromCurrentScope(
+      this.vm.getFunction("prefill")
     );
     this.decoding = this.tvm.detachFromCurrentScope(
       this.vm.getFunction("decoding")
@@ -218,7 +218,7 @@ class LLMChatPipeline {
     // note: tvm instance is not owned by this class
     this.params.dispose();
     this.decoding.dispose();
-    this.encoding.dispose();
+    this.prefill.dispose();
     this.vm.dispose();
     this.kvCache.dispose();
     this.fclearKVCaches.dispose();
@@ -237,7 +237,7 @@ class LLMChatPipeline {
     var retValue;
     const seqLenShape = this.tvm.makeShapeTuple([curPos]);
     if (inputs.shape[1] > 1) {
-      retValue = this.encoding(
+      retValue = this.prefill(
         inputs, seqLenShape, this.kvCache, this.params
       );
     } else {
@@ -349,9 +349,9 @@ class LLMChatPipeline {
     this.conversation.reset();
     this.#clearKVCache();
     this.decodingTotalTime = 0;
-    this.encodingTotalTime = 0;
+    this.prefillTotalTime = 0;
     this.decodingTotalTokens = 0;
-    this.encodingTotalTokens = 0;
+    this.prefillTotalTokens = 0;
   }
 
   async generate(inputPrompt, callbackUpdateResponse) {
@@ -413,8 +413,8 @@ class LLMChatPipeline {
         this.decodingTotalTokens += 1;
         this.decodingTotalTime += (tend - tstart) / 1000;
       } else {
-        this.encodingTotalTime += (tend - tstart) / 1000;
-        this.encodingTotalTokens += inputTokenLength;
+        this.prefillTotalTime += (tend - tstart) / 1000;
+        this.prefillTotalTokens += inputTokenLength;
       }
 
       if (step % this.streamInterval == 0) {
@@ -441,7 +441,7 @@ class LLMChatPipeline {
     this.tvm.beginScope();
     const inputData = this.tvm.empty([1, tokens.length], "int32", this.device);
     inputData.copyFrom(tokens);
-    const encodingStart = performance.now();
+    const prefillStart = performance.now();
     this.#forward(inputData, tokens.length);
     this.tvm.endScope();
     await this.device.sync();
@@ -456,7 +456,7 @@ class LLMChatPipeline {
 
     const decodingEnd = performance.now();
     const msg = (
-      `encoding-time=${((decodingStart - encodingStart) / 1000).toFixed(4)} sec` +
+      `prefill-time=${((decodingStart - prefillStart) / 1000).toFixed(4)} sec` +
       `decoding-time=${((decodingEnd - decodingStart) / 1000).toFixed(4)} sec`
     );
 
@@ -475,7 +475,7 @@ class LLMChatPipeline {
 
   runtimeStatsText() {
     return (
-      `encoding: ${(this.encodingTotalTokens / this.encodingTotalTime).toFixed(4)} tokens/sec, ` +
+      `prefill: ${(this.prefillTotalTokens / this.prefillTotalTime).toFixed(4)} tokens/sec, ` +
       `decoding: ${(this.decodingTotalTokens / this.decodingTotalTime).toFixed(4)} tokens/sec`
     )
   }

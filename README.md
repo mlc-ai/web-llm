@@ -114,7 +114,7 @@ All these are made possible by the open-source ecosystem that we leverage. Speci
 
 TVM unity also provides an easy way to compose new solutions in the ecosystem. We will continue to bring further optimizations such as fused quantization kernels, and bring them to more platforms.
 
-One key characteristic of LLM models is the dynamic nature of the model. As the decoding and encoding process depends on computations that grow with the size of tokens, we leverage the first-class dynamic shape support in TVM unity that represents sequence dimensions through symbolic integers. This allows us to plan ahead to statically allocate all the memory needed for the sequence window of interest without padding.
+One key characteristic of LLM models is the dynamic nature of the model. As the decoding and prefill process depends on computations that grow with the size of tokens, we leverage the first-class dynamic shape support in TVM unity that represents sequence dimensions through symbolic integers. This allows us to plan ahead to statically allocate all the memory needed for the sequence window of interest without padding.
 
 We also leveraged the integration of tensor expressions to quickly express partial-tensor computations such as rotary embedding directly without materializing them into full-tensor matrix computations.
 
