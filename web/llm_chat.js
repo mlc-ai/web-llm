@@ -687,6 +687,7 @@ class LLMChatInstance {
 
   resetChat() {
     if (this.requestInProgress) return;
+    if (!this.uiChat) return;
     const clearTags = ["left", "right"];
     for (const tag of clearTags) {
       const matches = this.uiChat.getElementsByClassName(`msg ${tag}-msg`);
