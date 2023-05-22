@@ -187,7 +187,7 @@ class LLMChatPipeline {
       this.vm.getFunction("prefill")
     );
     this.decoding = this.tvm.detachFromCurrentScope(
-      this.vm.getFunction("decoding")
+      this.vm.getFunction("decode")
     );
     this.params = this.tvm.detachFromCurrentScope(
       this.tvm.getParamsFromCache("param", cacheMetadata.ParamSize)
