@@ -37,7 +37,7 @@ If you have a Mac computer with Apple silicon, here are the instructions for you
 
 ## Chat Demo
 
-The chat demo is based on [vicuna-7b-v1.1](https://huggingface.co/lmsys/vicuna-7b-delta-v1.1) model. More model support are on the way.
+The chat demo is based on [vicuna-7b-v1.1](https://huggingface.co/lmsys/vicuna-7b-delta-v1.1) model and [RedPajama-INCITE-Chat-3B-v1](https://huggingface.co/togethercomputer/RedPajama-INCITE-Chat-3B-v1) model . More model support are on the way.
 
 {% include llm_chat.html %}
 
