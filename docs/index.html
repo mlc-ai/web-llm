@@ -109,7 +109,7 @@ We have tested it on windows and mac, you will need a gpu with about 6.4G memory
 
 <h2 id="chat-demo">Chat Demo</h2>
 
-<p>The chat demo is based on <a href="https://huggingface.co/lmsys/vicuna-7b-delta-v1.1">vicuna-7b-v1.1</a> model. More model support are on the way.</p>
+<p>The chat demo is based on <a href="https://huggingface.co/lmsys/vicuna-7b-delta-v1.1">vicuna-7b-v1.1</a> model and <a href="https://huggingface.co/togethercomputer/RedPajama-INCITE-Chat-3B-v1">RedPajama-INCITE-Chat-3B-v1</a> model . More model support are on the way.</p>
 
 <script>
   var tvmjsGlobalEnv = tvmjsGlobalEnv || {};
@@ -137,20 +137,19 @@ We have tested it on windows and mac, you will need a gpu with about 6.4G memory
   }
 </script>
 
-<!-- 
 <form>
-  <select id="model-name">
+  <select id="model">
     <option selected="selected">vicuna-v1-7b-q4f32_0</option>
-    <option >RedPajama-INCITE-Chat-3B-v1-q4f32_0</option>
+    <option>RedPajama-INCITE-Chat-3B-v1-q4f32_0</option>
   </select>
-</form> -->
+</form>
 
-<p><label>Pick a pre-compiled model or load your own model’s mlc-chat-config.json:
-  <input list="model-names" name="model" id="model" /></label></p>
+<!-- <label>Pick a pre-compiled model or load your own model's mlc-chat-config.json:
+  <input list="model-names" name="model" id="model"/></label>
 <datalist id="model-names">
-  <option value="vicuna-v1-7b-q4f32_0"></option>
+  <option value="vicuna-v1-7b-q4f32_0" ></option>
   <option value="RedPajama-INCITE-Chat-3B-v1-q4f32_0"></option>
-</datalist>
+</datalist> -->
 
 <script src="dist/llm_chat.js"></script>
 

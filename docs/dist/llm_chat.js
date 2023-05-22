@@ -499,6 +499,7 @@ class LLMChatInstance {
   }
 
   reboot() {
+    this.resetChat();
     this.config = undefined;
     this.pipeline = undefined;
     if (this.tvm !== undefined) {
