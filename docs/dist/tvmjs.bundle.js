@@ -1373,7 +1373,7 @@ fn fragment_clear(@location(0) uv : vec2<f32>) -> @location(0) vec4<f32> {
 	    });
 	};
 	Object.defineProperty(exports, "__esModule", { value: true });
-	exports.instantiate = exports.Instance = exports.VirtualMachine = exports.TVMArray = exports.TVMObject = exports.Module = exports.NDArray = exports.DLDataType = exports.DLDevice = exports.Scalar = void 0;
+	exports.instantiate = exports.Instance = exports.VirtualMachine = exports.TVMString = exports.TVMArray = exports.TVMObject = exports.Module = exports.NDArray = exports.DLDataType = exports.DLDevice = exports.Scalar = void 0;
 
 
 
@@ -1458,6 +1458,8 @@ fn fragment_clear(@location(0) uv : vec2<f32>) -> @location(0) vec4<f32> {
 	        this.arrayGetItem = getGlobalFunc("runtime.ArrayGetItem");
 	        this.arrayGetSize = getGlobalFunc("runtime.ArraySize");
 	        this.arrayMake = getGlobalFunc("runtime.Array");
+	        this.stringMake = getGlobalFunc("runtime.String");
+	        this.getFFIString = getGlobalFunc("runtime.GetFFIString");
 	        this.getSysLib = getGlobalFunc("runtime.SystemLib");
 	        this.arrayCacheGet = getGlobalFunc("vm.builtin.ndarray_cache.get");
 	        this.arrayCacheRemove = getGlobalFunc("vm.builtin.ndarray_cache.remove");
@@ -1468,6 +1470,8 @@ fn fragment_clear(@location(0) uv : vec2<f32>) -> @location(0) vec4<f32> {
 	        this.makeShapeTuple = getGlobalFunc("runtime.ShapeTuple");
 	        this.ndarrayCreateView = getGlobalFunc("runtime.TVMArrayCreateView");
 	        this.sampleTopPFromLogits = getGlobalFunc("vm.builtin.sample_top_p_from_logits");
+	        this.applyRepetitionPenalty = getGlobalFunc("vm.builtin.apply_repetition_penalty");
+	        this.applySoftmaxWithTemperature = getGlobalFunc("vm.builtin.apply_softmax_with_temperature");
 	    }
 	    dispose() {
 	        // call array cache clear to clear all cached items
@@ -1475,6 +1479,8 @@ fn fragment_clear(@location(0) uv : vec2<f32>) -> @location(0) vec4<f32> {
 	        this.arrayGetItem.dispose();
 	        this.arrayGetSize.dispose();
 	        this.arrayMake.dispose();
+	        this.stringMake.dispose();
+	        this.getFFIString.dispose();
 	        this.arrayCacheGet.dispose();
 	        this.arrayCacheRemove.dispose();
 	        this.arrayCacheUpdate.dispose();
@@ -1484,6 +1490,8 @@ fn fragment_clear(@location(0) uv : vec2<f32>) -> @location(0) vec4<f32> {
 	        this.makeShapeTuple.dispose();
 	        this.ndarrayCreateView.dispose();
 	        this.sampleTopPFromLogits.dispose();
+	        this.applyRepetitionPenalty.dispose();
+	        this.applySoftmaxWithTemperature.dispose();
 	    }
 	    beginScope() {
 	        this.autoDisposeScope.push([]);
@@ -2007,6 +2015,19 @@ fn fragment_clear(@location(0) uv : vec2<f32>) -> @location(0) vec4<f32> {
 	    }
 	}
 	exports.TVMArray = TVMArray;
+	/** Runtime string object. */
+	class TVMString extends TVMObject {
+	    constructor(handle, lib, ctx) {
+	        super(handle, lib, ctx);
+	    }
+	    /**
+	     * @returns the size of the array.
+	     */
+	    toString() {
+	        return this.ctx.getFFIString(this);
+	    }
+	}
+	exports.TVMString = TVMString;
 	/**
 	 *  VirtualMachine Executor.
 	 *
@@ -2645,6 +2666,23 @@ fn fragment_clear(@location(0) uv : vec2<f32>) -> @location(0) vec4<f32> {
 	        return this.ctx.sampleTopPFromLogits(logits, temperature, top_p, Math.random());
 	    }
 	    /**
+	     * Apply repetition penalty to the logits.
+	     * @param logits The input logits before penalty.
+	     * @param token_ids The appeared token ids.
+	     * @param penalty The penalty factor.
+	     */
+	    applyRepetitionPenalty(logits, token_ids, penalty) {
+	        return this.ctx.applyRepetitionPenalty(logits, token_ids, penalty);
+	    }
+	    /**
+	     * Apply softmax with temperature to the logits.
+	     * @param logits The input logits before softmax w/ temperature.
+	     * @param temperature The temperature factor.
+	     */
+	    applySoftmaxWithTemperature(logits, temperature) {
+	        return this.ctx.applySoftmaxWithTemperature(logits, temperature);
+	    }
+	    /**
 	     * Bind canvas to the current WebGPU context
 	     * @param canvas The canvas.
 	     */
@@ -2691,6 +2729,15 @@ fn fragment_clear(@location(0) uv : vec2<f32>) -> @location(0) vec4<f32> {
 	     */
 	    makeTVMArray(inputs) {
 	        return this.ctx.arrayMake(...inputs);
+	    }
+	    /**
+	     * Create a {@link TVMString} that can be consumed by runtime.
+	     *
+	     * @param input The string.
+	     * @returns The result TVMString.
+	     */
+	    makeString(input) {
+	        return this.ctx.stringMake(input);
 	    }
 	    /**
 	     * Create a shape tuple to pass to runtime.
@@ -2833,6 +2880,9 @@ fn fragment_clear(@location(0) uv : vec2<f32>) -> @location(0) vec4<f32> {
 	    registerObjectFactoryFuncs() {
 	        this.registerObjectConstructor("Array", (handle, lib, ctx) => {
 	            return new TVMArray(handle, lib, ctx);
+	        });
+	        this.registerObjectConstructor("runtime.String", (handle, lib, ctx) => {
+	            return new TVMString(handle, lib, ctx);
 	        });
 	    }
 	    /** Register global packed functions needed by the backend to the env. */
@@ -3142,6 +3192,7 @@ fn fragment_clear(@location(0) uv : vec2<f32>) -> @location(0) vec4<f32> {
 	runtime.instantiate;
 	runtime.Instance;
 	runtime.VirtualMachine;
+	runtime.TVMString;
 	runtime.TVMArray;
 	runtime.TVMObject;
 	runtime.Module;

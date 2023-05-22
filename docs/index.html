@@ -116,11 +116,17 @@ We have tested it on windows and mac, you will need a gpu with about 6.4G memory
 </script>
 
 <script type="module">
-  async function getTokenizer(url) {
-    const mod = await import("./dist/sentencepiece/index.js");
-    return await mod.sentencePieceProcessor(url);
+  import { Tokenizer } from './dist/tokenizers-cpp/index.js';
+
+  async function tokenizerFromJSON(jsonArrayBuffer) {
+    return await Tokenizer.fromJSON(jsonArrayBuffer);
   }
-  tvmjsGlobalEnv.sentencePieceProcessor = getTokenizer;
+  async function tokenizerFromSentencePiece(modelBuffer) {
+    return await Tokenizer.fromSentencePiece(modelBuffer);
+  }
+  tvmjsGlobalEnv.tokenizerFromJSON = tokenizerFromJSON;
+  tvmjsGlobalEnv.tokenizerFromSentencePiece = tokenizerFromSentencePiece;
+
 </script>
 
 <script>
@@ -129,19 +135,22 @@ We have tested it on windows and mac, you will need a gpu with about 6.4G memory
       tvmjsGlobalEnv.asyncOnGenerate();
     }
   }
-  async function getTokenizer(url) {
-    const mod = await import("./dist/sentencepiece/index.js");
-    return await mod.sentencePieceProcessor(url);
-  }
-  tvmjsGlobalEnv.sentencePieceProcessor = getTokenizer;
 </script>
 
+<!-- 
 <form>
   <select id="model-name">
     <option selected="selected">vicuna-v1-7b-q4f32_0</option>
-    <!-- <option >dolly-v1-3b-q4f32_0</option> -->
+    <option >RedPajama-INCITE-Chat-3B-v1-q4f32_0</option>
   </select>
-</form>
+</form> -->
+
+<p><label>Pick a pre-compiled model or load your own model’s mlc-chat-config.json:
+  <input list="model-names" name="model" id="model" /></label></p>
+<datalist id="model-names">
+  <option value="vicuna-v1-7b-q4f32_0"></option>
+  <option value="RedPajama-INCITE-Chat-3B-v1-q4f32_0"></option>
+</datalist>
 
 <script src="dist/llm_chat.js"></script>
 
