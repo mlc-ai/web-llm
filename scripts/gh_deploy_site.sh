@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euxo pipefail
 
-scripts/build_site.sh web/global_config.json
+scripts/build_site.sh web/gh-page-config.json
 
 git fetch
 git checkout -B gh-pages origin/gh-pages
