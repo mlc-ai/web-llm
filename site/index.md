@@ -22,18 +22,18 @@ Won’t it be even more amazing if we can simply open up a browser and directly 
 
 ## Instructions
 
-WebGPU just shipped to Chrome and is in beta. We do our experiments in [Chrome Canary](https://www.google.com/chrome/canary/).  You can also try out the latest Chrome 113. Chrome version ≤ 112 is not supported, and if you are using it, the demo will raise an error like `Find an error initializing the WebGPU device OperationError: Required limit (1073741824) is greater than the supported limit (268435456). - While validating maxBufferSize - While validating required limits.`
+WebGPU just shipped to Chrome. You can try out the latest Chrome 113. Chrome version ≤ 112 is not supported, and if you are using it, the demo will raise an error like `Find an error initializing the WebGPU device OperationError: Required limit (1073741824) is greater than the supported limit (268435456). - While validating maxBufferSize - While validating required limits.`
 We have tested it on windows and mac, you will need a gpu with about 6.4G memory.
 
 If you have a Mac computer with Apple silicon, here are the instructions for you to run the chatbot demo on your browser locally:
 
-- Install [Chrome Canary](https://www.google.com/chrome/canary/), a developer version of Chrome that enables the use of WebGPU.
-- Launch Chrome Canary. You are recommended to launch from terminal with the following command (or replace Chrome Canary with Chrome):
+- Upgrade Chrome to version ≥ 113.
+- Launch Chrome. You are recommended to launch from terminal with the following command:
   ```
-  /Applications/Google\ Chrome\ Canary.app/Contents/MacOS/Google\ Chrome\ Canary --enable-dawn-features=disable_robustness
+  /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --enable-dawn-features=disable_robustness
   ```
-  This command turns off the robustness check from Chrome Canary that slows down chatbot reply to times. It is not necessary, but we strongly recommend you to start Chrome with this command.
-- Enter your inputs, click “Send” – we are ready to go! The chat bot will first fetch model parameters into local cache. The download may take a few minutes, only for the first run. The subsequent refreshes and runs will be faster.
+  This command turns off the robustness check from Chrome that slows down chatbot reply to times. It is not necessary, but we strongly recommend you to start Chrome with this command.
+- Select the model you want to try out. Enter your inputs, click “Send” – we are ready to go! The chat bot will first fetch model parameters into local cache. The download may take a few minutes, only for the first run. The subsequent refreshes and runs will be faster.
 
 ## Chat Demo
 
