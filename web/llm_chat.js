@@ -495,7 +495,6 @@ class LLMChatInstance {
     this.logger = console.log;
     this.debugTest = false;
     this.model = "RedPajama-INCITE-Chat-3B-v1-q4f32_0";
-    this.temperature = undefined;
 
   }
 
@@ -600,9 +599,6 @@ class LLMChatInstance {
       this.config.cacheUrl = base_url + this.config.model_url;
     } else {
       this.config.cacheUrl = base_url;
-    }
-    if (this.temperature !== undefined) {
-      this.config.temperature = this.temperature;
     }
   }
 
@@ -793,20 +789,5 @@ function handle_model_change() {
   e.onchange = onChange;
 }
 
-function handle_temperature_change() {
-  var e = document.getElementById('temperature');
-  function onChange() {
-    localLLMChatIntance.temperature = e.value;
-    if (localLLMChatIntance.pipeline) {
-      localLLMChatIntance.pipeline.temperature = e.value;
-    }
-    localLLMChatIntance.logger("temperature changed to " + e.value);
-  }
-  e.onchange = onChange;
-}
-
-document.addEventListener("DOMContentLoaded", function() {
-  handle_model_change();
-  handle_temperature_change();
-});
+handle_model_change()
 
