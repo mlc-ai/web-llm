@@ -22,20 +22,20 @@
     }
   }
 </script>
-<!-- 
-<form>
-  <select id="model-name">
-    <option selected="selected">vicuna-v1-7b-q4f32_0</option>
-    <option >RedPajama-INCITE-Chat-3B-v1-q4f32_0</option>
-  </select>
-</form> -->
 
-<label>Pick a pre-compiled model or load your own model's mlc-chat-config.json:
+<form>
+  <select id="model">
+    <option >vicuna-v1-7b-q4f32_0</option>
+    <option selected="selected">RedPajama-INCITE-Chat-3B-v1-q4f32_0</option>
+  </select>
+</form>
+
+<!-- <label>Pick a pre-compiled model or load your own model's mlc-chat-config.json:
   <input list="model-names" name="model" id="model"/></label>
 <datalist id="model-names">
   <option value="vicuna-v1-7b-q4f32_0" ></option>
   <option value="RedPajama-INCITE-Chat-3B-v1-q4f32_0"></option>
-</datalist>
+</datalist> -->
 
 <script src="dist/llm_chat.js"></script>
 <link href="dist/llm_chat.css" rel="stylesheet" type="text/css"/>

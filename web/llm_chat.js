@@ -494,11 +494,12 @@ class LLMChatInstance {
     this.uiChatInput = undefined;
     this.logger = console.log;
     this.debugTest = false;
-    this.model = "vicuna-v1-7b-q4f32_0";
+    this.model = "RedPajama-INCITE-Chat-3B-v1-q4f32_0";
 
   }
 
   reboot() {
+    this.resetChat();
     this.config = undefined;
     this.pipeline = undefined;
     if (this.tvm !== undefined) {
