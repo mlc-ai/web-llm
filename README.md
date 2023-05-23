@@ -1,98 +1,166 @@
-# Web LLM
+[discord-url]: https://discord.gg/9Xpy2HGBuD
 
-This project brings language model chats directly onto web browsers. **Everything runs inside the browser with no server support and accelerated with WebGPU.** We can bring a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration.
+# Web LLM
+| [NPM Package](https://www.npmjs.com/package/@mlc-ai/web-llm) | [Get Started](#get-started) | [MLC LLM](https://github.com/mlc-ai/mlc-llm) | [Discord][discord-url]
+
+WebLLM is a modular, customizable javascript package that directly
+bring language model chats directly onto web browsers with hardware acceleration.
+**Everything runs inside the browser with no server support and accelerated with WebGPU.**
+We can bring a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration.
 
 **[Check out our demo webpage to try out!](https://mlc.ai/web-llm/)**
+This project is a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm),
+our companion project that runs LLMs natively on iphone and other native local environments.
 
-You might also be interested in [MLC LLM](https://github.com/mlc-ai/mlc-llm), our companion project that runs LLMs natively on iphone and other native local environments.
 
 <img src="site/img/fig/demo.gif">
 
-We have been seeing amazing progress in generative AI and LLM recently. Thanks to the open-source efforts like LLaMA, Alpaca, Vicuna, and Dolly, we can now see an exciting future of building our own open-source language models and personal AI assistant.
+## Get Started
 
-These models are usually big and compute-heavy. To build a chat service, we will need a large cluster to run an inference server, while clients send requests to servers and retrieve the inference output. We also usually have to run on a specific type of GPUs where popular deep-learning frameworks are readily available.
+WebLLM offers a minimalist and modular interface to access the chatbot in browser.
+The following code demonstrates the basic usage.
 
-This project is our step to bring more diversity to the ecosystem. Specifically, can we simply bake LLMs directly into the client side and directly run them inside a browser? If that can be realized, we could offer support for client personal AI models with the benefit of cost reduction, enhancement for personalization, and privacy protection. The client side is getting pretty powerful. 
+```typescript
+import { ChatModule } from "@mlc-ai/web-llm";
 
-Won’t it be even more amazing if we can simply open up a browser and directly bring AI natively to your browser tab? There is some level of readiness in the ecosystem. WebGPU has just shipped and enables native GPU executions on the browser.
+async function main() {
+  const chat = new ChatModule();
+  // load a prebuilt model
+  await chat.reload("RedPajama-INCITE-Chat-3B-v1-q4f32_0");
+  // generate a reply base on input
+  const prompt = "What is the capital of Canada?";
+  const reply = await chat.generate(prompt);
+  console.log(reply);
+}
+```
 
-Still, there are big hurdles to cross, to name a few:
+The WebLLM package itself does not come with UI, and is designed in a
+modular way to hooked to any of the UI component. The following code snippet
+is contains part of the program that generate streaming response on a webpage.
+You can checkout [examples/get-started](examples/get-started/) to see the complete example.
 
-- We need to bring the models somewhere without the relevant GPU-accelerated Python frameworks.
-- Most of the AI frameworks rely heavily on optimized computed libraries that are maintained by hardware vendors. We need to start from scratch.
-- Careful planning of memory usage, and aggressive compression of weights so that we can fit the models into memory.
+```typescript
+async function main() {
+  // create a ChatModule,
+  const chat = new ChatModule();
+  // This callback allows us to report initialization progress
+  chat.setInitProgressCallback((report: InitProgressReport) => {
+    setLabel("init-label", report.text);
+  });
+  // pick a model, here we use red-pajama
+  const localId = "RedPajama-INCITE-Chat-3B-v1-q4f32_0";
+  await chat.reload(localId);
 
-We also do not want to only do it for just one model. Instead, we would like to present a repeatable and hackable workflow that enables anyone to easily develop and optimize these models in a productive Python-first approach, and deploy them universally, including on the web.
+  // callback to refresh the streaming response
+  const generateProgressCallback = (_step: number, message: string) => {
+    setLabel("generate-label", message);
+  };
+  const prompt0 = "What is the capital of Canada?";
+  // generate  response
+  const reply0 = await chat.generate(prompt0, generateProgressCallback);
+  console.log(reply0);
 
-Besides supporting WebGPU, this project also provides the harness for other kinds of GPU backends that TVM supports (such as CUDA, OpenCL, and Vulkan) and really enables accessible deployment of LLM models.
+  const prompt1 = "How about France?";
+  const reply1 = await chat.generate(prompt1, generateProgressCallback)
+  console.log(reply1);
 
-## Instructions for local deployment
+  // We can print out the statis
+  console.log(await chat.runtimeStatsText());
+}
+```
 
-1. Install TVM Unity. Open [mlc.ai wheels](https://mlc.ai/wheels) for more version.
+Finally, you can find a complete
+You can also find a complete chat-app in [examples/simple-chat](examples/simple-chat/).
 
-    ```shell
-    pip3 install -r requirements.txt
-    ```
+## Customized Model Weights
 
-2. Install all the prerequisite for web deployment:
+WebLLM works a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm).
+It reuses the model artifact and build flow of MLC LLM, please checkout MLC LLM document
+on how to build a new model weights and libraries (MLC LLM document will come in the incoming weeks).
+To generate the wasm needed by WebLLM, you can run with `--target webgpu` in the mlc llm build.
+There are two elements of WebLLM package that enables new models and weight variants.
+
+- model_url: Contains a URL to model artifacts, such as weights and meta-data.
+- model_lib: The webassembly libary that contains the executables to accelerate the model computations.
+
+Both are customizable in the WebLLM.
+
+```typescript
+async main() {
+  const myLlamaUrl = "/url/to/my/llama";
+  const appConfig = {
+	"model_list": [
+		{
+			"model_url": myLlamaUrl,
+			"local_id": "MyLlama-3b-v1-q4f32_0"
+		}
+	],
+	"model_lib_map": {
+		"llama-v1-3b-q4f32_0": "/url/to/myllama3b.wasm",
+	}
+  };
+  // override default
+  const chatOpts = {
+    "repetition_penalty": 1.01
+  };
+
+  const chat = new ChatModule();
+  // load a prebuilt model
+  // with a chat option override and app config
+  // under the hood, it will load the model from myLlamaUrl
+  // and cache it in the browser cache
+  //
+  // Let us assume that myLlamaUrl/mlc-config.json contains a model_lib
+  // field that points to "llama-v1-3b-q4f32_0"
+  // then chat module will initialize with these information
+  await chat.reload("MyLlama-3b-v1-q4f32_0", chatOpts, appConfig);
+}
+```
+
+In many cases we only want to supply the model weight variant, but
+not necessarily a new model. In such cases, we can reuse the model lib.
+In such cases, we can just pass in the `model_list` field and skip the model lib,
+and make sure the `mlc-chat-config.json` in the model url have a model lib
+that points to a prebuilt version, right now the prebuilt lib includes
+
+- `vicuna-v1-7b-q4f32_0`: llama-7b models.
+- `RedPajama-INCITE-Chat-3B-v1-q4f32_0`: RedPajama-3B variant.
+
+
+## Build WebLLM Package From Source
+
+WebLLM package is a web runtime designed for [MLC LLM](https://github.com/mlc-ai/mlc-llm).
+
+1. Install all the prerequisite for web deployment:
     1. [emscripten](https://emscripten.org). It is an LLVM-based compiler which compiles C/C++ source code to WebAssembly.
         - Follow the [installation instruction](https://emscripten.org/docs/getting_started/downloads.html#installation-instructions-using-the-emsdk-recommended) to install the latest emsdk.
         - Source `emsdk_env.sh` by `source path/to/emsdk_env.sh`, so that `emcc` is reachable from PATH and the command `emcc` works.
-    2. [Rust](https://www.rust-lang.org/tools/install).
-    3. [`wasm-pack`](https://rustwasm.github.io/wasm-pack/installer/). It helps build Rust-generated WebAssembly, which used for tokenizer in our case here.
     4. Install jekyll by following the [official guides](https://jekyllrb.com/docs/installation/). It is the package we use for website.
     5. Install jekyll-remote-theme by command. Try [gem mirror](https://gems.ruby-china.com/) if install blocked.
         ```shell
         gem install jekyll-remote-theme
         ```
-    6. Install [Chrome](https://www.google.com/chrome/) with version at least 113. WebGPU has shipped to Chrome in version 113.
+    We can verify the success installation by trying out `emcc` and `jekyll` in terminal respectively.
 
-    We can verify the success installation by trying out `emcc`, `jekyll` and `wasm-pack` in terminal respectively.
-
-3. Import, optimize and build the LLM model:
-    * Get Model Weight
-
-        Currently we support LLaMA and Vicuna and RedPajama. To get the Vicuna model weights, follow the instructions below:
-
-        1. Get the original LLaMA weights in the huggingface format by following the instructions [here](https://huggingface.co/docs/transformers/main/model_doc/llama).
-        2. Use instructions [here](https://github.com/lm-sys/FastChat#vicuna-weights) to get vicuna weights
-        3. Create a soft link to the model path under mlc-llm/dist/models.
-            ```shell
-            mkdir -p mlc-llm/dist/models
-            ln -s your_model_path mlc-llm/dist/models/model_name
-
-            # For example:
-            # ln -s path/to/vicuna-v1-7b mlc-llm/dist/models/vicuna-v1-7b
-            ```
-
-            If you want to use your own mlc-llm branch, set `MLC_LLM_HOME` to that path and link weights under `$MLC_LLM_HOME/dist/models/model_name`
-
-        You can download the RedPajama weights from the HuggingFace repo [here](https://huggingface.co/togethercomputer/RedPajama-INCITE-Chat-3B-v1).
-
-    * Optimize and build the models to WebGPU backend and export the executable to disk in the WebAssembly file format.
-        ```shell
-        ./build.sh --model=vicuna-v1-7b --quantization q4f32_0
-        ./build.sh --model=RedPajama-INCITE-Chat-3B-v1 --quantization q4f32_0
-        ```
-        Note: build.py for Vicuna-v1-7B requires 16GB of memory for Mac, and about 30GB CPU memory for other OS. We are continuously optimizing for reducing build memory requirement to enable more people to try out locally.
-
-4. Deploy the model on web with WebGPU runtime
+2. Setup necessary environment
 
     Prepare all the necessary dependencies for web build:
     ```shell
     ./scripts/prep_deps.sh
     ```
 
-    The last thing to do is setting up the site with:
+3. Buld WebLLM Package
+
     ```shell
-    ./scripts/local_deploy_site.sh
+    npm run build
     ```
 
-    With the site set up, you can go to `localhost:8888/web-llm/` in Chrome to try out the demo on your local machine. You will need around 6GB GPU memory to run the Vicuna model, or 3GB GPU memory to run the RedPajama model. You can use
-    ```shell
-    /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --enable-dawn-features=disable_robustness
-    ```
-    to launch Chrome from the command line to turn off the robustness check from Chrome and enable better performance.
+4. Validate some of the sub packages
+
+    You can then go to the subfolders in [examples] to validate some of the sub packages.
+    We use Parcelv2 for bundling. Although parcel is not very good at tracking parent directory
+    changes sometimes. When you made a change in the WebLLM package, try to edit the `package.json`
+    of the subfolder and save it, which will trigger Parcel to rebuild.
 
 
 ## How
@@ -121,22 +189,6 @@ One key characteristic of LLM models is the dynamic nature of the model. As the 
 We also leveraged the integration of tensor expressions to quickly express partial-tensor computations such as rotary embedding directly without materializing them into full-tensor matrix computations.
 
 
-## Comparison to Native GPU Runtime, Limitations and Opportunities
-
-Besides the WebGPU runtime, we also provide options for native deployment with local GPU runtime. So they can be used both as a tool to deploy on native environment as well as a reference point to compare native GPU driver performance and WebGPU.
-
-WebGPU works by translating WGSL shaders to native shaders. We observed that there are opportunities to reach zero gap  between the WebGPU runtime and native environment.
-
-Some of the current gaps are caused by Chrome's WebGPU implementation inserts bound clips for all array index access, such that `a[i]` becomes `a[min(i, a.size)]`. This can be optimized out as the WebGPU support continues to mature.
-
-You can get around this by using a special flag to launch Chrome (thanks to Dawn developers for providing the pointers), by exiting Chrome completely, then in command line, type:
-
-```
-/path/to/Chrome --enable-dawn-features=disable_robustness
-```
-
-Then you will find that the execution speed is as fast as native GPU environment. We anticipate this problem will get resolved as WebGPU matures. WebGPU just shipped and we are excited to see opportunities it can unblock. There are also a lot of exciting upcoming features we can leverage to further improve things such as fp16 extensions.
-
 ## Links
 
 - [Demo page](https://mlc.ai/web-llm/)
@@ -146,25 +198,5 @@ Then you will find that the execution speed is as fast as native GPU environment
 ## Acknowledgement
 
 This project is initiated by members from CMU catalyst, UW SAMPL, SJTU, OctoML and the MLC community. We would love to continue developing and supporting the open-source ML community.
-
-<a href="https://www.scs.cmu.edu">
-<img src="site/img/logo/cmuscs.png" alt="CMU School of Computer Science" height="60"/>
-</a>
-<a href="https://catalyst.cs.cmu.edu">
-<img src="site/img/logo/catalyst.svg" alt="Catalyst" height="60"/>
-</a>
-<a href="https://mlc.ai">
-<img src="site/img/logo/mlc-logo-with-text-landscape.svg" alt="MLC" height="60"/>
-</a>
-</br>
-<a href="https://octoml.ai">
-<img src="site/img/logo/octoml.png" alt="OctoML" height="60"/>
-</a>
-<a href="https://www.cs.washington.edu/">
-<img src="site/img/logo/uw.jpg" alt="UW" height="60"/>
-</a>
-<a href="https://en.sjtu.edu.cn/">
-<img src="site/img/logo/sjtu.png" alt="SJTU" height="60"/>
-</a>
 
 This project is only possible thanks to the shoulders open-source ecosystems that we stand on. We want to thank the Apache TVM community and developers of the TVM Unity effort. The open-source ML community members made these models publicly available. PyTorch and Hugging Face communities that make these models accessible. We would like to thank the teams behind vicuna, SentencePiece, LLaMA, Alpaca. We also would like to thank the WebAssembly, Emscripten, and WebGPU communities. Finally, thanks to Dawn and WebGPU developers.

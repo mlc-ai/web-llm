@@ -1,7 +1,13 @@
 #!/bin/bash
 set -euxo pipefail
 
-scripts/build_site.sh web/gh-page-config.json
+cd examples/simple-chat
+rm -rf lib
+npm run build
+cd ../..
+
+cp examples/simple-chat/lib/* site
+cd site && jekyll b && cd ..
 
 git fetch
 git checkout -B gh-pages origin/gh-pages

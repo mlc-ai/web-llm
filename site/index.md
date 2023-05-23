@@ -3,6 +3,11 @@ layout: default
 title: Home
 notitle: true
 ---
+<script>
+  $(function(){
+    $("#llm_chat").load("llm_chat.html");
+  });
+</script>
 
 # Web LLM
 
@@ -39,7 +44,9 @@ If you have a Mac computer with Apple silicon, here are the instructions for you
 
 The chat demo is based on [vicuna-7b-v1.1](https://huggingface.co/lmsys/vicuna-7b-delta-v1.1) model and [RedPajama-INCITE-Chat-3B-v1](https://huggingface.co/togethercomputer/RedPajama-INCITE-Chat-3B-v1) model. More model supports are on the way.
 
-{% include llm_chat.html %}
+<div id="llm_chat"></div>
+
+
 
 ## Links
 

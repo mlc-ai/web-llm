@@ -1,0 +1,6 @@
+dist
+debug
+lib
+build
+node_modules
+.eslintrc.cjs
