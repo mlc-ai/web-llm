@@ -45,14 +45,14 @@ Besides supporting WebGPU, this project also provides the harness for other kind
         ```shell
         gem install jekyll-remote-theme
         ```
-    6. Install [Chrome Canary](https://www.google.com/chrome/canary/). It is a developer version of Chrome that enables the use of WebGPU.
+    6. Install [Chrome](https://www.google.com/chrome/) with version at least 113. WebGPU has shipped to Chrome in version 113.
 
     We can verify the success installation by trying out `emcc`, `jekyll` and `wasm-pack` in terminal respectively.
 
 3. Import, optimize and build the LLM model:
     * Get Model Weight
 
-        Currently we support LLaMA and Vicuna.
+        Currently we support LLaMA and Vicuna and RedPajama. To get the Vicuna model weights, follow the instructions below:
 
         1. Get the original LLaMA weights in the huggingface format by following the instructions [here](https://huggingface.co/docs/transformers/main/model_doc/llama).
         2. Use instructions [here](https://github.com/lm-sys/FastChat#vicuna-weights) to get vicuna weights
@@ -62,17 +62,19 @@ Besides supporting WebGPU, this project also provides the harness for other kind
             ln -s your_model_path mlc-llm/dist/models/model_name
 
             # For example:
-            # ln -s path/to/vicuna-7b-v1 mlc-llm/dist/models/vicuna-7b-v1
+            # ln -s path/to/vicuna-v1-7b mlc-llm/dist/models/vicuna-v1-7b
             ```
 
             If you want to use your own mlc-llm branch, set `MLC_LLM_HOME` to that path and link weights under `$MLC_LLM_HOME/dist/models/model_name`
-    * Optimize and build model to webgpu backend and export the executable to disk in the WebAssembly file format.
-        ```shell
-        ./build.sh --quantization q4f32_0
-        ```
-        By default `build.sh` takes `vicuna-7b-v1` as model name
 
-        Note: build.py can be run on MacOS with 32GB memory and other OS with at least 50GB CPU memory. We are currently optimizing the memory usage to enable more people to try out locally.
+        You can download the RedPajama weights from the HuggingFace repo [here](https://huggingface.co/togethercomputer/RedPajama-INCITE-Chat-3B-v1).
+
+    * Optimize and build the models to WebGPU backend and export the executable to disk in the WebAssembly file format.
+        ```shell
+        ./build.sh --model=vicuna-v1-7b --quantization q4f32_0
+        ./build.sh --model=RedPajama-INCITE-Chat-3B-v1 --quantization q4f32_0
+        ```
+        Note: build.py for Vicuna-v1-7B requires 16GB of memory for Mac, and about 30GB CPU memory for other OS. We are continuously optimizing for reducing build memory requirement to enable more people to try out locally.
 
 4. Deploy the model on web with WebGPU runtime
 
@@ -86,11 +88,11 @@ Besides supporting WebGPU, this project also provides the harness for other kind
     ./scripts/local_deploy_site.sh
     ```
 
-    With the site set up, you can go to `localhost:8888/web-llm/` in Chrome Canary to try out the demo on your local machine. Remember: you will need 6.4G GPU memory to run the demo. Don’t forget to use
+    With the site set up, you can go to `localhost:8888/web-llm/` in Chrome to try out the demo on your local machine. You will need around 6GB GPU memory to run the Vicuna model, or 3GB GPU memory to run the RedPajama model. You can use
     ```shell
-    /Applications/Google\ Chrome\ Canary.app/Contents/MacOS/Google\ Chrome\ Canary --enable-dawn-features=disable_robustness
+    /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --enable-dawn-features=disable_robustness
     ```
-    to launch Chrome Canary to turn off the robustness check from Chrome.
+    to launch Chrome from the command line to turn off the robustness check from Chrome and enable better performance.
 
 
 ## How
