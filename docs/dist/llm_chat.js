@@ -36,57 +36,6 @@ class Conversation {
     return ret;
   }
 
-  /**
-   * Get prompt arrays that has not been fed as input
-   *
-   * @returns The prompt array.
-   */
-  getPromptArrayUnproccessed() {
-    if (this.seps.length == 0) {
-      throw Error("Need seps to work")
-    }
-    if (this.messages.length < 3) {
-      throw Error("needs to call getLastPromptArray for the first message");
-    }
-    let ret = [this.seps[this.seps.length - 1]];
-    for (let i = this.messages.length - 2; i < this.messages.length; ++i) {
-      const item = this.messages[i];
-      const role = item[0];
-      const message = item[1];
-      if (message !== undefined && message != "") {
-        ret.push(role + ": " + message + this.seps[i % this.seps.length]);
-      } else {
-        ret.push(role + ":");
-      }
-    }
-    return ret;
-
-  }
-
-  /**
-   * Get last prompt array with prefix as system.
-   *
-   * @returns The prompt array.
-   */
-  getLastPromptArray() {
-    if (this.seps.length == 0) {
-      throw Error("Need seps to work")
-    }
-    let ret = [this.system + this.seps[0]];
-
-    for (let i = this.messages.length - 2; i < this.messages.length; ++i) {
-      const item = this.messages[i];
-      const role = item[0];
-      const message = item[1];
-      if (message !== undefined && message != "") {
-        ret.push(role + ": " + message + this.seps[i % this.seps.length]);
-      } else {
-        ret.push(role + ":");
-      }
-    }
-    return ret;
-  }
-
   reset() {
     this.messages = [];
   }
@@ -100,29 +49,38 @@ class Conversation {
   }
 }
 
-function getConversation(conv_template, maxWindowLength = 512) {
-  if (conv_template == "vicuna-v1.1") {
-    return new Conversation({
-      system: "A chat between a curious user and an artificial intelligence assistant. " +
-        "The assistant gives helpful, detailed, and polite answers to the user's questions.",
-      roles: ["USER", "ASSISTANT"],
-      maxWindowLength: maxWindowLength,
-      messages: [],
-      offset: 0,
-      seps: [" ", "</s>"],
-    });
-  } else if (conv_template == "wizardlm") {
-    return new Conversation({
-      system: "You are an AI assistant that gives helpful, detailed, and polite answers to the user's questions.",
-      roles: ["", "### Response"],
-      maxWindowLength: maxWindowLength,
-      messages: [],
-      offset: 0,
-      seps: ["\n\n", "</s>"],
-    })
-  } else {
-    throw Error("Unknown model "+ model);
-  }
+function defaultConversation(maxWindowLength = 512) {
+  return new Conversation({
+    system: "A chat between a curious human and an artificial intelligence assistant. " +
+            "The assistant gives helpful, detailed, and polite answers to the human's questions.",
+    roles: ["Human", "Assistant"],
+    maxWindowLength: maxWindowLength,
+    messages: [
+        ["Human", "What are the key differences between renewable and non-renewable energy sources?"],
+        [ "Assistant",
+          "Renewable energy sources are those that can be replenished naturally in a relatively " +
+          "short amount of time, such as solar, wind, hydro, geothermal, and biomass. " +
+          "Non-renewable energy sources, on the other hand, are finite and will eventually be " +
+          "depleted, such as coal, oil, and natural gas. Here are some key differences between " +
+          "renewable and non-renewable energy sources:\n" +
+          "1. Availability: Renewable energy sources are virtually inexhaustible, while non-renewable " +
+          "energy sources are finite and will eventually run out.\n" +
+          "2. Environmental impact: Renewable energy sources have a much lower environmental impact " +
+          "than non-renewable sources, which can lead to air and water pollution, greenhouse gas emissions, " +
+          "and other negative effects.\n" +
+          "3. Cost: Renewable energy sources can be more expensive to initially set up, but they typically " +
+          "have lower operational costs than non-renewable sources.\n" +
+          "4. Reliability: Renewable energy sources are often more reliable and can be used in more remote " +
+          "locations than non-renewable sources.\n" +
+          "5. Flexibility: Renewable energy sources are often more flexible and can be adapted to different " +
+          "situations and needs, while non-renewable sources are more rigid and inflexible.\n" +
+          "6. Sustainability: Renewable energy sources are more sustainable over the long term, while " +
+          "non-renewable sources are not, and their depletion can lead to economic and social instability.\n"
+        ]
+    ],
+    offset: 2,
+    seps:["</s>"],
+  });
 };
 
 class LLMChatPipeline {
@@ -136,9 +94,7 @@ class LLMChatPipeline {
     this.bosTokenId = 1;
     this.eosTokenId = 2;
 
-    this.temperature = config.temperature;
-    this.top_p = config.top_p;
-    this.maxWindowLength = config.max_seq_len;
+    this.maxWindowLength = config.maxWindowLength;
     this.maxGenLength = config.maxGenLength;
     this.meanGenLength = config.meanGenLength;
     this.streamInterval = 1;
@@ -148,7 +104,7 @@ class LLMChatPipeline {
     this.encodingTotalTime = 0;
     this.encodingTotalTokens = 0;
 
-    this.conversation = getConversation(config.conv_template, this.maxWindowLength);
+    this.conversation = defaultConversation();
 
     this.device = this.tvm.webgpu();
     this.vm = this.tvm.detachFromCurrentScope(
@@ -160,27 +116,39 @@ class LLMChatPipeline {
     this.decoding = this.tvm.detachFromCurrentScope(
       this.vm.getFunction("decoding")
     );
+    this.encodingWithoutCache = this.tvm.detachFromCurrentScope(
+      this.vm.getFunction("encoding_without_cache")
+    );
     this.params = this.tvm.detachFromCurrentScope(
       this.tvm.getParamsFromCache("param", cacheMetadata.ParamSize)
     );
-    const fcreateCache = this.vm.getFunction("create_kv_cache");
+    const fcreateCache = this.tvm.getGlobalFunc("vm.builtin.attention_kv_cache_create");
     this.fclearKVCaches = this.tvm.detachFromCurrentScope(
       this.tvm.getGlobalFunc("vm.builtin.attention_kv_cache_array_clear")
     );
 
     // use extern config for now
-    this.kvCache = this.tvm.detachFromCurrentScope(fcreateCache());
+    // move to kv generation vm function
+    const kvList = [];
+    const kvConfig = config.kvConfig;
+    for (let i = 0; i < kvConfig.numLayers; ++i) {
+      const item = fcreateCache(
+        this.tvm.empty(kvConfig.shape, kvConfig.dtype, this.device),
+        this.tvm.makeShapeTuple(kvConfig.shape),
+        this.tvm.scalar(0, "int")
+      );
+      kvList.push(item);
+    }
+    this.kvCache = this.tvm.detachFromCurrentScope(this.tvm.makeTVMArray(kvList));
     // fill with pad token
     this.logitsOnCPU = undefined;
-
-    this.kvCacheLength = 0;
-    this.clearCache = true
   }
 
 
   dispose() {
     // note: tvm instance is not owned by this class
     this.params.dispose();
+    this.encodingWithoutCache.dispose();
     this.decoding.dispose();
     this.encoding.dispose();
     this.vm.dispose();
@@ -193,7 +161,6 @@ class LLMChatPipeline {
 
   #clearKVCache() {
     this.fclearKVCaches(this.kvCache);
-    this.kvCacheLength = 0;
   }
 
   #forward(inputs, curPos) {
@@ -222,7 +189,7 @@ class LLMChatPipeline {
         this.tvm.empty(logits.shape, logits.dtype, this.tvm.cpu())
       );
     } else {
-      if (logits.shape[0] != this.logitsOnCPU.shape[0]) {
+      if(logits.shape[0] != this.logitsOnCPU.shape[0]) {
         throw Error("We expect the size of logits to remain unchanged");
       }
     }
@@ -238,56 +205,35 @@ class LLMChatPipeline {
   }
 
   async getInputTokens() {
-    let tokens = [this.bosTokenId];
-    let prompts = ""
-    if (this.conversation.messages.length <= 2) {
-      prompts = this.conversation.getPromptArray();
-    } else {
-      tokens.pop();
-      prompts = this.conversation.getPromptArrayUnproccessed();
-    }
+    const tokens = [this.bosTokenId];
+    const prompts = this.conversation.getPromptArray();
     tokens.push(...await this.tokenizer.encodeIds(prompts[0]));
+
     let ctxLength = tokens.length;
-    let context = [];
-    let need_shift_window = false;
+    const context = [];
     for (let i = prompts.length - 1; i > 0; --i) {
       const encoded = this.tokenizer.encodeIds(prompts[i]);
       ctxLength += encoded.length;
-      if (this.kvCacheLength + ctxLength + this.meanGenLength >= this.maxWindowLength) {
-        need_shift_window = true;
+      if (ctxLength + this.meanGenLength >= this.maxWindowLength && i + 2 < prompts.length) {
+        this.logger("Shift window at " + i);
         break;
       }
       context.unshift(encoded);
     }
-    if (!need_shift_window) {
-      for (const ctx of context) {
-        tokens.push(...ctx);
-      }
-      return tokens;
-    }
-    // need shift window and re-encode
-    this.logger("need shift window")
-    this.kvCacheLength = 0;
-    this.clearCache = true;
-    // abandon all tokens we collected
-    tokens = [this.bosTokenId]
-    let all_prompts = this.conversation.getPromptArray();
-    tokens.push(...await this.tokenizer.encodeIds(all_prompts[0]));
-    context = [];
-    ctxLength = tokens.length;
-    //only keep 10% of the window context
-    const fill_factor = 0.1
-    for (let i = all_prompts.length - 1; i > 0; --i) {
-      const encoded = this.tokenizer.encodeIds(all_prompts[i]);
-      ctxLength += encoded.length;
-      if (ctxLength >= fill_factor * this.maxWindowLength && i + 2 < all_prompts.length) {
-        break;
-      }
-      context.unshift(encoded);
-    }
+    const followMessage = [];
     for (const ctx of context) {
-      tokens.push(...ctx);
+      followMessage.push(...ctx);
     }
+
+    if (followMessage.length + tokens.length + this.meanGenLength >= this.maxWindowLength) {
+      const maxMsgLen = this.maxWindowLength - tokens.length - this.meanGenLength;
+      if (maxMsgLen < this.meanGenLength) {
+        throw Error("Too small window config tokens.length=" + tokens.length);
+      }
+      this.logger("Slice message " + followMessage.length + " to " + maxMsgLen);
+      followMessage = followMessage.slice(followMessage.length - maxMsgLen);
+    }
+    tokens.push(...followMessage);
     if (tokens.length + this.meanGenLength >= this.maxWindowLength) {
       throw Error("Exceed max window length curr=" + tokens.length);
     }
@@ -311,18 +257,16 @@ class LLMChatPipeline {
     const inputTokenLength = tokens.length;
 
     var outputPrompt = "";
-    if (this.clearCache) {
-      this.#clearKVCache();
-      this.clearCache = false;
-    }
+    this.#clearKVCache();
     const maxGenLen = Math.min(this.maxGenLength, this.maxWindowLength - tokens.length);
     if (maxGenLen < this.meanGenLength) {
       throw Error("Too small window size config");
     }
-    let step = 0;
-    for (; step < maxGenLen && this.kvCacheLength + inputTokenLength + step < this.maxWindowLength; ++step) {
+
+    for (let step = 0; step < maxGenLen; ++step) {
       this.tvm.beginScope();
       var inputData;
+
       let tstart = performance.now();
       if (step == 0) {
         inputData = this.tvm.empty([1, tokens.length], "int32", this.device);
@@ -332,11 +276,11 @@ class LLMChatPipeline {
         inputData.copyFrom(tokens.slice(tokens.length - 1));
       }
       const logits = this.tvm.detachFromCurrentScope(
-        this.#forward(inputData, this.kvCacheLength + inputTokenLength + step)
+        this.#forward(inputData, inputTokenLength + step)
       );
       this.tvm.endScope();
 
-      const nextToken = await this.sampleTokenFromLogits(logits, this.temperature, this.top_p);
+      const nextToken = await this.sampleTokenFromLogits(logits);
       logits.dispose();
 
       tokens.push(nextToken);
@@ -363,13 +307,11 @@ class LLMChatPipeline {
         callbackUpdateResponse(step, outputPrompt);
       }
     }
-    this.kvCacheLength += tokens.length - 1;
-    this.conversation.messages[this.conversation.messages.length - 1][1] = outputPrompt;
     return outputPrompt;
   }
 
   async evaluate() {
-    // run a canonical evaluation of the flow
+    // run a canonicla evaluateion fo the flow
     this.#clearKVCache();
     const testPrompt = "The capital of Canada is";
     const ids = await this.tokenizer.encodeIds(testPrompt);
@@ -436,25 +378,13 @@ class LLMChatInstance {
     this.uiChatInput = undefined;
     this.logger = console.log;
     this.debugTest = false;
-    this.model_name = "vicuna-v1-7b-q4f32_0";
-
   }
-
-  reboot() {
-    this.config = undefined;
-    this.pipeline = undefined;
-    if (this.tvm !== undefined) {
-      this.tvm.dispose();
-      this.tvm = undefined;
-    }
-  }
-
-  /**
-    * Initialize TVM
-    * @param wasmUrl URL to wasm source.
-    * @param cacheUrl URL to NDArray cache.
-    * @param logger Custom logger.
-    */
+ /**
+   * Initialize TVM
+   * @param wasmUrl URL to wasm source.
+   * @param cacheUrl URL to NDArray cache.
+   * @param logger Custom logger.
+   */
   async #asyncInitTVM(wasmUrl, cacheUrl) {
     if (this.tvm !== undefined) {
       return;
@@ -486,7 +416,7 @@ class LLMChatInstance {
         this.reset();
         throw Error("This browser env do not support WebGPU");
       }
-    } catch (err) {
+    } catch(err) {
       this.appendMessage("error", "Find an error initializing the WebGPU device " + err.toString());
       console.log(err.stack);
       this.reset();
@@ -494,8 +424,9 @@ class LLMChatInstance {
     }
     this.appendMessage("init", "");
     this.tvm = tvm;
-    const initProgressCallback = (report) => {
-      this.updateLastMessage("init", report.text);
+    self = this;
+    function initProgressCallback(report) {
+      self.updateLastMessage("init", report.text);
     }
     tvm.registerInitProgressCallback(initProgressCallback);
     if (!cacheUrl.startsWith("http")) {
@@ -518,22 +449,10 @@ class LLMChatInstance {
    */
   async #asyncInitConfig() {
     if (this.config !== undefined) return;
+    this.config = await (await fetch("llm-chat-config.json")).json();
     this.uiChat = document.getElementById("chatui-chat");
     this.uiChatInput = document.getElementById("chatui-input");
     this.uiChatInfoLabel = document.getElementById("chatui-info-label");
-    var global_config = await (await fetch("global_config.json")).json();
-
-
-    var model_config_url = global_config.url_dict[this.model_name];
-    this.config = await (
-      await fetch(model_config_url)
-    ).json();
-    this.config.wasmUrl = global_config.model_lib_map[this.config.model_lib]
-    var last_slash = model_config_url.lastIndexOf("/");
-    var base_url = model_config_url.substring(0, last_slash + 1);
-    this.config.cacheUrl = base_url + this.config.model_url;
-    this.config.tokenizer = base_url + this.config.tokenizer_files[0];
-
   }
 
   /**
@@ -546,7 +465,7 @@ class LLMChatInstance {
     // initialize UX and tokenizer
     const tokenizer = await tvmjsGlobalEnv.sentencePieceProcessor(this.config.tokenizer);
     this.pipeline = this.tvm.withNewScope(() => {
-      return new LLMChatPipeline(this.tvm, tokenizer, this.tvm.cacheMetadata, this.config);
+      return new LLMChatPipeline(this.tvm, tokenizer,  this.tvm.cacheMetadata, this.config);
     });
     await this.pipeline.asyncLoadWebGPUPiplines();
     this.updateLastMessage("init", "All initialization finished.");
@@ -577,13 +496,8 @@ class LLMChatInstance {
     const msgText = msg.getElementsByClassName("msg-text");
     if (msgText.length != 1) throw Error("Expect msg-text");
     if (msgText[0].innerHTML == text) return;
-    const list = text.split('\n').map((t) => {
-      const item = document.createElement('div');
-      item.textContent = t;
-      return item;
-    });
-    msgText[0].innerHTML = '';
-    list.forEach((item) => msgText[0].append(item));
+    text = text.replaceAll("\n", "<br>");
+    msgText[0].innerHTML = text;
     this.uiChat.scrollTo(0, this.uiChat.scrollHeight);
   }
 
@@ -628,7 +542,7 @@ class LLMChatInstance {
 
     try {
       await this.asyncInit();
-    } catch (err) {
+    } catch(err) {
       this.appendMessage("error", "Init error, " + err.toString());
       console.log(err.stack);
       this.reset();
@@ -695,16 +609,3 @@ tvmjsGlobalEnv.asyncOnGenerate = async function () {
 tvmjsGlobalEnv.asyncOnReset = async function () {
   await localLLMChatIntance.resetChat();
 };
-
-function handle_drop_down() {
-  var e = document.getElementById("model-name");
-  function onChange() {
-    localLLMChatIntance.reboot();
-    localLLMChatIntance.model_name = e.value;
-    localLLMChatIntance.logger("model name changed to " +e.value)
-  }
-  e.onchange = onChange;
-}
-
-handle_drop_down()
-
