@@ -1,7 +1,7 @@
 [discord-url]: https://discord.gg/9Xpy2HGBuD
 
 # Web LLM
-| [NPM Package](https://www.npmjs.com/package/@mlc-ai/web-llm) | [Get Started](#get-started) | [MLC LLM](https://github.com/mlc-ai/mlc-llm) | [Discord][discord-url]
+| [NPM Package](https://www.npmjs.com/package/@mlc-ai/web-llm) | [Get Started](#get-started) | [Examples](examples)| [MLC LLM](https://github.com/mlc-ai/mlc-llm) | [Discord][discord-url] |
 
 WebLLM is a modular, customizable javascript package that directly
 brings language model chats directly onto web browsers with hardware acceleration.
@@ -156,7 +156,7 @@ WebLLM package is a web runtime designed for [MLC LLM](https://github.com/mlc-ai
 
 4. Validate some of the sub-packages
 
-    You can then go to the subfolders in [examples] to validate some of the sub-packages.
+    You can then go to the subfolders in [examples](examples) to validate some of the sub-packages.
     We use Parcelv2 for bundling. Although Parcel is not very good at tracking parent directory
     changes sometimes. When you make a change in the WebLLM package, try to edit the `package.json`
     of the subfolder and save it, which will trigger Parcel to rebuild.
