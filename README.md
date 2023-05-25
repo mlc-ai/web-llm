@@ -18,55 +18,51 @@ our companion project that runs LLMs natively on iPhone and other native local e
 ## Get Started
 
 WebLLM offers a minimalist and modular interface to access the chatbot in the browser.
-The following code demonstrates the basic usage.
-
-```typescript
-import { ChatModule } from "@mlc-ai/web-llm";
-
-async function main() {
-  const chat = new ChatModule();
-  // load a prebuilt model
-  await chat.reload("RedPajama-INCITE-Chat-3B-v1-q4f32_0");
-  // generate a reply base on input
-  const prompt = "What is the capital of Canada?";
-  const reply = await chat.generate(prompt);
-  console.log(reply);
-}
-```
-
 The WebLLM package itself does not come with UI, and is designed in a
 modular way to hook to any of the UI components. The following code snippet
-contains part of the program that generates a streaming response on a webpage.
+demonstrate a simple example that generates a streaming response on a webpage.
 You can check out [examples/get-started](examples/get-started/) to see the complete example.
 
 ```typescript
+import * as webllm from "@mlc-ai/web-llm";
+
+// We use label to intentionally keep it simple
+function setLabel(id: string, text: string) {
+  const label = document.getElementById(id);
+  if (label == null) {
+    throw Error("Cannot find label " + id);
+  }
+  label.innerText = text;
+}
+
 async function main() {
   // create a ChatModule,
-  const chat = new ChatModule();
+  const chat = new webllm.ChatModule();
   // This callback allows us to report initialization progress
-  chat.setInitProgressCallback((report: InitProgressReport) => {
+  chat.setInitProgressCallback((report: webllm.InitProgressReport) => {
     setLabel("init-label", report.text);
   });
-  // pick a model. Here we use red-pajama
-  const localId = "RedPajama-INCITE-Chat-3B-v1-q4f32_0";
-  await chat.reload(localId);
+  // You can also try out "RedPajama-INCITE-Chat-3B-v1-q4f32_0"
+  await chat.reload("vicuna-v1-7b-q4f32_0");
 
-  // callback to refresh the streaming response
   const generateProgressCallback = (_step: number, message: string) => {
     setLabel("generate-label", message);
   };
+
   const prompt0 = "What is the capital of Canada?";
-  // generate  response
+  setLabel("prompt-label", prompt0);
   const reply0 = await chat.generate(prompt0, generateProgressCallback);
   console.log(reply0);
 
-  const prompt1 = "How about France?";
-  const reply1 = await chat.generate(prompt1, generateProgressCallback)
+  const prompt1 = "Can you write a poem about it?";
+  setLabel("prompt-label", prompt1);
+  const reply1 = await chat.generate(prompt1, generateProgressCallback);
   console.log(reply1);
 
-  // We can print out the status
   console.log(await chat.runtimeStatsText());
 }
+
+main();
 ```
 
 Finally, you can find a complete

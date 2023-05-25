@@ -7,7 +7,7 @@ To try it out, you can do the following steps
     - `@mlc-ai/web-llm` points to a valid npm version e.g.
       ```js
       "dependencies": {
-        "@mlc-ai/web-llm": "^0.1.0"
+        "@mlc-ai/web-llm": "^0.1.3"
       }
       ```
       Try this option if you would like to use WebLLM without building it yourself.
