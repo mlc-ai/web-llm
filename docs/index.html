@@ -16,8 +16,7 @@
         <link rel="shortcut icon" href="/web-llm/assets/img/logo/mlc-favicon.png">
         <meta http-equiv="origin-trial" content="Agx76XA0ITxMPF0Z8rbbcMllwuxsyp9qdtQaXlLqu1JUrdHB6FPonuyIKJ3CsBREUkeioJck4nn3KO0c0kkwqAMAAABJeyJvcmlnaW4iOiJodHRwOi8vbG9jYWxob3N0Ojg4ODgiLCJmZWF0dXJlIjoiV2ViR1BVIiwiZXhwaXJ5IjoxNjkxNzExOTk5fQ==">
 <meta http-equiv="origin-trial" content="AnmwqQ1dtYDQTYkZ5iMtHdINCaxjE94uWQBKp2yOz1wPTcjSRtOHUGQG+r2BxsEuM0qhxTVnuTjyh31HgTeA8gsAAABZeyJvcmlnaW4iOiJodHRwczovL21sYy5haTo0NDMiLCJmZWF0dXJlIjoiV2ViR1BVIiwiZXhwaXJ5IjoxNjkxNzExOTk5LCJpc1N1YmRvbWFpbiI6dHJ1ZX0=">
-<script src="dist/tvmjs_runtime.wasi.js"></script>
-<script src="dist/tvmjs.bundle.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.3.min.js" integrity="sha256-pvPw+upLPUjgMXY0G+8O0xUf+/Im1MZjXxxgOcBQBXU=" crossorigin="anonymous"></script>
 
     </head>
     <body>
@@ -76,7 +75,13 @@
             
             <!-- Schedule  -->
             
-                <h1 id="web-llm">Web LLM</h1>
+                <script>
+  $(function(){
+    $("#llm_chat").load("llm_chat.html");
+  });
+</script>
+
+<h1 id="web-llm">Web LLM</h1>
 
 <p>This project brings large-language model and LLM-based chatbot to web browsers. <strong>Everything runs inside the browser with no server support and accelerated with WebGPU.</strong> This opens up a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration. Please check out our <a href="https://github.com/mlc-ai/web-llm">GitHub repo</a> to see how we did it. There is also a <a href="#chat-demo">demo</a> which you can try out.</p>
 
@@ -93,7 +98,7 @@
 <h2 id="instructions">Instructions</h2>
 
 <p>WebGPU just shipped to Chrome. You can try out the latest Chrome 113. Chrome version ≤ 112 is not supported, and if you are using it, the demo will raise an error like <code class="language-plaintext highlighter-rouge">Find an error initializing the WebGPU device OperationError: Required limit (1073741824) is greater than the supported limit (268435456). - While validating maxBufferSize - While validating required limits.</code>
-We have tested it on windows and mac, you will need a gpu with about 6.4G memory to run Vicuna 7B and about 3G memory to run RedPajama 3B.</p>
+We have tested it on Windows and Mac, you will need a GPU with about 6GB memory to run Vicuna-7B and about 3GB memory to run RedPajama-3B.</p>
 
 <p>If you have a Mac computer with Apple silicon, here are the instructions for you to run the chatbot demo on your browser locally:</p>
 
@@ -109,66 +114,9 @@ We have tested it on windows and mac, you will need a gpu with about 6.4G memory
 
 <h2 id="chat-demo">Chat Demo</h2>
 
-<p>The chat demo is based on <a href="https://huggingface.co/lmsys/vicuna-7b-delta-v1.1">vicuna-7b-v1.1</a> model and <a href="https://huggingface.co/togethercomputer/RedPajama-INCITE-Chat-3B-v1">RedPajama-INCITE-Chat-3B-v1</a> model. More model support are on the way.</p>
+<p>The chat demo is based on <a href="https://huggingface.co/lmsys/vicuna-7b-delta-v1.1">vicuna-7b-v1.1</a> model and <a href="https://huggingface.co/togethercomputer/RedPajama-INCITE-Chat-3B-v1">RedPajama-INCITE-Chat-3B-v1</a> model. More model supports are on the way.</p>
 
-<script>
-  var tvmjsGlobalEnv = tvmjsGlobalEnv || {};
-</script>
-
-<script type="module">
-  import { Tokenizer } from './dist/tokenizers-cpp/index.js';
-
-  async function tokenizerFromJSON(jsonArrayBuffer) {
-    return await Tokenizer.fromJSON(jsonArrayBuffer);
-  }
-  async function tokenizerFromSentencePiece(modelBuffer) {
-    return await Tokenizer.fromSentencePiece(modelBuffer);
-  }
-  tvmjsGlobalEnv.tokenizerFromJSON = tokenizerFromJSON;
-  tvmjsGlobalEnv.tokenizerFromSentencePiece = tokenizerFromSentencePiece;
-
-</script>
-
-<script>
-  function handleChatUIInputEnter(event) {
-    if (event.keyCode === 13) {
-      tvmjsGlobalEnv.asyncOnGenerate();
-    }
-  }
-</script>
-
-<form>
-  <select id="model">
-    <option>vicuna-v1-7b-q4f32_0</option>
-    <option selected="selected">RedPajama-INCITE-Chat-3B-v1-q4f32_0</option>
-  </select>
-</form>
-
-<!-- <label>Pick a pre-compiled model or load your own model's mlc-chat-config.json:
-  <input list="model-names" name="model" id="model"/></label>
-<datalist id="model-names">
-  <option value="vicuna-v1-7b-q4f32_0" ></option>
-  <option value="RedPajama-INCITE-Chat-3B-v1-q4f32_0"></option>
-</datalist> -->
-
-<script src="dist/llm_chat.js"></script>
-
-<link href="dist/llm_chat.css" rel="stylesheet" type="text/css" />
-
-<div class="chatui">
-  <div class="chatui-chat" id="chatui-chat" height="100">
-  </div>
-
-  <div class="chatui-inputarea">
-    <input id="chatui-input" type="text" class="chatui-input" onkeypress="handleChatUIInputEnter(event)" placeholder="Enter your message..." />
-    <button class="chatui-send-btn" onclick="tvmjsGlobalEnv.asyncOnGenerate()">Send</button>
-  </div>
-</div>
-
-<div class="chatui-extra-control">
-  <button class="chatui-reset-btn" onclick="tvmjsGlobalEnv.asyncOnReset()">Reset</button>
-  <label id="chatui-info-label"></label>
-</div>
+<div id="llm_chat"></div>
 
 <h2 id="links">Links</h2>
 
