@@ -1,4 +1,4 @@
-import { ModelRecord, AppConfig } from "./config"
+import { AppConfig } from "./config"
 
 /**
  * Custom options that can be used to
@@ -9,8 +9,6 @@ export interface ChatOptions {
   top_p?: number;
   temperature?: number;
 }
-
-
 
 /**
  * Report during intialization.
@@ -46,16 +44,16 @@ export interface ChatInterface {
    */
   setInitProgressCallback: (initProgressCallback: InitProgressCallback) => void;
 
-	/**
-	 * Reload the chat with a new model.
-	 *
-	 * @param localIdOrUrl local_id of the model or model artifact url.
-	 * @param chatOpts Extra options to overide chat behavior.
-	 * @param appConfig Override the app config in this load.
-	 * @returns A promise when reload finishes.
+  /**
+   * Reload the chat with a new model.
+   *
+   * @param localIdOrUrl local_id of the model or model artifact url.
+   * @param chatOpts Extra options to overide chat behavior.
+   * @param appConfig Override the app config in this load.
+   * @returns A promise when reload finishes.
    * @note This is an async function.
-	 */
-	reload: (localIdOrUrl: string, chatOpts?: ChatOptions, appConfig?: AppConfig) => Promise<void>;
+   */
+  reload: (localIdOrUrl: string, chatOpts?: ChatOptions, appConfig?: AppConfig) => Promise<void>;
 
   /**
    * Generate a response for a given input.
@@ -83,9 +81,9 @@ export interface ChatInterface {
   interruptGenerate: () => void;
 
   /**
-	 * Explicitly unload the current model and release the related resources.
-	 */
-	unload: () => Promise<void>;
+   * Explicitly unload the current model and release the related resources.
+   */
+  unload: () => Promise<void>;
 
   /**
    * Reset the current chat session by clear all memories.

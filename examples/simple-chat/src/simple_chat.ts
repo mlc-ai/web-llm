@@ -1,5 +1,5 @@
 import appConfig from "./app-config";
-import { ChatModule } from "@mlc-ai/web-llm";
+import { ChatModule, ModelRecord } from "@mlc-ai/web-llm";
 
 function getElementAndCheck(id: string): HTMLElement {
   const element = document.getElementById(id);
@@ -7,11 +7,6 @@ function getElementAndCheck(id: string): HTMLElement {
     throw Error("Cannot find element " + id);
   }
   return element;
-}
-
-interface ModelRecord {
-  model_url: string;
-  local_id: string;
 }
 
 interface AppConfig {
@@ -159,7 +154,7 @@ class ChatUI {
   }
 
   private resetChatHistory() {
-    const clearTags = ["left", "right", "init"];
+    const clearTags = ["left", "right", "init", "error"];
     for (const tag of clearTags) {
       const matches = this.uiChat.getElementsByClassName(`msg ${tag}-msg`);
       for (const item of matches) {
@@ -173,13 +168,23 @@ class ChatUI {
 
   private async asyncInitChat() {
     if (this.chatLoaded) return;
-
+    this.requestInProgress = true;
     this.appendMessage("init", "");
     const initProgressCallback = (report) => {
       this.updateLastMessage("init", report.text);
     }
     this.chat.setInitProgressCallback(initProgressCallback);
-    await this.chat.reload(this.selectedModel, undefined, this.config);
+
+    try {
+      await this.chat.reload(this.selectedModel, undefined, this.config);
+    } catch (err) {
+      this.appendMessage("error", "Init error, " + err.toString());
+      console.log(err.stack);
+      this.unloadChat();
+      this.requestInProgress = false;
+      return;
+    }
+    this.requestInProgress = false;
     this.chatLoaded = true;
   }
 
@@ -192,16 +197,8 @@ class ChatUI {
    * Run generate
    */
   private async asyncGenerate() {
+    await this.asyncInitChat();
     this.requestInProgress = true;
-    try {
-      await this.asyncInitChat();
-    } catch (err) {
-      this.appendMessage("error", "Init error, " + err.toString());
-      console.log(err.stack);
-      this.unloadChat();
-      this.requestInProgress = false;
-      return;
-    }
     const prompt = this.uiChatInput.value;
     if (prompt == "") {
       this.requestInProgress = false;

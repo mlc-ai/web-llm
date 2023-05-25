@@ -29,6 +29,7 @@ export interface ChatConfig {
 export interface ModelRecord {
   model_url: string;
   local_id: string;
+  required_features?: Array<string>;
 }
 /**
  * Extra configuration taht can be

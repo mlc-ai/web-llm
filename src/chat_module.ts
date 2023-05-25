@@ -18,7 +18,6 @@ export class ChatModule implements ChatInterface {
   private pipeline?: LLMChatPipeline;
   private initProgressCallback?: InitProgressCallback;
   private interruptSignal = false;
-  private artifactCache = new tvmjs.ArtifactCache();
 
   setInitProgressCallback(initProgressCallback: InitProgressCallback) {
     this.initProgressCallback = initProgressCallback;
@@ -31,22 +30,25 @@ export class ChatModule implements ChatInterface {
       appConfig = prebuiltAppConfig;
     }
 
-    const findModelUrl = () => {
+    const findModelRecord = () => {
       const matchedItem = appConfig?.model_list.find(
         item => item.local_id == localId
       );
-      if (matchedItem !== undefined) return matchedItem.model_url;
+      if (matchedItem !== undefined) return matchedItem;
       throw Error("Cannot find model_url for " + localId);
     }
 
-    let modelUrl = findModelUrl();
+    const modelRecord = findModelRecord();
+    let modelUrl = modelRecord.model_url;
     if (!modelUrl.startsWith("http")) {
       modelUrl = new URL(modelUrl, document.URL).href;
     }
+    const configCache = new tvmjs.ArtifactCache("webllm/config");
+
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
     const config = await (
-      await this.artifactCache.fetchWithCache(configUrl)
+      await configCache.fetchWithCache(configUrl)
     ).json() as ChatConfig;
 
 
@@ -62,10 +64,22 @@ export class ChatModule implements ChatInterface {
     }
 
     // load tvm wasm
+    const wasmCache = new tvmjs.ArtifactCache("webllm/wasm");
     const wasmUrl = findWasmUrl();
-    const wasmSource = await (
-      await this.artifactCache.fetchWithCache(wasmUrl)
-    ).arrayBuffer();
+    const fetchWasmSource = async () => {
+      if (wasmUrl.includes("localhost")) {
+        // do not cache wasm on local host as we might update code frequently
+        return await fetch(wasmUrl);
+      } else if (!wasmUrl.startsWith("http")) {
+        // do not cache wasm on the same server as it can also refresh
+        // rely on the normal caching strategy
+        return await fetch(new URL(wasmUrl, document.URL).href);
+      } else {
+        // use cache
+        return await wasmCache.fetchWithCache(wasmUrl);
+      }
+    };
+    const wasmSource = await(await fetchWasmSource()).arrayBuffer();
 
     const tvm = await tvmjs.instantiate(
       new Uint8Array(wasmSource),
@@ -88,9 +102,27 @@ export class ChatModule implements ChatInterface {
     } else {
       gpuLabel += " - " + gpuDetectOutput.adapterInfo.vendor;
     }
+    if (modelRecord.required_features !== undefined) {
+      for (const feature of modelRecord.required_features) {
+        if (!gpuDetectOutput.device.features.has(feature)) {
+          if (feature == "shader-f16") {
+            throw Error(
+              "This model requires WebGPU extension shader-f16, " +
+              "which is not enabled in this browser. " +
+              "You can try Chrome Canary with flag --enable-dawn-features=allow_unsafe_api"
+            );
+          }
+          throw Error(
+            "This model requires feature " + feature +
+            ", which is not yet supported by this browser. "
+          );
+        }
+      }
+    }
+
     tvm.initWebGPU(gpuDetectOutput.device);
     const tokenizer = await this.asyncLoadTokenizer(modelUrl, config);
-    await tvm.fetchNDArrayCache(modelUrl, tvm.webgpu());
+    await tvm.fetchNDArrayCache(modelUrl, tvm.webgpu(), "webllm/model");
 
     this.pipeline = new LLMChatPipeline(tvm, tokenizer, config);
     await this.pipeline?.asyncLoadWebGPUPiplines();
@@ -192,13 +224,14 @@ export class ChatModule implements ChatInterface {
     baseUrl: string,
     config: ChatConfig
   ): Promise<Tokenizer> {
+    const modelCache = new tvmjs.ArtifactCache("webllm/model");
     if (config.tokenizer_files.includes("tokenizer.model")) {
       const url = new URL("tokenizer.model", baseUrl).href;
-      const model = await (await this.artifactCache.fetchWithCache(url)).arrayBuffer();
+      const model = await (await modelCache.fetchWithCache(url)).arrayBuffer();
       return Tokenizer.fromSentencePiece(model);
     } else if (config.tokenizer_files.includes("tokenizer.json")) {
       const url = new URL("tokenizer.json", baseUrl).href;
-      const model = await (await this.artifactCache.fetchWithCache(url)).arrayBuffer();
+      const model = await (await modelCache.fetchWithCache(url)).arrayBuffer();
       return Tokenizer.fromJSON(model);
     }
     throw Error("Cannot handle tokenizer files " + config.tokenizer_files)
