@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "declaration": true,
+    "outDir": "lib",
+    "declarationMap": true,
+    "sourceMap": true,
+    "strict": true
+  },
+  "typeRoots": [ "./node_modules/@webgpu/types", "./node_modules/@types"],
+  "include": ["src"],
+  "exclude": ["node_modules", "build", "dist", "rollup.config.cjs"]
+}
