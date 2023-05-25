@@ -1,5 +1,5 @@
 export {
-  AppConfig
+  ModelRecord, AppConfig
 } from "./config";
 
 

@@ -8,9 +8,11 @@
         "build": "cp src/gh-config.js src/app-config.js && parcel build src/llm_chat.html --dist-dir lib --no-content-hash --public-url /web-llm"
     },
     "devDependencies": {
+        "buffer": "^5.7.1",
         "parcel": "^2.8.3",
-        "typescript": "^4.9.5",
-        "tslib": "^2.3.1"
+        "process": "^0.11.10",
+        "tslib": "^2.3.1",
+        "typescript": "^4.9.5"
     },
     "dependencies": {
         "@mlc-ai/web-llm": "file:../.."
