@@ -22,5 +22,6 @@ export default {
     "vicuna-v1-7b-q4f32_0": "http://localhost:8000/vicuna-v1-7b-q4f32_0/vicuna-v1-7b-q4f32_0-webgpu.wasm",
     "RedPajama-INCITE-Chat-3B-v1-q4f32_0": "http://localhost:8000/RedPajama-INCITE-Chat-3B-v1-q4f32_0/RedPajama-INCITE-Chat-3B-v1-q4f32_0-webgpu.wasm",
     "RedPajama-INCITE-Chat-3B-v1-q4f16_0": "http://localhost:8000/RedPajama-INCITE-Chat-3B-v1-q4f16_0/RedPajama-INCITE-Chat-3B-v1-q4f16_0-webgpu.wasm"
-  }
+  },
+  "use_web_worker": true
 }

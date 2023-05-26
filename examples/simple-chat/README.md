@@ -7,7 +7,7 @@ chat app based on WebLLM. To try it out, you can do the following steps
     - Option 1: `@mlc-ai/web-llm` points to a valid npm version e.g.
       ```js
       "dependencies": {
-          "@mlc-ai/web-llm": "^0.1.3"
+          "@mlc-ai/web-llm": "^0.2.0"
        }
       ```
       Try this option if you would like to use WebLLM.

@@ -1,5 +1,5 @@
 import appConfig from "./app-config";
-import { ChatModule, ModelRecord } from "@mlc-ai/web-llm";
+import { ChatInterface, ChatModule, ChatWorkerClient, ModelRecord } from "@mlc-ai/web-llm";
 
 function getElementAndCheck(id: string): HTMLElement {
   const element = document.getElementById(id);
@@ -18,7 +18,7 @@ class ChatUI {
   private uiChat: HTMLElement;
   private uiChatInput: HTMLInputElement;
   private uiChatInfoLabel: HTMLLabelElement;
-  private chat: ChatModule;
+  private chat: ChatInterface;
   private config: AppConfig = appConfig;
   private selectedModel: string;
   private chatLoaded = false;
@@ -27,8 +27,9 @@ class ChatUI {
   // all requests send to chat are sequentialized
   private chatRequestChain: Promise<void> = Promise.resolve();
 
-  constructor() {
-    this.chat = new ChatModule();
+  constructor(chat: ChatInterface) {
+    // use web worker to run chat generation in background
+    this.chat = chat;
     // get the elements
     this.uiChat = getElementAndCheck("chatui-chat");
     this.uiChatInput = getElementAndCheck("chatui-input") as HTMLInputElement;
@@ -156,9 +157,10 @@ class ChatUI {
   private resetChatHistory() {
     const clearTags = ["left", "right", "init", "error"];
     for (const tag of clearTags) {
-      const matches = this.uiChat.getElementsByClassName(`msg ${tag}-msg`);
+      // need to unpack to list so the iterator don't get affected by mutation
+      const matches = [...this.uiChat.getElementsByClassName(`msg ${tag}-msg`)];
       for (const item of matches) {
-        item.remove();
+        this.uiChat.removeChild(item);
       }
     }
     if (this.uiChatInfoLabel !== undefined) {
@@ -211,11 +213,6 @@ class ChatUI {
 
     this.appendMessage("left", "");
     const callbackUpdateResponse = (step, msg) => {
-      if (msg.endsWith("##")) {
-        msg = msg.substring(0, msg.length - 2);
-      } else if (msg.endsWith("#")) {
-        msg = msg.substring(0, msg.length - 1);
-      }
       this.updateLastMessage("left", msg);
     };
 
@@ -233,4 +230,15 @@ class ChatUI {
   }
 }
 
-new ChatUI();
+const useWebWorker = appConfig.use_web_worker;
+let chat: ChatInterface;
+
+if (useWebWorker) {
+  chat = new ChatWorkerClient(new Worker(
+    new URL('./worker.ts', import.meta.url),
+    {type: 'module'}
+  ));
+} else {
+  chat = new ChatModule();
+}
+new ChatUI(chat);

@@ -1,6 +1,10 @@
-# WebLLM Get Started App
+# WebLLM Get Started with WebWorker
 
-This folder provides a minimum demo to show WebLLM API in a webapp setting.
+This folder provides a minimum demo to show WebLLM API using
+[WebWorker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers).
+The main benefit of web worker is that all ML workloads runs on a separate thread as a result
+will less likely block the UI.
+
 To try it out, you can do the following steps
 
 - Modify [package.json](package.json) to make sure either
