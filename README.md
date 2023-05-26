@@ -65,8 +65,50 @@ async function main() {
 main();
 ```
 
-Finally, you can find a complete
-You can also find a complete chat app in [examples/simple-chat](examples/simple-chat/).
+### Using Web Worker
+
+WebLLM comes with API support for WebWorker so you can hook
+the generation process into a separate worker thread so that
+the compute in the webworker won't disrupt the UI.
+
+We first create a worker script that created a ChatModule and
+hook it up to a handler that handles requests.
+
+```typescript
+// worker.ts
+import { ChatWorkerHandler, ChatModule } from "@mlc-ai/web-llm";
+
+// Hookup a chat module to a worker handler
+const chat = new ChatModule();
+const handler = new ChatWorkerHandler(chat);
+self.onmessage = (msg: MessageEvent) => {
+  handler.onmessage(msg);
+};
+```
+
+Then in the main logic, we create a `ChatWorkerClient` that
+implements the same `ChatInterface`. The rest of the logic remains the same.
+
+```typescript
+// main.ts
+import * as webllm from "@mlc-ai/web-llm";
+
+async function main() {
+  // Use a chat worker client instead of ChatModule here
+  const chat = new webllm.ChatWorkerClient(new Worker(
+    new URL('./worker.ts', import.meta.url),
+    {type: 'module'}
+  ));
+  // everything else remains the same
+}
+```
+
+
+### Build a ChatApp
+
+You can find a complete
+a complete chat app example in [examples/simple-chat](examples/simple-chat/).
+
 
 ## Customized Model Weights
 
