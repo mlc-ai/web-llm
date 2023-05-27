@@ -50,7 +50,7 @@ export class ChatModule implements ChatInterface {
     const config = {
       ...(await (await configCache.fetchWithCache(configUrl)).json()),
       ...chatOpts
-  } as ChatConfig;
+    } as ChatConfig;
 
     const findWasmUrl = () => {
       if (appConfig?.model_lib_map !== undefined) {
