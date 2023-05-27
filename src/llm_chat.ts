@@ -52,7 +52,7 @@ export class LLMChatPipeline {
     this.tokenizer = tokenizer;
     this.config = config;
 
-    this.conversation = getConversation(config.conv_template);
+    this.conversation = getConversation(config.conv_template, config.conv_config);
     this.stopStr = this.conversation.getStopStr();
 
     this.device = this.tvm.webgpu();

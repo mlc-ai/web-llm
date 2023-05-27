@@ -47,10 +47,10 @@ export class ChatModule implements ChatInterface {
 
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
-    const config = await (
-      await configCache.fetchWithCache(configUrl)
-    ).json() as ChatConfig;
-
+    const config = {
+      ...(await (await configCache.fetchWithCache(configUrl)).json()),
+      ...chatOpts
+  } as ChatConfig;
 
     const findWasmUrl = () => {
       if (appConfig?.model_lib_map !== undefined) {

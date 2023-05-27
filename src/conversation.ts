@@ -111,7 +111,7 @@ export class Conversation {
   }
 }
 
-export function getConversation(conv_template: string): Conversation {
+export function getConversation(conv_template: string, conv_config?: Partial<ConvTemplateConfig>): Conversation {
   if (conv_template == "vicuna_v1.1") {
     return new Conversation({
       system: "A chat between a curious user and an artificial intelligence assistant. " +
@@ -121,6 +121,7 @@ export function getConversation(conv_template: string): Conversation {
       seps: [" ", "</s>"],
       separator_style: "Two",
       add_bos: true,
+      ...conv_config,
     });
   } else if (conv_template == "wizardlm") {
     return new Conversation({
@@ -130,6 +131,7 @@ export function getConversation(conv_template: string): Conversation {
       seps: ["\n\n", "</s>"],
       separator_style: "Two",
       add_bos: true,
+      ...conv_config,
     })
   } else if (conv_template == "redpajama_chat") {
     return new Conversation({
@@ -139,6 +141,7 @@ export function getConversation(conv_template: string): Conversation {
       seps: ["", ""],
       separator_style: "RedPajamaChat",
       add_bos: false,
+      ...conv_config,
     })
   } else {
     throw Error("Unknown conv template " + conv_template);
