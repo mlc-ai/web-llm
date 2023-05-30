@@ -17,6 +17,7 @@ export interface ChatConfig {
   local_id: string;
   model_lib: string;
   tokenizer_files: Array<string>;
+  conv_config?: Partial<ConvTemplateConfig>;
   conv_template: string;
   // additional metadata
   mean_gen_len: number;

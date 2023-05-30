@@ -1,14 +1,10 @@
-import { AppConfig } from "./config"
+import { AppConfig, ChatConfig } from "./config"
 
 /**
  * Custom options that can be used to
  * override known config values.
  */
-export interface ChatOptions {
-  repetition_penalty?: number;
-  top_p?: number;
-  temperature?: number;
-}
+export interface ChatOptions extends Partial<ChatConfig> {}
 
 /**
  * Report during intialization.
