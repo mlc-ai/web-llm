@@ -15,10 +15,7 @@ To try it out, you can do the following steps
       }
       ```
       Try this option if you would like to use WebLLM without building it yourself.
-    - Or keep the dependencies as `"file:../.."`, and follow the build from source
-      instruction in the project to build webllm locally. This option is more useful
-      for developers who would like to hack WebLLM core package.
-- Run the following command
+
   ```bash
   npm install
   npm start

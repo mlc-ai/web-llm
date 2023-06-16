@@ -163,8 +163,19 @@ that points to a prebuilt version, right now the prebuilt lib includes
 - `vicuna-v1-7b-q4f32_0`: llama-7b models.
 - `RedPajama-INCITE-Chat-3B-v1-q4f32_0`: RedPajama-3B variant.
 
+## Use WebLLM Package
+
+You can directly use WebLLM in your package via npm. Checkout instructions
+in the following project
+
+- [get-started](examples/get-started): minimum get started example.
+- [web-worker](examples/web-worker): get started with web worker backed chat.
+- [simple-chat](examples/simple-chat): a mininum and complete chat app.
 
 ## Build WebLLM Package From Source
+
+NOTE: you don't need to build by yourself unless you would
+like to change the WebLLM package, follow [use WebLLM](#use-web-llm-package) instead.
 
 WebLLM package is a web runtime designed for [MLC LLM](https://github.com/mlc-ai/mlc-llm).
 
