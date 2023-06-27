@@ -8,3 +8,7 @@ Please send a pull request if you find things that belongs to here.
 - [get-started](get-started): minimum get started example.
 - [web-worker](web-worker): get started with web worker backed chat.
 - [simple-chat](simple-chat): a mininum and complete chat app.
+
+## Demo Spaces
+
+- [web-llm-embed](https://huggingface.co/spaces/matthoffner/web-llm-embed): document chat prototype using react-llm with transformers.js embeddings 
