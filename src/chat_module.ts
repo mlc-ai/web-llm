@@ -278,12 +278,9 @@ export class ChatRestModule implements ChatInterface {
             })
             .then((response) => response.json())
             .then((json) => {
-                console.log(json);
-                let counter = 1;
                 let msg = json["choices"][0]["message"]["content"] as string;
-                if (counter % streamInterval == 0 && progressCallback !== undefined) {
-                    console.log("calling progress callback");
-                    progressCallback(counter, msg);
+                if (progressCallback !== undefined) {
+                    progressCallback(0, msg);
                 }
                 return msg;
             });
@@ -301,11 +298,10 @@ export class ChatRestModule implements ChatInterface {
             })
             .then((response) => {
               const reader = response.body!.getReader();
-              let counter = 1;
               reader.read().then(function pump({ done, value }): any {
                 if (done) {
-                  if (counter % streamInterval == 0 && progressCallback !== undefined) {
-                      progressCallback(counter, msg);
+                  if (progressCallback !== undefined) {
+                      progressCallback(0, msg);
                   }
                   return;
                 }
@@ -317,8 +313,8 @@ export class ChatRestModule implements ChatInterface {
                     return;
                 }
                 msg += delta;
-                if (counter % streamInterval == 0 && progressCallback !== undefined) {
-                    progressCallback(counter, msg);
+                if (progressCallback !== undefined) {
+                    progressCallback(0, msg);
                 }
                 return reader.read().then(pump);
               });
