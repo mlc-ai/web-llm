@@ -12,6 +12,7 @@ export {
 
 export {
   ChatModule,
+  ChatRestModule
 } from "./chat_module";
 
 export {

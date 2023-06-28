@@ -237,3 +237,110 @@ export class ChatModule implements ChatInterface {
     throw Error("Cannot handle tokenizer files " + config.tokenizer_files)
   }
 }
+
+/**
+ * This is the interface to the chat module that connects to the REST API.
+ */
+export class ChatRestModule implements ChatInterface {
+  private logger: (msg: string) => void = console.log
+  private initProgressCallback?: InitProgressCallback;
+
+  setInitProgressCallback(initProgressCallback: InitProgressCallback) {
+      this.initProgressCallback = initProgressCallback;
+  }
+
+  async reload(localId: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
+      throw new Error("Method not implemented.");
+  }
+
+  async unload() {
+      throw new Error("Method not supported.");
+  }
+
+  async interruptGenerate() {
+    throw new Error("Method not supported.");
+  }
+
+  async generate(
+      input: string,
+      progressCallback?: GenerateProgressCallback,
+      streamInterval = 1,
+    ) : Promise<string> {
+      if (streamInterval == 0) {
+          const response = await fetch('http://localhost:8000/v1/chat/completions', {
+                method: "POST",
+                headers: { "Content-type": "application/json" },
+                body: JSON.stringify({
+                  model: "",
+                  messages: [{"role": "user", "content": input}],
+                  stream: false
+                })
+            })
+            .then((response) => response.json())
+            .then((json) => {
+                console.log(json);
+                let counter = 1;
+                let msg = json["choices"][0]["message"]["content"] as string;
+                if (counter % streamInterval == 0 && progressCallback !== undefined) {
+                    console.log("calling progress callback");
+                    progressCallback(counter, msg);
+                }
+                return msg;
+            });
+            return response;
+      } else {
+          var msg = "";
+          const response = await fetch('http://localhost:8000/v1/chat/completions', {
+              method: "POST",
+              headers: { "Content-type": "application/json" },
+              body: JSON.stringify({
+                  model: "",
+                  messages: [{"role": "user", "content": input}],
+                  stream: true
+                })
+            })
+            .then((response) => {
+              const reader = response.body!.getReader();
+              let counter = 1;
+              reader.read().then(function pump({ done, value }): any {
+                if (done) {
+                  if (counter % streamInterval == 0 && progressCallback !== undefined) {
+                      progressCallback(counter, msg);
+                  }
+                  return;
+                }
+                const jsonString = Buffer.from(value).toString('utf8').substring(6);
+                const parsedData = JSON.parse(jsonString);
+                const delta = parsedData["choices"][0]["delta"]["content"] as string;
+                // Hack to ignore chunks once we get the EOS token
+                if (delta.includes("</")) {
+                    return;
+                }
+                msg += delta;
+                if (counter % streamInterval == 0 && progressCallback !== undefined) {
+                    progressCallback(counter, msg);
+                }
+                return reader.read().then(pump);
+              });
+            });
+            return msg;
+      }
+    }
+
+    async runtimeStatsText(): Promise<string> {
+      const response = await fetch('http://localhost:8000/stats', {
+          method: "GET"
+      })
+      .then((response) => response.json())
+      .then((json) => {
+          return json;
+      });
+      return response;
+    }
+
+    async resetChat() {
+        await fetch('http://127.0.0.1:8000/chat/reset', {
+          method: "POST"
+        });
+    }
+}
