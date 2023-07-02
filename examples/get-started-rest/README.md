@@ -1,7 +1,7 @@
-# WebLLM Get Started App
+# WebLLM Get Started App for Local Servers
 
 This folder provides a minimum demo to show WebLLM API in a webapp setting.
-To try it out, you can do the following steps under this folder
+To try it out, first start a local server using the steps outlined [here](https://mlc.ai/mlc-llm/docs/deploy/rest.html). Next, you can do the following steps under this folder
 
 ```bash
 npm install
