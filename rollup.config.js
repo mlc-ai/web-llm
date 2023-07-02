@@ -18,7 +18,9 @@ export default {
     plugins: [
         ignore(["fs", "path", "crypto"]),
         nodeResolve({ browser: true }),
-        commonjs(),
+        commonjs({
+            ignoreDynamicRequires: true,
+        }),
         typescript({
             rollupCommonJSResolveHack: false,
             clean: true
