@@ -309,7 +309,7 @@ export class ChatRestModule implements ChatInterface {
                 const parsedData = JSON.parse(jsonString);
                 const delta = parsedData["choices"][0]["delta"]["content"] as string;
                 // Hack to ignore chunks once we get the EOS token
-                if (delta.includes("</")) {
+                if (delta.includes("<")) {
                     return;
                 }
                 msg += delta;

@@ -1,5 +1,5 @@
 import appConfig from "./app-config";
-import { ChatInterface, ChatModule, ChatWorkerClient, ModelRecord } from "@mlc-ai/web-llm";
+import { ChatInterface, ChatModule, ChatRestModule, ChatWorkerClient, ModelRecord } from "@mlc-ai/web-llm";
 
 function getElementAndCheck(id: string): HTMLElement {
   const element = document.getElementById(id);
@@ -19,6 +19,7 @@ class ChatUI {
   private uiChatInput: HTMLInputElement;
   private uiChatInfoLabel: HTMLLabelElement;
   private chat: ChatInterface;
+  private localChat: ChatInterface;
   private config: AppConfig = appConfig;
   private selectedModel: string;
   private chatLoaded = false;
@@ -27,9 +28,10 @@ class ChatUI {
   // all requests send to chat are sequentialized
   private chatRequestChain: Promise<void> = Promise.resolve();
 
-  constructor(chat: ChatInterface) {
+  constructor(chat: ChatInterface, localChat: ChatInterface) {
     // use web worker to run chat generation in background
     this.chat = chat;
+    this.localChat = localChat;
     // get the elements
     this.uiChat = getElementAndCheck("chatui-chat");
     this.uiChatInput = getElementAndCheck("chatui-input") as HTMLInputElement;
@@ -57,6 +59,11 @@ class ChatUI {
       opt.selected = (i == 0);
       modelSelector.appendChild(opt);
     }
+    // Append local server option to the model selector
+    const localServerOpt = document.createElement("option");
+    localServerOpt.value = "Local Server";
+    localServerOpt.innerHTML = "Local Server";
+    modelSelector.append(localServerOpt);
     this.selectedModel = modelSelector.value;
     modelSelector.onchange = () => {
       this.onSelectChange(modelSelector);
@@ -178,7 +185,9 @@ class ChatUI {
     this.chat.setInitProgressCallback(initProgressCallback);
 
     try {
-      await this.chat.reload(this.selectedModel, undefined, this.config);
+      if (this.selectedModel != "Local Server") {
+        await this.chat.reload(this.selectedModel, undefined, this.config);
+      }
     } catch (err) {
       this.appendMessage("error", "Init error, " + err.toString());
       console.log(err.stack);
@@ -217,9 +226,15 @@ class ChatUI {
     };
 
     try {
-      const output = await this.chat.generate(prompt, callbackUpdateResponse);
-      this.updateLastMessage("left", output);
-      this.uiChatInfoLabel.innerHTML = await this.chat.runtimeStatsText();
+      if (this.selectedModel == "Local Server") {
+        const output = await this.localChat.generate(prompt, callbackUpdateResponse);
+        this.updateLastMessage("left", output);
+        this.uiChatInfoLabel.innerHTML = await this.localChat.runtimeStatsText();
+      } else {
+        const output = await this.chat.generate(prompt, callbackUpdateResponse);
+        this.updateLastMessage("left", output);
+        this.uiChatInfoLabel.innerHTML = await this.chat.runtimeStatsText();
+      }
     } catch (err) {
       this.appendMessage("error", "Generate error, " + err.toString());
       console.log(err.stack);
@@ -232,13 +247,16 @@ class ChatUI {
 
 const useWebWorker = appConfig.use_web_worker;
 let chat: ChatInterface;
+let localChat: ChatInterface;
 
 if (useWebWorker) {
   chat = new ChatWorkerClient(new Worker(
     new URL('./worker.ts', import.meta.url),
     {type: 'module'}
   ));
+  localChat = new ChatRestModule();
 } else {
   chat = new ChatModule();
+  localChat = new ChatRestModule();
 }
-new ChatUI(chat);
+new ChatUI(chat, localChat);
