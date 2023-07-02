@@ -335,7 +335,7 @@ export class ChatRestModule implements ChatInterface {
     }
 
     async resetChat() {
-        await fetch('http://127.0.0.1:8000/chat/reset', {
+        await fetch('http://localhost:8000/chat/reset', {
           method: "POST"
         });
     }
