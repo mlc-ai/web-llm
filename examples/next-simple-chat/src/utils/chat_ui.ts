@@ -66,7 +66,7 @@ export default class ChatUI {
                     },
                 ],
                 "model_lib_map": {
-                    "vicuna-v1-7b-q4f32_0": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/vicuna-v1-7b-q4f32_0-webgpu.wasm",
+                    "vicuna-v1-7b-q4f32_0": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/vicuna-v1-7b-q4f32_0-webgpu-v1.wasm",
                 },
             });
         } catch (err: unknown) {
