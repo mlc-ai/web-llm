@@ -12,7 +12,7 @@ export {
 
 export {
   ChatModule,
-  ChatRestModule
+  ChatRestModule, hasModelInCache
 } from "./chat_module";
 
 export {

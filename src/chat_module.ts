@@ -340,3 +340,19 @@ export class ChatRestModule implements ChatInterface {
         });
     }
 }
+
+export async function hasModelInCache(localId: string, appConfig?: AppConfig): Promise<boolean> {
+  if (appConfig === undefined) {
+    appConfig = prebuiltAppConfig;
+  }
+  const findModelRecord = () => {
+    const matchedItem = appConfig?.model_list.find(
+      item => item.local_id == localId
+    );
+    if (matchedItem !== undefined) return matchedItem;
+    throw Error("Cannot find model_url for " + localId);
+  }
+  const modelRecord = findModelRecord();
+  let modelUrl = modelRecord.model_url;
+  return tvmjs.hasNDArrayInCache(modelUrl, "webllm/model");
+}
