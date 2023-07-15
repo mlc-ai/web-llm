@@ -364,7 +364,7 @@ export class LLMChatPipeline {
     // need shift window and re-encode
     this.logger("need shift window")
     this.filledKVCacheLength = 0;
-    this.fclearKVCaches();
+    this.fclearKVCaches(this.kvCache);
 
     // abandon all tokens we collected
     if (this.conversation.config.add_bos) {
