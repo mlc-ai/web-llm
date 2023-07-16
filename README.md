@@ -8,7 +8,7 @@ brings language model chats directly onto web browsers with hardware acceleratio
 **Everything runs inside the browser with no server support and accelerated with WebGPU.**
 We can bring a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration.
 
-**[Check out our demo webpage to try out!](https://mlc.ai/web-llm/)**
+**[Check out our demo webpage to try out!](https://webllm.mlc.ai/)**
 This project is a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm),
 our companion project that runs LLMs natively on iPhone and other native local environments.
 
@@ -213,7 +213,7 @@ WebLLM package is a web runtime designed for [MLC LLM](https://github.com/mlc-ai
 
 ## Links
 
-- [Demo page](https://mlc.ai/web-llm/)
+- [Demo page](https://webllm.mlc.ai/)
 - If you want to run LLM on native runtime, check out [MLC-LLM](https://github.com/mlc-ai/mlc-llm)
 - You might also be interested in [Web Stable Diffusion](https://github.com/mlc-ai/web-stable-diffusion/).
 

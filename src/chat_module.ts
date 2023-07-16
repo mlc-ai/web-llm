@@ -109,7 +109,7 @@ export class ChatModule implements ChatInterface {
             throw Error(
               "This model requires WebGPU extension shader-f16, " +
               "which is not enabled in this browser. " +
-              "You can try Chrome Canary with flag --enable-dawn-features=allow_unsafe_api"
+              "You can try Chrome Canary with flag --enable-dawn-features=allow_unsafe_apis"
             );
           }
           throw Error(

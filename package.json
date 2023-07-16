@@ -17,7 +17,9 @@
     "url": "git+https://github.com/mlc-ai/web-llm"
   },
   "keywords": [
-    "llm", "large language model", "machine learning"
+    "llm",
+    "large language model",
+    "machine learning"
   ],
   "license": "Apache-2.0",
   "homepage": "https://github.com/mlc-ai/web-llm",
