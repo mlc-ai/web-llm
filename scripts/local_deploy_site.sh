@@ -8,4 +8,4 @@ cd ../..
 
 cp examples/simple-chat/lib/* site
 
-cd site && jekyll serve  --host localhost --baseurl /web-llm --port 8888
+cd site && jekyll serve  --host localhost --port 8888

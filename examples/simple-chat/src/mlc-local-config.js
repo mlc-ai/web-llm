@@ -11,7 +11,7 @@ export default {
       "local_id": "vicuna-v1-7b-q4f32_0"
     },
     // fp16 options are enabled through chrome canary flags
-    // chrome --enale-dawn-features=enable_unsafe_apis
+    // chrome --enable-dawn-features=enable_unsafe_apis
     {
       "model_url": "http://localhost:8000/RedPajama-INCITE-Chat-3B-v1-q4f16_0/params/",
       "local_id": "RedPajama-INCITE-Chat-3B-v1-q4f16_0",

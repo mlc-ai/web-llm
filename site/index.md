@@ -53,7 +53,7 @@ The chat demo is based on [vicuna-7b-v1.1](https://huggingface.co/lmsys/vicuna-7
 ## Links
 
 - [Web LLM Github](https://github.com/mlc-ai/web-llm)
-- You might also be interested in [Web Stable Diffusion](https://mlc.ai/web-stable-diffusion/).
+- You might also be interested in [Web Stable Diffusion](https://websd.mlc.ai/).
 
 ## Disclaimer
 

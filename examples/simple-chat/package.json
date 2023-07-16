@@ -5,7 +5,7 @@
     "scripts": {
         "start": "cp src/gh-config.js src/app-config.js && parcel src/llm_chat.html  --port 8888",
         "mlc-local": "cp src/mlc-local-config.js src/app-config.js && parcel src/llm_chat.html  --port 8888",
-        "build": "cp src/gh-config.js src/app-config.js && parcel build src/llm_chat.html --dist-dir lib --no-content-hash --public-url /web-llm"
+        "build": "cp src/gh-config.js src/app-config.js && parcel build src/llm_chat.html --dist-dir lib --no-content-hash"
     },
     "devDependencies": {
         "buffer": "^5.7.1",
