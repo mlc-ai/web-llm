@@ -7,6 +7,7 @@ export interface ConvTemplateConfig {
   seps: Array<string>;
   separator_style: string;
   offset: number;
+  stop_str: string;
   add_bos: boolean;
 }
 

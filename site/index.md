@@ -11,7 +11,9 @@ notitle: true
 
 # Web LLM
 
-This project brings large-language model and LLM-based chatbot to web browsers. **Everything runs inside the browser with no server support and accelerated with WebGPU.** This opens up a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration. Please check out our [GitHub repo](https://github.com/mlc-ai/web-llm) to see how we did it. There is also a [demo](#chat-demo) which you can try out.
+**Llama 2 7B/13B are now available in Web LLM!!** Try it out in our [chat demo](#chat-demo).
+
+This project brings large-language model and LLM-based chatbot to web browsers. **Everything runs inside the browser with no server support and accelerated with WebGPU.** This opens up a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration. Please check out our [GitHub repo](https://github.com/mlc-ai/web-llm) to see how we did it.
 
 
 <img src="img/fig/pitts.png" width="100%">
@@ -44,7 +46,7 @@ If you have a Mac computer with Apple silicon, here are the instructions for you
 
 ## Chat Demo
 
-The chat demo is based on [vicuna-7b-v1.1](https://huggingface.co/lmsys/vicuna-7b-delta-v1.1) model and [RedPajama-INCITE-Chat-3B-v1](https://huggingface.co/togethercomputer/RedPajama-INCITE-Chat-3B-v1) model. More model supports are on the way.
+The chat demo is based on [Llama 2](https://ai.meta.com/llama/), [vicuna-7b-v1.1](https://huggingface.co/lmsys/vicuna-7b-delta-v1.1) model and [RedPajama-INCITE-Chat-3B-v1](https://huggingface.co/togethercomputer/RedPajama-INCITE-Chat-3B-v1) model. More model supports are on the way.
 
 <div id="llm_chat"></div>
 
