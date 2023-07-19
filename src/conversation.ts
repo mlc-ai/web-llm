@@ -56,7 +56,7 @@ export class Conversation {
    *
    * @returns The prompt array.
    */
-  getPromptArray() : Array<string> {
+  getPromptArray(): Array<string> {
     return this.getPromptArrayInternal(true, 0);
   }
 
@@ -80,17 +80,17 @@ export class Conversation {
   }
 
   getStopStr() {
-    if (this.config.separator_style == "Two") {
+    if (this.config.stop_str != "") {
+      return this.config.stop_str;
+    } else if (this.config.separator_style == "Two") {
       return this.config.seps[this.config.seps.length - 1];
-    } else if (this.config.separator_style == "RedPajamaChat") {
-      return "<human>:";
     }
     throw Error("Unknown separator style " + this.config.separator_style);
   }
 
   appendMessage(role: string, message: string) {
     if (this.messages.length != 0 &&
-        this.messages[this.messages.length - 1][1] == undefined) {
+      this.messages[this.messages.length - 1][1] == undefined) {
       throw Error("Have unfinished reply");
     }
     this.messages.push([role, message]);
@@ -112,7 +112,22 @@ export class Conversation {
 }
 
 export function getConversation(conv_template: string, conv_config?: Partial<ConvTemplateConfig>): Conversation {
-  if (conv_template == "vicuna_v1.1") {
+  if (conv_template == "llama-2") {
+    return new Conversation({
+      system: "[INST] <<SYS>>\n\nYou are a helpful, respectful and honest assistant. " +
+        "Always answer as helpfully as possible, while being safe. " +
+        "Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. " +
+        "Please ensure that your responses are socially unbiased and positive in nature.\n\n" +
+        "If you don't know the answer to a question, please don't share false information.\n<</SYS>>\n\n ",
+      roles: ["[INST]", "[/INST]"],
+      offset: 0,
+      seps: [" ", " "],
+      separator_style: "Two",
+      stop_str: "[INST]",
+      add_bos: true,
+      ...conv_config,
+    });
+  } else if (conv_template == "vicuna_v1.1") {
     return new Conversation({
       system: "A chat between a curious user and an artificial intelligence assistant. " +
         "The assistant gives helpful, detailed, and polite answers to the user's questions.",
@@ -120,6 +135,7 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       offset: 0,
       seps: [" ", "</s>"],
       separator_style: "Two",
+      stop_str: "</s>",
       add_bos: true,
       ...conv_config,
     });
@@ -130,6 +146,7 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       offset: 0,
       seps: ["\n\n", "</s>"],
       separator_style: "Two",
+      stop_str: "\n\n",
       add_bos: true,
       ...conv_config,
     })
@@ -140,6 +157,7 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       offset: 0,
       seps: ["", ""],
       separator_style: "RedPajamaChat",
+      stop_str: "<human>",
       add_bos: false,
       ...conv_config,
     })

@@ -32,10 +32,10 @@ export class LLMChatPipeline {
 
   // states
   private outputMessage = "";
-  private outputIds : Array<number> = [];
+  private outputIds: Array<number> = [];
   private stopTriggered = false;
   private appearedTokens = new Set<number>();
-  private conversation : Conversation;
+  private conversation: Conversation;
   // Total amount of seq len prefilled so far
 
   // stats
@@ -325,7 +325,7 @@ export class LLMChatPipeline {
     }
   }
 
-  private getInputTokens() : Array<number> {
+  private getInputTokens(): Array<number> {
     let tokens: Array<number> = [];
     let prompts;
     // beginning of the conversation

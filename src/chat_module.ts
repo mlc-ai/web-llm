@@ -79,7 +79,7 @@ export class ChatModule implements ChatInterface {
         return await wasmCache.fetchWithCache(wasmUrl);
       }
     };
-    const wasmSource = await(await fetchWasmSource()).arrayBuffer();
+    const wasmSource = await (await fetchWasmSource()).arrayBuffer();
 
     const tvm = await tvmjs.instantiate(
       new Uint8Array(wasmSource),
@@ -109,7 +109,7 @@ export class ChatModule implements ChatInterface {
             throw Error(
               "This model requires WebGPU extension shader-f16, " +
               "which is not enabled in this browser. " +
-              "You can try Chrome Canary with flag --enable-dawn-features=allow_unsafe_apis"
+              "You can try to launch Chrome Canary in command line with flag \"--enable-dawn-features=allow_unsafe_apis\"."
             );
           }
           throw Error(
@@ -143,7 +143,7 @@ export class ChatModule implements ChatInterface {
     input: string,
     progressCallback?: GenerateProgressCallback,
     streamInterval = 1,
-  ) : Promise<string> {
+  ): Promise<string> {
     this.interruptSignal = false;
     await this.prefill(input);
 
@@ -246,15 +246,15 @@ export class ChatRestModule implements ChatInterface {
   private initProgressCallback?: InitProgressCallback;
 
   setInitProgressCallback(initProgressCallback: InitProgressCallback) {
-      this.initProgressCallback = initProgressCallback;
+    this.initProgressCallback = initProgressCallback;
   }
 
   async reload(localId: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
-      throw new Error("Method not implemented.");
+    throw new Error("Method not implemented.");
   }
 
   async unload() {
-      throw new Error("Method not supported.");
+    throw new Error("Method not supported.");
   }
 
   async interruptGenerate() {
@@ -262,81 +262,81 @@ export class ChatRestModule implements ChatInterface {
   }
 
   async generate(
-      input: string,
-      progressCallback?: GenerateProgressCallback,
-      streamInterval = 1,
-    ) : Promise<string> {
-      if (streamInterval == 0) {
-          const response = await fetch('http://localhost:8000/v1/chat/completions', {
-                method: "POST",
-                headers: { "Content-type": "application/json" },
-                body: JSON.stringify({
-                  model: "",
-                  messages: [{"role": "user", "content": input}],
-                  stream: false
-                })
-            })
-            .then((response) => response.json())
-            .then((json) => {
-                let msg = json["choices"][0]["message"]["content"] as string;
-                if (progressCallback !== undefined) {
-                    progressCallback(0, msg);
-                }
-                return msg;
-            });
-            return response;
-      } else {
-          var msg = "";
-          const response = await fetch('http://localhost:8000/v1/chat/completions', {
-              method: "POST",
-              headers: { "Content-type": "application/json" },
-              body: JSON.stringify({
-                  model: "",
-                  messages: [{"role": "user", "content": input}],
-                  stream: true
-                })
-            })
-            .then((response) => {
-              const reader = response.body!.getReader();
-              reader.read().then(function pump({ done, value }): any {
-                if (done) {
-                  if (progressCallback !== undefined) {
-                      progressCallback(0, msg);
-                  }
-                  return;
-                }
-                const jsonString = Buffer.from(value).toString('utf8').substring(6);
-                const parsedData = JSON.parse(jsonString);
-                const delta = parsedData["choices"][0]["delta"]["content"] as string;
-                // Hack to ignore chunks once we get the EOS token
-                if (delta.includes("<")) {
-                    return;
-                }
-                msg += delta;
-                if (progressCallback !== undefined) {
-                    progressCallback(0, msg);
-                }
-                return reader.read().then(pump);
-              });
-            });
-            return msg;
-      }
-    }
-
-    async runtimeStatsText(): Promise<string> {
-      const response = await fetch('http://localhost:8000/stats', {
-          method: "GET"
+    input: string,
+    progressCallback?: GenerateProgressCallback,
+    streamInterval = 1,
+  ): Promise<string> {
+    if (streamInterval == 0) {
+      const response = await fetch('http://localhost:8000/v1/chat/completions', {
+        method: "POST",
+        headers: { "Content-type": "application/json" },
+        body: JSON.stringify({
+          model: "",
+          messages: [{ "role": "user", "content": input }],
+          stream: false
+        })
       })
+        .then((response) => response.json())
+        .then((json) => {
+          let msg = json["choices"][0]["message"]["content"] as string;
+          if (progressCallback !== undefined) {
+            progressCallback(0, msg);
+          }
+          return msg;
+        });
+      return response;
+    } else {
+      var msg = "";
+      const response = await fetch('http://localhost:8000/v1/chat/completions', {
+        method: "POST",
+        headers: { "Content-type": "application/json" },
+        body: JSON.stringify({
+          model: "",
+          messages: [{ "role": "user", "content": input }],
+          stream: true
+        })
+      })
+        .then((response) => {
+          const reader = response.body!.getReader();
+          reader.read().then(function pump({ done, value }): any {
+            if (done) {
+              if (progressCallback !== undefined) {
+                progressCallback(0, msg);
+              }
+              return;
+            }
+            const jsonString = Buffer.from(value).toString('utf8').substring(6);
+            const parsedData = JSON.parse(jsonString);
+            const delta = parsedData["choices"][0]["delta"]["content"] as string;
+            // Hack to ignore chunks once we get the EOS token
+            if (delta.includes("<")) {
+              return;
+            }
+            msg += delta;
+            if (progressCallback !== undefined) {
+              progressCallback(0, msg);
+            }
+            return reader.read().then(pump);
+          });
+        });
+      return msg;
+    }
+  }
+
+  async runtimeStatsText(): Promise<string> {
+    const response = await fetch('http://localhost:8000/stats', {
+      method: "GET"
+    })
       .then((response) => response.json())
       .then((json) => {
-          return json;
+        return json;
       });
-      return response;
-    }
+    return response;
+  }
 
-    async resetChat() {
-        await fetch('http://localhost:8000/chat/reset', {
-          method: "POST"
-        });
-    }
+  async resetChat() {
+    await fetch('http://localhost:8000/chat/reset', {
+      method: "POST"
+    });
+  }
 }
