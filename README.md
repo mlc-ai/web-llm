@@ -43,7 +43,7 @@ async function main() {
     setLabel("init-label", report.text);
   });
   // You can also try out "RedPajama-INCITE-Chat-3B-v1-q4f32_0"
-  await chat.reload("vicuna-v1-7b-q4f32_0");
+  await chat.reload("Llama-2-7b-chat-hf-q4f32_1");
 
   const generateProgressCallback = (_step: number, message: string) => {
     setLabel("generate-label", message);
