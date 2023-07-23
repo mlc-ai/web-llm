@@ -13,6 +13,8 @@ notitle: true
 
 **Llama 2 7B/13B are now available in Web LLM!!** Try it out in our [chat demo](#chat-demo).
 
+**Llama 2 70B is also supported.** If you have a Apple Silicon Mac with 64GB or more memory, you can follow the [instructions](#instructions) below to download and launch Chrome Canary and try out the 70B model in Web LLM.
+
 This project brings large-language model and LLM-based chatbot to web browsers. **Everything runs inside the browser with no server support and accelerated with WebGPU.** This opens up a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration. Please check out our [GitHub repo](https://github.com/mlc-ai/web-llm) to see how we did it.
 
 
