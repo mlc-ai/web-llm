@@ -1,0 +1,4 @@
+# See https://prettier.io/docs/en/ignore.html for more about ignoring files from Prettier.
+
+# Ignore artifacts:
+build

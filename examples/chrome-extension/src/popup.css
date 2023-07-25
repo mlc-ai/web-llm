@@ -1,0 +1,92 @@
+/* normalize css starts here */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+/* normalize css ends here */
+
+html {
+  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial,
+    sans-serif;
+  color: #222;
+}
+
+body {
+  width: 350px;
+  height: 300px;
+}
+
+.app {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  padding: 20px;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.subtitle {
+  font-size: 12px;
+}
+
+code {
+  font-size: 12px;
+  font-family: inherit;
+  background-color: rgba(254, 237, 185, 0.3);
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+
+.counter-label {
+  font-size: 12px;
+  margin-bottom: 5px;
+}
+
+.counter {
+  font-size: 36px;
+  font-weight: 700;
+}
+
+.button-container {
+  margin-top: 15px;
+}
+
+.button {
+  border: 0;
+  display: inline-block;
+  padding: 10px 20px;
+  margin-right: 4px;
+  margin-left: 4px;
+  background-color: bisque;
+  font-size: 16px;
+  cursor: pointer;
+  border-radius: 4px;
+  text-decoration: none;
+  transition: transform 0.2s ease;
+  user-select: none;
+}
+
+.button:focus {
+  outline: none;
+}
+
+.button:hover {
+  transform: scale(1.1);
+}
+
+.divider {
+  margin: 30px auto 25px;
+  width: 50px;
+  border: 0.5px dashed #000;
+  opacity: 0.1;
+}
