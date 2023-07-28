@@ -2,7 +2,7 @@ import * as webllm from "@mlc-ai/web-llm";
 
 function setLabel(id: string, text: string) {
   const label = document.getElementById(id);
-  if (label == null) {
+  if (!label) {
     throw Error("Cannot find label " + id);
   }
   label.innerText = text;
