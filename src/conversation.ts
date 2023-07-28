@@ -18,29 +18,25 @@ export class Conversation {
     addSystem: boolean,
     startPos: number
   ) {
-    if (this.config.seps.length == 0) {
+    if (this.config.seps.length === 0) {
       throw Error("Need seps to work")
     }
     const ret = addSystem ? [this.config.system + this.config.seps[0]] : [];
 
-    if (this.config.separator_style == "Two") {
+    if (this.config.separator_style === "Two") {
       for (let i = startPos; i < this.messages.length; ++i) {
-        const item = this.messages[i];
-        const role = item[0];
-        const message = item[1];
-        if (message !== undefined && message != "") {
+        const [role, message] = this.messages[i];
+        if (message) {
           ret.push(role + ": " + message + this.config.seps[i % this.config.seps.length]);
         } else {
           ret.push(role + ":");
         }
       }
       return ret;
-    } else if (this.config.separator_style == "RedPajamaChat") {
+    } else if (this.config.separator_style === "RedPajamaChat") {
       for (let i = startPos; i < this.messages.length; ++i) {
-        const item = this.messages[i];
-        const role = item[0];
-        const message = item[1];
-        if (message !== undefined && message != "") {
+        const [role, message] = this.messages[i];
+        if (message) {
           ret.push(role + ": " + message + this.config.seps[i % this.config.seps.length] + "\n");
         } else {
           ret.push(role + ":");
@@ -80,17 +76,17 @@ export class Conversation {
   }
 
   getStopStr() {
-    if (this.config.stop_str != "") {
+    if (this.config.stop_str !== "") {
       return this.config.stop_str;
-    } else if (this.config.separator_style == "Two") {
+    } else if (this.config.separator_style === "Two") {
       return this.config.seps[this.config.seps.length - 1];
     }
     throw Error("Unknown separator style " + this.config.separator_style);
   }
 
   appendMessage(role: string, message: string) {
-    if (this.messages.length != 0 &&
-      this.messages[this.messages.length - 1][1] == undefined) {
+    if (this.messages.length !== 0 &&
+      this.messages[this.messages.length - 1][1] === undefined) {
       throw Error("Have unfinished reply");
     }
     this.messages.push([role, message]);
@@ -101,7 +97,7 @@ export class Conversation {
   }
 
   finishReply(message: string) {
-    if (this.messages.length == 0) {
+    if (this.messages.length === 0) {
       throw Error("Message error should not be 0");
     }
     if (this.messages[this.messages.length - 1][1] !== undefined) {
@@ -112,7 +108,7 @@ export class Conversation {
 }
 
 export function getConversation(conv_template: string, conv_config?: Partial<ConvTemplateConfig>): Conversation {
-  if (conv_template == "llama-2") {
+  if (conv_template === "llama-2") {
     return new Conversation({
       system: "[INST] <<SYS>>\n\nYou are a helpful, respectful and honest assistant. " +
         "Always answer as helpfully as possible, while being safe. " +
@@ -127,7 +123,7 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       add_bos: true,
       ...conv_config,
     });
-  } else if (conv_template == "vicuna_v1.1") {
+  } else if (conv_template === "vicuna_v1.1") {
     return new Conversation({
       system: "A chat between a curious user and an artificial intelligence assistant. " +
         "The assistant gives helpful, detailed, and polite answers to the user's questions.",
@@ -139,7 +135,7 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       add_bos: true,
       ...conv_config,
     });
-  } else if (conv_template == "wizardlm") {
+  } else if (conv_template === "wizardlm") {
     return new Conversation({
       system: "You are an AI assistant that gives helpful, detailed, and polite answers to the user's questions.",
       roles: ["", "### Response"],
@@ -150,7 +146,7 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       add_bos: true,
       ...conv_config,
     })
-  } else if (conv_template == "redpajama_chat") {
+  } else if (conv_template === "redpajama_chat") {
     return new Conversation({
       system: "",
       roles: ["<human>", "<bot>"],
