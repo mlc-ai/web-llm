@@ -161,8 +161,8 @@ export class ChatWorkerHandler {
 }
 
 interface ChatWorker {
-  onmessage: any,
-  postMessage: (message: any) => void;
+  onmessage: (message: MessageEvent<WorkerMessage>) => void,
+  postMessage: (message: WorkerMessage) => void;
 }
 
 /**
@@ -181,11 +181,9 @@ export class ChatWorkerClient implements ChatInterface {
   private generateCallbackRegistry = new Map<string, GenerateProgressCallback>();
   private pendingPromise = new Map<string, (msg: WorkerMessage)=>void>();
 
-  constructor(worker: any) {
+  constructor(worker: ChatWorker) {
     this.worker = worker;
-    worker.onmessage = (event: any) => {
-      this.onmessage(event);
-    }
+    worker.onmessage = this.onmessage
   }
 
   setInitProgressCallback(initProgressCallback: InitProgressCallback) {
@@ -196,13 +194,13 @@ export class ChatWorkerClient implements ChatInterface {
     const uuid = msg.uuid;
     const executor = (
       resolve: (arg: T) => void,
-      reject: (arg: any) => void
+      reject: (arg: string|MessageContent) => void
     ) => {
       const cb = (msg: WorkerMessage) => {
-        if (msg.kind == "return") {
+        if (msg.kind === "return") {
           resolve(msg.content as T);
         } else {
-          if (msg.kind != "throw") {
+          if (msg.kind !== "throw") {
             reject("Uknown msg kind " + msg.kind);
           } else {
             reject(msg.content);
@@ -284,8 +282,8 @@ export class ChatWorkerClient implements ChatInterface {
     await this.getPromise<null>(msg);
   }
 
-  onmessage(event: any) {
-    const msg = event.data as WorkerMessage;
+  onmessage(event: MessageEvent<WorkerMessage>) {
+    const msg = event.data
     switch (msg.kind) {
       case "initProgressCallback": {
         if (this.initProgressCallback !== undefined) {
