@@ -1,112 +1,76 @@
 'use strict';
 
+// This code is partially adapted from the openai-chatgpt-chrome-extension repo:
+// https://github.com/jessedi0n/openai-chatgpt-chrome-extension
+
+import {ChatRestModule} from "@mlc-ai/web-llm";
 import './popup.css';
 
-(function () {
-  // We will make use of Storage API to get and store `count` value
-  // More information on Storage API can we found at
-  // https://developer.chrome.com/extensions/storage
+// Load chat module
+const cm = new ChatRestModule();
 
-  // To get storage access, we have to mention it in `permissions` property of manifest.json file
-  // More information on Permissions can we found at
-  // https://developer.chrome.com/extensions/declare_permissions
-  const counterStorage = {
-    get: (cb: (count: number) => void) => {
-      chrome.storage.sync.get(['count'], (result) => {
-        cb(result.count);
-      });
-    },
-    set: (value: number, cb: () => void) => {
-      chrome.storage.sync.set(
-        {
-          count: value,
-        },
-        () => {
-          cb();
-        }
-      );
-    },
-  };
+// Set reponse callback for chat module
+const generateProgressCallback = (_step: number, message: string) => {
+    updateAnswer(message);
+};
 
-  function setupCounter(initialValue = 0) {
-    document.getElementById('counter')!.innerHTML = initialValue.toString();
+const queryInput = document.getElementById("query-input")!;
+const submitButton = document.getElementById("submit-button")!;
 
-    document.getElementById('incrementBtn')!.addEventListener('click', () => {
-      updateCounter({
-        type: 'INCREMENT',
-      });
-    });
+queryInput.focus();
 
-    document.getElementById('decrementBtn')!.addEventListener('click', () => {
-      updateCounter({
-        type: 'DECREMENT',
-      });
-    });
-  }
-
-  function updateCounter({ type }: { type: string }) {
-    counterStorage.get((count: number) => {
-      let newCount: number;
-
-      if (type === 'INCREMENT') {
-        newCount = count + 1;
-      } else if (type === 'DECREMENT') {
-        newCount = count - 1;
-      } else {
-        newCount = count;
-      }
-
-      counterStorage.set(newCount, () => {
-        document.getElementById('counter')!.innerHTML = newCount.toString();
-
-        // Communicate with content script of
-        // active tab by sending a message
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-          const tab = tabs[0];
-
-          chrome.tabs.sendMessage(
-            tab.id!,
-            {
-              type: 'COUNT',
-              payload: {
-                count: newCount,
-              },
-            },
-            (response) => {
-              console.log('Current count value passed to contentScript file');
-            }
-          );
-        });
-      });
-    });
-  }
-
-  function restoreCounter() {
-    // Restore count value
-    counterStorage.get((count: number) => {
-      if (typeof count === 'undefined') {
-        // Set counter value as 0
-        counterStorage.set(0, () => {
-          setupCounter(0);
-        });
-      } else {
-        setupCounter(count);
-      }
-    });
-  }
-
-  document.addEventListener('DOMContentLoaded', restoreCounter);
-
-  // Communicate with background file by sending a message
-  chrome.runtime.sendMessage(
-    {
-      type: 'GREETINGS',
-      payload: {
-        message: 'Hello, my name is Pop. I am from Popup.',
-      },
-    },
-    (response) => {
-      console.log(response.message);
+// Disable submit button if input field is empty
+queryInput.addEventListener("keyup", () => {
+    if ((<HTMLInputElement>queryInput).value === "") {
+        (<HTMLButtonElement>submitButton).disabled = true;
+    } else {
+        (<HTMLButtonElement>submitButton).disabled = false;
     }
-  );
-})();
+});
+
+// If user presses enter, click submit button
+queryInput.addEventListener("keyup", (event) => {
+    if (event.code === "Enter") {
+        event.preventDefault();
+        submitButton.click();
+    }
+});
+
+// Listen for clicks on submit button
+async function handleClick() {
+    // Get the message from the input field
+    const message = (<HTMLInputElement>queryInput).value;
+    console.log("message", message);
+    // Clear the answer
+    document.getElementById("answer")!.innerHTML = "";
+    // Hide the answer
+    document.getElementById("answerWrapper")!.style.display = "none";
+    // Show the loading indicator
+    document.getElementById("loading-indicator")!.style.display = "block";
+    // Generate response
+    const response = await cm.generate(message, generateProgressCallback);
+    console.log("response", response);
+}
+submitButton.addEventListener("click", handleClick);
+
+function updateAnswer(answer: string) {
+    // Show answer
+    document.getElementById("answerWrapper")!.style.display = "block";
+    const answerWithBreaks = answer.replace(/\n/g, '<br>');
+    document.getElementById("answer")!.innerHTML = answerWithBreaks;
+    // Add event listener to copy button
+    document.getElementById("copyAnswer")!.addEventListener("click", () => {
+      // Get the answer text
+      const answerText = answer;
+      // Copy the answer text to the clipboard
+      navigator.clipboard.writeText(answerText)
+        .then(() => console.log("Answer text copied to clipboard"))
+        .catch((err) => console.error("Could not copy text: ", err));
+    });
+    const options: Intl.DateTimeFormatOptions = { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+    const time = new Date().toLocaleString('en-US', options);
+    // Update timestamp
+    document.getElementById("timestamp")!.innerText = time;
+    // Hide loading indicator
+    document.getElementById("loading-indicator")!.style.display = "none";
+}

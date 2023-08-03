@@ -1,28 +1,20 @@
 {
   "name": "chrome-extension",
-  "version": "0.1.0",
-  "description": "My Chrome Extension",
+  "version": "1.0.0",
+  "description": "",
   "private": true,
   "scripts": {
-    "watch": "webpack --mode=development --watch --config config/webpack.config.js",
-    "build": "webpack --mode=production --config config/webpack.config.js",
-    "pack": "node pack.js",
-    "repack": "npm run build && npm run pack",
-    "format": "prettier --write --ignore-unknown \"{config,public,src}/**/*.{html,css,js,ts,json}\""
+    "build": "parcel build src/manifest.json --config @parcel/config-webextension"
   },
+  "author": "",
+  "license": "ISC",
   "devDependencies": {
-    "@types/chrome": "^0.0.181",
-    "adm-zip": "^0.5.10",
-    "copy-webpack-plugin": "^10.2.4",
-    "css-loader": "^6.8.1",
-    "file-loader": "^6.2.0",
-    "mini-css-extract-plugin": "^2.7.6",
-    "prettier": "^2.8.8",
-    "ts-loader": "^9.2.8",
-    "typescript": "^4.6.3",
-    "webpack": "^5.88.2",
-    "webpack-cli": "^4.10.0",
-    "webpack-merge": "^5.9.0"
+    "@parcel/config-webextension": "^2.9.3",
+    "@types/chrome": "^0.0.242",
+    "buffer": "^6.0.3",
+    "parcel": "^2.9.3",
+    "process": "^0.11.10",
+    "url": "^0.11.1"
   },
   "dependencies": {
     "@mlc-ai/web-llm": "^0.2.6"
