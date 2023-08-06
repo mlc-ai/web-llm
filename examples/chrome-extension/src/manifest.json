@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "MLCBot",
+  "version": "0.1.0",
+  "description": "Chat with your browser",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "64": "icons/icon-64.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "MLCBot",
+    "default_popup": "popup.html"
+  },
+  "permissions": [
+      "storage",
+      "tabs"
+  ]
+}

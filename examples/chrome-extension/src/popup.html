@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8"/>
+    <title>Chatbot</title>
+    <link rel="stylesheet" href="popup.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  </head>
+  <body>
+    <div class="input-container form-group">
+        <input type="search" id="query-input" placeholder="What's on your mind?">
+        <button id="submit-button" class="btn"><i class="fa fa-comments"></i></button>
+    </div>
+
+    <div class="stage">
+        <div id="loading-indicator" class="dot-flashing"></div>
+    </div>
+
+    <div id="answerWrapper">
+        <div id="answer"></div>
+        <div class="copyRow">
+            <span id="timestamp"></span>
+            <button id="copyAnswer" class="btn copyButton" title="Copy the Answer to the Clipboard"><i
+                    class="fa-solid fa-copy fa-lg"></i></button>
+        </div>
+    </div>
+
+    <script type="module" src="./popup.ts"></script>
+  </body>
+</html>

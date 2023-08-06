@@ -1,0 +1,22 @@
+{
+  "name": "chrome-extension",
+  "version": "1.0.0",
+  "description": "",
+  "private": true,
+  "scripts": {
+    "build": "parcel build src/manifest.json --config @parcel/config-webextension"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@parcel/config-webextension": "^2.9.3",
+    "@types/chrome": "^0.0.242",
+    "buffer": "^6.0.3",
+    "parcel": "^2.9.3",
+    "process": "^0.11.10",
+    "url": "^0.11.1"
+  },
+  "dependencies": {
+    "@mlc-ai/web-llm": "^0.2.6"
+  }
+}
