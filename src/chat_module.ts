@@ -351,6 +351,6 @@ export async function hasModelInCache(localId: string, appConfig?: AppConfig): P
     throw Error("Cannot find model_url for " + localId);
   }
   const modelRecord = findModelRecord();
-  let modelUrl = modelRecord.model_url;
+  const modelUrl = modelRecord.model_url;
   return tvmjs.hasNDArrayInCache(modelUrl, "webllm/model");
 }
