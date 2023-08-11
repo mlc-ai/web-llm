@@ -47,8 +47,10 @@ export class ChatModule implements ChatInterface {
 
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
+    const fetchedConfigCache = await configCache.fetchWithCache(configUrl)
+    const fetchedConfig = await fetchedConfigCache.json();
     const config = {
-      ...(await (await configCache.fetchWithCache(configUrl)).json()),
+      ...fetchedConfig,
       ...chatOpts
     } as ChatConfig;
 
@@ -266,7 +268,7 @@ export class ChatRestModule implements ChatInterface {
     progressCallback?: GenerateProgressCallback,
     streamInterval = 1,
   ): Promise<string> {
-    if (streamInterval == 0) {
+    if (streamInterval === 0) {
       const response = await fetch('http://localhost:8000/v1/chat/completions', {
         method: "POST",
         headers: { "Content-type": "application/json" },
@@ -287,7 +289,7 @@ export class ChatRestModule implements ChatInterface {
       return response;
     } else {
       let msg = "";
-      const response = await fetch('http://localhost:8000/v1/chat/completions', {
+      fetch('http://localhost:8000/v1/chat/completions', {
         method: "POST",
         headers: { "Content-type": "application/json" },
         body: JSON.stringify({
@@ -296,29 +298,25 @@ export class ChatRestModule implements ChatInterface {
           stream: true
         })
       })
-        .then((response) => {
-          const reader = response.body!.getReader();
-          reader.read().then(function pump({ done, value }): any {
-            if (done) {
-              if (progressCallback !== undefined) {
-                progressCallback(0, msg);
-              }
-              return;
-            }
-            const jsonString = Buffer.from(value).toString('utf8').substring(6);
-            const parsedData = JSON.parse(jsonString);
-            const delta = parsedData["choices"][0]["delta"]["content"] as string;
-            // Hack to ignore chunks once we get the EOS token
-            if (delta.includes("<")) {
-              return;
-            }
-            msg += delta;
-            if (progressCallback !== undefined) {
-              progressCallback(0, msg);
-            }
-            return reader.read().then(pump);
-          });
+      .then((response) => {
+        const reader = response.body!.getReader();
+        reader.read().then(function pump({ done, value }): any {
+          if (done) {
+            progressCallback?.(0, msg);
+            return;
+          }
+          const jsonString = Buffer.from(value).toString('utf8').substring(6);
+          const parsedData = JSON.parse(jsonString);
+          const delta = parsedData["choices"][0]["delta"]["content"] as string;
+          // Hack to ignore chunks once we get the EOS token
+          if (delta.includes("<")) {
+            return;
+          }
+          msg += delta;
+          progressCallback?.(0, msg);
+          return reader.read().then(pump);
         });
+      });
       return msg;
     }
   }

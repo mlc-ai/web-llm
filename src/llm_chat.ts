@@ -252,7 +252,7 @@ export class LLMChatPipeline {
 
     let outputMessage = this.tokenizer.decode(new Int32Array(this.outputIds));
     const stopPos = outputMessage.lastIndexOf(this.stopStr);
-    if (stopPos != -1) {
+    if (stopPos !== -1) {
       outputMessage = outputMessage.substring(0, stopPos);
       this.stopTriggered = true;
     }
@@ -284,12 +284,12 @@ export class LLMChatPipeline {
 
   // NOTE: caller must call device.sync()
   private updateLogitsOnCPU(logits: tvmjs.NDArray): tvmjs.NDArray {
-    if (this.logitsOnCPU == undefined) {
+    if (!this.logitsOnCPU) {
       this.logitsOnCPU = this.tvm.detachFromCurrentScope(
         this.tvm.empty(logits.shape, logits.dtype, this.tvm.cpu())
       );
     } else {
-      if (logits.shape[0] != this.logitsOnCPU.shape[0]) {
+      if (logits.shape[0] !== this.logitsOnCPU.shape[0]) {
         throw Error("We expect the size of logits to remain unchanged");
       }
     }
@@ -307,7 +307,7 @@ export class LLMChatPipeline {
     this.tvm.endScope();
     await this.device.sync();
 
-    if (this.logitsOnCPU == undefined) {
+    if (!this.logitsOnCPU) {
       throw Error("logits should be assigned");
     }
 
@@ -404,7 +404,7 @@ export class LLMChatPipeline {
     const ids = await this.tokenizer.encode(testPrompt);
     const tokens = Array.from(ids);
     tokens.unshift(this.bosTokenId);
-    if (tokens.length == 0) {
+    if (tokens.length === 0) {
       throw Error("empty token");
     }
 
