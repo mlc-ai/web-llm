@@ -145,8 +145,8 @@ export class LLMChatPipeline {
     )
   }
 
-  async asyncLoadWebGPUPiplines() {
-    await this.tvm.asyncLoadWebGPUPiplines(this.vm.getInternalModule());
+  async asyncLoadWebGPUPipelines() {
+    await this.tvm.asyncLoadWebGPUPipelines(this.vm.getInternalModule());
   }
 
   /**

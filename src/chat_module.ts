@@ -125,7 +125,7 @@ export class ChatModule implements ChatInterface {
     await tvm.fetchNDArrayCache(modelUrl, tvm.webgpu(), "webllm/model");
 
     this.pipeline = new LLMChatPipeline(tvm, tokenizer, config);
-    await this.pipeline?.asyncLoadWebGPUPiplines();
+    await this.pipeline?.asyncLoadWebGPUPipelines();
 
     const tend = performance.now();
 
