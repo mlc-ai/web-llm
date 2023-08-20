@@ -39,9 +39,10 @@ export class ChatModule implements ChatInterface {
     }
 
     const modelRecord = findModelRecord();
+    const baseUrl = typeof document !== "undefined" ? document.URL : globalThis.location.origin;
     let modelUrl = modelRecord.model_url;
     if (!modelUrl.startsWith("http")) {
-      modelUrl = new URL(modelUrl, document.URL).href;
+      modelUrl = new URL(modelUrl, baseUrl).href;
     }
     const configCache = new tvmjs.ArtifactCache("webllm/config");
 
@@ -73,7 +74,7 @@ export class ChatModule implements ChatInterface {
       } else if (!wasmUrl.startsWith("http")) {
         // do not cache wasm on the same server as it can also refresh
         // rely on the normal caching strategy
-        return await fetch(new URL(wasmUrl, document.URL).href);
+        return await fetch(new URL(wasmUrl, baseUrl).href);
       } else {
         // use cache
         return await wasmCache.fetchWithCache(wasmUrl);
