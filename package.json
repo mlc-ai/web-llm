@@ -6,7 +6,7 @@
   "types": "lib/index.d.ts",
   "type": "module",
   "scripts": {
-    "build": "rollup -c",
+    "build": "rollup -c && ./cleanup-index-js.sh",
     "lint": "npx eslint ."
   },
   "files": [
