@@ -17,6 +17,6 @@
     "url": "^0.11.1"
   },
   "dependencies": {
-    "@mlc-ai/web-llm": "^0.2.6"
+    "@mlc-ai/web-llm": "^0.2.7"
   }
 }
