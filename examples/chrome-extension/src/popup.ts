@@ -3,16 +3,7 @@
 // This code is partially adapted from the openai-chatgpt-chrome-extension repo:
 // https://github.com/jessedi0n/openai-chatgpt-chrome-extension
 
-import {ChatRestModule} from "@mlc-ai/web-llm";
 import './popup.css';
-
-// Load chat module
-const cm = new ChatRestModule();
-
-// Set reponse callback for chat module
-const generateProgressCallback = (_step: number, message: string) => {
-    updateAnswer(message);
-};
 
 const queryInput = document.getElementById("query-input")!;
 const submitButton = document.getElementById("submit-button")!;
@@ -41,17 +32,23 @@ async function handleClick() {
     // Get the message from the input field
     const message = (<HTMLInputElement>queryInput).value;
     console.log("message", message);
+    // Send the query to the background script
+    chrome.runtime.sendMessage({ input: message });
     // Clear the answer
     document.getElementById("answer")!.innerHTML = "";
     // Hide the answer
     document.getElementById("answerWrapper")!.style.display = "none";
     // Show the loading indicator
     document.getElementById("loading-indicator")!.style.display = "block";
-    // Generate response
-    const response = await cm.generate(message, generateProgressCallback);
-    console.log("response", response);
 }
 submitButton.addEventListener("click", handleClick);
+
+// Listen for messages from the background script
+chrome.runtime.onMessage.addListener(({ answer, error }) => {
+    if (answer) {
+        updateAnswer(answer);
+    }
+});
 
 function updateAnswer(answer: string) {
     // Show answer
