@@ -9,6 +9,9 @@
     "64": "icons/icon-64.png",
     "128": "icons/icon-128.png"
   },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; default-src 'self'"
+  },
   "action": {
     "default_title": "MLCBot",
     "default_popup": "popup.html"
@@ -19,6 +22,7 @@
   },
   "permissions": [
       "storage",
-      "tabs"
+      "tabs",
+      "webNavigation"
   ]
 }
