@@ -1,12 +1,12 @@
 {
   "name": "@mlc-ai/web-llm",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "Hardware accelerated language model chats on browsers",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "type": "module",
   "scripts": {
-    "build": "rollup -c",
+    "build": "rollup -c && ./cleanup-index-js.sh",
     "lint": "npx eslint ."
   },
   "files": [
