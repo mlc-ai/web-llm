@@ -51,6 +51,10 @@ export default {
 			"required_features": ["shader-f16"],
 		},
 		{
+			"model_url": "https://huggingface.co/mlc-ai/mlc-chat-WizardMath-7B-V1.0-q4f32_1/resolve/main/",
+			"local_id": "WizardMath-7B-V1.0-q4f32_1"
+		},
+		{
 			"model_url": "https://huggingface.co/mlc-ai/mlc-chat-WizardMath-13B-V1.0-q4f16_1/resolve/main/",
 			"local_id": "WizardMath-13B-V1.0-q4f16_1",
 			"required_features": ["shader-f16"],
@@ -73,6 +77,7 @@ export default {
 		"WizardCoder-15B-V1.0-q4f16_1": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/WizardCoder-15B-V1.0-q4f16_1-webgpu.wasm",
 		"WizardCoder-15B-V1.0-q4f32_1": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/WizardCoder-15B-V1.0-q4f32_1-webgpu.wasm",
 		"WizardMath-7B-V1.0-q4f16_1": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/WizardMath-7B-V1.0-q4f16_1-webgpu.wasm",
+		"WizardMath-7B-V1.0-q4f32_1": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/WizardMath-7B-V1.0-q4f32_1-webgpu.wasm",
 		"WizardMath-13B-V1.0-q4f16_1": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/WizardMath-13B-V1.0-q4f16_1-webgpu.wasm",
 		"WizardMath-70B-V1.0-q4f16_1": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/WizardMath-70B-V1.0-q4f16_1-webgpu.wasm"
 	},

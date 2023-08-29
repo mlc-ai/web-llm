@@ -149,7 +149,7 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       stop_str: "\n\n",
       add_bos: true,
       ...conv_config,
-    })
+    });
   } else if (conv_template == "redpajama_chat") {
     return new Conversation({
       system: "",
@@ -160,7 +160,7 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       stop_str: "<human>",
       add_bos: false,
       ...conv_config,
-    })
+    });
   } else if (conv_template == "wizard_coder_or_math") {
     return new Conversation({
       system: "Below is an instruction that describes a task. Write a response that appropriately " +
@@ -172,7 +172,7 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       stop_str: "</s>",
       add_bos: true,
       ...conv_config,
-    })
+    });
   } else {
     throw Error("Unknown conv template " + conv_template);
   }
