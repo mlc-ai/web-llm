@@ -1,5 +1,5 @@
 {
-  "manifest_version": 3,
+  "manifest_version": 2,
   "name": "MLCBot",
   "version": "0.1.0",
   "description": "Chat with your browser",
@@ -9,12 +9,13 @@
     "64": "icons/icon-64.png",
     "128": "icons/icon-128.png"
   },
-  "action": {
-    "default_title": "MLCBot",
+  "content_security_policy": "style-src-elem 'self' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; default-src 'self' data:; connect-src 'self' data: https://huggingface.co https://cdn-lfs.huggingface.co https://raw.githubusercontent.com",
+  "browser_action": {
     "default_popup": "popup.html"
   },
   "permissions": [
       "storage",
-      "tabs"
+      "tabs",
+      "webNavigation"
   ]
 }
