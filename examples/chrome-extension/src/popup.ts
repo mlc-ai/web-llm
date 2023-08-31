@@ -5,6 +5,38 @@
 
 import './popup.css';
 
+import {ChatModule, AppConfig, InitProgressReport} from "@mlc-ai/web-llm";
+
+// TODO: Surface this as an option to the user
+const useWebGPU = true;
+
+var cm: ChatModule;
+const generateProgressCallback = (_step: number, message: string) => {
+    updateAnswer(message);
+};
+if (useWebGPU) {
+    cm = new ChatModule();
+
+    const appConfig : AppConfig = {
+        model_list: [
+            {
+                "model_url": "https://huggingface.co/mlc-ai/mlc-chat-Llama-2-7b-chat-hf-q4f32_1/resolve/main/",
+                "local_id": "Llama-2-7b-chat-hf-q4f32_1"
+            }
+        ],
+    model_lib_map: {
+        "Llama-2-7b-chat-hf-q4f32_1": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Llama-2-7b-chat-hf-q4f32_1-webgpu.wasm"
+    }
+    }
+
+    cm.setInitProgressCallback((report: InitProgressReport) => {
+        console.log(report.text);
+    });
+
+    await cm.reload("Llama-2-7b-chat-hf-q4f32_1", undefined, appConfig);
+}
+
+
 const queryInput = document.getElementById("query-input")!;
 const submitButton = document.getElementById("submit-button")!;
 
@@ -32,14 +64,22 @@ async function handleClick() {
     // Get the message from the input field
     const message = (<HTMLInputElement>queryInput).value;
     console.log("message", message);
-    // Send the query to the background script
-    chrome.runtime.sendMessage({ input: message });
+    if (!useWebGPU) {
+        // Send the query to the background script
+        chrome.runtime.sendMessage({ input: message });
+    }
     // Clear the answer
     document.getElementById("answer")!.innerHTML = "";
     // Hide the answer
     document.getElementById("answerWrapper")!.style.display = "none";
     // Show the loading indicator
     document.getElementById("loading-indicator")!.style.display = "block";
+
+    if (useWebGPU) {
+        // Generate response
+        const response = await cm.generate(message, generateProgressCallback);
+        console.log("response", response);
+    }
 }
 submitButton.addEventListener("click", handleClick);
 
