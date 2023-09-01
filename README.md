@@ -160,7 +160,7 @@ In such cases, we can just pass in the `model_list` field and skip the model lib
 and make sure the `mlc-chat-config.json` in the model url has a model lib
 that points to a prebuilt version, right now the prebuilt lib includes
 
-- `vicuna-v1-7b-q4f32_0`: llama-7b models.
+- `Llama-2-7b-chat-hf-q4f32_1`: llama-7b models.
 - `RedPajama-INCITE-Chat-3B-v1-q4f32_0`: RedPajama-3B variant.
 
 ## Use WebLLM Package
