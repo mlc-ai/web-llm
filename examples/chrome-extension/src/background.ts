@@ -1,7 +1,7 @@
 import {ChatRestModule} from "@mlc-ai/web-llm";
 
 // TODO: Surface this as an option to the user 
-const useWebGPU = true;
+const useWebGPU = false;
 
 var cm: ChatRestModule;
 if (!useWebGPU) {
@@ -14,10 +14,19 @@ const generateProgressCallback = (_step: number, message: string) => {
     chrome.runtime.sendMessage({ answer: message });
 };
 
-// listen for a request message from the content script
+var context = "";
 chrome.runtime.onMessage.addListener(async function (request) {
     // check if the request contains a message that the user sent a new message
     if (request.input) {
-        const response = await cm.generate(request.input, generateProgressCallback);
+        var inp = request.input;
+        if (context.length > 0) {
+            inp = "Use only the following context when answering the question at the end. Don't use any other knowledge.\n"+ context + "\n\nQuestion: " + request.input + "\n\nHelpful Answer: ";
+        }
+        console.log("Input:", inp);
+        const response = await cm.generate(inp, generateProgressCallback);
+    }
+    if (request.context) {
+        context = request.context;
+        console.log("Got context:", context);
     }
 });
