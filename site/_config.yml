@@ -37,5 +37,5 @@ course_title:
 navigation:
   - title: Home
     link: /
-  - title: Github
+  - title: GitHub
     link: https://github.com/mlc-ai/web-llm
