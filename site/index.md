@@ -55,7 +55,7 @@ The chat demo is based on [Llama 2](https://ai.meta.com/llama/), [vicuna-7b-v1.1
 
 ## Links
 
-- [Web LLM Github](https://github.com/mlc-ai/web-llm)
+- [Web LLM GitHub](https://github.com/mlc-ai/web-llm)
 - You might also be interested in [Web Stable Diffusion](https://websd.mlc.ai/).
 
 ## Disclaimer
