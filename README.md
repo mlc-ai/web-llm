@@ -9,7 +9,7 @@ brings language model chats directly onto web browsers with hardware acceleratio
 We can bring a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration.
 
 **[Check out our demo webpage to try out!](https://webllm.mlc.ai/)**
-You can use WebLLM as a base package and build your own web application on top of it by following the [documentation](https://mlc.ai/mlc-llm/docs/deploy/javascript.html) and checking out [Get Started](#get-started).
+You can use WebLLM as a base [npm package](https://www.npmjs.com/package/@mlc-ai/web-llm) and build your own web application on top of it by following the [documentation](https://mlc.ai/mlc-llm/docs/deploy/javascript.html) and checking out [Get Started](#get-started).
 This project is a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm),
 our companion project that runs LLMs natively on iPhone and other native local environments.
 
