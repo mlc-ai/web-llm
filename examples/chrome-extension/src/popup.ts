@@ -8,7 +8,7 @@ import './popup.css';
 import {ChatModule, AppConfig, InitProgressReport} from "@mlc-ai/web-llm";
 
 // TODO: Surface this as an option to the user
-const useWebGPU = true;
+const useWebGPU = false;
 
 var cm: ChatModule;
 const generateProgressCallback = (_step: number, message: string) => {
@@ -110,4 +110,17 @@ function updateAnswer(answer: string) {
     document.getElementById("timestamp")!.innerText = time;
     // Hide loading indicator
     document.getElementById("loading-indicator")!.style.display = "none";
+}
+
+
+// Grab the page contents when the popup is opened
+window.onload = function() {
+    chrome.tabs.query({currentWindow: true,active: true}, function(tabs){
+        var port = chrome.tabs.connect(tabs[0].id,{name: "channelName"});
+        port.postMessage({});
+        port.onMessage.addListener(function(msg) {
+            console.log("Page contents:", msg.contents);
+            chrome.runtime.sendMessage({ context: msg.contents });
+        });
+    });
 }
