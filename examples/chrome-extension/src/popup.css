@@ -24,6 +24,13 @@ p {
     margin: 0;
 }
 
+/* LOADING BAR */
+#loadingContainer {
+    margin-bottom: 15px;
+    width: 300px;
+    height: 8px;
+  }
+
 /* INPUT AREA */
 #query-input {
     border: 1px solid #ccc;

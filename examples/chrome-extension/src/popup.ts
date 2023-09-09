@@ -6,16 +6,40 @@
 import './popup.css';
 
 import {ChatModule, AppConfig, InitProgressReport} from "@mlc-ai/web-llm";
+import {ProgressBar, Line} from "progressbar.js";
 
-// TODO: Surface this as an option to the user
+// TODO: Surface this as an experimental option to the user
 const useWebGPU = false;
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const queryInput = document.getElementById("query-input")!;
+const submitButton = document.getElementById("submit-button")!;
+
 var cm: ChatModule;
+var context = "";
+var isLoadingParams = false;
+
 const generateProgressCallback = (_step: number, message: string) => {
     updateAnswer(message);
 };
+
 if (useWebGPU) {
+
+    fetchPageContents();
+
+    (<HTMLButtonElement>submitButton).disabled = true;
+
     cm = new ChatModule();
+    var progressBar: ProgressBar = new Line('#loadingContainer', {
+        strokeWidth: 4,
+        easing: 'easeInOut',
+        duration: 1400,
+        color: '#ffd166',
+        trailColor: '#eee',
+        trailWidth: 1,
+        svgStyle: {width: '100%', height: '100%'}
+    });
 
     const appConfig : AppConfig = {
         model_list: [
@@ -30,17 +54,33 @@ if (useWebGPU) {
     }
 
     cm.setInitProgressCallback((report: InitProgressReport) => {
-        console.log(report.text);
+        console.log(report.text, report.progress);
+        progressBar.animate(report.progress, {
+            duration: 50
+        });
+        if (report.progress == 1.0) {
+            enableInputs();
+        }
     });
 
+    isLoadingParams = true;
     await cm.reload("Llama-2-7b-chat-hf-q4f32_1", undefined, appConfig);
+} else {
+    const loadingBarContainer = document.getElementById("loadingContainer")!;
+    loadingBarContainer.remove();
+    queryInput.focus();
 }
 
-
-const queryInput = document.getElementById("query-input")!;
-const submitButton = document.getElementById("submit-button")!;
-
-queryInput.focus();
+function enableInputs() {
+    if (isLoadingParams) {
+        sleep(500);
+        (<HTMLButtonElement>submitButton).disabled = false;
+        const loadingBarContainer = document.getElementById("loadingContainer")!;
+        loadingBarContainer.remove();
+        queryInput.focus();
+        isLoadingParams = false;
+    }
+}
 
 // Disable submit button if input field is empty
 queryInput.addEventListener("keyup", () => {
@@ -77,7 +117,12 @@ async function handleClick() {
 
     if (useWebGPU) {
         // Generate response
-        const response = await cm.generate(message, generateProgressCallback);
+        var inp = message;
+        if (context.length > 0) {
+            inp = "Use only the following context when answering the question at the end. Don't use any other knowledge.\n"+ context + "\n\nQuestion: " + message + "\n\nHelpful Answer: ";
+        }
+        console.log("Input:", inp);
+        const response = await cm.generate(inp, generateProgressCallback);
         console.log("response", response);
     }
 }
@@ -112,15 +157,24 @@ function updateAnswer(answer: string) {
     document.getElementById("loading-indicator")!.style.display = "none";
 }
 
-
-// Grab the page contents when the popup is opened
-window.onload = function() {
-    chrome.tabs.query({currentWindow: true,active: true}, function(tabs){
+function fetchPageContents() {
+    chrome.tabs.query({currentWindow: true, active: true}, function(tabs){
         var port = chrome.tabs.connect(tabs[0].id,{name: "channelName"});
         port.postMessage({});
         port.onMessage.addListener(function(msg) {
             console.log("Page contents:", msg.contents);
-            chrome.runtime.sendMessage({ context: msg.contents });
+            if (useWebGPU) {
+                context = msg.contents
+            } else {
+                chrome.runtime.sendMessage({ context: msg.contents });
+            }
         });
     });
+}
+
+// Grab the page contents when the popup is opened
+window.onload = function() {
+    if (!useWebGPU) {
+        fetchPageContents();
+    }
 }
