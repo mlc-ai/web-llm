@@ -12,3 +12,4 @@ Please send a pull request if you find things that belongs to here.
 ## Demo Spaces
 
 - [web-llm-embed](https://huggingface.co/spaces/matthoffner/web-llm-embed): document chat prototype using react-llm with transformers.js embeddings 
+- [DeVinci](https://x6occ-biaaa-aaaai-acqzq-cai.icp0.io/): AI chat app based on WebLLM and hosted on decentralized cloud platform
