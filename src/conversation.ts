@@ -173,6 +173,8 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       add_bos: true,
       ...conv_config,
     });
+  } else if (conv_template == "custom") {
+    return new Conversation(conv_config as Required<ConvTemplateConfig>);
   } else {
     throw Error("Unknown conv template " + conv_template);
   }
