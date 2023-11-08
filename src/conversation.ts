@@ -173,6 +173,19 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       add_bos: true,
       ...conv_config,
     });
+  } else if (conv_template == "mistral_default") {
+    return new Conversation({
+      system: "[INST] Always assist with care, respect, and truth. Respond with utmost utility yet " +
+        "securely. Avoid harmful, unethical, prejudiced, or negative content. Ensure replies " +
+        "promote fairness and positivity.",
+      roles: ["[INST]", "[/INST]"],
+      offset: 0,
+      seps: [" ", " "],
+      separator_style: "Two",
+      stop_str: "</s>",
+      add_bos: true,
+      ...conv_config,
+    });
   } else if (conv_template == "custom") {
     return new Conversation(conv_config as Required<ConvTemplateConfig>);
   } else {
