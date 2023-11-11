@@ -97,6 +97,23 @@ export class ChatModule implements ChatInterface {
     if (gpuDetectOutput == undefined) {
       throw Error("Cannot find WebGPU in the environment");
     }
+
+    // check whether maxStorageBufferBindingSize falls from 1GB to 128MB
+    const computeMB = (value: number) => {
+      return Math.ceil(value  / (1 << 20)) + "MB";
+    }
+    const defaultRequiredMaxStorageBufferBindingSize = 1 << 30;  // 1GB
+    if (gpuDetectOutput.device.limits.maxStorageBufferBindingSize < defaultRequiredMaxStorageBufferBindingSize) {
+      console.log(
+        `WARNING: the current maxStorageBufferBindingSize ` + 
+        `(${computeMB(gpuDetectOutput.device.limits.maxStorageBufferBindingSize)}) ` + 
+        `may only work for a limited number of models, e.g.: \n` +
+        `- Llama-2-7b-chat-hf-q4f16_1-1k \n` +
+        `- RedPajama-INCITE-Chat-3B-v1-q4f16_1-1k \n` +
+        `- RedPajama-INCITE-Chat-3B-v1-q4f32_1-1k`
+      );
+    }
+
     let gpuLabel = "WebGPU";
     if (gpuDetectOutput.adapterInfo.description.length != 0) {
       gpuLabel += " - " + gpuDetectOutput.adapterInfo.description;
