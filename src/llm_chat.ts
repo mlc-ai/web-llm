@@ -56,6 +56,7 @@ export class LLMChatPipeline {
 
     this.conversation = getConversation(config.conv_template, config.conv_config);
     this.stopStr = this.conversation.getStopStr();
+    this.stopTokens = this.conversation.getStopTokens();
 
     this.device = this.tvm.webgpu();
     tvm.beginScope();
@@ -69,13 +70,34 @@ export class LLMChatPipeline {
     this.decoding = this.tvm.detachFromCurrentScope(
       this.vm.getFunction("decode")
     );
-    this.params = this.tvm.detachFromCurrentScope(
-      this.tvm.getParamsFromCache("param", -1)
-    );
-    const fgetMetadata = this.vm.getFunction("get_metadata");
+
+    // Get json stored in the vm's metadata function
+    let fgetMetadata;
+    let useSLIM = false;  // SLIM is the new workflow
+    try {
+      fgetMetadata = this.vm.getFunction("get_metadata");
+    } catch (err) {
+      fgetMetadata = this.vm.getFunction("_metadata");
+      useSLIM = true;
+    }
     const ret_value = fgetMetadata();
     const metadataStr = this.tvm.detachFromCurrentScope(ret_value).toString();
     const metadata = JSON.parse(metadataStr);
+
+    // Load parameters
+    if (useSLIM) {
+      // Under SLIM workflow, we load parameters by name
+      const paramNames: string[] = [];
+      metadata.params.forEach((param: any) => { paramNames.push(param.name) });
+      this.params = this.tvm.detachFromCurrentScope(
+        this.tvm.getParamsFromCacheByName(paramNames)
+      );
+    } else {
+      // Backward compatibility -- load parameters by ids
+      this.params = this.tvm.detachFromCurrentScope(
+        this.tvm.getParamsFromCache("param", -1)
+      );
+    }
 
     // Only use one of slidingWindow and maxWindowLength
     if (metadata.hasOwnProperty("sliding_window") && metadata.sliding_window != -1) {
@@ -91,10 +113,13 @@ export class LLMChatPipeline {
       this.logger("Using maxWindowLength: ", this.maxWindowLength);
     }
 
-    // TODO(tvm-team): move to conv template
-    this.stopTokens = metadata.stop_tokens;
+    let fcreateCache;
+    if (useSLIM) {
+      fcreateCache = this.vm.getFunction("_initialize_effect");
+    } else {
+      fcreateCache = this.vm.getFunction("create_kv_cache");
+    }
 
-    const fcreateCache = this.vm.getFunction("create_kv_cache");
     this.fclearKVCaches = this.tvm.detachFromCurrentScope(
       this.tvm.getGlobalFunc("vm.builtin.attention_kv_cache_array_clear")
     );

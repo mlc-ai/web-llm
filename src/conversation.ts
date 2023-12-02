@@ -88,6 +88,10 @@ export class Conversation {
     throw Error("Unknown separator style " + this.config.separator_style);
   }
 
+  getStopTokens() {
+    return this.config.stop_tokens;
+  }
+
   appendMessage(role: string, message: string) {
     if (this.messages.length != 0 &&
       this.messages[this.messages.length - 1][1] == undefined) {
@@ -125,6 +129,7 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       separator_style: "Two",
       stop_str: "[INST]",
       add_bos: true,
+      stop_tokens: [2],
       ...conv_config,
     });
   } else if (conv_template == "vicuna_v1.1") {
@@ -137,6 +142,7 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       separator_style: "Two",
       stop_str: "</s>",
       add_bos: true,
+      stop_tokens: [2],
       ...conv_config,
     });
   } else if (conv_template == "wizardlm") {
@@ -148,6 +154,7 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       separator_style: "Two",
       stop_str: "\n\n",
       add_bos: true,
+      stop_tokens: [2],
       ...conv_config,
     });
   } else if (conv_template == "redpajama_chat") {
@@ -159,6 +166,7 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       separator_style: "RedPajamaChat",
       stop_str: "<human>",
       add_bos: false,
+      stop_tokens: [0],
       ...conv_config,
     });
   } else if (conv_template == "wizard_coder_or_math") {
@@ -171,6 +179,7 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       separator_style: "Two",
       stop_str: "</s>",
       add_bos: true,
+      stop_tokens: [0],
       ...conv_config,
     });
   } else if (conv_template == "mistral_default") {
@@ -184,6 +193,7 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       separator_style: "Two",
       stop_str: "</s>",
       add_bos: true,
+      stop_tokens: [2],
       ...conv_config,
     });
   } else if (conv_template == "custom") {
