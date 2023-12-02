@@ -1,7 +1,7 @@
 import {ChatRestModule} from "@mlc-ai/web-llm";
 
 // TODO: Surface this as an option to the user 
-const useWebGPU = false;
+const useWebGPU = true;
 
 var cm: ChatRestModule;
 if (!useWebGPU) {

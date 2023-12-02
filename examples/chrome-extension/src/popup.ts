@@ -9,7 +9,7 @@ import {ChatModule, AppConfig, InitProgressReport} from "@mlc-ai/web-llm";
 import {ProgressBar, Line} from "progressbar.js";
 
 // TODO: Surface this as an experimental option to the user
-const useWebGPU = false;
+const useWebGPU = true;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -44,13 +44,13 @@ if (useWebGPU) {
     const appConfig : AppConfig = {
         model_list: [
             {
-                "model_url": "https://huggingface.co/mlc-ai/mlc-chat-Llama-2-7b-chat-hf-q4f32_1/resolve/main/",
-                "local_id": "Llama-2-7b-chat-hf-q4f32_1"
+                "model_url": "https://huggingface.co/mlc-ai/mlc-chat-Mistral-7B-Instruct-v0.1-q4f32_1/resolve/main/",
+                "local_id": "Mistral-7B-Instruct-v0.1-q4f32_1"
             }
         ],
     model_lib_map: {
-        "Llama-2-7b-chat-hf-q4f32_1": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Llama-2-7b-chat-hf-q4f32_1-webgpu.wasm"
-    }
+        "Mistral-7B-Instruct-v0.1-q4f32_1": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Mistral-7B-Instruct-v0.1-q4f32_1-sw4096_cs1024-webgpu.wasm"
+    }                                       
     }
 
     cm.setInitProgressCallback((report: InitProgressReport) => {
@@ -63,8 +63,9 @@ if (useWebGPU) {
         }
     });
 
+    await cm.reload("Mistral-7B-Instruct-v0.1-q4f32_1", undefined, appConfig);
+
     isLoadingParams = true;
-    await cm.reload("Llama-2-7b-chat-hf-q4f32_1", undefined, appConfig);
 } else {
     const loadingBarContainer = document.getElementById("loadingContainer")!;
     loadingBarContainer.remove();
