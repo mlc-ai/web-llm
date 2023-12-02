@@ -44,13 +44,13 @@ if (useWebGPU) {
     const appConfig : AppConfig = {
         model_list: [
             {
-                "model_url": "https://huggingface.co/mlc-ai/mlc-chat-vicuna-v1-7b-q4f32_0/resolve/main/",
-                "local_id": "vicuna-v1-7b-q4f32_0"
+                "model_url": "https://huggingface.co/mlc-ai/mlc-chat-Mistral-7B-Instruct-v0.1-q4f32_1/resolve/main/",
+                "local_id": "Mistral-7B-Instruct-v0.1-q4f32_1"
             }
         ],
     model_lib_map: {
-        "vicuna-v1-7b-q4f32_0": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/vicuna-v1-7b-q4f32_0-webgpu-v1.wasm"
-    }
+        "Mistral-7B-Instruct-v0.1-q4f32_1": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Mistral-7B-Instruct-v0.1-q4f32_1-sw4096_cs1024-webgpu.wasm"
+    }                                       
     }
 
     cm.setInitProgressCallback((report: InitProgressReport) => {
@@ -63,7 +63,7 @@ if (useWebGPU) {
         }
     });
 
-    await cm.reload("vicuna-v1-7b-q4f32_0", undefined, appConfig);
+    await cm.reload("Mistral-7B-Instruct-v0.1-q4f32_1", undefined, appConfig);
 
     isLoadingParams = true;
 } else {
