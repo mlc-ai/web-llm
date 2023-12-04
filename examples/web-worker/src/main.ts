@@ -12,14 +12,14 @@ async function main() {
   // Use a chat worker client instead of ChatModule here
   const chat = new webllm.ChatWorkerClient(new Worker(
     new URL('./worker.ts', import.meta.url),
-    {type: 'module'}
+    { type: 'module' }
   ));
 
   chat.setInitProgressCallback((report: webllm.InitProgressReport) => {
     setLabel("init-label", report.text);
   });
 
-  await chat.reload("vicuna-v1-7b-q4f32_0");
+  await chat.reload("Llama-2-7b-chat-hf-q4f32_1");
 
   const generateProgressCallback = (_step: number, message: string) => {
     setLabel("generate-label", message);
