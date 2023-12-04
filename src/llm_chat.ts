@@ -27,7 +27,7 @@ export class LLMChatPipeline {
   private bosTokenId = 1;
   private maxWindowLength = -1;
   private slidingWindow = -1;
-  private slidingWindowChunkSize = -1;
+  private prefillChunkSize = -1;
   private resetStatsPerPrefill = true;
   private stopStr: string;
   private stopTokens: Array<number>;
@@ -99,15 +99,21 @@ export class LLMChatPipeline {
       );
     }
 
+    if (metadata.hasOwnProperty("prefill_chunk_size") && metadata.prefill_chunk_size != -1) {
+      this.prefillChunkSize = metadata.prefill_chunk_size;
+      this.logger("Using prefillChunkSize: ", this.prefillChunkSize);
+      if (this.prefillChunkSize <= 0) {
+        throw Error("Prefill chunk size needs to be positive.");
+      }
+    }
+
     // Only use one of slidingWindow and maxWindowLength
     if (metadata.hasOwnProperty("sliding_window") && metadata.sliding_window != -1) {
       this.slidingWindow = metadata.sliding_window;
-      this.slidingWindowChunkSize = metadata.sliding_window_chunk_size;
-      if (this.slidingWindowChunkSize <= 0) {
-        throw Error("Sliding window's chunk size needs to be positive.");
+      if (this.prefillChunkSize <= 0) {
+        throw Error("Need to specify prefill chunk size if using sliding window attention.");
       }
       this.logger("Using slidingWindow: ", this.slidingWindow);
-      this.logger("Using slidingWindowChunkSize: ", this.slidingWindowChunkSize);
     } else {
       this.maxWindowLength = metadata.max_window_size;
       this.logger("Using maxWindowLength: ", this.maxWindowLength);
@@ -216,10 +222,10 @@ export class LLMChatPipeline {
     let newSeqLen = this.filledKVCacheLength;
     const tokenLen = promptTokens.length;
     let logits = this.tvm.empty([1, 1], "int32", this.device);  // Dummy value to avoid type error
-    if (this.slidingWindow != -1) {
-      // Use chunking if we use sliding window attention (see Mistral paper figure 3)
-      for (let begin = 0; begin < tokenLen; begin += this.slidingWindowChunkSize) {
-        const end = Math.min(tokenLen, begin + this.slidingWindowChunkSize);
+    if (this.prefillChunkSize != -1) {
+      // Use prefill chunking regardless whether we use SWA (see Mistral paper figure 3)
+      for (let begin = 0; begin < tokenLen; begin += this.prefillChunkSize) {
+        const end = Math.min(tokenLen, begin + this.prefillChunkSize);
         const chunk = promptTokens.slice(begin, end);
         const inputData = this.tvm.empty([1, chunk.length], "int32", this.device);
         inputData.copyFrom(chunk);
