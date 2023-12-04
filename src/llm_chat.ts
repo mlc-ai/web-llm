@@ -27,7 +27,7 @@ export class LLMChatPipeline {
   private bosTokenId = 1;
   private maxWindowLength = -1;
   private slidingWindow = -1;
-  private slidingWindowChunkSize = -1;
+  private prefillChunkSize = -1;
   private resetStatsPerPrefill = true;
   private stopStr: string;
   private stopTokens: Array<number>;
@@ -56,6 +56,7 @@ export class LLMChatPipeline {
 
     this.conversation = getConversation(config.conv_template, config.conv_config);
     this.stopStr = this.conversation.getStopStr();
+    this.stopTokens = this.conversation.getStopTokens();
 
     this.device = this.tvm.webgpu();
     tvm.beginScope();
@@ -69,32 +70,62 @@ export class LLMChatPipeline {
     this.decoding = this.tvm.detachFromCurrentScope(
       this.vm.getFunction("decode")
     );
-    this.params = this.tvm.detachFromCurrentScope(
-      this.tvm.getParamsFromCache("param", -1)
-    );
-    const fgetMetadata = this.vm.getFunction("get_metadata");
+
+    // Get json stored in the vm's metadata function
+    let fgetMetadata;
+    let useSLIM = false;  // SLIM is the new workflow
+    try {
+      fgetMetadata = this.vm.getFunction("get_metadata");
+    } catch (err) {
+      fgetMetadata = this.vm.getFunction("_metadata");
+      useSLIM = true;
+    }
     const ret_value = fgetMetadata();
     const metadataStr = this.tvm.detachFromCurrentScope(ret_value).toString();
     const metadata = JSON.parse(metadataStr);
 
+    // Load parameters
+    if (useSLIM) {
+      // Under SLIM workflow, we load parameters by name
+      const paramNames: string[] = [];
+      metadata.params.forEach((param: any) => { paramNames.push(param.name) });
+      this.params = this.tvm.detachFromCurrentScope(
+        this.tvm.getParamsFromCacheByName(paramNames)
+      );
+    } else {
+      // Backward compatibility -- load parameters by ids
+      this.params = this.tvm.detachFromCurrentScope(
+        this.tvm.getParamsFromCache("param", -1)
+      );
+    }
+
+    if (metadata.hasOwnProperty("prefill_chunk_size") && metadata.prefill_chunk_size != -1) {
+      this.prefillChunkSize = metadata.prefill_chunk_size;
+      this.logger("Using prefillChunkSize: ", this.prefillChunkSize);
+      if (this.prefillChunkSize <= 0) {
+        throw Error("Prefill chunk size needs to be positive.");
+      }
+    }
+
     // Only use one of slidingWindow and maxWindowLength
     if (metadata.hasOwnProperty("sliding_window") && metadata.sliding_window != -1) {
       this.slidingWindow = metadata.sliding_window;
-      this.slidingWindowChunkSize = metadata.sliding_window_chunk_size;
-      if (this.slidingWindowChunkSize <= 0) {
-        throw Error("Sliding window's chunk size needs to be positive.");
+      if (this.prefillChunkSize <= 0) {
+        throw Error("Need to specify prefill chunk size if using sliding window attention.");
       }
       this.logger("Using slidingWindow: ", this.slidingWindow);
-      this.logger("Using slidingWindowChunkSize: ", this.slidingWindowChunkSize);
     } else {
       this.maxWindowLength = metadata.max_window_size;
       this.logger("Using maxWindowLength: ", this.maxWindowLength);
     }
 
-    // TODO(tvm-team): move to conv template
-    this.stopTokens = metadata.stop_tokens;
+    let fcreateCache;
+    if (useSLIM) {
+      fcreateCache = this.vm.getFunction("_initialize_effect");
+    } else {
+      fcreateCache = this.vm.getFunction("create_kv_cache");
+    }
 
-    const fcreateCache = this.vm.getFunction("create_kv_cache");
     this.fclearKVCaches = this.tvm.detachFromCurrentScope(
       this.tvm.getGlobalFunc("vm.builtin.attention_kv_cache_array_clear")
     );
@@ -191,10 +222,10 @@ export class LLMChatPipeline {
     let newSeqLen = this.filledKVCacheLength;
     const tokenLen = promptTokens.length;
     let logits = this.tvm.empty([1, 1], "int32", this.device);  // Dummy value to avoid type error
-    if (this.slidingWindow != -1) {
-      // Use chunking if we use sliding window attention (see Mistral paper figure 3)
-      for (let begin = 0; begin < tokenLen; begin += this.slidingWindowChunkSize) {
-        const end = Math.min(tokenLen, begin + this.slidingWindowChunkSize);
+    if (this.prefillChunkSize != -1) {
+      // Use prefill chunking regardless whether we use SWA (see Mistral paper figure 3)
+      for (let begin = 0; begin < tokenLen; begin += this.prefillChunkSize) {
+        const end = Math.min(tokenLen, begin + this.prefillChunkSize);
         const chunk = promptTokens.slice(begin, end);
         const inputData = this.tvm.empty([1, chunk.length], "int32", this.device);
         inputData.copyFrom(chunk);
