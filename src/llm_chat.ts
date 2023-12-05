@@ -115,8 +115,17 @@ export class LLMChatPipeline {
       }
       this.logger("Using slidingWindow: ", this.slidingWindow);
     } else {
-      this.maxWindowLength = metadata.max_window_size;
-      this.logger("Using maxWindowLength: ", this.maxWindowLength);
+      // Depending on when the model is compiled, it can be either called
+      // `context_window_size` or `max_window_size`
+      if (metadata.hasOwnProperty("context_window_size") && metadata.context_window_size != -1) {
+        this.maxWindowLength = metadata.context_window_size;
+        this.logger("Using maxWindowLength: ", this.maxWindowLength);
+      } else if (metadata.hasOwnProperty("max_window_size") && metadata.max_window_size != -1) {
+        this.maxWindowLength = metadata.max_window_size;
+        this.logger("Using maxWindowLength: ", this.maxWindowLength);
+      } else {
+        throw Error("Need to specify either sliding window size or max window size.");
+      }
     }
 
     let fcreateCache;
