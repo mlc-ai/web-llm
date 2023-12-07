@@ -128,14 +128,15 @@ Both are customizable in the WebLLM.
 async main() {
   const myLlamaUrl = "/url/to/my/llama";
   const appConfig = {
-  "model_list": [
-    {
-      "model_url": myLlamaUrl,
-      "local_id": "MyLlama-3b-v1-q4f32_0"
+    "model_list": [
+      {
+        "model_url": myLlamaUrl,
+        "local_id": "MyLlama-3b-v1-q4f32_0"
+      }
+    ],
+    "model_lib_map": {
+      "llama-v1-3b-q4f32_0": "/url/to/myllama3b.wasm",
     }
-  ],
-  "model_lib_map": {
-    "llama-v1-3b-q4f32_0": "/url/to/myllama3b.wasm",
   };
   // override default
   const chatOpts = {
