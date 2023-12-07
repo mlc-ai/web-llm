@@ -100,13 +100,13 @@ export class ChatModule implements ChatInterface {
 
     // check whether maxStorageBufferBindingSize falls from 1GB to 128MB
     const computeMB = (value: number) => {
-      return Math.ceil(value  / (1 << 20)) + "MB";
+      return Math.ceil(value / (1 << 20)) + "MB";
     }
     const defaultRequiredMaxStorageBufferBindingSize = 1 << 30;  // 1GB
     if (gpuDetectOutput.device.limits.maxStorageBufferBindingSize < defaultRequiredMaxStorageBufferBindingSize) {
       console.log(
-        `WARNING: the current maxStorageBufferBindingSize ` + 
-        `(${computeMB(gpuDetectOutput.device.limits.maxStorageBufferBindingSize)}) ` + 
+        `WARNING: the current maxStorageBufferBindingSize ` +
+        `(${computeMB(gpuDetectOutput.device.limits.maxStorageBufferBindingSize)}) ` +
         `may only work for a limited number of models, e.g.: \n` +
         `- Llama-2-7b-chat-hf-q4f16_1-1k \n` +
         `- RedPajama-INCITE-Chat-3B-v1-q4f16_1-1k \n` +
@@ -243,14 +243,20 @@ export class ChatModule implements ChatInterface {
     config: ChatConfig
   ): Promise<Tokenizer> {
     const modelCache = new tvmjs.ArtifactCache("webllm/model");
-    if (config.tokenizer_files.includes("tokenizer.model")) {
-      const url = new URL("tokenizer.model", baseUrl).href;
-      const model = await (await modelCache.fetchWithCache(url)).arrayBuffer();
-      return Tokenizer.fromSentencePiece(model);
-    } else if (config.tokenizer_files.includes("tokenizer.json")) {
+    if (config.tokenizer_files.includes("tokenizer.json")) {
       const url = new URL("tokenizer.json", baseUrl).href;
       const model = await (await modelCache.fetchWithCache(url)).arrayBuffer();
       return Tokenizer.fromJSON(model);
+    }
+    else if (config.tokenizer_files.includes("tokenizer.model")) {
+      this.logger("Using `tokenizer.model` since we cannot locate `tokenizer.json`.\n" +
+        "It is recommended to use `tokenizer.json` to ensure all token mappings are included, " +
+        "since currently, files like `added_tokens.json`, `tokenizer_config.json` are ignored.\n" +
+        "Consider converting `tokenizer.model` to `tokenizer.json` by compiling the model " +
+        "with MLC again, or see if MLC's huggingface provides this file.");
+      const url = new URL("tokenizer.model", baseUrl).href;
+      const model = await (await modelCache.fetchWithCache(url)).arrayBuffer();
+      return Tokenizer.fromSentencePiece(model);
     }
     throw Error("Cannot handle tokenizer files " + config.tokenizer_files)
   }
