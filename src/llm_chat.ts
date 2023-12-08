@@ -319,12 +319,14 @@ export class LLMChatPipeline {
       throw Error("Cannot call process when it is stoppped");
     }
 
-    this.outputIds.push(nextToken);
-    this.appearedTokens.add(nextToken);
-
     // if there is a stop token
     if (this.stopTokens.includes(nextToken)) {
       this.stopTriggered = true;
+    }
+
+    if (!this.stopTriggered) {
+      this.outputIds.push(nextToken);
+      this.appearedTokens.add(nextToken);
     }
 
     let outputMessage = this.tokenizer.decode(new Int32Array(this.outputIds));
