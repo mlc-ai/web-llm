@@ -211,6 +211,29 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       stop_tokens: [2, 32000],
       ...conv_config,
     });
+  } else if (conv_template == "neural_hermes_mistral") {
+    return new Conversation({
+      system: "<|im_start|>system\nYou are a helpful assistant chatbot.",
+      roles: ["<|im_start|>user", "<|im_start|>assistant"],
+      offset: 0,
+      seps: ["<|im_end|>", "<|im_end|>"],
+      separator_style: "Two",
+      stop_str: "<|im_end|>",
+      add_bos: true,
+      stop_tokens: [2, 32000],
+      ...conv_config,
+    });
+  } else if (conv_template == "empty") {
+    return new Conversation({
+      system: "",
+      roles: ["", ""],
+      offset: 0,
+      seps: ["", ""],
+      separator_style: "Two",
+      stop_str: "</s>",
+      add_bos: false,
+      stop_tokens: [],
+    });
   } else if (conv_template == "custom") {
     return new Conversation(conv_config as Required<ConvTemplateConfig>);
   } else {
