@@ -32,19 +32,11 @@ Won’t it be even more amazing if we can simply open up a browser and directly 
 
 ## Instructions
 
-WebGPU just shipped to Chrome. You can try out the latest Chrome 113. Chrome version ≤ 112 is not supported, and if you are using it,
-the demo will raise an error like `Find an error initializing the WebGPU device OperationError: Required limit (1073741824) is greater than the supported limit (268435456). - While validating maxBufferSize - While validating required limits.`
+WebGPU just shipped in Chrome 113.
 
 Select the model you want to try out. Enter your inputs, click “Send” – we are ready to go!
 The chat bot will first fetch model parameters into local cache. The download may take a few minutes, only for the first run.
 The subsequent refreshes and runs will be faster. We have tested it on Windows and Mac, you will need a GPU with about 6GB memory to run Llama-7B, Vicuna-7B, and about 3GB memory to run RedPajama-3B.
-
-**Some of the models requires fp16 support. To enable fp16 shaders, you will need to use the following instruction(`allow_unsafe_apis`) to turn on the support in Chrome Canary.**
-- Install [Chrome Canary](https://www.google.com/chrome/canary/), a Chrome nightly build for developers.
-- Launch Chrome Canary from terminal with the following command:
-  ```
-  /Applications/Google\ Chrome\ Canary.app/Contents/MacOS/Google\ Chrome\ Canary --enable-dawn-features=allow_unsafe_apis
-  ```
 
 ## Chat Demo
 
