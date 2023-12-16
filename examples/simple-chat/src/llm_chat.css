@@ -1,127 +1,187 @@
- .chatui {
-   display: flex;
-   flex-flow: column wrap;
-   justify-content: space-between;
-   width: 100%;
-   max-width: 867px;
-   margin: 25px 10px;
-   height: 600px;
-   border: 2px solid #ddd;
-   border-radius: 5px;
-   box-shadow: 0 15px 15px -5px rgba(0, 0, 0, 0.2);
- }
+.chatui {
+    display: flex;
+    flex-flow: column wrap;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 867px;
+    margin: 25px 10px;
+    height: 600px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    box-shadow: 0 15px 15px -5px rgba(0, 0, 0, 0.2);
+    backdrop-filter: blur(10px);
+    background: #7F7FD5;
+    background: -webkit-linear-gradient(to right, #91EAE4, #86A8E7, #7F7FD5);
+    background: linear-gradient(to right, #91EAE4, #86A8E7, #7F7FD5);
+}
 
- s .chatui-header {
-   display: flex;
-   justify-content: space-between;
-   padding: 10px;
-   border-bottom: 2px solid #ddd;
-   background: #eee;
-   color: #666;
- }
+s .chatui-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+    border-bottom: 2px solid #ddd;
+    background: #eee;
+    color: #666;
+}
 
- .chatui-chat {
-   flex: 1;
-   overflow-y: auto;
-   padding: 10px;
- }
+.chatui-chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.4)
+}
 
- .chatui-chat::-webkit-scrollbar {
-   width: 6px;
- }
+.chatui-chat::-webkit-scrollbar {
+    width: 6px;
+}
 
- .chatui-chat::-webkit-scrollbar-track {
-   background: #ddd;
- }
+.chatui-chat::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
 
- .chatui-chat::-webkit-scrollbar-thumb {
-   background: #bdbdbd;
- }
+.chatui-chat::-webkit-scrollbar-thumb {
+    background: #888;
+}
 
- .msg {
-   display: flex;
-   align-items: flex-end;
-   margin-bottom: 10px;
- }
+.chatui-chat::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
 
- .msg:last-of-type {
-   margin: 0;
- }
+.msg {
+    display: flex;
+    align-items: flex-end;
+    margin-bottom: 10px;
+}
 
- .msg-bubble {
-   max-width: 450px;
-   padding: 15px;
-   border-radius: 15px;
-   background: #ececec;
- }
+.msg:last-of-type {
+    margin: 0;
+}
 
- .left-msg .msg-bubble {
-   border-bottom-left-radius: 0;
- }
+.msg-bubble {
+    max-width: 450px;
+    padding: 15px;
+    border-radius: 15px;
+    border: 2px solid #fff;
+    background-color: #82ccdd;
+    color: black;
+}
 
- .error-msg .msg-bubble {
-  border-bottom-left-radius: 0;
-  color: #f15959;
+.left-msg .msg-bubble {
+    border-bottom-left-radius: 0;
+
+}
+
+.error-msg .msg-bubble {
+    border-bottom-left-radius: 0;
+    color: #f15959;
 }
 
 .init-msg .msg-bubble {
-  border-bottom-left-radius: 0;
+    border-bottom-left-radius: 0;
 }
 
- .right-msg {
-   flex-direction: row-reverse;
- }
-
- .right-msg .msg-bubble {
-   background: #579ffb;
-   color: #fff;
-   border-bottom-right-radius: 0;
- }
-
- .chatui-inputarea {
-   display: flex;
-   padding: 10px;
-   border-top: 2px solid #ddd;
-   background: #eee;
- }
-
- .chatui-inputarea * {
-   padding: 10px;
-   border: none;
-   border-radius: 3px;
-   font-size: 1em;
- }
-
- .chatui-input {
-   flex: 1;
-   background: #ddd;
- }
-
- .chatui-reset-btn {
-   margin-left: 10px;
-   background: #ececec;
-   font-weight: bold;
-   border-radius: 8px;
-   width: 200px;
-   cursor: pointer;
- }
-
- .chatui-reset-btn:hover {
-  background: #dcdada;
+.right-msg {
+    flex-direction: row-reverse;
 }
 
- .chatui-send-btn {
-  margin-left: 10px;
-  background: #579ffb;
-  color: #fff;
-  font-weight: bold;
-  cursor: pointer;
+.right-msg .msg-bubble {
+    background-color: #78e08f;
+    color: #fff;
+    border-bottom-right-radius: 0;
 }
 
-.chatui-send-btn:hover {
-  background: #577bfb;
+.chatui-inputarea {
+    display: flex;
+    padding: 10px;
+    border-top: 2px solid transparent;
+    background-color: rgba(0, 0, 0, 0.4)
 }
 
- .chatui-chat {
-   background-color: #fcfcfe;
- }
+.chatui-inputarea * {
+    padding: 10px;
+    border: none;
+    border-radius: 3px;
+    font-size: 1em;
+    color: white;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.chatui-input {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.2);
+    color: white;
+}
+
+.chatui-reset-btn {
+    margin-left: 10px;
+    background: #ececec;
+    font-weight: bold;
+    border-radius: 8px;
+    width: 200px;
+    cursor: pointer;
+}
+
+.chatui-reset-btn:hover {
+    background: #dcdada;
+}
+
+
+@keyframes rotateColor {
+    0% {
+        background-position: 0% 50%;
+    }
+    100% {
+        background-position: 100% 50%;
+    }
+}
+
+.chatui-send-btn {
+    position: relative;
+    display: inline-block;
+    margin-left: 10px;
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 5px;
+    background: linear-gradient(to right, #00ccff, #0e1538, #d400d4, #00ccff, #0e1538); 
+    background-size: 300% 300%;
+    border: none;
+    overflow: hidden;
+    animation: rotateColor 3s linear infinite; 
+}
+
+.chatui-send-btn::before {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    z-index: -1;
+    background: inherit;
+    border-radius: inherit;
+    filter: blur(10px);
+}
+
+.chatui-send-btn span {
+    z-index: 1;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.chatui-send-btn span::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    background-color: rgba(255, 255, 255, .075);
+    transform: translateX(-50%) skewX(-25deg);
+}
