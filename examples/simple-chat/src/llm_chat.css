@@ -129,7 +129,7 @@ s .chatui-header {
     color: #fff;
     font-weight: bold;
     cursor: pointer;
-    background-image: url('plane.png');
+    background-image: url('img/plane.png');
     background-repeat: no-repeat;
     background-position: center;
     width: 40px;
