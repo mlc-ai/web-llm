@@ -62,7 +62,8 @@ export default class ChatUI {
                 "model_list": [
                     {
                         "model_url": "https://huggingface.co/mlc-ai/mlc-chat-Llama-2-7b-chat-hf-q4f32_1/resolve/main/",
-                        "local_id": "Llama-2-7b-chat-hf-q4f32_1"
+                        "local_id": "Llama-2-7b-chat-hf-q4f32_1",
+                        "model_lib": "Llama-2-7b-chat-hf-q4f32_1",
                     },
                 ],
                 "model_lib_map": {

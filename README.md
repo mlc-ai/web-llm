@@ -131,6 +131,7 @@ async main() {
     "model_list": [
       {
         "model_url": myLlamaUrl,
+        "model_lib": "llama-v1-3b-q4f32_0",
         "local_id": "MyLlama-3b-v1-q4f32_0"
       }
     ],
@@ -157,10 +158,9 @@ async main() {
 ```
 
 In many cases, we only want to supply the model weight variant, but
-not necessarily a new model. In such cases, we can reuse the model lib.
-In such cases, we can just pass in the `model_list` field and skip the model lib,
-and make sure the `mlc-chat-config.json` in the model url has a model lib
-that points to a prebuilt version, right now the prebuilt lib includes
+not necessarily a new model. In such cases, we can reuse the model lib by
+just passing in the `model_list` field and skipping the `model_lib_map`.
+Make sure the `model_lib` field in each entry of `model_list` points to a prebuilt version, right now the prebuilt lib includes
 
 - `Llama-2-7b-chat-hf-q4f32_1`: llama-7b models.
 - `RedPajama-INCITE-Chat-3B-v1-q4f32_1`: RedPajama-3B variant.

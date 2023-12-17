@@ -41,6 +41,11 @@ export class ChatModule implements ChatInterface {
     const modelRecord = findModelRecord();
     const baseUrl = typeof document !== "undefined" ? document.URL : globalThis.location.origin;
     let modelUrl = modelRecord.model_url;
+    let modelLib = modelRecord.model_lib;
+    if (modelLib === undefined) {
+      throw Error("You need to specify `model_lib` for each model in `model_list` " +
+        "so that we can look up the model library to use in `model_lib_map`.")
+    }
     if (!modelUrl.startsWith("http")) {
       modelUrl = new URL(modelUrl, baseUrl).href;
     }
@@ -53,15 +58,16 @@ export class ChatModule implements ChatInterface {
       ...chatOpts
     } as ChatConfig;
 
+    // Given modelRecord, find the model library we want to use
     const findWasmUrl = () => {
       if (appConfig?.model_lib_map !== undefined) {
-        const libUrl = appConfig?.model_lib_map[config.model_lib];
+        const libUrl = appConfig?.model_lib_map[modelLib];
         if (libUrl !== undefined) return libUrl;
       } else {
-        const libUrl = prebuiltAppConfig.model_lib_map[config.model_lib];
+        const libUrl = prebuiltAppConfig.model_lib_map[modelLib];
         if (libUrl !== undefined) return libUrl;
       }
-      throw Error("Cannot find wasm for " + config.model_lib + " in supplied libMap");
+      throw Error("Cannot find wasm for " + modelLib + " in supplied libMap");
     }
 
     // load tvm wasm
