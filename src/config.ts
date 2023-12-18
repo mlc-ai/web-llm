@@ -31,13 +31,13 @@ export interface ChatConfig {
  * Information for a model.
  * @param model_url: the huggingface link to download the model weights.
  * @param local_id: what we call the model.
- * @param model_lib: the model library the model uses.
+ * @param model_lib_url: link to the model library (wasm file) the model uses.
  * @param required_features: feature needed to run this model (e.g. shader-f16).
  */
 export interface ModelRecord {
   model_url: string;
   local_id: string;
-  model_lib: string;
+  model_lib_url: string;
   required_features?: Array<string>;
 }
 
@@ -46,12 +46,9 @@ export interface ModelRecord {
  * passed to the load.
  * 
  * @param model_list: models to be used.
- * @param model_lib_map: maps each `ModelRecord`'s `model_lib` to a url that
- * can download the model library.
  */
 export interface AppConfig {
   model_list: Array<ModelRecord>;
-  model_lib_map: Record<string, string>;
 }
 
 /**
@@ -61,17 +58,13 @@ export const prebuiltAppConfig: AppConfig = {
   model_list: [
     {
       "model_url": "https://huggingface.co/mlc-ai/mlc-chat-RedPajama-INCITE-Chat-3B-v1-q4f32_1/resolve/main/",
-      "model_lib": "RedPajama-INCITE-Chat-3B-v1-q4f32_1",
-      "local_id": "RedPajama-INCITE-Chat-3B-v1-q4f32_1"
+      "model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/RedPajama-INCITE-Chat-3B-v1-q4f32_1-webgpu.wasm",
+      "local_id": "RedPajama-INCITE-Chat-3B-v1-q4f32_1",
     },
     {
       "model_url": "https://huggingface.co/mlc-ai/mlc-chat-Llama-2-7b-chat-hf-q4f32_1/resolve/main/",
-      "model_lib": "Llama-2-7b-chat-hf-q4f32_1",
+      "model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Llama-2-7b-chat-hf-q4f32_1-webgpu.wasm",
       "local_id": "Llama-2-7b-chat-hf-q4f32_1"
     }
-  ],
-  model_lib_map: {
-    "Llama-2-7b-chat-hf-q4f32_1": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Llama-2-7b-chat-hf-q4f32_1-webgpu.wasm",
-    "RedPajama-INCITE-Chat-3B-v1-q4f32_1": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/RedPajama-INCITE-Chat-3B-v1-q4f32_1-webgpu.wasm"
-  }
+  ]
 }

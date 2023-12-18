@@ -46,12 +46,9 @@ if (useWebGPU) {
             {
                 "model_url": "https://huggingface.co/mlc-ai/mlc-chat-Mistral-7B-Instruct-v0.1-q4f32_1/resolve/main/",
                 "local_id": "Mistral-7B-Instruct-v0.1-q4f32_1",
-                "model_lib": "Mistral-7B-Instruct-v0.1-q4f32_1",
+                "model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Mistral-7B-Instruct-v0.1-q4f32_1-sw4096_cs1024-webgpu.wasm",
             }
-        ],
-        model_lib_map: {
-            "Mistral-7B-Instruct-v0.1-q4f32_1": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Mistral-7B-Instruct-v0.1-q4f32_1-sw4096_cs1024-webgpu.wasm"
-        }
+        ]
     }
 
     cm.setInitProgressCallback((report: InitProgressReport) => {
