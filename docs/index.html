@@ -102,21 +102,11 @@ You can use WebLLM as a base <a href="https://www.npmjs.com/package/@mlc-ai/web-
 
 <h2 id="instructions">Instructions</h2>
 
-<p>WebGPU just shipped to Chrome. You can try out the latest Chrome 113. Chrome version ≤ 112 is not supported, and if you are using it,
-the demo will raise an error like <code class="language-plaintext highlighter-rouge">Find an error initializing the WebGPU device OperationError: Required limit (1073741824) is greater than the supported limit (268435456). - While validating maxBufferSize - While validating required limits.</code></p>
+<p>WebGPU just shipped in Chrome 113.</p>
 
 <p>Select the model you want to try out. Enter your inputs, click “Send” – we are ready to go!
 The chat bot will first fetch model parameters into local cache. The download may take a few minutes, only for the first run.
 The subsequent refreshes and runs will be faster. We have tested it on Windows and Mac, you will need a GPU with about 6GB memory to run Llama-7B, Vicuna-7B, and about 3GB memory to run RedPajama-3B.</p>
-
-<p><strong>Some of the models requires fp16 support. To enable fp16 shaders, you will need to use the following instruction(<code class="language-plaintext highlighter-rouge">allow_unsafe_apis</code>) to turn on the support in Chrome Canary.</strong></p>
-<ul>
-  <li>Install <a href="https://www.google.com/chrome/canary/">Chrome Canary</a>, a Chrome nightly build for developers.</li>
-  <li>Launch Chrome Canary from terminal with the following command:
-    <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>/Applications/Google\ Chrome\ Canary.app/Contents/MacOS/Google\ Chrome\ Canary --enable-dawn-features=allow_unsafe_apis
-</code></pre></div>    </div>
-  </li>
-</ul>
 
 <h2 id="chat-demo">Chat Demo</h2>
 
