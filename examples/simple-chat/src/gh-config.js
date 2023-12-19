@@ -62,6 +62,12 @@ export default {
 			"model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Llama-2-7b-chat-hf-q4f32_1-webgpu.wasm",
 		},
 		{
+			"model_url": "https://huggingface.co/mlc-ai/mlc-chat-WizardMath-7B-V1.1-q4f16_1/resolve/main/",
+			"local_id": "WizardMath-7B-V1.1-q4f16_1",
+			"model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Mistral-7B-Instruct-v0.1-q4f16_1-sw4k_cs1k-webgpu.wasm",
+			"required_features": ["shader-f16"],
+		},
+		{
 			"model_url": "https://huggingface.co/mlc-ai/mlc-chat-WizardMath-13B-V1.0-q4f16_1/resolve/main/",
 			"local_id": "WizardMath-13B-V1.0-q4f16_1",
 			"model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Llama-2-13b-chat-hf-q4f16_1-webgpu.wasm",

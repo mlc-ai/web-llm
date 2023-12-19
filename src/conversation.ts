@@ -179,7 +179,7 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       separator_style: "Two",
       stop_str: "</s>",
       add_bos: true,
-      stop_tokens: [0],
+      stop_tokens: [2],
       ...conv_config,
     });
   } else if (conv_template == "mistral_default") {
