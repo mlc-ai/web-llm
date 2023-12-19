@@ -11,7 +11,6 @@ function getElementAndCheck(id: string): HTMLElement {
 
 interface AppConfig {
   model_list: Array<ModelRecord>;
-  model_lib_map?: Record<string, string>;
 }
 
 class ChatUI {
@@ -74,7 +73,7 @@ class ChatUI {
    *
    * @param task The task to be executed;
    */
-  private pushTask(task: ()=>Promise<void>) {
+  private pushTask(task: () => Promise<void>) {
     const lastEvent = this.chatRequestChain;
     this.chatRequestChain = lastEvent.then(task);
   }
@@ -252,7 +251,7 @@ let localChat: ChatInterface;
 if (useWebWorker) {
   chat = new ChatWorkerClient(new Worker(
     new URL('./worker.ts', import.meta.url),
-    {type: 'module'}
+    { type: 'module' }
   ));
   localChat = new ChatRestModule();
 } else {

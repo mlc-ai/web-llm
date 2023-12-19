@@ -120,7 +120,7 @@ To generate the wasm needed by WebLLM, you can run with `--target webgpu` in the
 There are two elements of the WebLLM package that enables new models and weight variants.
 
 - model_url: Contains a URL to model artifacts, such as weights and meta-data.
-- model_lib: The web assembly libary that contains the executables to accelerate the model computations.
+- model_lib_url: A URL to the web assembly library (i.e. wasm file) that contains the executables to accelerate the model computations.
 
 Both are customizable in the WebLLM.
 
@@ -132,11 +132,9 @@ async main() {
       {
         "model_url": myLlamaUrl,
         "local_id": "MyLlama-3b-v1-q4f32_0"
+        "model_lib_url": "/url/to/myllama3b.wasm",
       }
     ],
-    "model_lib_map": {
-      "llama-v1-3b-q4f32_0": "/url/to/myllama3b.wasm",
-    }
   };
   // override default
   const chatOpts = {
@@ -148,22 +146,23 @@ async main() {
   // with a chat option override and app config
   // under the hood, it will load the model from myLlamaUrl
   // and cache it in the browser cache
-  //
-  // Let us assume that myLlamaUrl/mlc-config.json contains a model_lib
-  // field that points to "llama-v1-3b-q4f32_0"
-  // then chat module will initialize with these information
+  // The chat will also load the model library from "/url/to/myllama3b.wasm",
+  // assuming that it is compatible to the model in myLlamaUrl.
   await chat.reload("MyLlama-3b-v1-q4f32_0", chatOpts, appConfig);
 }
 ```
 
 In many cases, we only want to supply the model weight variant, but
-not necessarily a new model. In such cases, we can reuse the model lib.
-In such cases, we can just pass in the `model_list` field and skip the model lib,
-and make sure the `mlc-chat-config.json` in the model url has a model lib
-that points to a prebuilt version, right now the prebuilt lib includes
+not necessarily a new model (e.g. `NeuralHermes-Mistral` can reuse `Mistral`'s
+model library; `WizardMath` can reuse `Llama-2`'s model library). For
+an example of how a model library is shared by different model variants,
+see `examples/simple-chat/src/gh-config.js`. We also provide
+a plethora of prebuilt model libraries, including:
 
-- `Llama-2-7b-chat-hf-q4f32_1`: llama-7b models.
-- `RedPajama-INCITE-Chat-3B-v1-q4f32_1`: RedPajama-3B variant.
+- `Llama-2-7b-chat-hf-q4f32_1`: Llama-7b models.
+- `RedPajama-INCITE-Chat-3B-v1-q4f32_1`: RedPajama-3B variants.
+- `Mistral-7B-Instruct-v0.1-q4f16_1`: Mistral-7B variants.
+- and many more at [binary-mlc-llm-libs](https://github.com/mlc-ai/binary-mlc-llm-libs).
 
 ## Use WebLLM Package
 

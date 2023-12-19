@@ -62,12 +62,10 @@ export default class ChatUI {
                 "model_list": [
                     {
                         "model_url": "https://huggingface.co/mlc-ai/mlc-chat-Llama-2-7b-chat-hf-q4f32_1/resolve/main/",
-                        "local_id": "Llama-2-7b-chat-hf-q4f32_1"
+                        "local_id": "Llama-2-7b-chat-hf-q4f32_1",
+                        "model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Llama-2-7b-chat-hf-q4f32_1-webgpu.wasm",
                     },
-                ],
-                "model_lib_map": {
-                    "Llama-2-7b-chat-hf-q4f32_1": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Llama-2-7b-chat-hf-q4f32_1-webgpu.wasm",
-                },
+                ]
             });
         } catch (err: unknown) {
             messageUpdate("error", "Init error, " + (err?.toString() ?? ""), true);

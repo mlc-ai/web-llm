@@ -5,8 +5,8 @@
 
 import './popup.css';
 
-import {ChatModule, AppConfig, InitProgressReport} from "@mlc-ai/web-llm";
-import {ProgressBar, Line} from "progressbar.js";
+import { ChatModule, AppConfig, InitProgressReport } from "@mlc-ai/web-llm";
+import { ProgressBar, Line } from "progressbar.js";
 
 // TODO: Surface this as an experimental option to the user
 const useWebGPU = true;
@@ -38,19 +38,17 @@ if (useWebGPU) {
         color: '#ffd166',
         trailColor: '#eee',
         trailWidth: 1,
-        svgStyle: {width: '100%', height: '100%'}
+        svgStyle: { width: '100%', height: '100%' }
     });
 
-    const appConfig : AppConfig = {
+    const appConfig: AppConfig = {
         model_list: [
             {
                 "model_url": "https://huggingface.co/mlc-ai/mlc-chat-Mistral-7B-Instruct-v0.1-q4f32_1/resolve/main/",
-                "local_id": "Mistral-7B-Instruct-v0.1-q4f32_1"
+                "local_id": "Mistral-7B-Instruct-v0.1-q4f32_1",
+                "model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Mistral-7B-Instruct-v0.1-q4f32_1-sw4096_cs1024-webgpu.wasm",
             }
-        ],
-    model_lib_map: {
-        "Mistral-7B-Instruct-v0.1-q4f32_1": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Mistral-7B-Instruct-v0.1-q4f32_1-sw4096_cs1024-webgpu.wasm"
-    }                                       
+        ]
     }
 
     cm.setInitProgressCallback((report: InitProgressReport) => {
@@ -120,7 +118,7 @@ async function handleClick() {
         // Generate response
         var inp = message;
         if (context.length > 0) {
-            inp = "Use only the following context when answering the question at the end. Don't use any other knowledge.\n"+ context + "\n\nQuestion: " + message + "\n\nHelpful Answer: ";
+            inp = "Use only the following context when answering the question at the end. Don't use any other knowledge.\n" + context + "\n\nQuestion: " + message + "\n\nHelpful Answer: ";
         }
         console.log("Input:", inp);
         const response = await cm.generate(inp, generateProgressCallback);
@@ -143,12 +141,12 @@ function updateAnswer(answer: string) {
     document.getElementById("answer")!.innerHTML = answerWithBreaks;
     // Add event listener to copy button
     document.getElementById("copyAnswer")!.addEventListener("click", () => {
-      // Get the answer text
-      const answerText = answer;
-      // Copy the answer text to the clipboard
-      navigator.clipboard.writeText(answerText)
-        .then(() => console.log("Answer text copied to clipboard"))
-        .catch((err) => console.error("Could not copy text: ", err));
+        // Get the answer text
+        const answerText = answer;
+        // Copy the answer text to the clipboard
+        navigator.clipboard.writeText(answerText)
+            .then(() => console.log("Answer text copied to clipboard"))
+            .catch((err) => console.error("Could not copy text: ", err));
     });
     const options: Intl.DateTimeFormatOptions = { month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' };
     const time = new Date().toLocaleString('en-US', options);
@@ -159,10 +157,10 @@ function updateAnswer(answer: string) {
 }
 
 function fetchPageContents() {
-    chrome.tabs.query({currentWindow: true, active: true}, function(tabs){
-        var port = chrome.tabs.connect(tabs[0].id,{name: "channelName"});
+    chrome.tabs.query({ currentWindow: true, active: true }, function (tabs) {
+        var port = chrome.tabs.connect(tabs[0].id, { name: "channelName" });
         port.postMessage({});
-        port.onMessage.addListener(function(msg) {
+        port.onMessage.addListener(function (msg) {
             console.log("Page contents:", msg.contents);
             if (useWebGPU) {
                 context = msg.contents
@@ -174,7 +172,7 @@ function fetchPageContents() {
 }
 
 // Grab the page contents when the popup is opened
-window.onload = function() {
+window.onload = function () {
     if (!useWebGPU) {
         fetchPageContents();
     }
