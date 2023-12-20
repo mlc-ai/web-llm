@@ -1,5 +1,6 @@
 .chatui {
     display: flex;
+    position: relative;
     flex-flow: column wrap;
     justify-content: space-between;
     width: 100%;
@@ -11,6 +12,17 @@
     box-shadow: 0 15px 15px -5px rgba(0, 0, 0, 0.2);
     background-color: #343541;
 }
+
+.chatui-logo {
+     display: flex;
+    justify-content: center;
+    align-items: center;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
 
 s .chatui-header {
     display: flex;
@@ -112,15 +124,21 @@ s .chatui-header {
 
 .chatui-reset-btn {
     margin-left: 10px;
-    background: #ececec;
+    background-color: #40414F;
+    color: #fff;
     font-weight: bold;
-    border-radius: 8px;
-    width: 200px;
     cursor: pointer;
+    background-image: url('img/reset.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    width: 40px;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 20px 20px;
 }
 
 .chatui-reset-btn:hover {
-    background: #dcdada;
+    background-color: #03a33e;
 }
 
 .chatui-send-btn {
