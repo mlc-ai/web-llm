@@ -53,20 +53,13 @@ export class ChatModule implements ChatInterface {
       ...chatOpts
     } as ChatConfig;
 
-    const findWasmUrl = () => {
-      if (appConfig?.model_lib_map !== undefined) {
-        const libUrl = appConfig?.model_lib_map[config.model_lib];
-        if (libUrl !== undefined) return libUrl;
-      } else {
-        const libUrl = prebuiltAppConfig.model_lib_map[config.model_lib];
-        if (libUrl !== undefined) return libUrl;
-      }
-      throw Error("Cannot find wasm for " + config.model_lib + " in supplied libMap");
-    }
-
     // load tvm wasm
     const wasmCache = new tvmjs.ArtifactCache("webllm/wasm");
-    const wasmUrl = findWasmUrl();
+    const wasmUrl = modelRecord.model_lib_url;
+    if (wasmUrl === undefined) {
+      throw Error("You need to specify `model_lib_url` for each model in `model_list` " +
+        "so that we can download the model library (i.e. wasm file).")
+    }
     const fetchWasmSource = async () => {
       if (wasmUrl.includes("localhost")) {
         // do not cache wasm on local host as we might update code frequently
