@@ -15,7 +15,29 @@ async function main() {
     setLabel("init-label", report.text);
   });
 
-  await chat.reload("Llama-2-7b-chat-hf-q4f32_1");
+  // Option 1: Specify appConfig to decide what models to include
+  const myAppConfig: AppConfig = {
+    model_list: [
+      {
+        "model_url": "https://huggingface.co/mlc-ai/Llama-2-7b-hf-q4f32_1-MLC/resolve/main/",
+        "local_id": "Llama-2-7b-chat-hf-q4f32_1",
+        "model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Llama-2-7b-chat-hf-q4f32_1-ctx4k_cs1k-MLC-webgpu.wasm",
+      },
+      {
+        "model_url": "https://huggingface.co/mlc-ai/Mistral-7B-Instruct-v0.2-q4f16_1-MLC/resolve/main/",
+        "local_id": "Mistral-7B-Instruct-v0.2-q4f16_1",
+        "model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Mistral-7B-Instruct-v0.2-q4f16_1-sw4k_cs1k-MLC-webgpu.wasm",
+        "required_features": ["shader-f16"],
+      },
+      // Add your own models here...
+    ]
+  }
+  const selectedModel = "Llama-2-7b-chat-hf-q4f32_1"
+  // const selectedModel = "Mistral-7B-Instruct-v0.1-q4f16_1"
+  await chat.reload(selectedModel, undefined, myAppConfig);
+
+  // Option 2: If we do not specify appConfig, we use `prebuiltAppConfig` defined in `config.ts`
+  // await chat.reload("Llama-2-7b-chat-hf-q4f32_1");
 
   const generateProgressCallback = (_step: number, message: string) => {
     setLabel("generate-label", message);
