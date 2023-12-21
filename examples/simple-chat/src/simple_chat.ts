@@ -86,10 +86,6 @@ class ChatUI {
     if (this.requestInProgress) {
       return;
     }
-    const logoElement = document.getElementById('chatui-logo');
-    if (logoElement) {
-        logoElement.style.display = 'none';
-    }
     this.pushTask(async () => {
       await this.asyncGenerate();
     });
