@@ -26,7 +26,8 @@ export class LLMChatPipeline {
   // TODO(tvm-team): remove hard-coded bos from config, likely can be part of conv template
   private bosTokenId = 1;
   private maxWindowLength = -1;
-  private slidingWindow = -1;
+  private slidingWindowSize = -1;
+  private attentionSinkSize = -1;
   private prefillChunkSize = -1;
   private resetStatsPerPrefill = true;
   private stopStr: string;
@@ -38,6 +39,10 @@ export class LLMChatPipeline {
   private stopTriggered = false;
   private appearedTokens = new Set<number>();
   private conversation: Conversation;
+  // Whether sink is in action
+  private sinkTriggered: boolean = false;
+  // sliding window cache offset (Next position to be overridden on the rolling kv cache.)
+  private slidingWindowCacheOffset: number = 0;
   // Total amount of seq len prefilled so far
 
   // stats
@@ -107,13 +112,24 @@ export class LLMChatPipeline {
       }
     }
 
-    // Only use one of slidingWindow and maxWindowLength
-    if (metadata.hasOwnProperty("sliding_window") && metadata.sliding_window != -1) {
-      this.slidingWindow = metadata.sliding_window;
+    // Only use one of slidingWindowSize and maxWindowLength
+    if (metadata.hasOwnProperty("sliding_window_size") && metadata.sliding_window_size != -1) {
+      this.slidingWindowSize = metadata.sliding_window_size;
       if (this.prefillChunkSize <= 0) {
         throw Error("Need to specify prefill chunk size if using sliding window attention.");
       }
-      this.logger("Using slidingWindow: ", this.slidingWindow);
+      this.logger("Using slidingWindowSize: ", this.slidingWindowSize);
+      // Parse attention sink size
+      if (metadata.hasOwnProperty("attention_sink_size") && metadata.attention_sink_size >= 0) {
+        this.attentionSinkSize = metadata.attention_sink_size;
+        this.logger("Using attentionSinkSize: ", this.attentionSinkSize);
+      } else {
+        throw Error(
+          "Need to specify non-negative attention_sink_size if using sliding window. " +
+          "Consider re-compiling the model with the most recent mlc-llm. " +
+          "Use `attention_sink_size=0` for default sliding window."
+        );
+      }
     } else {
       // Depending on when the model is compiled, it can be either called
       // `context_window_size` or `max_window_size`
@@ -182,6 +198,8 @@ export class LLMChatPipeline {
     this.resetRuntimeStats();
     this.fclearKVCaches(this.kvCache);
     this.filledKVCacheLength = 0;
+    this.sinkTriggered = false;
+    this.slidingWindowCacheOffset = 0;
   }
 
   /**
@@ -242,6 +260,19 @@ export class LLMChatPipeline {
         logits = this.tvm.detachFromCurrentScope(
           this.forward(inputData, newSeqLen)
         );
+
+        // Update window cache offset (prefill)
+        if (this.slidingWindowSize != -1) {
+          if (this.sinkTriggered) {
+            this.slidingWindowCacheOffset = Math.max(
+              (this.slidingWindowCacheOffset + chunk.length) % this.slidingWindowSize,
+              this.attentionSinkSize
+            )
+          } else {
+            this.slidingWindowCacheOffset += chunk.length;
+            this.sinkTriggered = this.slidingWindowCacheOffset >= this.attentionSinkSize;
+          }
+        }
       }
       if (newSeqLen != this.filledKVCacheLength + tokenLen) {
         throw Error("Expect chunking process all tokens.")
@@ -284,6 +315,19 @@ export class LLMChatPipeline {
       this.forward(inputData, this.filledKVCacheLength + 1)
     );
     this.filledKVCacheLength += 1;
+
+    // Update window cache offset (decoding)
+    if (this.slidingWindowSize != -1) {
+      if (this.sinkTriggered) {
+        this.slidingWindowCacheOffset = Math.max(
+          (this.slidingWindowCacheOffset + 1) % this.slidingWindowSize,
+          this.attentionSinkSize
+        )
+      } else {
+        this.slidingWindowCacheOffset += 1;
+        this.sinkTriggered = this.slidingWindowCacheOffset >= this.attentionSinkSize;
+      }
+    }
     this.tvm.endScope();
 
     // sample from logits
@@ -348,34 +392,38 @@ export class LLMChatPipeline {
     const seqLenShape = this.tvm.makeShapeTuple([curPos]);
     if (inputs.shape[1] > 1) {
       // Prefill
-      if (this.slidingWindow == -1) {
+      if (this.slidingWindowSize == -1) {
         retValue = this.prefill(
           inputs, seqLenShape, this.kvCache, this.params
         );
       } else {
         // Sliding window attention needs extra shape parameters
         const seqLen = inputs.shape[1];  // Num input tokens
-        const cacheLen = Math.min(this.slidingWindow, curPos - seqLen);  // Num elements in the cache
+        const cacheLen = Math.min(this.slidingWindowSize, curPos - seqLen);  // Num elements in the cache
         const cacheLenShape = this.tvm.makeShapeTuple([cacheLen]);
         const kvSeqLenShape = this.tvm.makeShapeTuple([cacheLen + seqLen]);
+        // Next position to be overridden on the rolling kv cache.
+        const slidingWindowCacheOffsetShape = this.tvm.makeShapeTuple([this.slidingWindowCacheOffset]);
         retValue = this.prefill(
-          inputs, seqLenShape, cacheLenShape, kvSeqLenShape, this.kvCache, this.params
+          inputs, cacheLenShape, kvSeqLenShape, slidingWindowCacheOffsetShape, this.kvCache, this.params
         );
       }
     } else {
       // Decode
-      if (this.slidingWindow == -1) {
+      if (this.slidingWindowSize == -1) {
         retValue = this.decoding(
           inputs, seqLenShape, this.kvCache, this.params
         );
       } else {
         // Same logic as above; keeping this if-else structure to match mlc-llm's llm_chat.cc
         const seqLen = inputs.shape[1];  // Num input tokens
-        const cacheLen = Math.min(this.slidingWindow, curPos - seqLen);  // Num elements in the cache
+        const cacheLen = Math.min(this.slidingWindowSize, curPos - seqLen);  // Num elements in the cache
         const cacheLenShape = this.tvm.makeShapeTuple([cacheLen]);
         const kvSeqLenShape = this.tvm.makeShapeTuple([cacheLen + seqLen]);
+        // Next position to be overridden on the rolling kv cache.
+        const slidingWindowCacheOffsetShape = this.tvm.makeShapeTuple([this.slidingWindowCacheOffset]);
         retValue = this.decoding(
-          inputs, seqLenShape, cacheLenShape, kvSeqLenShape, this.kvCache, this.params
+          inputs, cacheLenShape, kvSeqLenShape, slidingWindowCacheOffsetShape, this.kvCache, this.params
         );
       }
     }
@@ -451,7 +499,7 @@ export class LLMChatPipeline {
     for (let i = prompts.length - 1; i > 0; --i) {
       const encoded = this.tokenizer.encode(prompts[i]);
       ctxLength += encoded.length;
-      if (this.slidingWindow == -1 &&  // There is no maxWindowLength if we use sliding window
+      if (this.slidingWindowSize == -1 &&  // There is no maxWindowLength if we use sliding window
         this.filledKVCacheLength + ctxLength + this.config.mean_gen_len >= this.maxWindowLength) {
         needShiftWindow = true;
         break;
@@ -466,7 +514,7 @@ export class LLMChatPipeline {
     }
 
     // Code starting below should not be reached when using sliding window.
-    if (this.slidingWindow != -1) {
+    if (this.slidingWindowSize != -1) {
       throw Error("Should not shift window when using sliding window attention.");
     }
 
