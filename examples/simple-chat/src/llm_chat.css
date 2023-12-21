@@ -12,16 +12,37 @@
     background-color: #343541;
 }
 
-.chatui-logo {
-     display: flex;
+.chatui-select-wrapper {
+    display: flex;
     justify-content: center;
-    align-items: center;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    background-color: #1F2027;
+    padding: 10px 0;
 }
 
+#chatui-select {
+    width: 300px;
+    background-color: #1F2027;
+    color: white;
+    border: none;
+}
+
+#chatui-select:focus {
+    outline: none;
+}
+
+#chatui-select::-webkit-scrollbar {
+    display: none;
+}
+
+#chatui-select option {
+    background-color: #1F2027;
+    color: white;
+}
+
+#chatui-select option:hover {
+    background-color: #474747;
+    color: white;
+}
 
 s .chatui-header {
     display: flex;
