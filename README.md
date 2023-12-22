@@ -5,13 +5,13 @@
 
 WebLLM is a modular, customizable javascript package that directly
 brings language model chats directly onto web browsers with hardware acceleration.
-**Everything runs inside the browser with no server support and accelerated with WebGPU.**
+**Everything runs inside the browser with no server support and is accelerated with WebGPU.**
 We can bring a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration.
 
 **[Check out our demo webpage to try out!](https://webllm.mlc.ai/)**
 You can use WebLLM as a base [npm package](https://www.npmjs.com/package/@mlc-ai/web-llm) and build your own web application on top of it by following the [documentation](https://mlc.ai/mlc-llm/docs/deploy/javascript.html) and checking out [Get Started](#get-started).
 This project is a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm),
-our companion project that runs LLMs natively on iPhone and other native local environments.
+which runs LLMs natively on iPhone and other native local environments.
 
 
 <img src="site/img/fig/demo.gif">
@@ -114,10 +114,11 @@ a complete chat app example in [examples/simple-chat](examples/simple-chat/).
 ## Customized Model Weights
 
 WebLLM works as a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm).
-It reuses the model artifact and builds flow of MLC LLM, please check out MLC LLM document
-on how to build new model weights and libraries (MLC LLM document will come in the incoming weeks).
-To generate the wasm needed by WebLLM, you can run with `--target webgpu` in the mlc llm build.
-There are two elements of the WebLLM package that enables new models and weight variants.
+It reuses the model artifact and builds flow of MLC LLM, please check out
+[MLC LLM document](https://llm.mlc.ai/docs/deploy/javascript.html)
+on how to add new model weights and libraries to WebLLM.
+
+Here, we go over the high-level idea. There are two elements of the WebLLM package that enables new models and weight variants.
 
 - model_url: Contains a URL to model artifacts, such as weights and meta-data.
 - model_lib_url: A URL to the web assembly library (i.e. wasm file) that contains the executables to accelerate the model computations.
