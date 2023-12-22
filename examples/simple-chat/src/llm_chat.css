@@ -24,6 +24,7 @@
     background-color: #1F2027;
     color: white;
     border: none;
+    font-family: 'Arial Rounded MT Bold', sans-serif;
 }
 
 #chatui-select:focus {
