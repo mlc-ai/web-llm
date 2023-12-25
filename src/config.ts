@@ -62,7 +62,7 @@ export const prebuiltAppConfig: AppConfig = {
       "local_id": "RedPajama-INCITE-Chat-3B-v1-q4f32_1",
     },
     {
-      "model_url": "https://huggingface.co/mlc-ai/Llama-2-7b-hf-q4f32_1-MLC/resolve/main/",
+      "model_url": "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f32_1-MLC/resolve/main/",
       "model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Llama-2-7b-chat-hf/Llama-2-7b-chat-hf-q4f32_1-ctx4k_cs1k-webgpu.wasm",
       "local_id": "Llama-2-7b-chat-hf-q4f32_1"
     }
