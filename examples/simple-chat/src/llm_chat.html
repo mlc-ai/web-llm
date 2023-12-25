@@ -1,20 +1,21 @@
-<select id="chatui-select">
-</select>
-
 <link href="./llm_chat.css" rel="stylesheet" type="text/css"/>
 
 <div class="chatui">
+   <div class="chatui-select-wrapper">
+    <select id="chatui-select">
+    </select>
+   </div>
   <div class="chatui-chat" id="chatui-chat" height="100">
   </div>
 
   <div class="chatui-inputarea">
     <input id="chatui-input" type="text" class="chatui-input"  placeholder="Enter your message...">
-    <button id="chatui-send-btn" class="chatui-send-btn">Send</button>
+    <button id="chatui-send-btn" class="chatui-send-btn"></button>
+    <button id="chatui-reset-btn" class="chatui-reset-btn"></button>
   </div>
 </div>
 
 <div class="chatui-extra-control">
-  <button id="chatui-reset-btn" class="chatui-reset-btn">Reset</button>
   <label id="chatui-info-label"></label>
 </div>
 <!--- Place script after ui to make sure ui loads first -->
