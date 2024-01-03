@@ -56,8 +56,12 @@ class ChatUI {
       opt.value = item.local_id;
       opt.innerHTML = item.local_id;
       opt.selected = (i == 0);
+      if (!modelSelector.lastChild?.textContent?.startsWith(opt.value.split('-')[0])) {
+        modelSelector.appendChild(document.createElement("hr"));
+      }
       modelSelector.appendChild(opt);
     }
+    modelSelector.appendChild(document.createElement("hr"));
     // Append local server option to the model selector
     const localServerOpt = document.createElement("option");
     localServerOpt.value = "Local Server";
