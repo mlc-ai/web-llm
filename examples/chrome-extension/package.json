@@ -17,7 +17,7 @@
     "url": "^0.11.1"
   },
   "dependencies": {
-    "@mlc-ai/web-llm": "^0.2.14",
+    "@mlc-ai/web-llm": "^0.2.15",
     "progressbar.js": "^1.1.0"
   }
 }
