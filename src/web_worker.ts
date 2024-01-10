@@ -14,7 +14,7 @@ type RequestKind = (
   "return" | "throw" |
   "reload" | "generate" | "runtimeStatsText" |
   "interruptGenerate" | "unload" | "resetChat" |
-  "initProgressCallback" | "generateProgressCallback"
+  "initProgressCallback" | "generateProgressCallback" | "getMaxStorageBufferBindingSize"
 );
 
 interface ReloadParams {
@@ -39,7 +39,8 @@ type MessageContent =
   GenerateParams |
   InitProgressReport |
   string |
-  null;
+  null |
+  number;
 
 /**
  * The message used in exchange between worker
@@ -77,7 +78,7 @@ export class ChatWorkerHandler {
     });
   }
 
-  async handleTask<T extends MessageContent>(uuid: string, task: ()=>Promise<T>) {
+  async handleTask<T extends MessageContent>(uuid: string, task: () => Promise<T>) {
     try {
       const res = await task();
       const msg: WorkerMessage = {
@@ -86,7 +87,7 @@ export class ChatWorkerHandler {
         content: res
       };
       postMessage(msg);
-    } catch(err) {
+    } catch (err) {
       const errStr = (err as object).toString();
       const msg: WorkerMessage = {
         kind: "throw",
@@ -99,7 +100,7 @@ export class ChatWorkerHandler {
 
   onmessage(event: MessageEvent) {
     const msg = event.data as WorkerMessage;
-    switch(msg.kind) {
+    switch (msg.kind) {
       case "reload": {
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ReloadParams;
@@ -109,7 +110,7 @@ export class ChatWorkerHandler {
         return;
       }
       case "generate": {
-        this.handleTask(msg.uuid, async() => {
+        this.handleTask(msg.uuid, async () => {
           const params = msg.content as GenerateParams;
           const progressCallback = (step: number, currentMessage: string) => {
             const cbMessage: WorkerMessage = {
@@ -127,7 +128,7 @@ export class ChatWorkerHandler {
         return;
       }
       case "runtimeStatsText": {
-        this.handleTask(msg.uuid, async() => {
+        this.handleTask(msg.uuid, async () => {
           return await this.chat.runtimeStatsText();
         });
         return;
@@ -150,6 +151,12 @@ export class ChatWorkerHandler {
         this.handleTask(msg.uuid, async () => {
           await this.chat.resetChat();
           return null;
+        });
+        return;
+      }
+      case "getMaxStorageBufferBindingSize": {
+        this.handleTask(msg.uuid, async () => {
+          return await this.chat.getMaxStorageBufferBindingSize();
         });
         return;
       }
@@ -179,7 +186,7 @@ export class ChatWorkerClient implements ChatInterface {
   public worker: ChatWorker;
   private initProgressCallback?: InitProgressCallback;
   private generateCallbackRegistry = new Map<string, GenerateProgressCallback>();
-  private pendingPromise = new Map<string, (msg: WorkerMessage)=>void>();
+  private pendingPromise = new Map<string, (msg: WorkerMessage) => void>();
 
   constructor(worker: any) {
     this.worker = worker;
@@ -229,11 +236,20 @@ export class ChatWorkerClient implements ChatInterface {
     await this.getPromise<null>(msg);
   }
 
+  async getMaxStorageBufferBindingSize(): Promise<number> {
+    const msg: WorkerMessage = {
+      kind: "getMaxStorageBufferBindingSize",
+      uuid: crypto.randomUUID(),
+      content: null
+    };
+    return this.getPromise<number>(msg);
+  }
+
   async generate(
     input: string,
     progressCallback?: GenerateProgressCallback,
     streamInterval?: number
-  ) : Promise<string> {
+  ): Promise<string> {
     const msg: WorkerMessage = {
       kind: "generate",
       uuid: crypto.randomUUID(),
