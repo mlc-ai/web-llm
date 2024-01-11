@@ -89,7 +89,8 @@ class ChatUI {
       opt.innerHTML = item.local_id;
       opt.selected = (i == 0);
       if (restrictModels && !lowRequirementModels.has(item.local_id)) {
-        opt.disabled = true;
+        const params = new URLSearchParams(location.search);
+        opt.disabled = !params.has("bypassRestrictions");
         opt.selected = false;
       }
       if (!modelSelector.lastChild?.textContent?.startsWith(opt.value.split('-')[0])) {
