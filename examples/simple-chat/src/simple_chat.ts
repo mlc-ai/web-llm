@@ -61,10 +61,6 @@ class ChatUI {
     // phone) can only handle small models and make all other models unselectable. Otherwise, the
     // browser may crash. See https://github.com/mlc-ai/web-llm/issues/209.
     let restrictModels = false;
-    const lowRequirementModels = new Set<string>([
-      'RedPajama-INCITE-Chat-3B-v1-q4f16_1-1k',
-      'RedPajama-INCITE-Chat-3B-v1-q4f32_1-1k'
-    ])
     let maxStorageBufferBindingSize: number;
     try {
       maxStorageBufferBindingSize = await chat.getMaxStorageBufferBindingSize();
@@ -88,7 +84,7 @@ class ChatUI {
       opt.value = item.local_id;
       opt.innerHTML = item.local_id;
       opt.selected = (i == 0);
-      if (restrictModels && !lowRequirementModels.has(item.local_id)) {
+      if (restrictModels && (item.low_resource_required === undefined || !item.low_resource_required)) {
         const params = new URLSearchParams(location.search);
         opt.disabled = !params.has("bypassRestrictions");
         opt.selected = false;
