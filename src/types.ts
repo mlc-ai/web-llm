@@ -4,7 +4,7 @@ import { AppConfig, ChatConfig } from "./config"
  * Custom options that can be used to
  * override known config values.
  */
-export interface ChatOptions extends Partial<ChatConfig> {}
+export interface ChatOptions extends Partial<ChatConfig> { }
 
 /**
  * Report during intialization.
@@ -85,5 +85,11 @@ export interface ChatInterface {
    * Reset the current chat session by clear all memories.
    */
   resetChat: () => Promise<void>;
+
+  /**
+   * Returns the device's maxStorageBufferBindingSize, can be used to guess whether the device
+   * has limited resources like an Android phone.
+   */
+  getMaxStorageBufferBindingSize(): Promise<number>;
 }
 

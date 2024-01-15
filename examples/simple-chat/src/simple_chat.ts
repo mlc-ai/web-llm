@@ -27,51 +27,88 @@ class ChatUI {
   // all requests send to chat are sequentialized
   private chatRequestChain: Promise<void> = Promise.resolve();
 
-  constructor(chat: ChatInterface, localChat: ChatInterface) {
+  private constructor() {
+  }
+
+  /**
+   * An asynchronous factory constructor since we need to await getMaxStorageBufferBindingSize();
+   * this is not allowed in a constructor (which cannot be asynchronous).
+   */
+  public static CreateAsync = async (chat: ChatInterface, localChat: ChatInterface) => {
+    const chatUI = new ChatUI();
     // use web worker to run chat generation in background
-    this.chat = chat;
-    this.localChat = localChat;
+    chatUI.chat = chat;
+    chatUI.localChat = localChat;
     // get the elements
-    this.uiChat = getElementAndCheck("chatui-chat");
-    this.uiChatInput = getElementAndCheck("chatui-input") as HTMLInputElement;
-    this.uiChatInfoLabel = getElementAndCheck("chatui-info-label") as HTMLLabelElement;
+    chatUI.uiChat = getElementAndCheck("chatui-chat");
+    chatUI.uiChatInput = getElementAndCheck("chatui-input") as HTMLInputElement;
+    chatUI.uiChatInfoLabel = getElementAndCheck("chatui-info-label") as HTMLLabelElement;
     // register event handlers
     getElementAndCheck("chatui-reset-btn").onclick = () => {
-      this.onReset();
+      chatUI.onReset();
     };
     getElementAndCheck("chatui-send-btn").onclick = () => {
-      this.onGenerate();
+      chatUI.onGenerate();
     };
     // TODO: find other alternative triggers
     getElementAndCheck("chatui-input").onkeypress = (event) => {
       if (event.keyCode === 13) {
-        this.onGenerate();
+        chatUI.onGenerate();
       }
     };
 
+    // When we detect low maxStorageBufferBindingSize, we assume that the device (e.g. an Android
+    // phone) can only handle small models and make all other models unselectable. Otherwise, the
+    // browser may crash. See https://github.com/mlc-ai/web-llm/issues/209.
+    let restrictModels = false;
+    let maxStorageBufferBindingSize: number;
+    try {
+      maxStorageBufferBindingSize = await chat.getMaxStorageBufferBindingSize();
+    } catch (err) {
+      chatUI.appendMessage("error", "Init error, " + err.toString());
+      console.log(err.stack);
+      return;
+    }
+    const androidMaxStorageBufferBindingSize = 1 << 27;  // 128MB
+    if (maxStorageBufferBindingSize <= androidMaxStorageBufferBindingSize) {
+      chatUI.appendMessage("init", "Your device seems to have " +
+        "limited resources, so we restrict the selectable models.");
+      restrictModels = true;
+    }
+
+    // Populate modelSelector
     const modelSelector = getElementAndCheck("chatui-select") as HTMLSelectElement;
-    for (let i = 0; i < this.config.model_list.length; ++i) {
-      const item = this.config.model_list[i];
+    for (let i = 0; i < chatUI.config.model_list.length; ++i) {
+      const item = chatUI.config.model_list[i];
       const opt = document.createElement("option");
       opt.value = item.local_id;
       opt.innerHTML = item.local_id;
       opt.selected = (i == 0);
+      if (restrictModels && (item.low_resource_required === undefined || !item.low_resource_required)) {
+        const params = new URLSearchParams(location.search);
+        opt.disabled = !params.has("bypassRestrictions");
+        opt.selected = false;
+      }
       if (!modelSelector.lastChild?.textContent?.startsWith(opt.value.split('-')[0])) {
         modelSelector.appendChild(document.createElement("hr"));
       }
       modelSelector.appendChild(opt);
     }
     modelSelector.appendChild(document.createElement("hr"));
+
     // Append local server option to the model selector
     const localServerOpt = document.createElement("option");
     localServerOpt.value = "Local Server";
     localServerOpt.innerHTML = "Local Server";
     modelSelector.append(localServerOpt);
-    this.selectedModel = modelSelector.value;
+    chatUI.selectedModel = modelSelector.value;
     modelSelector.onchange = () => {
-      this.onSelectChange(modelSelector);
+      chatUI.onSelectChange(modelSelector);
     };
+
+    return chatUI;
   }
+
   /**
    * Push a task to the execution queue.
    *
@@ -262,4 +299,4 @@ if (useWebWorker) {
   chat = new ChatModule();
   localChat = new ChatRestModule();
 }
-new ChatUI(chat, localChat);
+ChatUI.CreateAsync(chat, localChat);

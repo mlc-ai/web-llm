@@ -90,23 +90,6 @@ export class ChatModule implements ChatInterface {
     if (gpuDetectOutput == undefined) {
       throw Error("Cannot find WebGPU in the environment");
     }
-
-    // check whether maxStorageBufferBindingSize falls from 1GB to 128MB
-    const computeMB = (value: number) => {
-      return Math.ceil(value / (1 << 20)) + "MB";
-    }
-    const defaultRequiredMaxStorageBufferBindingSize = 1 << 30;  // 1GB
-    if (gpuDetectOutput.device.limits.maxStorageBufferBindingSize < defaultRequiredMaxStorageBufferBindingSize) {
-      console.log(
-        `WARNING: the current maxStorageBufferBindingSize ` +
-        `(${computeMB(gpuDetectOutput.device.limits.maxStorageBufferBindingSize)}) ` +
-        `may only work for a limited number of models, e.g.: \n` +
-        `- Llama-2-7b-chat-hf-q4f16_1-1k \n` +
-        `- RedPajama-INCITE-Chat-3B-v1-q4f16_1-1k \n` +
-        `- RedPajama-INCITE-Chat-3B-v1-q4f32_1-1k`
-      );
-    }
-
     let gpuLabel = "WebGPU";
     if (gpuDetectOutput.adapterInfo.description.length != 0) {
       gpuLabel += " - " + gpuDetectOutput.adapterInfo.description;
@@ -132,6 +115,11 @@ export class ChatModule implements ChatInterface {
     }
 
     tvm.initWebGPU(gpuDetectOutput.device);
+    gpuDetectOutput.device.lost.then((info: any) => {
+      // `fetchNDArrayCache` may exceed available memory; use `lost.then` to prevent crashing
+      console.error("Device was lost, please try to initialize again. ", info);
+      this.unload();
+    });
     const tokenizer = await this.asyncLoadTokenizer(modelUrl, config);
     await tvm.fetchNDArrayCache(modelUrl, tvm.webgpu(), "webllm/model");
 
@@ -188,6 +176,31 @@ export class ChatModule implements ChatInterface {
   async unload() {
     this.pipeline?.dispose();
     this.pipeline = undefined;
+  }
+
+  async getMaxStorageBufferBindingSize(): Promise<number> {
+    // First detect GPU
+    const gpuDetectOutput = await tvmjs.detectGPUDevice();
+    if (gpuDetectOutput == undefined) {
+      throw Error("Cannot find WebGPU in the environment");
+    }
+
+    const computeMB = (value: number) => {
+      return Math.ceil(value / (1 << 20)) + "MB";
+    }
+    const maxStorageBufferBindingSize = gpuDetectOutput.device.limits.maxStorageBufferBindingSize;
+    const defaultMaxStorageBufferBindingSize = 1 << 30;  // 1GB
+    if (maxStorageBufferBindingSize < defaultMaxStorageBufferBindingSize) {
+      console.log(
+        `WARNING: the current maxStorageBufferBindingSize ` +
+        `(${computeMB(maxStorageBufferBindingSize)}) ` +
+        `may only work for a limited number of models, e.g.: \n` +
+        `- Llama-2-7b-chat-hf-q4f16_1-1k \n` +
+        `- RedPajama-INCITE-Chat-3B-v1-q4f16_1-1k \n` +
+        `- RedPajama-INCITE-Chat-3B-v1-q4f32_1-1k`
+      );
+    }
+    return maxStorageBufferBindingSize;
   }
 
   //--------------------------
@@ -267,6 +280,10 @@ export class ChatRestModule implements ChatInterface {
   }
 
   async reload(localId: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
+    throw new Error("Method not implemented.");
+  }
+
+  async getMaxStorageBufferBindingSize(): Promise<number> {
     throw new Error("Method not implemented.");
   }
 

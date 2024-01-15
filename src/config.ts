@@ -32,12 +32,17 @@ export interface ChatConfig {
  * @param model_url: the huggingface link to download the model weights.
  * @param local_id: what we call the model.
  * @param model_lib_url: link to the model library (wasm file) the model uses.
+ * @param vram_required_MB: amount of vram in MB required to run the model (can use
+ *    `utils/vram_requirements` to calculate).
+ * @param low_resource_required: whether the model can run on limited devices (e.g. Android phone).
  * @param required_features: feature needed to run this model (e.g. shader-f16).
  */
 export interface ModelRecord {
   model_url: string;
   local_id: string;
   model_lib_url: string;
+  vram_required_MB?: number;
+  low_resource_required?: boolean;
   required_features?: Array<string>;
 }
 
