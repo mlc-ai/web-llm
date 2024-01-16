@@ -223,16 +223,17 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       stop_tokens: [2, 32000],
       ...conv_config,
     });
-  } else if (conv_template == "empty") {
+  } else if (conv_template == "chatml") {
     return new Conversation({
-      system: "",
-      roles: ["", ""],
+      system: "<|im_start|>system A conversation between a user and an LLM-based AI assistant. The " +
+        "assistant gives helpful and honest answers.<|im_end|> ",
+      roles: ["<|im_start|>user", "<|im_start|>assistant"],
       offset: 0,
       seps: ["", ""],
       separator_style: "Two",
-      stop_str: "</s>",
+      stop_str: "<|im_end|>",
       add_bos: false,
-      stop_tokens: [],
+      stop_tokens: [2],
     });
   } else if (conv_template == "custom") {
     return new Conversation(conv_config as Required<ConvTemplateConfig>);

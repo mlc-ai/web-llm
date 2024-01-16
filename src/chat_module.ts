@@ -18,12 +18,14 @@ export class ChatModule implements ChatInterface {
   private pipeline?: LLMChatPipeline;
   private initProgressCallback?: InitProgressCallback;
   private interruptSignal = false;
+  private deviceLostIsError = false;  // whether device.lost is due to actual error or model reload
 
   setInitProgressCallback(initProgressCallback: InitProgressCallback) {
     this.initProgressCallback = initProgressCallback;
   }
 
   async reload(localId: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
+    this.deviceLostIsError = false;  // so that unload() does not trigger device.lost warning
     this.unload();
     const tstart = performance.now();
     if (appConfig === undefined) {
@@ -117,9 +119,12 @@ export class ChatModule implements ChatInterface {
     tvm.initWebGPU(gpuDetectOutput.device);
     gpuDetectOutput.device.lost.then((info: any) => {
       // `fetchNDArrayCache` may exceed available memory; use `lost.then` to prevent crashing
-      console.error("Device was lost, please try to initialize again. ", info);
-      this.unload();
+      if (this.deviceLostIsError) {
+        console.error("Device was lost, please try to initialize again. ", info);
+        this.unload();
+      }
     });
+    this.deviceLostIsError = true;
     const tokenizer = await this.asyncLoadTokenizer(modelUrl, config);
     await tvm.fetchNDArrayCache(modelUrl, tvm.webgpu(), "webllm/model");
 
@@ -197,7 +202,9 @@ export class ChatModule implements ChatInterface {
         `may only work for a limited number of models, e.g.: \n` +
         `- Llama-2-7b-chat-hf-q4f16_1-1k \n` +
         `- RedPajama-INCITE-Chat-3B-v1-q4f16_1-1k \n` +
-        `- RedPajama-INCITE-Chat-3B-v1-q4f32_1-1k`
+        `- RedPajama-INCITE-Chat-3B-v1-q4f32_1-1k \n` +
+        `- TinyLlama-1.1B-Chat-v0.4-q4f16_1-1k \n` +
+        `- TinyLlama-1.1B-Chat-v0.4-q4f32_1-1k`
       );
     }
     return maxStorageBufferBindingSize;
