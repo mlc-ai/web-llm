@@ -9,7 +9,7 @@
     height: 600px;
     border: 2px solid #ddd;
     border-radius: 5px;
-    background-color: #343541;
+    background-color: #1F2027;
 }
 
 .chatui-select-wrapper {
@@ -53,11 +53,18 @@ s .chatui-header {
     color: #666;
 }
 
+/* Used to remove tiny white lines in android devices; not sure if there is a better way */
+*,
+*::before,
+*::after {
+    box-sizing: content-box;
+}
+
 .chatui-chat {
     flex: 1;
     overflow-y: auto;
     padding: 10px;
-    background-color: rgba(0, 0, 0, 0.4)
+    background-color: #1F2027;
 }
 
 .chatui-chat::-webkit-scrollbar {
@@ -124,7 +131,7 @@ s .chatui-header {
     display: flex;
     padding: 10px;
     border-top: 2px solid transparent;
-    background-color: rgba(0, 0, 0, 0.4)
+    background-color: #1F2027;
 }
 
 .chatui-inputarea * {
