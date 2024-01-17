@@ -108,7 +108,7 @@ export default {
 		{
 			"model_url": "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q0f16-MLC/resolve/main/",
 			"local_id": "TinyLlama-1.1B-Chat-v0.4-q0f16",
-			"model_lib_url": "https://raw.githubusercontent.com/CharlieFRuan/binary-mlc-llm-libs/pr-0116-tinyLlama-wasm/TinyLlama-1.1B-Chat-v0.4/TinyLlama-1.1B-Chat-v0.4-q0f16-ctx2k-webgpu.wasm",
+			"model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/TinyLlama-1.1B-Chat-v0.4/TinyLlama-1.1B-Chat-v0.4-q0f16-ctx2k-webgpu.wasm",
 			"vram_required_MB": 5063.52,
 			"low_resource_required": false,
 			"required_features": ["shader-f16"],
@@ -116,14 +116,14 @@ export default {
 		{
 			"model_url": "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q0f32-MLC/resolve/main/",
 			"local_id": "TinyLlama-1.1B-Chat-v0.4-q0f32",
-			"model_lib_url": "https://raw.githubusercontent.com/CharlieFRuan/binary-mlc-llm-libs/pr-0116-tinyLlama-wasm/TinyLlama-1.1B-Chat-v0.4/TinyLlama-1.1B-Chat-v0.4-q0f32-ctx2k-webgpu.wasm",
+			"model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/TinyLlama-1.1B-Chat-v0.4/TinyLlama-1.1B-Chat-v0.4-q0f32-ctx2k-webgpu.wasm",
 			"vram_required_MB": 5394.53,
 			"low_resource_required": false,
 		},
 		{
 			"model_url": "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC/resolve/main/",
 			"local_id": "TinyLlama-1.1B-Chat-v0.4-q4f16_1-1k",
-			"model_lib_url": "https://raw.githubusercontent.com/CharlieFRuan/binary-mlc-llm-libs/pr-0116-tinyLlama-wasm/TinyLlama-1.1B-Chat-v0.4/TinyLlama-1.1B-Chat-v0.4-q4f16_1-ctx1k-webgpu.wasm",
+			"model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/TinyLlama-1.1B-Chat-v0.4/TinyLlama-1.1B-Chat-v0.4-q4f16_1-ctx1k-webgpu.wasm",
 			"vram_required_MB": 899.11,
 			"low_resource_required": true,
 			"required_features": ["shader-f16"],
@@ -131,7 +131,7 @@ export default {
 		{
 			"model_url": "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC/resolve/main/",
 			"local_id": "TinyLlama-1.1B-Chat-v0.4-q4f32_1-1k",
-			"model_lib_url": "https://raw.githubusercontent.com/CharlieFRuan/binary-mlc-llm-libs/pr-0116-tinyLlama-wasm/TinyLlama-1.1B-Chat-v0.4/TinyLlama-1.1B-Chat-v0.4-q4f32_1-ctx1k-webgpu.wasm",
+			"model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/TinyLlama-1.1B-Chat-v0.4/TinyLlama-1.1B-Chat-v0.4-q4f32_1-ctx1k-webgpu.wasm",
 			"vram_required_MB": 992.11,
 			"low_resource_required": true,
 		},
