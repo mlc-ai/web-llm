@@ -91,5 +91,11 @@ export interface ChatInterface {
    * has limited resources like an Android phone.
    */
   getMaxStorageBufferBindingSize(): Promise<number>;
+
+  /**
+   * Returns the device's gpu vendor (e.g. arm, qualcomm, apple) if available. Otherwise return
+   * an empty string.
+   */
+  getGPUVendor(): Promise<string>;
 }
 

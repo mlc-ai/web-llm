@@ -60,17 +60,22 @@ class ChatUI {
     // When we detect low maxStorageBufferBindingSize, we assume that the device (e.g. an Android
     // phone) can only handle small models and make all other models unselectable. Otherwise, the
     // browser may crash. See https://github.com/mlc-ai/web-llm/issues/209.
+    // Also use GPU vendor to decide whether it is a mobile device (hence with limited resources).
+    const androidMaxStorageBufferBindingSize = 1 << 27;  // 128MB
+    const mobileVendors = new Set<string>(["qualcomm", "arm"])
     let restrictModels = false;
     let maxStorageBufferBindingSize: number;
+    let gpuVendor: string;
     try {
       maxStorageBufferBindingSize = await chat.getMaxStorageBufferBindingSize();
+      gpuVendor = await chat.getGPUVendor();
     } catch (err) {
       chatUI.appendMessage("error", "Init error, " + err.toString());
       console.log(err.stack);
       return;
     }
-    const androidMaxStorageBufferBindingSize = 1 << 27;  // 128MB
-    if (maxStorageBufferBindingSize <= androidMaxStorageBufferBindingSize) {
+    if ((gpuVendor.length != 0 && mobileVendors.has(gpuVendor)) ||
+      (maxStorageBufferBindingSize <= androidMaxStorageBufferBindingSize)) {
       chatUI.appendMessage("init", "Your device seems to have " +
         "limited resources, so we restrict the selectable models.");
       restrictModels = true;

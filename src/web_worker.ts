@@ -14,7 +14,8 @@ type RequestKind = (
   "return" | "throw" |
   "reload" | "generate" | "runtimeStatsText" |
   "interruptGenerate" | "unload" | "resetChat" |
-  "initProgressCallback" | "generateProgressCallback" | "getMaxStorageBufferBindingSize"
+  "initProgressCallback" | "generateProgressCallback" | "getMaxStorageBufferBindingSize" |
+  "getGPUVendor"
 );
 
 interface ReloadParams {
@@ -160,6 +161,12 @@ export class ChatWorkerHandler {
         });
         return;
       }
+      case "getGPUVendor": {
+        this.handleTask(msg.uuid, async () => {
+          return await this.chat.getGPUVendor();
+        });
+        return;
+      }
       default: {
         throw Error("Invalid kind, msg=" + msg);
       }
@@ -243,6 +250,15 @@ export class ChatWorkerClient implements ChatInterface {
       content: null
     };
     return this.getPromise<number>(msg);
+  }
+
+  async getGPUVendor(): Promise<string> {
+    const msg: WorkerMessage = {
+      kind: "getGPUVendor",
+      uuid: crypto.randomUUID(),
+      content: null
+    };
+    return this.getPromise<string>(msg);
   }
 
   async generate(

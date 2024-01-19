@@ -210,6 +210,15 @@ export class ChatModule implements ChatInterface {
     return maxStorageBufferBindingSize;
   }
 
+  async getGPUVendor(): Promise<string> {
+    // First detect GPU
+    const gpuDetectOutput = await tvmjs.detectGPUDevice();
+    if (gpuDetectOutput == undefined) {
+      throw Error("Cannot find WebGPU in the environment");
+    }
+    return gpuDetectOutput.adapterInfo.vendor;
+  }
+
   //--------------------------
   // Lower level API
   //--------------------------
@@ -291,6 +300,10 @@ export class ChatRestModule implements ChatInterface {
   }
 
   async getMaxStorageBufferBindingSize(): Promise<number> {
+    throw new Error("Method not implemented.");
+  }
+
+  async getGPUVendor(): Promise<string> {
     throw new Error("Method not implemented.");
   }
 
