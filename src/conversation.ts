@@ -235,6 +235,18 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       add_bos: false,
       stop_tokens: [2],
     });
+  } else if (conv_template == "phi-2") {
+    return new Conversation({
+      system: "",
+      roles: ["Instruct", "Output"],
+      offset: 0,
+      seps: ["\n"],
+      separator_style: "Two",
+      stop_str: "<|endoftext|>",
+      add_bos: false,
+      stop_tokens: [50256],
+      ...conv_config,
+    });
   } else if (conv_template == "custom") {
     return new Conversation(conv_config as Required<ConvTemplateConfig>);
   } else {
