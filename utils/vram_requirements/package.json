@@ -19,7 +19,7 @@
         "url": "^0.11.3"
     },
     "dependencies": {
-        "@mlc-ai/web-llm": "^0.2.16",
+        "@mlc-ai/web-llm": "^0.2.17",
         "tvmjs": "file:./../../tvm_home/web"
     }
 }
