@@ -247,6 +247,19 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       stop_tokens: [50256],
       ...conv_config,
     });
+  } else if (conv_template == "empty") {
+    // A dummy template for non-language models; should never be actually used
+    return new Conversation({
+      system: "",
+      roles: ["", ""],
+      offset: 0,
+      seps: [""],
+      separator_style: "Two",
+      stop_str: "",
+      add_bos: false,
+      stop_tokens: [],
+      ...conv_config,
+    });
   } else if (conv_template == "custom") {
     return new Conversation(conv_config as Required<ConvTemplateConfig>);
   } else {

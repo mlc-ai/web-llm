@@ -7,7 +7,8 @@ export {
   InitProgressCallback,
   InitProgressReport,
   ChatOptions,
-  ChatInterface
+  ChatInterface,
+  LogitProcessor,
 } from "./types";
 
 export {
