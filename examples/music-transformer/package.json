@@ -3,8 +3,8 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "start": "parcel src/music_lm.html  --port 8885",
-        "build": "parcel build src/music_lm.html --dist-dir lib"
+        "start": "parcel src/music_transformer.html  --port 8885",
+        "build": "parcel build src/music_transformer.html --dist-dir lib"
     },
     "devDependencies": {
         "buffer": "^5.7.1",
@@ -15,6 +15,6 @@
         "url": "^0.11.3"
     },
     "dependencies": {
-        "@mlc-ai/web-llm": "../.."
+        "@mlc-ai/web-llm": "file:../.."
     }
 }
