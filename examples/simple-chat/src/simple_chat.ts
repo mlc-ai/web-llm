@@ -67,8 +67,10 @@ class ChatUI {
     let maxStorageBufferBindingSize: number;
     let gpuVendor: string;
     try {
-      maxStorageBufferBindingSize = await chat.getMaxStorageBufferBindingSize();
-      gpuVendor = await chat.getGPUVendor();
+      [maxStorageBufferBindingSize, gpuVendor] = await Promise.all([
+        chat.getMaxStorageBufferBindingSize(),
+        chat.getGPUVendor(),
+      ]);
     } catch (err) {
       chatUI.appendMessage("error", "Init error, " + err.toString());
       console.log(err.stack);
