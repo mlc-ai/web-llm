@@ -18,5 +18,7 @@ export {
 
 export {
   ChatWorkerHandler,
-  ChatWorkerClient
+  ChatWorkerClient,
+  WorkerMessage,
+  CustomRequestParams
 } from "./web_worker";

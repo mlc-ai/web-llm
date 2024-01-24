@@ -88,7 +88,10 @@ async function* chunkGenerator(chat: webllm.ChatInterface, musicLogitProcessor: 
 }
 
 async function main() {
-  const chat: webllm.ChatInterface = new webllm.ChatModule();
+  const musicLogitProcessor = new MusicLogitProcessor();
+  const logitProcessorRegistry = new Map<string, webllm.LogitProcessor>();
+  logitProcessorRegistry.set("music-medium-800k-q0f32", musicLogitProcessor);
+  const chat = new webllm.ChatModule(logitProcessorRegistry);
 
   // Define modelRecord
   const myAppConfig: webllm.AppConfig = {
@@ -101,9 +104,8 @@ async function main() {
     ]
   }
 
-  const musicLogitProcessor = new MusicLogitProcessor();
   // Reload chat module with a logit processor
-  await chat.reload("music-medium-800k-q0f32", undefined, myAppConfig, musicLogitProcessor);
+  await chat.reload("music-medium-800k-q0f32", undefined, myAppConfig);
 
   for await (const nextChunk of chunkGenerator(chat, musicLogitProcessor)) {
     console.log(nextChunk);

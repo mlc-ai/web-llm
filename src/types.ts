@@ -71,13 +71,11 @@ export interface ChatInterface {
    * @param localIdOrUrl local_id of the model or model artifact url.
    * @param chatOpts Extra options to overide chat behavior.
    * @param appConfig Override the app config in this load.
-   * @param logitProcessor Processes logits after forwarding and before sampling.
    * @returns A promise when reload finishes.
    * @note This is an async function.
    */
   reload: (
-    localIdOrUrl: string, chatOpts?: ChatOptions, appConfig?: AppConfig, logitProcessor?: LogitProcessor
-  ) => Promise<void>;
+    localIdOrUrl: string, chatOpts?: ChatOptions, appConfig?: AppConfig) => Promise<void>;
 
   /**
    * Generate a response for a given input.

@@ -10,12 +10,6 @@ function setLabel(id: string, text: string) {
 }
 
 async function main() {
-  const chat = new webllm.ChatModule();
-
-  chat.setInitProgressCallback((report: webllm.InitProgressReport) => {
-    setLabel("init-label", report.text);
-  });
-
   // Define modelRecord
   const myAppConfig: webllm.AppConfig = {
     model_list: [
@@ -47,9 +41,16 @@ async function main() {
     }
   }
   const myLogitProcessor = new MyLogitProcessor();
+  const logitProcessorRegistry = new Map<string, webllm.LogitProcessor>();
+  logitProcessorRegistry.set("Phi2-q4f32_1", myLogitProcessor);
+  const chat = new webllm.ChatModule(logitProcessorRegistry);
+
+  chat.setInitProgressCallback((report: webllm.InitProgressReport) => {
+    setLabel("init-label", report.text);
+  });
 
   // Reload chat module with a logit processor
-  await chat.reload("Phi2-q4f32_1", undefined, myAppConfig, myLogitProcessor);
+  await chat.reload("Phi2-q4f32_1", undefined, myAppConfig);
 
   // Get next token
   const prompt: Array<number> = [42];

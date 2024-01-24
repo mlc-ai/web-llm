@@ -15,7 +15,7 @@ type RequestKind = (
   "reload" | "generate" | "runtimeStatsText" |
   "interruptGenerate" | "unload" | "resetChat" |
   "initProgressCallback" | "generateProgressCallback" | "getMaxStorageBufferBindingSize" |
-  "getGPUVendor" | "forwardTokensAndSample"
+  "getGPUVendor" | "forwardTokensAndSample" | "customRequest"
 );
 
 interface ReloadParams {
@@ -44,12 +44,18 @@ interface ForwardTokensAndSampleParams {
   isPrefill: boolean;
 }
 
+export interface CustomRequestParams {
+  requestName: string;
+  requestMessage: string;
+}
+
 type MessageContent =
   GenerateProgressCallbackParams |
   ReloadParams |
   GenerateParams |
   ResetChatParams |
   ForwardTokensAndSampleParams |
+  CustomRequestParams |
   InitProgressReport |
   string |
   null |
@@ -59,7 +65,7 @@ type MessageContent =
  * The message used in exchange between worker
  * and the main thread.
  */
-interface WorkerMessage {
+export interface WorkerMessage {
   kind: RequestKind,
   uuid: string,
   content: MessageContent;
@@ -77,7 +83,7 @@ interface WorkerMessage {
  * onmessage = handler.onmessage;
  */
 export class ChatWorkerHandler {
-  private chat: ChatInterface;
+  protected chat: ChatInterface;
 
   constructor(chat: ChatInterface) {
     this.chat = chat;
@@ -187,6 +193,9 @@ export class ChatWorkerHandler {
         });
         return;
       }
+      case "customRequest": {
+        return;
+      }
       default: {
         throw Error("Invalid kind, msg=" + msg);
       }
@@ -226,7 +235,7 @@ export class ChatWorkerClient implements ChatInterface {
     this.initProgressCallback = initProgressCallback;
   }
 
-  private getPromise<T extends MessageContent>(msg: WorkerMessage): Promise<T> {
+  protected getPromise<T extends MessageContent>(msg: WorkerMessage): Promise<T> {
     const uuid = msg.uuid;
     const executor = (
       resolve: (arg: T) => void,

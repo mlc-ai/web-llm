@@ -16,20 +16,26 @@ import {
  */
 export class ChatModule implements ChatInterface {
   private logger: (msg: string) => void = console.log;
+  private logitProcessorRegistry?: Map<string, LogitProcessor>;
   private logitProcessor?: LogitProcessor;
   private pipeline?: LLMChatPipeline;
   private initProgressCallback?: InitProgressCallback;
   private interruptSignal = false;
   private deviceLostIsError = false;  // whether device.lost is due to actual error or model reload
 
+  constructor(logitProcessorRegistry?: Map<string, LogitProcessor>) {
+    this.logitProcessorRegistry = logitProcessorRegistry;
+  }
+
   setInitProgressCallback(initProgressCallback: InitProgressCallback) {
     this.initProgressCallback = initProgressCallback;
   }
 
-  async reload(localId: string, chatOpts?: ChatOptions, appConfig?: AppConfig, logitProcessor?: LogitProcessor): Promise<void> {
+  async reload(localId: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
     this.deviceLostIsError = false;  // so that unload() does not trigger device.lost warning
     this.unload();
-    this.logitProcessor = logitProcessor;
+
+    this.logitProcessor = this.logitProcessorRegistry?.get(localId);
     const tstart = performance.now();
     if (appConfig === undefined) {
       appConfig = prebuiltAppConfig;
