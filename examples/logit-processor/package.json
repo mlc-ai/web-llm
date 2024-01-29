@@ -3,8 +3,8 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "start": "parcel src/logit_processor.html  --port 8885",
-        "build": "parcel build src/logit_processor.html --dist-dir lib"
+        "start": "cp src/config.js src/app-config.js && parcel src/logit_processor.html  --port 8885",
+        "build": "cp src/config.js src/app-config.js && parcel build src/logit_processor.html --dist-dir lib"
     },
     "devDependencies": {
         "buffer": "^5.7.1",
