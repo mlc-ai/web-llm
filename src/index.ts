@@ -7,7 +7,8 @@ export {
   InitProgressCallback,
   InitProgressReport,
   ChatOptions,
-  ChatInterface
+  ChatInterface,
+  LogitProcessor,
 } from "./types";
 
 export {
@@ -17,5 +18,7 @@ export {
 
 export {
   ChatWorkerHandler,
-  ChatWorkerClient
+  ChatWorkerClient,
+  WorkerMessage,
+  CustomRequestParams
 } from "./web_worker";

@@ -16,7 +16,7 @@ async function main() {
   });
 
   // Option 1: Specify appConfig to decide what models to include
-  const myAppConfig: AppConfig = {
+  const myAppConfig: webllm.AppConfig = {
     model_list: [
       {
         "model_url": "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f32_1-MLC/resolve/main/",

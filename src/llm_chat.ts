@@ -2,6 +2,7 @@ import * as tvmjs from "tvmjs";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
 import { ChatConfig } from "./config";
 import { getConversation, Conversation } from "./conversation";
+import { LogitProcessor } from "./types";
 
 
 export class LLMChatPipeline {
@@ -54,10 +55,14 @@ export class LLMChatPipeline {
   // logger
   private logger = console.log;
 
-  constructor(tvm: tvmjs.Instance, tokenizer: Tokenizer, config: ChatConfig) {
+  // LogitProcessor
+  private logitProcessor?: LogitProcessor = undefined;
+
+  constructor(tvm: tvmjs.Instance, tokenizer: Tokenizer, config: ChatConfig, logitProcessor?: LogitProcessor) {
     this.tvm = tvm;
     this.tokenizer = tokenizer;
     this.config = config;
+    this.logitProcessor = logitProcessor;
 
     this.conversation = getConversation(config.conv_template, config.conv_config);
     this.stopStr = this.conversation.getStopStr();
@@ -193,13 +198,16 @@ export class LLMChatPipeline {
   /**
    * Reset the chat history
    */
-  resetChat() {
+  resetChat(keepStats: boolean = false) {
     this.conversation.reset();
-    this.resetRuntimeStats();
+    if (!keepStats) {
+      this.resetRuntimeStats();
+    }
     this.fclearKVCaches(this.kvCache);
     this.filledKVCacheLength = 0;
     this.sinkTriggered = false;
     this.slidingWindowCacheOffset = 0;
+    this.logitProcessor?.resetState();
   }
 
   /**
@@ -453,8 +461,9 @@ export class LLMChatPipeline {
     temperature: number,
     top_p: number
   ) {
+    // 1. Move logits to CPU
     this.tvm.beginScope();
-    const logitsOnCPU = this.updateLogitsOnCPU(logitsOnGPU);
+    let logitsOnCPU = this.updateLogitsOnCPU(logitsOnGPU);
     this.tvm.endScope();
     await this.device.sync();
 
@@ -462,8 +471,17 @@ export class LLMChatPipeline {
       throw Error("logits should be assigned");
     }
 
+    // 2. Post process logits
+    if (this.logitProcessor !== undefined) {
+      let logitsOnCPUArray: Float32Array = <Float32Array>(logitsOnCPU.toArray());
+      logitsOnCPUArray = this.logitProcessor.processLogits(logitsOnCPUArray);
+      logitsOnCPU.copyFrom(logitsOnCPUArray);
+    }
+
+    // 3. Sample
+    let sampledToken;
     if (this.config.repetition_penalty < 1.0 + 1e-6) {
-      return this.tvm.sampleTopPFromLogits(logitsOnCPU, temperature, top_p);
+      sampledToken = this.tvm.sampleTopPFromLogits(logitsOnCPU, temperature, top_p);
     } else {
       this.tvm.beginScope();
       const appeared_tokens_ndarray = this.tvm.empty(
@@ -472,8 +490,13 @@ export class LLMChatPipeline {
       this.tvm.applyRepetitionPenalty(
         this.logitsOnCPU, appeared_tokens_ndarray, this.config.repetition_penalty);
       this.tvm.endScope();
-      return this.tvm.sampleTopPFromLogits(this.logitsOnCPU, temperature, top_p);
+      sampledToken = this.tvm.sampleTopPFromLogits(this.logitsOnCPU, temperature, top_p);
     }
+
+    // 4. Update logit processor
+    this.logitProcessor?.processSampledToken(sampledToken);
+
+    return sampledToken;
   }
 
   private getInputTokens(): Array<number> {
@@ -550,6 +573,34 @@ export class LLMChatPipeline {
       throw Error("Exceed max window length curr=" + tokens.length);
     }
     return tokens;
+  }
+
+  async forwardTokensAndSample(
+    inputIds: Array<number>, curPos: number, isPrefill: boolean
+  ): Promise<number> {
+    // 1. Convert input to NDArray
+    const tstart = performance.now();
+    this.tvm.beginScope();
+    const inputData = this.tvm.empty([1, inputIds.length], "int32", this.device);
+    inputData.copyFrom(inputIds);
+
+    // 2. Forward tokens and get logits
+    let logitsOnGPU: tvmjs.NDArray = this.forward(inputData, curPos);
+    const nextToken = await this.sampleTokenFromLogits(
+      logitsOnGPU, this.config.temperature, this.config.top_p);
+    this.tvm.endScope();
+
+    // 3. Stats
+    const tend = performance.now();
+    if (isPrefill) {
+      // We assume that if the input has more than 1 token
+      this.prefillTotalTime += (tend - tstart) / 1e3;
+      this.prefillTotalTokens += inputIds.length;
+    } else {
+      this.decodingTotalTime += (tend - tstart) / 1e3;
+      this.decodingTotalTokens += 1;
+    }
+    return nextToken;
   }
 
   async evaluate() {

@@ -7,18 +7,25 @@ import {
   InitProgressCallback,
   ChatInterface,
   ChatOptions,
-  GenerateProgressCallback
+  GenerateProgressCallback,
+  LogitProcessor
 } from "./types";
 
 /**
  * This is the main interface to the chat module.
  */
 export class ChatModule implements ChatInterface {
-  private logger: (msg: string) => void = console.log
+  private logger: (msg: string) => void = console.log;
+  private logitProcessorRegistry?: Map<string, LogitProcessor>;
+  private logitProcessor?: LogitProcessor;
   private pipeline?: LLMChatPipeline;
   private initProgressCallback?: InitProgressCallback;
   private interruptSignal = false;
   private deviceLostIsError = false;  // whether device.lost is due to actual error or model reload
+
+  constructor(logitProcessorRegistry?: Map<string, LogitProcessor>) {
+    this.logitProcessorRegistry = logitProcessorRegistry;
+  }
 
   setInitProgressCallback(initProgressCallback: InitProgressCallback) {
     this.initProgressCallback = initProgressCallback;
@@ -27,6 +34,8 @@ export class ChatModule implements ChatInterface {
   async reload(localId: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
     this.deviceLostIsError = false;  // so that unload() does not trigger device.lost warning
     this.unload();
+
+    this.logitProcessor = this.logitProcessorRegistry?.get(localId);
     const tstart = performance.now();
     if (appConfig === undefined) {
       appConfig = prebuiltAppConfig;
@@ -128,7 +137,7 @@ export class ChatModule implements ChatInterface {
     const tokenizer = await this.asyncLoadTokenizer(modelUrl, config);
     await tvm.fetchNDArrayCache(modelUrl, tvm.webgpu(), "webllm/model");
 
-    this.pipeline = new LLMChatPipeline(tvm, tokenizer, config);
+    this.pipeline = new LLMChatPipeline(tvm, tokenizer, config, this.logitProcessor);
     await this.pipeline?.asyncLoadWebGPUPipelines();
 
     const tend = performance.now();
@@ -174,8 +183,8 @@ export class ChatModule implements ChatInterface {
     return this.getPipeline().runtimeStatsText();
   }
 
-  async resetChat() {
-    this.pipeline?.resetChat();
+  async resetChat(keepStats: boolean = false) {
+    this.pipeline?.resetChat(keepStats);
   }
 
   async unload() {
@@ -222,6 +231,12 @@ export class ChatModule implements ChatInterface {
   //--------------------------
   // Lower level API
   //--------------------------
+  async forwardTokensAndSample(
+    inputIds: Array<number>, curPos: number, isPrefill: boolean
+  ): Promise<number> {
+    return this.getPipeline().forwardTokensAndSample(inputIds, curPos, isPrefill);
+  }
+
   /**
    * @returns Whether the generation stopped.
    */
@@ -315,6 +330,12 @@ export class ChatRestModule implements ChatInterface {
     throw new Error("Method not supported.");
   }
 
+  async forwardTokensAndSample(
+    inputIds: Array<number>, curPos: number, isPrefill: boolean
+  ): Promise<number> {
+    throw new Error("Method not supported.");
+  }
+
   async generate(
     input: string,
     progressCallback?: GenerateProgressCallback,
@@ -388,7 +409,7 @@ export class ChatRestModule implements ChatInterface {
     return response;
   }
 
-  async resetChat() {
+  async resetChat(keepStats: boolean = false) {
     await fetch('http://localhost:8000/chat/reset', {
       method: "POST"
     });

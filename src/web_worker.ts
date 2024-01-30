@@ -15,7 +15,7 @@ type RequestKind = (
   "reload" | "generate" | "runtimeStatsText" |
   "interruptGenerate" | "unload" | "resetChat" |
   "initProgressCallback" | "generateProgressCallback" | "getMaxStorageBufferBindingSize" |
-  "getGPUVendor"
+  "getGPUVendor" | "forwardTokensAndSample" | "customRequest"
 );
 
 interface ReloadParams {
@@ -29,15 +29,33 @@ interface GenerateParams {
   streamInterval?: number;
 }
 
+interface ResetChatParams {
+  keepStats: boolean;
+}
+
 interface GenerateProgressCallbackParams {
   step: number,
   currentMessage: string;
+}
+
+interface ForwardTokensAndSampleParams {
+  inputIds: Array<number>;
+  curPos: number;
+  isPrefill: boolean;
+}
+
+export interface CustomRequestParams {
+  requestName: string;
+  requestMessage: string;
 }
 
 type MessageContent =
   GenerateProgressCallbackParams |
   ReloadParams |
   GenerateParams |
+  ResetChatParams |
+  ForwardTokensAndSampleParams |
+  CustomRequestParams |
   InitProgressReport |
   string |
   null |
@@ -47,7 +65,7 @@ type MessageContent =
  * The message used in exchange between worker
  * and the main thread.
  */
-interface WorkerMessage {
+export interface WorkerMessage {
   kind: RequestKind,
   uuid: string,
   content: MessageContent;
@@ -65,7 +83,7 @@ interface WorkerMessage {
  * onmessage = handler.onmessage;
  */
 export class ChatWorkerHandler {
-  private chat: ChatInterface;
+  protected chat: ChatInterface;
 
   constructor(chat: ChatInterface) {
     this.chat = chat;
@@ -128,6 +146,13 @@ export class ChatWorkerHandler {
         })
         return;
       }
+      case "forwardTokensAndSample": {
+        this.handleTask(msg.uuid, async () => {
+          const params = msg.content as ForwardTokensAndSampleParams;
+          return await this.chat.forwardTokensAndSample(params.inputIds, params.curPos, params.isPrefill);
+        })
+        return;
+      }
       case "runtimeStatsText": {
         this.handleTask(msg.uuid, async () => {
           return await this.chat.runtimeStatsText();
@@ -150,7 +175,8 @@ export class ChatWorkerHandler {
       }
       case "resetChat": {
         this.handleTask(msg.uuid, async () => {
-          await this.chat.resetChat();
+          const params = msg.content as ResetChatParams;
+          await this.chat.resetChat(params.keepStats);
           return null;
         });
         return;
@@ -165,6 +191,9 @@ export class ChatWorkerHandler {
         this.handleTask(msg.uuid, async () => {
           return await this.chat.getGPUVendor();
         });
+        return;
+      }
+      case "customRequest": {
         return;
       }
       default: {
@@ -206,7 +235,7 @@ export class ChatWorkerClient implements ChatInterface {
     this.initProgressCallback = initProgressCallback;
   }
 
-  private getPromise<T extends MessageContent>(msg: WorkerMessage): Promise<T> {
+  protected getPromise<T extends MessageContent>(msg: WorkerMessage): Promise<T> {
     const uuid = msg.uuid;
     const executor = (
       resolve: (arg: T) => void,
@@ -237,7 +266,7 @@ export class ChatWorkerClient implements ChatInterface {
       content: {
         localIdOrUrl: localIdOrUrl,
         chatOpts: chatOpts,
-        appConfig: appConfig
+        appConfig: appConfig,
       }
     };
     await this.getPromise<null>(msg);
@@ -249,7 +278,7 @@ export class ChatWorkerClient implements ChatInterface {
       uuid: crypto.randomUUID(),
       content: null
     };
-    return this.getPromise<number>(msg);
+    return await this.getPromise<number>(msg);
   }
 
   async getGPUVendor(): Promise<string> {
@@ -258,7 +287,7 @@ export class ChatWorkerClient implements ChatInterface {
       uuid: crypto.randomUUID(),
       content: null
     };
-    return this.getPromise<string>(msg);
+    return await this.getPromise<string>(msg);
   }
 
   async generate(
@@ -307,13 +336,30 @@ export class ChatWorkerClient implements ChatInterface {
     await this.getPromise<null>(msg);
   }
 
-  async resetChat(): Promise<void> {
+  async resetChat(keepStats: boolean = false): Promise<void> {
     const msg: WorkerMessage = {
       kind: "resetChat",
       uuid: crypto.randomUUID(),
-      content: null
+      content: {
+        keepStats: keepStats
+      }
     };
     await this.getPromise<null>(msg);
+  }
+
+  async forwardTokensAndSample(
+    inputIds: Array<number>, curPos: number, isPrefill: boolean
+  ): Promise<number> {
+    const msg: WorkerMessage = {
+      kind: "forwardTokensAndSample",
+      uuid: crypto.randomUUID(),
+      content: {
+        inputIds: inputIds,
+        curPos: curPos,
+        isPrefill: isPrefill
+      }
+    };
+    return await this.getPromise<number>(msg);
   }
 
   onmessage(event: any) {
