@@ -1,5 +1,5 @@
 import appConfig from "./app-config";
-import { ChatInterface, ChatModule, ChatRestModule, ChatWorkerClient, ModelRecord } from "@mlc-ai/web-llm";
+import { ChatInterface, ChatModule, ChatRestModule, ChatWorkerClient, AppConfig } from "@mlc-ai/web-llm";
 
 function getElementAndCheck(id: string): HTMLElement {
   const element = document.getElementById(id);
@@ -7,10 +7,6 @@ function getElementAndCheck(id: string): HTMLElement {
     throw Error("Cannot find element " + id);
   }
   return element;
-}
-
-interface AppConfig {
-  model_list: Array<ModelRecord>;
 }
 
 class ChatUI {

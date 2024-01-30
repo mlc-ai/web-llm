@@ -27,18 +27,19 @@ export type GenerateProgressCallback = (step: number, currentMessage: string) =>
 
 /**
  * A stateful logitProcessor used to post-process logits after forwarding the input and before
- * sampling the next token. Currently does not work with web worker.
+ * sampling the next token.
  */
 export interface LogitProcessor {
   /**
-   * Process logits after forward() and before sampling, happens on the CPU.
+   * Process logits after forward() and before sampling implicitly, happens on the CPU.
    * @param logits The logits right after forward().
    * Returns the processed logits.
    */
   processLogits: (logits: Float32Array) => Float32Array;
 
   /**
-   * Use the sampled token to update the LogitProcessor's internal state.
+   * Use the sampled token to update the LogitProcessor's internal state. Called implicitly
+   * right after the next token is sampled/committed.
    * @param token Token sampled from the processed logits.
    */
   processSampledToken: (token: number) => void;
