@@ -269,7 +269,7 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       seps: ["<|endoftext|>", "<|endoftext|>"],
       separator_style: "Two",
       stop_str: "<|endoftext|>",
-      add_bos: true,
+      add_bos: false,
       stop_tokens: [100257],
       ...conv_config,
     });
