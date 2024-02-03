@@ -261,7 +261,7 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       stop_tokens: [2],
       ...conv_config,
     });
-  }else if (conv_template == "stablelm-2") {
+  } else if (conv_template == "stablelm-2") {
     return new Conversation({
       system: "",
       roles: ["<|user|>", "<|assistant|>"],
