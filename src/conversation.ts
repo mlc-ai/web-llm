@@ -234,6 +234,7 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       stop_str: "<|im_end|>",
       add_bos: false,
       stop_tokens: [2],
+      ...conv_config,
     });
   } else if (conv_template == "phi-2") {
     return new Conversation({
@@ -245,6 +246,43 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       stop_str: "<|endoftext|>",
       add_bos: false,
       stop_tokens: [50256],
+      ...conv_config,
+    });
+  } else if (conv_template == "qwen") {
+    return new Conversation({
+      system: "<|im_start|>system A conversation between a user and an LLM-based AI assistant. The " +
+        "assistant gives helpful and honest answers.<|im_end|> ",
+      roles: ["<|im_start|>user", "<|im_start|>assistant"],
+      offset: 0,
+      seps: ["", ""],
+      separator_style: "Two",
+      stop_str: "<|im_end|>",
+      add_bos: false,
+      stop_tokens: [2],
+      ...conv_config,
+    });
+  } else if (conv_template == "stablelm-2") {
+    return new Conversation({
+      system: "",
+      roles: ["<|user|>", "<|assistant|>"],
+      offset: 0,
+      seps: ["<|endoftext|>", "<|endoftext|>"],
+      separator_style: "Two",
+      stop_str: "<|endoftext|>",
+      add_bos: false,
+      stop_tokens: [100257],
+      ...conv_config,
+    });
+  } else if (conv_template == "stablelm-3b") {
+    return new Conversation({
+      system: "",
+      roles: ["<|user|>", "<|assistant|>"],
+      offset: 0,
+      seps: ["<|endoftext|>", "<|endoftext|>"],
+      separator_style: "Two",
+      stop_str: "<|endoftext|>",
+      add_bos: true,
+      stop_tokens: [0],
       ...conv_config,
     });
   } else if (conv_template == "empty") {
