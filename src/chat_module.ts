@@ -81,7 +81,8 @@ export class ChatModule implements ChatInterface {
         return await fetch(new URL(wasmUrl, baseUrl).href);
       } else {
         // use cache
-        return await wasmCache.fetchWithCache(wasmUrl);
+        // return await wasmCache.fetchWithCache(wasmUrl);
+        return await fetch(wasmUrl);
       }
     };
     const wasmSource = await (await fetchWasmSource()).arrayBuffer();
@@ -135,11 +136,14 @@ export class ChatModule implements ChatInterface {
     });
     this.deviceLostIsError = true;
     const tokenizer = await this.asyncLoadTokenizer(modelUrl, config);
+    console.log("CHARLIE 1")
     await tvm.fetchNDArrayCache(modelUrl, tvm.webgpu(), "webllm/model");
+    console.log("CHARLIE 2")
 
     this.pipeline = new LLMChatPipeline(tvm, tokenizer, config, this.logitProcessor);
+    console.log("CHARLIE 3")
     await this.pipeline?.asyncLoadWebGPUPipelines();
-
+    console.log("CHARLIE 4")
     const tend = performance.now();
 
     if (this.initProgressCallback !== undefined) {
