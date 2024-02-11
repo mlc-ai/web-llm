@@ -19,6 +19,7 @@ export class LLMChatPipeline {
   private decoding: tvmjs.PackedFunc;
   private fclearKVCaches: tvmjs.PackedFunc;
   // Functions for PagedKVCache only
+  private embed?: tvmjs.PackedFunc = undefined;
   private fKVCacheAddSequence?: tvmjs.PackedFunc = undefined;
   private fKVCacheRemoveSequence?: tvmjs.PackedFunc = undefined;
   private fKVCacheBeginForward?: tvmjs.PackedFunc = undefined;
@@ -81,19 +82,23 @@ export class LLMChatPipeline {
 
     // 1. Create VM and get the core functions
     tvm.beginScope();
-    console.log("CHARLIE A")
     this.vm = this.tvm.detachFromCurrentScope(
       this.tvm.createVirtualMachine(this.device)
     );
-    console.log("CHARLIE B")
     this.prefill = this.tvm.detachFromCurrentScope(
       this.vm.getFunction("prefill")
     );
-    console.log("CHARLIE C")
+    try {
+      // We expect to find `embed` if we usePagedKVCache
+      this.embed = this.tvm.detachFromCurrentScope(
+        this.vm.getFunction("embed")
+      );
+    } catch {
+      // Do nothing
+    }
     this.decoding = this.tvm.detachFromCurrentScope(
       this.vm.getFunction("decode")
     );
-    console.log("CHARLIE D")
 
     // 2. Get json stored in the vm's metadata function
     let fgetMetadata;
@@ -122,10 +127,8 @@ export class LLMChatPipeline {
         this.tvm.getParamsFromCache("param", -1)
       );
     }
-    console.log("CHARLIE G")
 
     // 4. Read in compilation configurations from metadata
-    console.log("CHARLIE H")
     if (metadata.hasOwnProperty("prefill_chunk_size")) {
       this.prefillChunkSize = metadata.prefill_chunk_size;
       this.logger("Using prefillChunkSize: ", this.prefillChunkSize);
@@ -166,7 +169,6 @@ export class LLMChatPipeline {
         throw Error("Need to specify either sliding window size or max window size.");
       }
     }
-    console.log("CHARLIE I")
 
     // 5. Create cache
     // Use `fcreateCache` to determine whether we are using the new KVCache implementation
@@ -181,7 +183,10 @@ export class LLMChatPipeline {
       // If we cannot find function above, it means that we are using the new PagedKVCache
       this.usePagedKVCache = true;
       fcreateCache = this.vm.getFunction("create_tir_paged_kv_cache");
-      console.log("Using Paged KVCache")
+      console.log("Using Paged KVCache");
+      if (this.embed === undefined) {
+        throw Error("If using paged KVCache, method `embed()` needs to be defined.");
+      }
     }
 
     // Load cache functions and instantiate KVCache
@@ -218,6 +223,7 @@ export class LLMChatPipeline {
       this.kvCache = this.tvm.detachFromCurrentScope(fcreateCache());
     }
     this.filledKVCacheLength = 0;
+    this.resetChat();  // especially needed for PagedKVCache as we need to call fKVCacheAddSequence
     tvm.endScope();
   }
 
@@ -271,7 +277,7 @@ export class LLMChatPipeline {
   resetKVCache() {
     this.fclearKVCaches(this.kvCache);
     if (this.usePagedKVCache) {
-      this.fKVCacheAddSequence!(this.kvCache, 0);
+      this.fKVCacheAddSequence!(this.kvCache, new tvmjs.Scalar(0, "int64"));
     }
   }
 
@@ -471,7 +477,8 @@ export class LLMChatPipeline {
           const seqIdsTuple = this.tvm.makeShapeTuple([0]);
           const inputLenShape = this.tvm.makeShapeTuple([seqLen]);
           this.fKVCacheBeginForward!(this.kvCache, seqIdsTuple, inputLenShape);
-          retValue = this.prefill(inputs, this.kvCache, this.params);
+          const embed = this.embed!(inputs, this.params);
+          retValue = this.prefill(embed, this.kvCache, this.params);
           this.fKVCacheEndForward!(this.kvCache);
         } else {
           retValue = this.prefill(inputs, seqLenShape, this.kvCache, this.params);
@@ -494,7 +501,8 @@ export class LLMChatPipeline {
           const seqIdsTuple = this.tvm.makeShapeTuple([0]);
           const appendLength = this.tvm.makeShapeTuple([1]);
           this.fKVCacheBeginForward!(this.kvCache, seqIdsTuple, appendLength);
-          retValue = this.decoding(inputs, this.kvCache, this.params);
+          const embed = this.embed!(inputs, this.params);
+          retValue = this.decoding(embed, this.kvCache, this.params);
           this.fKVCacheEndForward!(this.kvCache);
         } else {
           retValue = this.decoding(inputs, seqLenShape, this.kvCache, this.params);
