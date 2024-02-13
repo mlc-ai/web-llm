@@ -8,68 +8,57 @@ import './popup.css';
 import { ChatModule, AppConfig, InitProgressReport } from "@mlc-ai/web-llm";
 import { ProgressBar, Line } from "progressbar.js";
 
-// TODO: Surface this as an experimental option to the user
-const useWebGPU = true;
-
+// Whether or not to use the content from the active tab as the context
+const useContext = false;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const queryInput = document.getElementById("query-input")!;
 const submitButton = document.getElementById("submit-button")!;
 
-var cm: ChatModule;
-var context = "";
+
 var isLoadingParams = false;
 
 const generateProgressCallback = (_step: number, message: string) => {
     updateAnswer(message);
 };
 
-if (useWebGPU) {
 
-    fetchPageContents();
+(<HTMLButtonElement>submitButton).disabled = true;
 
-    (<HTMLButtonElement>submitButton).disabled = true;
+var progressBar: ProgressBar = new Line('#loadingContainer', {
+    strokeWidth: 4,
+    easing: 'easeInOut',
+    duration: 1400,
+    color: '#ffd166',
+    trailColor: '#eee',
+    trailWidth: 1,
+    svgStyle: { width: '100%', height: '100%' }
+});
 
-    cm = new ChatModule();
-    var progressBar: ProgressBar = new Line('#loadingContainer', {
-        strokeWidth: 4,
-        easing: 'easeInOut',
-        duration: 1400,
-        color: '#ffd166',
-        trailColor: '#eee',
-        trailWidth: 1,
-        svgStyle: { width: '100%', height: '100%' }
-    });
+const appConfig: AppConfig = {
+    model_list: [
+        {
+            "model_url": "https://huggingface.co/mlc-ai/Mistral-7B-Instruct-v0.2-q4f16_1-MLC/resolve/main/",
+            "local_id": "Mistral-7B-Instruct-v0.2-q4f16_1",
+            "model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Mistral-7B-Instruct-v0.2/Mistral-7B-Instruct-v0.2-q4f16_1-sw4k_cs1k-webgpu.wasm",
+            "required_features": ["shader-f16"],
+        }
+    ]
+}
 
-    const appConfig: AppConfig = {
-        model_list: [
-            {
-                "model_url": "https://huggingface.co/mlc-ai/Mistral-7B-Instruct-v0.2-q4f16_1-MLC/resolve/main/",
-                "local_id": "Mistral-7B-Instruct-v0.2-q4f16_1",
-                "model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Mistral-7B-Instruct-v0.2/Mistral-7B-Instruct-v0.2-q4f16_1-sw4k_cs1k-webgpu.wasm",
-                "required_features": ["shader-f16"],
-            }
-        ]
-    }
-
-    cm.setInitProgressCallback((report: InitProgressReport) => {
-        console.log(report.text, report.progress);
-        progressBar.animate(report.progress, {
+chrome.runtime.sendMessage({ reload: appConfig });
+chrome.runtime.onMessage.addListener(function (request) {
+    if (request.initProgressReport) {
+        progressBar.animate(request.initProgressReport, {
             duration: 50
         });
-        if (report.progress == 1.0) {
+        if (request.initProgressReport == 1.0) {
             enableInputs();
         }
-    });
+    }
+});
 
-    await cm.reload("Mistral-7B-Instruct-v0.1-q4f16_1", undefined, appConfig);
-
-    isLoadingParams = true;
-} else {
-    const loadingBarContainer = document.getElementById("loadingContainer")!;
-    loadingBarContainer.remove();
-    queryInput.focus();
-}
+isLoadingParams = true;
 
 function enableInputs() {
     if (isLoadingParams) {
@@ -104,27 +93,14 @@ async function handleClick() {
     // Get the message from the input field
     const message = (<HTMLInputElement>queryInput).value;
     console.log("message", message);
-    if (!useWebGPU) {
-        // Send the query to the background script
-        chrome.runtime.sendMessage({ input: message });
-    }
+    chrome.runtime.sendMessage({ input: message });
+
     // Clear the answer
     document.getElementById("answer")!.innerHTML = "";
     // Hide the answer
     document.getElementById("answerWrapper")!.style.display = "none";
     // Show the loading indicator
     document.getElementById("loading-indicator")!.style.display = "block";
-
-    if (useWebGPU) {
-        // Generate response
-        var inp = message;
-        if (context.length > 0) {
-            inp = "Use only the following context when answering the question at the end. Don't use any other knowledge.\n" + context + "\n\nQuestion: " + message + "\n\nHelpful Answer: ";
-        }
-        console.log("Input:", inp);
-        const response = await cm.generate(inp, generateProgressCallback);
-        console.log("response", response);
-    }
 }
 submitButton.addEventListener("click", handleClick);
 
@@ -163,18 +139,14 @@ function fetchPageContents() {
         port.postMessage({});
         port.onMessage.addListener(function (msg) {
             console.log("Page contents:", msg.contents);
-            if (useWebGPU) {
-                context = msg.contents
-            } else {
-                chrome.runtime.sendMessage({ context: msg.contents });
-            }
+            chrome.runtime.sendMessage({ context: msg.contents });
         });
     });
 }
 
 // Grab the page contents when the popup is opened
 window.onload = function () {
-    if (!useWebGPU) {
+    if (useContext) {
         fetchPageContents();
     }
 }
