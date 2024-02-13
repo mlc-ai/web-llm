@@ -139,7 +139,6 @@ export class ChatModule implements ChatInterface {
 
     this.pipeline = new LLMChatPipeline(tvm, tokenizer, config, this.logitProcessor);
     await this.pipeline?.asyncLoadWebGPUPipelines();
-
     const tend = performance.now();
 
     if (this.initProgressCallback !== undefined) {
