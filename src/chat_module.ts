@@ -1,12 +1,18 @@
 import * as tvmjs from "tvmjs";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
-import { ChatConfig, AppConfig, prebuiltAppConfig } from "./config";
+import {
+  ChatConfig,
+  ChatOptions,
+  AppConfig,
+  prebuiltAppConfig,
+  GenerationConfig,
+  postInitAndCheckGenerationConfigValues
+} from "./config";
 import { LLMChatPipeline } from "./llm_chat"
 
 import {
   InitProgressCallback,
   ChatInterface,
-  ChatOptions,
   GenerateProgressCallback,
   LogitProcessor
 } from "./types";
@@ -155,9 +161,13 @@ export class ChatModule implements ChatInterface {
     input: string,
     progressCallback?: GenerateProgressCallback,
     streamInterval = 1,
+    genConfig?: GenerationConfig,
   ): Promise<string> {
     this.interruptSignal = false;
-    await this.prefill(input);
+    if (genConfig !== undefined) {
+      postInitAndCheckGenerationConfigValues(genConfig);
+    }
+    await this.prefill(input, genConfig);
 
     let counter = 1;
     while (!this.stopped()) {
@@ -166,7 +176,7 @@ export class ChatModule implements ChatInterface {
         break;
       }
       counter += 1;
-      await this.decode();
+      await this.decode(genConfig);
       if (counter % streamInterval == 0 && progressCallback !== undefined) {
         progressCallback(counter, this.getMessage());
       }
@@ -182,7 +192,7 @@ export class ChatModule implements ChatInterface {
     return this.getPipeline().runtimeStatsText();
   }
 
-  async resetChat(keepStats: boolean = false) {
+  async resetChat(keepStats = false) {
     this.pipeline?.resetChat(keepStats);
   }
 
@@ -256,15 +266,15 @@ export class ChatModule implements ChatInterface {
    * Run a prefill step with a given input.
    * @param input The input prompt.
    */
-  async prefill(input: string) {
-    return this.getPipeline().prefillStep(input);
+  async prefill(input: string, genConfig?: GenerationConfig) {
+    return this.getPipeline().prefillStep(input, genConfig);
   }
 
   /**
    * Run a decode step to decode the next token.
    */
-  async decode() {
-    return this.getPipeline().decodeStep();
+  async decode(genConfig?: GenerationConfig) {
+    return this.getPipeline().decodeStep(genConfig);
   }
 
   private getPipeline(): LLMChatPipeline {
@@ -339,6 +349,7 @@ export class ChatRestModule implements ChatInterface {
     input: string,
     progressCallback?: GenerateProgressCallback,
     streamInterval = 1,
+    genConfig?: GenerationConfig,
   ): Promise<string> {
     if (streamInterval == 0) {
       const response = await fetch('http://localhost:8000/v1/chat/completions', {
@@ -352,7 +363,7 @@ export class ChatRestModule implements ChatInterface {
       })
         .then((response) => response.json())
         .then((json) => {
-          let msg = json["choices"][0]["message"]["content"] as string;
+          const msg = json["choices"][0]["message"]["content"] as string;
           if (progressCallback !== undefined) {
             progressCallback(0, msg);
           }
@@ -360,7 +371,7 @@ export class ChatRestModule implements ChatInterface {
         });
       return response;
     } else {
-      var msg = "";
+      let msg = "";
       const response = await fetch('http://localhost:8000/v1/chat/completions', {
         method: "POST",
         headers: { "Content-type": "application/json" },
@@ -408,7 +419,7 @@ export class ChatRestModule implements ChatInterface {
     return response;
   }
 
-  async resetChat(keepStats: boolean = false) {
+  async resetChat(keepStats = false) {
     await fetch('http://localhost:8000/chat/reset', {
       method: "POST"
     });
@@ -427,6 +438,6 @@ export async function hasModelInCache(localId: string, appConfig?: AppConfig): P
     throw Error("Cannot find model_url for " + localId);
   }
   const modelRecord = findModelRecord();
-  let modelUrl = modelRecord.model_url;
+  const modelUrl = modelRecord.model_url;
   return tvmjs.hasNDArrayInCache(modelUrl, "webllm/model");
 }

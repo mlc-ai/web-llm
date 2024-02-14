@@ -7,7 +7,8 @@
   "type": "module",
   "scripts": {
     "build": "rollup -c && ./cleanup-index-js.sh",
-    "lint": "npx eslint ."
+    "lint": "npx eslint .",
+    "test": "yarn jest"
   },
   "files": [
     "lib"
@@ -27,15 +28,18 @@
     "@mlc-ai/web-tokenizers": "^0.1.2",
     "@rollup/plugin-commonjs": "^20.0.0",
     "@rollup/plugin-node-resolve": "^13.0.4",
+    "@types/jest": "^29.5.11",
     "@typescript-eslint/eslint-plugin": "^5.59.6",
     "@typescript-eslint/parser": "^5.59.6",
     "@webgpu/types": "^0.1.24",
     "buffer": "^5.7.1",
     "eslint": "^8.41.0",
+    "jest": "^29.7.0",
     "process": "^0.11.10",
     "rollup": "^2.56.2",
     "rollup-plugin-ignore": "^1.0.10",
     "rollup-plugin-typescript2": "^0.34.1",
+    "ts-jest": "^29.1.2",
     "tslib": "^2.3.1",
     "tvmjs": "file:./tvm_home/web",
     "typescript": "^4.9.5"
