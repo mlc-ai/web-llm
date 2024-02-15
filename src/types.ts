@@ -1,10 +1,4 @@
-import { AppConfig, ChatConfig } from "./config"
-
-/**
- * Custom options that can be used to
- * override known config values.
- */
-export interface ChatOptions extends Partial<ChatConfig> { }
+import { AppConfig, ChatOptions, GenerationConfig } from "./config";
 
 /**
  * Report during intialization.
@@ -84,12 +78,14 @@ export interface ChatInterface {
    * @param input The input prompt.
    * @param progressCallback Callback that is being called to stream intermediate results.
    * @param streamInterval callback interval to call progresscallback
+   * @param genConfig Configuration for this single generation that overrides pre-existing configs.
    * @returns The final result.
    */
   generate: (
     input: string,
     progressCallback?: GenerateProgressCallback,
     streamInterval?: number,
+    genConfig?: GenerationConfig,
   ) => Promise<string>;
 
   /**

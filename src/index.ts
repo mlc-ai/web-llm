@@ -1,12 +1,11 @@
 export {
-  ModelRecord, AppConfig
+  ModelRecord, AppConfig, ChatOptions, GenerationConfig
 } from "./config";
 
 
 export {
   InitProgressCallback,
   InitProgressReport,
-  ChatOptions,
   ChatInterface,
   LogitProcessor,
 } from "./types";

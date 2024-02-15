@@ -2,7 +2,7 @@
 /* eslint-disable no-prototype-builtins */
 import * as tvmjs from "tvmjs";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
-import { ChatConfig } from "./config";
+import { ChatConfig, GenerationConfig } from "./config";
 import { getConversation, Conversation } from "./conversation";
 import { LogitProcessor } from "./types";
 
@@ -46,7 +46,8 @@ export class LLMChatPipeline {
   private outputMessage = "";
   private outputIds: Array<number> = [];
   private stopTriggered = false;
-  private appearedTokens = new Set<number>();
+  // frequency of appeared token ids till now (refresh after PrefillStep); token_id mapped to freq
+  private appearedTokensFreq = new Map<number, number>();
   private conversation: Conversation;
   // Whether sink is in action
   private sinkTriggered = false;
@@ -305,14 +306,14 @@ export class LLMChatPipeline {
   /**
    * Generate the first token given input prompt
    */
-  async prefillStep(inp: string): Promise<void> {
+  async prefillStep(inp: string, genConfig?: GenerationConfig): Promise<void> {
     if (this.resetStatsPerPrefill) {
       this.resetRuntimeStats();
     }
 
     // cleanup the per convo states
     this.outputIds = [];
-    this.appearedTokens.clear();
+    this.appearedTokensFreq.clear();
     this.outputMessage = "";
     this.stopTriggered = false;
     const conversation = this.conversation;
@@ -320,7 +321,7 @@ export class LLMChatPipeline {
     // initialize
     conversation.appendMessage(conversation.config.roles[0], inp);
     conversation.appendReplyHeader(conversation.config.roles[1]);
-    const promptTokens = this.getInputTokens();
+    const promptTokens = this.getInputTokens(genConfig);
 
     const tstart = performance.now();
     this.tvm.beginScope();
@@ -368,18 +369,17 @@ export class LLMChatPipeline {
     this.filledKVCacheLength = newSeqLen;
     this.tvm.endScope();
 
-    const nextToken = await this.sampleTokenFromLogits(
-      logits, this.config.temperature, this.config.top_p);
+    const nextToken = await this.sampleTokenFromLogits(logits, genConfig);
     logits.dispose();
     const tend = performance.now();
 
     this.prefillTotalTime += (tend - tstart) / 1e3;
     this.prefillTotalTokens += promptTokens.length;
 
-    this.processNextToken(nextToken);
+    this.processNextToken(nextToken, genConfig);
   }
 
-  async decodeStep(): Promise<void> {
+  async decodeStep(genConfig?: GenerationConfig): Promise<void> {
     if (this.stopTriggered) {
       throw Error("Cannot run decode when stopped");
     }
@@ -410,15 +410,14 @@ export class LLMChatPipeline {
     this.tvm.endScope();
 
     // sample from logits
-    const nextToken = await this.sampleTokenFromLogits(
-      logits, this.config.temperature, this.config.top_p);
+    const nextToken = await this.sampleTokenFromLogits(logits, genConfig);
     logits.dispose();
     const tend = performance.now();
 
     this.decodingTotalTime += (tend - tstart) / 1e3;
     this.decodingTotalTokens += 1;
 
-    this.processNextToken(nextToken);
+    this.processNextToken(nextToken, genConfig);
   }
 
   /**
@@ -436,10 +435,26 @@ export class LLMChatPipeline {
    * Add a generated token and check for stop.
    *
    * @param nextToken The next token.
+   * @param genConfig Configs that override `this.config` for this round of generation.
    */
-  private processNextToken(nextToken: number): void {
+  private processNextToken(nextToken: number, genConfig?: GenerationConfig): void {
     if (this.stopTriggered) {
       throw Error("Cannot call process when it is stoppped");
+    }
+
+    // Get max_gen_len, possibly overridden by genConfig for this round
+    let max_gen_len = this.config.max_gen_len;
+    if (genConfig !== undefined && genConfig.max_gen_len) {
+      max_gen_len = genConfig.max_gen_len;
+    }
+    if (max_gen_len <= 0) {
+      throw new Error("`max_gen_len` should be greater than 0.")
+    }
+
+    // Read in stop strings for this genenration
+    let stopStrs = [this.stopStr];
+    if (genConfig !== undefined && genConfig.stop) {
+      stopStrs = stopStrs.concat(genConfig.stop);
     }
 
     // if there is a stop token
@@ -449,16 +464,33 @@ export class LLMChatPipeline {
 
     if (!this.stopTriggered) {
       this.outputIds.push(nextToken);
-      this.appearedTokens.add(nextToken);
+      // Update token appearance frequency
+      const curFreq = this.appearedTokensFreq.get(nextToken);
+      if (curFreq !== undefined) {
+        this.appearedTokensFreq.set(nextToken, curFreq + 1);
+      } else {
+        this.appearedTokensFreq.set(nextToken, 1);
+      }
     }
 
     let outputMessage = this.tokenizer.decode(new Int32Array(this.outputIds));
-    const stopPos = outputMessage.lastIndexOf(this.stopStr);
-    if (stopPos != -1) {
-      outputMessage = outputMessage.substring(0, stopPos);
+
+    // Check if any stop string is generated
+    let stopPos = -1;
+    for (const stopStr of stopStrs) {
+      // Stop at the first stopStr we find
+      stopPos = outputMessage.lastIndexOf(stopStr);
+      if (stopPos != -1) {
+        outputMessage = outputMessage.substring(0, stopPos);
+        this.stopTriggered = true;
+        break;
+      }
+    }
+
+    this.outputMessage = outputMessage;
+    if (this.outputIds.length >= max_gen_len) {
       this.stopTriggered = true;
     }
-    this.outputMessage = outputMessage;
 
     if (this.stopTriggered) {
       this.conversation.finishReply(this.outputMessage);
@@ -543,12 +575,41 @@ export class LLMChatPipeline {
 
   private async sampleTokenFromLogits(
     logitsOnGPU: tvmjs.NDArray,
-    temperature: number,
-    top_p: number
+    genConfig?: GenerationConfig,
   ) {
+    // 0. Get value of temperature, top_p, and reptition_penalty, possibly overridden by genConfig
+    function _hasValue(value: any): boolean {
+      return value !== undefined && value !== null;
+    }
+    let temperature = this.config.temperature;
+    let top_p = this.config.top_p;
+    let repetition_penalty = this.config.repetition_penalty;
+    let frequency_penalty = undefined;
+    let presence_penalty = undefined;
+    if (genConfig !== undefined) {
+      if (_hasValue(genConfig.temperature)) { temperature = genConfig.temperature!; }
+      if (_hasValue(genConfig.top_p)) { top_p = genConfig.top_p!; }
+      if (_hasValue(genConfig.repetition_penalty)) { repetition_penalty = genConfig.repetition_penalty!; }
+      if (_hasValue(genConfig.frequency_penalty)) { frequency_penalty = genConfig.frequency_penalty!; }
+      if (_hasValue(genConfig.presence_penalty)) { presence_penalty = genConfig.presence_penalty!; }
+      // If only one of frequency or presence penatly is set, make the other one 0.0
+      if (_hasValue(frequency_penalty) && !_hasValue(presence_penalty)) { presence_penalty = 0.0; }
+      if (_hasValue(presence_penalty) && !_hasValue(frequency_penalty)) { frequency_penalty = 0.0; }
+    }
+    // Check range validity
+    if (top_p <= 0 || top_p >= 1) { throw new Error("Make sure 0 < `top_p` < 1."); }
+    if (temperature < 0) { throw new Error("Make sure `temperature` >= 0."); }
+    if (repetition_penalty <= 0) { throw new Error("Make sure `repetition_penalty` > 0."); }
+    if (frequency_penalty && (frequency_penalty < -2.0 || frequency_penalty > 2.0)) {
+      throw new Error("`frequency_penalty` should be between -2.0 and 2.0.");
+    }
+    if (presence_penalty && (presence_penalty < -2.0 || presence_penalty > 2.0)) {
+      throw new Error("`presence_penalty` should be between -2.0 and 2.0.");
+    }
+
     // 1. Move logits to CPU
     this.tvm.beginScope();
-    const logitsOnCPU = this.updateLogitsOnCPU(logitsOnGPU);
+    this.updateLogitsOnCPU(logitsOnGPU);
     this.tvm.endScope();
     await this.device.sync();
 
@@ -558,25 +619,44 @@ export class LLMChatPipeline {
 
     // 2. Post process logits
     if (this.logitProcessor !== undefined) {
-      let logitsOnCPUArray: Float32Array = <Float32Array>(logitsOnCPU.toArray());
+      let logitsOnCPUArray: Float32Array = <Float32Array>(this.logitsOnCPU.toArray());
       logitsOnCPUArray = this.logitProcessor.processLogits(logitsOnCPUArray);
-      logitsOnCPU.copyFrom(logitsOnCPUArray);
+      this.logitsOnCPU.copyFrom(logitsOnCPUArray);
     }
 
     // 3. Sample
-    let sampledToken;
-    if (this.config.repetition_penalty < 1.0 + 1e-6) {
-      sampledToken = this.tvm.sampleTopPFromLogits(logitsOnCPU, temperature, top_p);
-    } else {
+    if (_hasValue(frequency_penalty) && _hasValue(presence_penalty)) {
+      // 3.1. Use frequency and presence penalty
       this.tvm.beginScope();
+      // Both `keys()` and `values()` are in insertion order.
+      const appearedTokens = [...this.appearedTokensFreq.keys()];
+      const appearedTokensFreqs = [...this.appearedTokensFreq.values()];
       const appeared_tokens_ndarray = this.tvm.empty(
-        [1, this.appearedTokens.size], "int32", this.tvm.cpu());
-      appeared_tokens_ndarray.copyFrom(Array.from(this.appearedTokens));
-      this.tvm.applyRepetitionPenalty(
-        this.logitsOnCPU, appeared_tokens_ndarray, this.config.repetition_penalty);
+        [1, appearedTokens.length], "int32", this.tvm.cpu());
+      const appeared_tokens_freqs_ndarray = this.tvm.empty(
+        [1, appearedTokensFreqs.length], "int32", this.tvm.cpu());
+      appeared_tokens_ndarray.copyFrom(appearedTokens);
+      appeared_tokens_freqs_ndarray.copyFrom(appearedTokensFreqs);
+      this.tvm.applyPresenceAndFrequencyPenalty(
+        this.logitsOnCPU,
+        appeared_tokens_ndarray,
+        appeared_tokens_freqs_ndarray,
+        presence_penalty!,
+        frequency_penalty!
+      );
       this.tvm.endScope();
-      sampledToken = this.tvm.sampleTopPFromLogits(this.logitsOnCPU, temperature, top_p);
+    } else if (repetition_penalty != 1.0) {
+      // 3.2. Use repetition penalty
+      this.tvm.beginScope();
+      const appearedTokens = [...this.appearedTokensFreq.keys()];
+      const appeared_tokens_ndarray = this.tvm.empty(
+        [1, appearedTokens.length], "int32", this.tvm.cpu());
+      appeared_tokens_ndarray.copyFrom(appearedTokens);
+      this.tvm.applyRepetitionPenalty(
+        this.logitsOnCPU, appeared_tokens_ndarray, repetition_penalty);
+      this.tvm.endScope();
     }
+    const sampledToken = this.tvm.sampleTopPFromLogits(this.logitsOnCPU, temperature, top_p);
 
     // 4. Update logit processor
     this.logitProcessor?.processSampledToken(sampledToken);
@@ -584,7 +664,26 @@ export class LLMChatPipeline {
     return sampledToken;
   }
 
-  private getInputTokens(): Array<number> {
+  private getInputTokens(genConfig?: GenerationConfig): Array<number> {
+    // Get mean_gen_len and max_gen_len, possibly overriden by genConfig
+    let mean_gen_len = this.config.mean_gen_len;
+    let shift_fill_factor = this.config.shift_fill_factor;
+    if (genConfig !== undefined) {
+      if (genConfig.mean_gen_len !== undefined && genConfig.mean_gen_len !== null) {
+        mean_gen_len = genConfig.mean_gen_len;
+      }
+      if (genConfig.shift_fill_factor !== undefined && genConfig.shift_fill_factor !== null) {
+        shift_fill_factor = genConfig.shift_fill_factor;
+      }
+    }
+    // Check range validity
+    if (shift_fill_factor <= 0 || shift_fill_factor > 1) {
+      throw new Error("Make sure 0 < `shift_fill_factor` <= 1.");
+    }
+    if (mean_gen_len <= 0) {
+      throw new Error("`mean_gen_len` should be greater than zero.");
+    }
+
     let tokens: Array<number> = [];
     let prompts;
     // beginning of the conversation
@@ -608,7 +707,7 @@ export class LLMChatPipeline {
       const encoded = this.tokenizer.encode(prompts[i]);
       ctxLength += encoded.length;
       if (this.slidingWindowSize == -1 &&  // There is no maxWindowLength if we use sliding window
-        this.filledKVCacheLength + ctxLength + this.config.mean_gen_len >= this.maxWindowLength) {
+        this.filledKVCacheLength + ctxLength + mean_gen_len >= this.maxWindowLength) {
         needShiftWindow = true;
         break;
       }
@@ -646,7 +745,7 @@ export class LLMChatPipeline {
     for (let i = all_prompts.length - 1; i > 0; --i) {
       const encoded = this.tokenizer.encode(all_prompts[i]);
       ctxLength += encoded.length;
-      if (ctxLength >= this.config.shift_fill_factor * this.maxWindowLength && i + 2 < all_prompts.length) {
+      if (ctxLength >= shift_fill_factor * this.maxWindowLength && i + 2 < all_prompts.length) {
         break;
       }
       context.unshift(encoded);
@@ -654,7 +753,7 @@ export class LLMChatPipeline {
     for (const ctx of context) {
       tokens.push(...ctx);
     }
-    if (tokens.length + this.config.mean_gen_len >= this.maxWindowLength) {
+    if (tokens.length + mean_gen_len >= this.maxWindowLength) {
       throw Error("Exceed max window length curr=" + tokens.length);
     }
     return tokens;
@@ -671,8 +770,7 @@ export class LLMChatPipeline {
 
     // 2. Forward tokens and get logits
     const logitsOnGPU: tvmjs.NDArray = this.forward(inputData, curPos);
-    const nextToken = await this.sampleTokenFromLogits(
-      logitsOnGPU, this.config.temperature, this.config.top_p);
+    const nextToken = await this.sampleTokenFromLogits(logitsOnGPU);
     this.tvm.endScope();
 
     // 3. Stats

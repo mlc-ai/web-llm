@@ -1,7 +1,6 @@
-import { AppConfig } from "./config";
+import { AppConfig, ChatOptions, GenerationConfig } from "./config";
 import {
   ChatInterface,
-  ChatOptions,
   GenerateProgressCallback,
   InitProgressCallback,
   InitProgressReport
@@ -27,6 +26,7 @@ interface ReloadParams {
 interface GenerateParams {
   input: string,
   streamInterval?: number;
+  genConfig?: GenerationConfig;
 }
 
 interface ResetChatParams {
@@ -142,7 +142,12 @@ export class ChatWorkerHandler {
             };
             postMessage(cbMessage);
           };
-          return await this.chat.generate(params.input, progressCallback, params.streamInterval);
+          return await this.chat.generate(
+            params.input,
+            progressCallback,
+            params.streamInterval,
+            params.genConfig
+          );
         })
         return;
       }
@@ -293,14 +298,16 @@ export class ChatWorkerClient implements ChatInterface {
   async generate(
     input: string,
     progressCallback?: GenerateProgressCallback,
-    streamInterval?: number
+    streamInterval?: number,
+    genConfig?: GenerationConfig,
   ): Promise<string> {
     const msg: WorkerMessage = {
       kind: "generate",
       uuid: crypto.randomUUID(),
       content: {
         input: input,
-        streamInterval: streamInterval
+        streamInterval: streamInterval,
+        genConfig: genConfig
       }
     };
     if (progressCallback !== undefined) {
@@ -336,7 +343,7 @@ export class ChatWorkerClient implements ChatInterface {
     await this.getPromise<null>(msg);
   }
 
-  async resetChat(keepStats: boolean = false): Promise<void> {
+  async resetChat(keepStats = false): Promise<void> {
     const msg: WorkerMessage = {
       kind: "resetChat",
       uuid: crypto.randomUUID(),
