@@ -52,13 +52,14 @@ export interface GenerationConfig {
   shift_fill_factor?: number;
   repetition_penalty?: number;
   // Shared by MLC and OpenAI APIs
-  top_p?: number;
-  temperature?: number;
+  top_p?: number | null;
+  temperature?: number | null;
   max_gen_len?: number | null;
   // Only in OpenAI APIs
   frequency_penalty?: number | null;
   presence_penalty?: number | null;
   stop?: string | null | Array<string>;
+  n?: number | null;
 }
 
 export function postInitAndCheckGenerationConfigValues(config: GenerationConfig): void {

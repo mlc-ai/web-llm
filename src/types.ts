@@ -1,4 +1,10 @@
 import { AppConfig, ChatOptions, GenerationConfig } from "./config";
+import {
+  ChatCompletionRequest,
+  ChatCompletion,
+  ChatCompletionChunk,
+  ChatCompletionMessageParam,
+} from "./openai_api_protocols/index";
 
 /**
  * Report during intialization.
@@ -75,18 +81,23 @@ export interface ChatInterface {
   /**
    * Generate a response for a given input.
    *
-   * @param input The input prompt.
+   * @param input The input prompt or an array of OpenAI-like `ChatCompletionMessageParam`.
    * @param progressCallback Callback that is being called to stream intermediate results.
    * @param streamInterval callback interval to call progresscallback
    * @param genConfig Configuration for this single generation that overrides pre-existing configs.
    * @returns The final result.
    */
   generate: (
-    input: string,
+    input: string | Array<ChatCompletionMessageParam>,
     progressCallback?: GenerateProgressCallback,
     streamInterval?: number,
     genConfig?: GenerationConfig,
   ) => Promise<string>;
+
+  /**
+   * OpenAI-style API. Generate a chat completion response for the given conversation and configuration.
+   */
+  chatCompletion: (request: ChatCompletionRequest) => Promise<ChatCompletion>;
 
   /**
    * @returns A text summarizing the runtime stats.

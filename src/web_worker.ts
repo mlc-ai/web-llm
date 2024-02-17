@@ -5,6 +5,11 @@ import {
   InitProgressCallback,
   InitProgressReport
 } from "./types";
+import {
+  ChatCompletionRequest,
+  ChatCompletion,
+  ChatCompletionMessageParam,
+} from "./openai_api_protocols/index";
 
 /**
  * Message kind used by worker
@@ -14,7 +19,7 @@ type RequestKind = (
   "reload" | "generate" | "runtimeStatsText" |
   "interruptGenerate" | "unload" | "resetChat" |
   "initProgressCallback" | "generateProgressCallback" | "getMaxStorageBufferBindingSize" |
-  "getGPUVendor" | "forwardTokensAndSample" | "customRequest"
+  "getGPUVendor" | "forwardTokensAndSample" | "chatCompletion" | "customRequest"
 );
 
 interface ReloadParams {
@@ -24,7 +29,7 @@ interface ReloadParams {
 }
 
 interface GenerateParams {
-  input: string,
+  input: string | Array<ChatCompletionMessageParam>,
   streamInterval?: number;
   genConfig?: GenerationConfig;
 }
@@ -44,6 +49,10 @@ interface ForwardTokensAndSampleParams {
   isPrefill: boolean;
 }
 
+interface ChatCompletionParams {
+  request: ChatCompletionRequest;
+}
+
 export interface CustomRequestParams {
   requestName: string;
   requestMessage: string;
@@ -55,11 +64,13 @@ type MessageContent =
   GenerateParams |
   ResetChatParams |
   ForwardTokensAndSampleParams |
+  ChatCompletionParams |
   CustomRequestParams |
   InitProgressReport |
   string |
   null |
-  number;
+  number |
+  ChatCompletion;
 
 /**
  * The message used in exchange between worker
@@ -155,6 +166,13 @@ export class ChatWorkerHandler {
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ForwardTokensAndSampleParams;
           return await this.chat.forwardTokensAndSample(params.inputIds, params.curPos, params.isPrefill);
+        })
+        return;
+      }
+      case "chatCompletion": {
+        this.handleTask(msg.uuid, async () => {
+          const params = msg.content as ChatCompletionParams;
+          return await this.chat.chatCompletion(params.request);
         })
         return;
       }
@@ -296,7 +314,7 @@ export class ChatWorkerClient implements ChatInterface {
   }
 
   async generate(
-    input: string,
+    input: string | Array<ChatCompletionMessageParam>,
     progressCallback?: GenerateProgressCallback,
     streamInterval?: number,
     genConfig?: GenerationConfig,
@@ -367,6 +385,19 @@ export class ChatWorkerClient implements ChatInterface {
       }
     };
     return await this.getPromise<number>(msg);
+  }
+
+  async chatCompletion(
+    request: ChatCompletionRequest
+  ): Promise<ChatCompletion> {
+    const msg: WorkerMessage = {
+      kind: "chatCompletion",
+      uuid: crypto.randomUUID(),
+      content: {
+        request: request,
+      }
+    };
+    return await this.getPromise<ChatCompletion>(msg);
   }
 
   onmessage(event: any) {

@@ -9,7 +9,7 @@ import {
   postInitAndCheckGenerationConfigValues
 } from "./config";
 import { LLMChatPipeline } from "./llm_chat"
-
+import * as ChatCompletionAPI from "./openai_api_protocols/index";
 import {
   InitProgressCallback,
   ChatInterface,
@@ -21,6 +21,7 @@ import {
  * This is the main interface to the chat module.
  */
 export class ChatModule implements ChatInterface {
+  private currentLocaId?: string = undefined;  // Model current loaded, undefined if nothing is loaded
   private logger: (msg: string) => void = console.log;
   private logitProcessorRegistry?: Map<string, LogitProcessor>;
   private logitProcessor?: LogitProcessor;
@@ -155,10 +156,11 @@ export class ChatModule implements ChatInterface {
         text: text
       })
     }
+    this.currentLocaId = localId;
   }
 
   async generate(
-    input: string,
+    input: string | Array<ChatCompletionAPI.ChatCompletionMessageParam>,
     progressCallback?: GenerateProgressCallback,
     streamInterval = 1,
     genConfig?: GenerationConfig,
@@ -184,6 +186,62 @@ export class ChatModule implements ChatInterface {
     return this.getMessage();
   }
 
+  async chatCompletion(
+    request: ChatCompletionAPI.ChatCompletionRequest
+  ): Promise<ChatCompletionAPI.ChatCompletion> {
+    // 0. Preprocess inputs
+    if (!this.currentLocaId) {
+      throw new Error("Please call `ChatModule.reload(model)` first.");
+    }
+    ChatCompletionAPI.postInitAndCheckFields(request);
+    const genConfig: GenerationConfig = {
+      frequency_penalty: request.frequency_penalty,
+      presence_penalty: request.presence_penalty,
+      max_gen_len: request.max_gen_len,
+      stop: request.stop,
+      top_p: request.top_p,
+      temperature: request.temperature,
+    }
+    if (request.stream) {
+      throw Error("Streaming chat completion not supported yet");
+    }
+
+    // 1. If request is non-streaming, directly reuse `generate()`
+    let n = 1;
+    if (request.n) {
+      n = request.n;
+    }
+    const choices: Array<ChatCompletionAPI.ChatCompletion.Choice> = [];
+    for (let i = 0; i < n; i++) {
+      await this.resetChat();
+      const outputMessage = await this.generate(
+        request.messages,
+        /*progressCallback=*/undefined,
+        /*streamInterval=*/1,
+        /*genConfig=*/genConfig
+      );
+      choices.push({
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        finish_reason: this.getFinishReason()!,
+        index: i,
+        logprobs: null,
+        message: {
+          content: outputMessage,
+          role: "assistant",
+        }
+      });
+    }
+    const response: ChatCompletionAPI.ChatCompletion = {
+      id: crypto.randomUUID(),
+      choices: choices,
+      model: this.currentLocaId,
+      object: "chat.completion",
+      created: Date.now(),
+    }
+
+    return response;
+  }
+
   async interruptGenerate() {
     this.interruptSignal = true;
   }
@@ -199,6 +257,7 @@ export class ChatModule implements ChatInterface {
   async unload() {
     this.pipeline?.dispose();
     this.pipeline = undefined;
+    this.currentLocaId = undefined;
   }
 
   async getMaxStorageBufferBindingSize(): Promise<number> {
@@ -254,6 +313,13 @@ export class ChatModule implements ChatInterface {
   }
 
   /**
+   * @returns Finish reason; undefined if generation not started/stopped yet.
+  */
+  getFinishReason(): ChatCompletionAPI.ChatCompletionFinishReason | undefined {
+    return this.getPipeline().getFinishReason();
+  }
+
+  /**
    * Get the current generated response.
    *
    * @returns The current output message.
@@ -263,11 +329,76 @@ export class ChatModule implements ChatInterface {
   }
 
   /**
-   * Run a prefill step with a given input.
-   * @param input The input prompt.
+   * Modify this.getPipeline().conversation according to the user provided messages.
+   * This include modifying `Conversation.messges` and `Conversation.config.system`.
+   * 
+   * @param input The messages from ChatCompletionRequest
+   * @note `input[-1]` is not included as it would be treated as a normal input to `prefill()`.
    */
-  async prefill(input: string, genConfig?: GenerationConfig) {
-    return this.getPipeline().prefillStep(input, genConfig);
+  private overrideConversationWithChatCompletionMessages(
+    input: Array<ChatCompletionAPI.ChatCompletionMessageParam>
+  ): void {
+    if (this.getPipeline().getConversationMessages().length > 0) {
+      throw Error("Precondition violated: this method should only be called after `resetChat()`.")
+    }
+    const lastId = input.length - 1;
+    if (input[lastId].role !== "user" || typeof input[lastId].content !== "string") {
+      // TODO(Charlie): modify condition after we support multimodal inputs
+      throw Error("Last messages should be a string from the `user`.")
+    }
+    // We prepare to override the message history
+    const messages: Array<[string, string]> = [];
+    const roles: Array<string> = this.getPipeline().getRoles();
+    for (let i = 0; i < input.length - 1; i++) {
+      const message = input[i];
+      if (message.role === "system") {
+        if (i !== 0) {
+          throw new Error("System prompt should always be the first one in `messages`.");
+        }
+        this.getPipeline().overrideSystemPrompt(message.content);
+      } else if (message.role === "user") {
+        if (typeof message.content !== "string") {
+          // TODO(Charlie): modify condition after we support multimodal inputs
+          throw new Error("Last messages should be a string from the `user`.");
+        }
+        messages.push([
+          message.name ? message.name : roles[0],
+          message.content,
+        ]);
+      } else if (message.role === "assistant") {
+        if (typeof message.content !== "string") {
+          // TODO(Charlie): Remove when we support function calling
+          throw new Error("Assistant message should have string content.");
+        }
+        messages.push([
+          message.name ? message.name : roles[1],
+          message.content,
+        ]);
+      } else {
+        throw new Error("Unsuppoerted role: " + message.role);
+      }
+    }
+    this.getPipeline().overrideConversationMessages(messages);
+  }
+
+  /**
+   * Run a prefill step with a given input.
+   * @param input The input prompt, or `messages` in OpenAI-like APIs.
+   */
+  async prefill(
+    input: string | Array<ChatCompletionAPI.ChatCompletionMessageParam>,
+    genConfig?: GenerationConfig
+  ) {
+    let input_str: string;
+    if (typeof input === "string") {
+      input_str = input;
+    } else {
+      // Process ChatCompletionMessageParam
+      // We treat the last message as our usual input
+      this.overrideConversationWithChatCompletionMessages(input);
+      input_str = input[input.length - 1].content as string;
+    }
+    return this.getPipeline().prefillStep(input_str, genConfig);
   }
 
   /**
@@ -345,12 +476,21 @@ export class ChatRestModule implements ChatInterface {
     throw new Error("Method not supported.");
   }
 
+  async chatCompletion(
+    request: ChatCompletionAPI.ChatCompletionRequest
+  ): Promise<ChatCompletionAPI.ChatCompletion> {
+    throw new Error("Method not supported.");
+  }
+
   async generate(
-    input: string,
+    input: string | Array<ChatCompletionAPI.ChatCompletionMessageParam>,
     progressCallback?: GenerateProgressCallback,
     streamInterval = 1,
     genConfig?: GenerationConfig,
   ): Promise<string> {
+    if (typeof input !== "string") {
+      throw new Error("ChatModuleRest only support string `input` for `generate`.")
+    }
     if (streamInterval == 0) {
       const response = await fetch('http://localhost:8000/v1/chat/completions', {
         method: "POST",

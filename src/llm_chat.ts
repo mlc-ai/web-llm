@@ -5,7 +5,7 @@ import { Tokenizer } from "@mlc-ai/web-tokenizers";
 import { ChatConfig, GenerationConfig } from "./config";
 import { getConversation, Conversation } from "./conversation";
 import { LogitProcessor } from "./types";
-
+import { ChatCompletionFinishReason } from "./openai_api_protocols/index"
 
 export class LLMChatPipeline {
   private config: ChatConfig;
@@ -46,6 +46,7 @@ export class LLMChatPipeline {
   private outputMessage = "";
   private outputIds: Array<number> = [];
   private stopTriggered = false;
+  private finishReason: ChatCompletionFinishReason | undefined = undefined;
   // frequency of appeared token ids till now (refresh after PrefillStep); token_id mapped to freq
   private appearedTokensFreq = new Map<number, number>();
   private conversation: Conversation;
@@ -290,6 +291,13 @@ export class LLMChatPipeline {
   }
 
   /**
+   * @returns Finish reason; undefined if generation not started/stopped yet.
+   */
+  getFinishReason(): ChatCompletionFinishReason | undefined {
+    return this.finishReason;
+  }
+
+  /**
    * @returns Runtime stats information.
    */
   runtimeStatsText(): string {
@@ -298,6 +306,43 @@ export class LLMChatPipeline {
       `decoding: ${(this.decodingTotalTokens / this.decodingTotalTime).toFixed(4)} tokens/sec`
     )
   }
+
+  // Getters and writters for this.conversation.
+  /**
+   * Overrides the system prompt.
+   */
+  overrideSystemPrompt(system: string): void {
+    this.conversation.config.system = system;
+  }
+
+  /**
+   * Override this.conversation.messages.
+   */
+  overrideConversationMessages(messages: Array<[string, string | undefined]>): void {
+    // TODO(Charlie): Do we need to make a deep copy here?
+    this.conversation.messages = messages;
+  }
+
+  /**
+   * Get this.conversation.messages.
+   */
+  getConversationMessages(): Array<[string, string | undefined]> {
+    // TODO(Charlie): Do we need to make a deep copy here?
+    return this.conversation.messages;
+  }
+
+  /**
+   * @returns the roles of this.conversation's conversation template of lengths of two.
+   */
+  getRoles(): Array<string> {
+    const res = this.conversation.config.roles;
+    if (res.length !== 2) {
+      throw new Error("Expect the conversation template to have two roles.");
+    }
+    return res;
+  }
+
+
 
   async asyncLoadWebGPUPipelines() {
     await this.tvm.asyncLoadWebGPUPipelines(this.vm.getInternalModule());
@@ -329,42 +374,32 @@ export class LLMChatPipeline {
     let newSeqLen = this.filledKVCacheLength;
     const tokenLen = promptTokens.length;
     let logits = this.tvm.empty([1, 1], "int32", this.device);  // Dummy value to avoid type error
-    if (this.prefillChunkSize != -1) {
-      // Use prefill chunking regardless whether we use SWA (see Mistral paper figure 3)
-      for (let begin = 0; begin < tokenLen; begin += this.prefillChunkSize) {
-        const end = Math.min(tokenLen, begin + this.prefillChunkSize);
-        const chunk = promptTokens.slice(begin, end);
-        const inputData = this.tvm.empty([1, chunk.length], "int32", this.device);
-        inputData.copyFrom(chunk);
-        newSeqLen += chunk.length;
-        logits = this.tvm.detachFromCurrentScope(
-          this.forward(inputData, newSeqLen)
-        );
-
-        // Update window cache offset (prefill)
-        if (this.slidingWindowSize != -1) {
-          if (this.sinkTriggered) {
-            this.slidingWindowCacheOffset = Math.max(
-              (this.slidingWindowCacheOffset + chunk.length) % this.slidingWindowSize,
-              this.attentionSinkSize
-            )
-          } else {
-            this.slidingWindowCacheOffset += chunk.length;
-            this.sinkTriggered = this.slidingWindowCacheOffset >= this.attentionSinkSize;
-          }
-        }
-      }
-      if (newSeqLen != this.filledKVCacheLength + tokenLen) {
-        throw Error("Expect chunking process all tokens.")
-      }
-    } else {
-      // Otherwise, prefill entire prompt at once
-      const inputData = this.tvm.empty([1, promptTokens.length], "int32", this.device);
-      inputData.copyFrom(promptTokens);
-      newSeqLen += tokenLen;
+    // Use prefill chunking regardless whether we use SWA (see Mistral paper figure 3)
+    for (let begin = 0; begin < tokenLen; begin += this.prefillChunkSize) {
+      const end = Math.min(tokenLen, begin + this.prefillChunkSize);
+      const chunk = promptTokens.slice(begin, end);
+      const inputData = this.tvm.empty([1, chunk.length], "int32", this.device);
+      inputData.copyFrom(chunk);
+      newSeqLen += chunk.length;
       logits = this.tvm.detachFromCurrentScope(
         this.forward(inputData, newSeqLen)
       );
+
+      // Update window cache offset (prefill)
+      if (this.slidingWindowSize != -1) {
+        if (this.sinkTriggered) {
+          this.slidingWindowCacheOffset = Math.max(
+            (this.slidingWindowCacheOffset + chunk.length) % this.slidingWindowSize,
+            this.attentionSinkSize
+          )
+        } else {
+          this.slidingWindowCacheOffset += chunk.length;
+          this.sinkTriggered = this.slidingWindowCacheOffset >= this.attentionSinkSize;
+        }
+      }
+    }
+    if (newSeqLen != this.filledKVCacheLength + tokenLen) {
+      throw Error("Expect chunking process all tokens.")
     }
     this.filledKVCacheLength = newSeqLen;
     this.tvm.endScope();
@@ -428,6 +463,7 @@ export class LLMChatPipeline {
       return;
     }
     this.stopTriggered = true;
+    this.finishReason = "abort";
     this.conversation.finishReply(this.outputMessage);
   }
 
@@ -442,7 +478,7 @@ export class LLMChatPipeline {
       throw Error("Cannot call process when it is stoppped");
     }
 
-    // Get max_gen_len, possibly overridden by genConfig for this round
+    // Get max_gen_len and stopStrs, possibly overridden by genConfig for this round
     let max_gen_len = this.config.max_gen_len;
     if (genConfig !== undefined && genConfig.max_gen_len) {
       max_gen_len = genConfig.max_gen_len;
@@ -450,18 +486,16 @@ export class LLMChatPipeline {
     if (max_gen_len <= 0) {
       throw new Error("`max_gen_len` should be greater than 0.")
     }
-
-    // Read in stop strings for this genenration
     let stopStrs = [this.stopStr];
     if (genConfig !== undefined && genConfig.stop) {
       stopStrs = stopStrs.concat(genConfig.stop);
     }
 
-    // if there is a stop token
+    // Stop condition 1: stop token; otherwise, append to `this.outputIds`
     if (this.stopTokens.includes(nextToken)) {
       this.stopTriggered = true;
+      this.finishReason = "stop";
     }
-
     if (!this.stopTriggered) {
       this.outputIds.push(nextToken);
       // Update token appearance frequency
@@ -473,9 +507,8 @@ export class LLMChatPipeline {
       }
     }
 
+    // Stop condition 2: stop string; update `this.outputMessage` subsequently
     let outputMessage = this.tokenizer.decode(new Int32Array(this.outputIds));
-
-    // Check if any stop string is generated
     let stopPos = -1;
     for (const stopStr of stopStrs) {
       // Stop at the first stopStr we find
@@ -483,15 +516,19 @@ export class LLMChatPipeline {
       if (stopPos != -1) {
         outputMessage = outputMessage.substring(0, stopPos);
         this.stopTriggered = true;
+        this.finishReason = "stop";
         break;
       }
     }
-
     this.outputMessage = outputMessage;
+
+    // Stop condition 3: exceed max_gen_len
     if (this.outputIds.length >= max_gen_len) {
       this.stopTriggered = true;
+      this.finishReason = "length";
     }
 
+    // Finally, modify conversation history if stopped
     if (this.stopTriggered) {
       this.conversation.finishReply(this.outputMessage);
     }
@@ -687,7 +724,7 @@ export class LLMChatPipeline {
     let tokens: Array<number> = [];
     let prompts;
     // beginning of the conversation
-    if (this.conversation.messages.length <= 2) {
+    if (this.filledKVCacheLength === 0) {
       if (this.conversation.config.add_bos) {
         tokens = [this.bosTokenId];
       }

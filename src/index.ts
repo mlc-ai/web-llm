@@ -21,3 +21,5 @@ export {
   WorkerMessage,
   CustomRequestParams
 } from "./web_worker";
+
+export * from './openai_api_protocols/index';
