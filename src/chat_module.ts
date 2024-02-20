@@ -201,7 +201,7 @@ export class ChatModule implements ChatInterface {
    * @param request Request for chat completion.
    * @param genConfig Generation config extraced from `request`.
    */
-  async* chatCompletionStreaming(
+  async* chatCompletionAsyncChunkGenerator(
     request: ChatCompletionRequestStreaming,
     genConfig: GenerationConfig
   ): AsyncGenerator<ChatCompletionChunk, void, void> {
@@ -284,7 +284,7 @@ export class ChatModule implements ChatInterface {
 
     // 1. If request is streaming, return an AsyncIterable (an iterable version of `generate()`)
     if (request.stream) {
-      return this.chatCompletionStreaming(request, genConfig);
+      return this.chatCompletionAsyncChunkGenerator(request, genConfig);
     }
 
     // 2. If request is non-streaming, directly reuse `generate()`
