@@ -212,7 +212,7 @@ export class ChatModule implements ChatInterface {
 
     this.interruptSignal = false;
     await this.prefill(request.messages, genConfig);
-    let prevMessage = "";  // to know where to start slicing the delta
+    let prevMessageLength = 0;  // to know where to start slicing the delta
     while (!this.stopped()) {
       if (this.interruptSignal) {
         this.getPipeline().triggerStop();
@@ -223,8 +223,8 @@ export class ChatModule implements ChatInterface {
       // An emoji might be made up of multiple tokens. If an emoji gets truncated in the middle of
       // its encoded byte sequence, a replacement character will appear.
       const curMessage = this.getMessage().split("�").join("");  // same as replaceAll("�", "")
-      const deltaMessage = curMessage.slice(prevMessage.length);
-      prevMessage = curMessage;
+      const deltaMessage = curMessage.slice(prevMessageLength);
+      prevMessageLength = curMessage.length;
       if (deltaMessage.length == 0) {
         continue;
       }
