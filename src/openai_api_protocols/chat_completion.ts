@@ -26,6 +26,12 @@ export interface ChatCompletionRequestBase {
     stream?: boolean | null;
 
     /**
+     * How many chat completion choices to generate for each input message.
+     * 
+     */
+    n?: number | null;
+
+    /**
      * Number between -2.0 and 2.0. Positive values penalize new tokens based on their
      * existing frequency in the text so far, decreasing the model's likelihood to
      * repeat the same line verbatim.
@@ -81,13 +87,6 @@ export interface ChatCompletionRequestBase {
     model?: string | null;
 
     /**
-     * How many chat completion choices to generate for each input message.
-     * 
-     * @note Not supported yet, only 1 choice will be generated.
-     */
-    n?: number | null;
-
-    /**
      *
      * Modify the likelihood of specified tokens appearing in the completion.
      * 
@@ -104,6 +103,23 @@ export interface ChatCompletionRequestBase {
      * @note Not supported yet.
      */
     logprobs?: boolean | null;
+
+    /**
+     * An integer between 0 and 5 specifying the number of most likely tokens to return
+     * at each token position, each with an associated log probability. `logprobs` must
+     * be set to `true` if this parameter is used.
+     * 
+     * @note Not supported yet
+     */
+    top_logprobs?: number | null;
+
+    /**
+     * If specified, our system will make a best effort to sample deterministically, such that
+     * repeated requests with the same `seed` and parameters should return the same result.
+     * 
+     * @note Not supported yet.
+     */
+    seed?: number | null;
 
     /**
      * Controls which (if any) function is called by the model. `none` means the model
@@ -146,23 +162,6 @@ export interface ChatCompletionRequestBase {
      * @note **json_object not supported yet.**
      */
     response_format?: ResponseFormat;
-
-    /**
-     * If specified, our system will make a best effort to sample deterministically, such that
-     * repeated requests with the same `seed` and parameters should return the same result.
-     * 
-     * @note Not supported yet.
-     */
-    seed?: number | null;
-
-    /**
-     * An integer between 0 and 5 specifying the number of most likely tokens to return
-     * at each token position, each with an associated log probability. `logprobs` must
-     * be set to `true` if this parameter is used.
-     * 
-     * @note Not supported yet
-     */
-    top_logprobs?: number | null;
 }
 
 export interface ChatCompletionRequestNonStreaming extends ChatCompletionRequestBase {
@@ -296,7 +295,7 @@ export function postInitAndCheckFields(request: ChatCompletionRequest): void {
         );
     }
 
-    // 2. Check unsupported messages and other restrictions
+    // 2. Check unsupported messages
     request.messages.forEach((message: ChatCompletionMessageParam, index: number) => {
         if (message.role === "user" && typeof message.content !== "string") {
             // ChatCompletionUserMessageParam
@@ -319,9 +318,16 @@ export function postInitAndCheckFields(request: ChatCompletionRequest): void {
             throw new Error("System prompt should always be the first one in `messages`.");
         }
     })
+
+    // 3. Last message has to be from user
     const lastId = request.messages.length - 1;
     if (request.messages[lastId].role !== "user") {
         throw new Error("Last message should be from `user`.");
+    }
+
+    // 4. If streaming, n cannot be > 1, since we cannot manage multiple sequences at once
+    if (request.stream && request.n && request.n > 1) {
+        throw new Error("When streaming, `n` cannot be > 1.")
     }
 }
 
@@ -727,11 +733,10 @@ export namespace ChatCompletionChunk {
         /**
          * The reason the model stopped generating tokens. This will be `stop` if the model
          * hit a natural stop point or a provided stop sequence, `length` if the maximum
-         * number of tokens specified in the request was reached, `content_filter` if
-         * content was omitted due to a flag from our content filters, or `tool_calls` if the
-         * model called a tool.
+         * number of tokens specified in the request was reached, `tool_calls` if the
+         * model called a tool, or `abort` if user manually stops the generation.
          */
-        finish_reason: 'stop' | 'length' | 'tool_calls' | 'content_filter' | null;
+        finish_reason: ChatCompletionFinishReason | null;
 
         /**
          * The index of the choice in the list of choices.

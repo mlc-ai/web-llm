@@ -15,6 +15,67 @@ describe('Check chat completion unsupported requests', () => {
         }).toThrow("The following fields in ChatCompletionRequest are not yet supported");
     });
 
+    test('Last message should be from user', () => {
+        expect(() => {
+            const request: ChatCompletionRequest = {
+                messages: [
+                    { role: "system", content: "You are a helpful assistant." },
+                    { role: "user", content: "Hello! " },
+                    { role: "assistant", content: "Hello! How may I help you today?" },
+                ],
+            };
+            postInitAndCheckFields(request)
+        }).toThrow("Last message should be from `user`.");
+    });
+
+    test('System prompt should always be the first one in `messages`', () => {
+        expect(() => {
+            const request: ChatCompletionRequest = {
+                messages: [
+                    { role: "user", content: "Hello! " },
+                    { role: "assistant", content: "Hello! How may I help you today?" },
+                    { role: "user", content: "Tell me about Pittsburgh" },
+                    { role: "system", content: "You are a helpful assistant." },
+                ],
+            };
+            postInitAndCheckFields(request)
+        }).toThrow("System prompt should always be the first one in `messages`.");
+    });
+
+    test('When streaming `n` needs to be 1', () => {
+        expect(() => {
+            const request: ChatCompletionRequest = {
+                stream: true,
+                n: 2,
+                messages: [
+                    { role: "user", content: "Hello! " },
+                ],
+            };
+            postInitAndCheckFields(request)
+        }).toThrow("When streaming, `n` cannot be > 1.");
+    });
+
+    // Remove when we support image input (e.g. LlaVA model)
+    test('Image input is unsupported', () => {
+        expect(() => {
+            const request: ChatCompletionRequest = {
+                messages: [
+                    {
+                        role: "user",
+                        content: [
+                            { type: "text", text: "What is in this image?" },
+                            {
+                                type: "image_url",
+                                image_url: { url: "https://url_here.jpg" },
+                            },
+                        ],
+                    },
+                ],
+            };
+            postInitAndCheckFields(request)
+        }).toThrow("User message only supports string `content` for now");
+    });
+
     // Remove two tests below after we support function calling
     test('tool_calls is unsupported', () => {
         expect(() => {
@@ -39,55 +100,6 @@ describe('Check chat completion unsupported requests', () => {
             postInitAndCheckFields(request)
         }).toThrow("`tool` and `function` are not supported yet.");
     });
-
-    test('Last message should be from user', () => {
-        expect(() => {
-            const request: ChatCompletionRequest = {
-                messages: [
-                    { role: "system", content: "You are a helpful assistant." },
-                    { role: "user", content: "Hello! " },
-                    { role: "assistant", content: "Hello! How may I help you today?" },
-                ],
-            };
-            postInitAndCheckFields(request)
-        }).toThrow("Last message should be from `user`.");
-    });
-
-    test('System prompt should always be the first one in `messages`.', () => {
-        expect(() => {
-            const request: ChatCompletionRequest = {
-                messages: [
-                    { role: "user", content: "Hello! " },
-                    { role: "assistant", content: "Hello! How may I help you today?" },
-                    { role: "user", content: "Tell me about Pittsburgh" },
-                    { role: "system", content: "You are a helpful assistant." },
-                ],
-            };
-            postInitAndCheckFields(request)
-        }).toThrow("System prompt should always be the first one in `messages`.");
-    });
-
-    // Remove when we support image input (e.g. LlaVA model)
-    test('Image input is unsupported', () => {
-        expect(() => {
-            const request: ChatCompletionRequest = {
-                messages: [
-                    {
-                        role: "user",
-                        content: [
-                            { type: "text", text: "What is in this image?" },
-                            {
-                                type: "image_url",
-                                image_url: { url: "https://url_here.jpg" },
-                            },
-                        ],
-                    },
-                ],
-            };
-            postInitAndCheckFields(request)
-        }).toThrow("User message only supports string `content` for now");
-    });
-
 });
 
 describe('Supported requests', () => {

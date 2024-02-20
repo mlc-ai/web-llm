@@ -1,6 +1,9 @@
 import { AppConfig, ChatOptions, GenerationConfig } from "./config";
 import {
   ChatCompletionRequest,
+  ChatCompletionRequestBase,
+  ChatCompletionRequestStreaming,
+  ChatCompletionRequestNonStreaming,
   ChatCompletion,
   ChatCompletionChunk,
   ChatCompletionMessageParam,
@@ -97,7 +100,18 @@ export interface ChatInterface {
   /**
    * OpenAI-style API. Generate a chat completion response for the given conversation and configuration.
    */
-  chatCompletion: (request: ChatCompletionRequest) => Promise<ChatCompletion>;
+  chatCompletion(
+    request: ChatCompletionRequestNonStreaming
+  ): Promise<ChatCompletion>;
+  chatCompletion(
+    request: ChatCompletionRequestStreaming
+  ): Promise<AsyncIterable<ChatCompletionChunk>>;
+  chatCompletion(
+    request: ChatCompletionRequestBase
+  ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion>;
+  chatCompletion(
+    request: ChatCompletionRequest
+  ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion>
 
   /**
    * @returns A text summarizing the runtime stats.

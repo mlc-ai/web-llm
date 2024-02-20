@@ -9,6 +9,16 @@ import {
   postInitAndCheckGenerationConfigValues
 } from "./config";
 import { LLMChatPipeline } from "./llm_chat"
+import {
+  ChatCompletionRequest,
+  ChatCompletion,
+  ChatCompletionChunk,
+  ChatCompletionFinishReason,
+  ChatCompletionMessageParam,
+  ChatCompletionRequestNonStreaming,
+  ChatCompletionRequestStreaming,
+  ChatCompletionRequestBase
+} from "./openai_api_protocols/index";
 import * as ChatCompletionAPI from "./openai_api_protocols/index";
 import {
   InitProgressCallback,
@@ -160,7 +170,7 @@ export class ChatModule implements ChatInterface {
   }
 
   async generate(
-    input: string | Array<ChatCompletionAPI.ChatCompletionMessageParam>,
+    input: string | Array<ChatCompletionMessageParam>,
     progressCallback?: GenerateProgressCallback,
     streamInterval = 1,
     genConfig?: GenerationConfig,
@@ -186,9 +196,78 @@ export class ChatModule implements ChatInterface {
     return this.getMessage();
   }
 
+  /**
+   * Similar to `generate()`; but instead of using callback, we use an async iterable.
+   * @param request Request for chat completion.
+   * @param genConfig Generation config extraced from `request`.
+   */
+  async* chatCompletionStreaming(
+    request: ChatCompletionRequestStreaming,
+    genConfig: GenerationConfig
+  ): AsyncGenerator<ChatCompletionChunk, void, void> {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const model = this.currentLocaId!;
+    const created = Date.now();
+    const id = crypto.randomUUID();
+
+    this.interruptSignal = false;
+    await this.prefill(request.messages, genConfig);
+    let prevMessage = "";  // to know where to start slicing the delta
+    while (!this.stopped()) {
+      if (this.interruptSignal) {
+        this.getPipeline().triggerStop();
+        break;
+      }
+      await this.decode(genConfig);
+      // Remove the replacement character (U+FFFD) from the response to handle emojis.
+      // An emoji might be made up of multiple tokens. If an emoji gets truncated in the middle of
+      // its encoded byte sequence, a replacement character will appear.
+      const curMessage = this.getMessage().split("�").join("");  // same as replaceAll("�", "")
+      const deltaMessage = curMessage.slice(prevMessage.length);
+      prevMessage = curMessage;
+      if (deltaMessage.length == 0) {
+        continue;
+      }
+      const chunk: ChatCompletionChunk = {
+        id: id,
+        choices: [{
+          delta: { content: deltaMessage, role: "assistant" },
+          finish_reason: null,  // not finished yet
+          index: 0,
+        }],
+        model: model,
+        object: "chat.completion.chunk",
+        created: created
+      }
+      yield chunk;
+    }
+    const lastChunk: ChatCompletionChunk = {
+      id: id,
+      choices: [{
+        delta: {},
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        finish_reason: this.getFinishReason()!,
+        index: 0,
+      }],
+      model: model,
+      object: "chat.completion.chunk",
+      created: created
+    }
+    yield lastChunk;
+  }
+
   async chatCompletion(
-    request: ChatCompletionAPI.ChatCompletionRequest
-  ): Promise<ChatCompletionAPI.ChatCompletion> {
+    request: ChatCompletionRequestNonStreaming
+  ): Promise<ChatCompletion>;
+  async chatCompletion(
+    request: ChatCompletionRequestStreaming
+  ): Promise<AsyncIterable<ChatCompletionChunk>>;
+  async chatCompletion(
+    request: ChatCompletionRequestBase
+  ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion>;
+  async chatCompletion(
+    request: ChatCompletionRequest
+  ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
     // 0. Preprocess inputs
     if (!this.currentLocaId) {
       throw new Error("Please call `ChatModule.reload(model)` first.");
@@ -202,24 +281,30 @@ export class ChatModule implements ChatInterface {
       top_p: request.top_p,
       temperature: request.temperature,
     }
+
+    // 1. If request is streaming, return an AsyncIterable (an iterable version of `generate()`)
     if (request.stream) {
-      throw Error("Streaming chat completion not supported yet");
+      return this.chatCompletionStreaming(request, genConfig);
     }
 
-    // 1. If request is non-streaming, directly reuse `generate()`
-    let n = 1;
-    if (request.n) {
-      n = request.n;
-    }
-    const choices: Array<ChatCompletionAPI.ChatCompletion.Choice> = [];
+    // 2. If request is non-streaming, directly reuse `generate()`
+    const n = request.n ? request.n : 1;
+    const choices: Array<ChatCompletion.Choice> = [];
     for (let i = 0; i < n; i++) {
       await this.resetChat();
-      const outputMessage = await this.generate(
-        request.messages,
-        /*progressCallback=*/undefined,
-        /*streamInterval=*/1,
-        /*genConfig=*/genConfig
-      );
+      let outputMessage: string;
+      if (this.interruptSignal) {
+        // A single interrupt signal should stop all choices' generations
+        this.getPipeline().triggerStop();
+        outputMessage = "";
+      } else {
+        outputMessage = await this.generate(
+          request.messages,
+          /*progressCallback=*/undefined,
+          /*streamInterval=*/1,
+          /*genConfig=*/genConfig
+        );
+      }
       choices.push({
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         finish_reason: this.getFinishReason()!,
@@ -231,6 +316,7 @@ export class ChatModule implements ChatInterface {
         }
       });
     }
+
     const response: ChatCompletionAPI.ChatCompletion = {
       id: crypto.randomUUID(),
       choices: choices,
@@ -238,7 +324,6 @@ export class ChatModule implements ChatInterface {
       object: "chat.completion",
       created: Date.now(),
     }
-
     return response;
   }
 
@@ -315,7 +400,7 @@ export class ChatModule implements ChatInterface {
   /**
    * @returns Finish reason; undefined if generation not started/stopped yet.
   */
-  getFinishReason(): ChatCompletionAPI.ChatCompletionFinishReason | undefined {
+  getFinishReason(): ChatCompletionFinishReason | undefined {
     return this.getPipeline().getFinishReason();
   }
 
@@ -336,7 +421,7 @@ export class ChatModule implements ChatInterface {
    * @note `input[-1]` is not included as it would be treated as a normal input to `prefill()`.
    */
   private overrideConversationWithChatCompletionMessages(
-    input: Array<ChatCompletionAPI.ChatCompletionMessageParam>
+    input: Array<ChatCompletionMessageParam>
   ): void {
     if (this.getPipeline().getConversationMessages().length > 0) {
       throw Error("Precondition violated: this method should only be called after `resetChat()`.")
@@ -386,7 +471,7 @@ export class ChatModule implements ChatInterface {
    * @param input The input prompt, or `messages` in OpenAI-like APIs.
    */
   async prefill(
-    input: string | Array<ChatCompletionAPI.ChatCompletionMessageParam>,
+    input: string | Array<ChatCompletionMessageParam>,
     genConfig?: GenerationConfig
   ) {
     let input_str: string;
@@ -477,13 +562,22 @@ export class ChatRestModule implements ChatInterface {
   }
 
   async chatCompletion(
-    request: ChatCompletionAPI.ChatCompletionRequest
-  ): Promise<ChatCompletionAPI.ChatCompletion> {
+    request: ChatCompletionRequestNonStreaming
+  ): Promise<ChatCompletion>;
+  async chatCompletion(
+    request: ChatCompletionRequestStreaming
+  ): Promise<AsyncIterable<ChatCompletionChunk>>;
+  async chatCompletion(
+    request: ChatCompletionRequestBase
+  ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion>;
+  async chatCompletion(
+    request: ChatCompletionRequest
+  ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
     throw new Error("Method not supported.");
   }
 
   async generate(
-    input: string | Array<ChatCompletionAPI.ChatCompletionMessageParam>,
+    input: string | Array<ChatCompletionMessageParam>,
     progressCallback?: GenerateProgressCallback,
     streamInterval = 1,
     genConfig?: GenerationConfig,

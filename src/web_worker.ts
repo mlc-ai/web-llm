@@ -7,8 +7,12 @@ import {
 } from "./types";
 import {
   ChatCompletionRequest,
+  ChatCompletionRequestBase,
+  ChatCompletionRequestStreaming,
+  ChatCompletionRequestNonStreaming,
   ChatCompletion,
   ChatCompletionMessageParam,
+  ChatCompletionChunk,
 } from "./openai_api_protocols/index";
 
 /**
@@ -172,7 +176,8 @@ export class ChatWorkerHandler {
       case "chatCompletion": {
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ChatCompletionParams;
-          return await this.chat.chatCompletion(params.request);
+          // TODO: streaming not supported yet
+          return await this.chat.chatCompletion(params.request) as ChatCompletion;
         })
         return;
       }
@@ -388,8 +393,21 @@ export class ChatWorkerClient implements ChatInterface {
   }
 
   async chatCompletion(
+    request: ChatCompletionRequestNonStreaming
+  ): Promise<ChatCompletion>;
+  async chatCompletion(
+    request: ChatCompletionRequestStreaming
+  ): Promise<AsyncIterable<ChatCompletionChunk>>;
+  async chatCompletion(
+    request: ChatCompletionRequestBase
+  ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion>;
+  async chatCompletion(
     request: ChatCompletionRequest
-  ): Promise<ChatCompletion> {
+  ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
+    if (request.stream) {
+      // TODO: streaming not supported yet
+      throw Error("Streaming is not supported in web worker yet.");
+    }
     const msg: WorkerMessage = {
       kind: "chatCompletion",
       uuid: crypto.randomUUID(),
