@@ -5,6 +5,15 @@ import {
   InitProgressCallback,
   InitProgressReport
 } from "./types";
+import {
+  ChatCompletionRequest,
+  ChatCompletionRequestBase,
+  ChatCompletionRequestStreaming,
+  ChatCompletionRequestNonStreaming,
+  ChatCompletion,
+  ChatCompletionMessageParam,
+  ChatCompletionChunk,
+} from "./openai_api_protocols/index";
 
 /**
  * Message kind used by worker
@@ -14,7 +23,8 @@ type RequestKind = (
   "reload" | "generate" | "runtimeStatsText" |
   "interruptGenerate" | "unload" | "resetChat" |
   "initProgressCallback" | "generateProgressCallback" | "getMaxStorageBufferBindingSize" |
-  "getGPUVendor" | "forwardTokensAndSample" | "customRequest"
+  "getGPUVendor" | "forwardTokensAndSample" | "chatCompletionNonStreaming" |
+  "chatCompletionStreamInit" | "chatCompletionStreamNextChunk" | "customRequest"
 );
 
 interface ReloadParams {
@@ -24,7 +34,7 @@ interface ReloadParams {
 }
 
 interface GenerateParams {
-  input: string,
+  input: string | Array<ChatCompletionMessageParam>,
   streamInterval?: number;
   genConfig?: GenerationConfig;
 }
@@ -44,6 +54,14 @@ interface ForwardTokensAndSampleParams {
   isPrefill: boolean;
 }
 
+interface ChatCompletionNonStreamingParams {
+  request: ChatCompletionRequestNonStreaming;
+}
+
+interface ChatCompletionStreamInitParams {
+  request: ChatCompletionRequestStreaming;
+}
+
 export interface CustomRequestParams {
   requestName: string;
   requestMessage: string;
@@ -55,11 +73,16 @@ type MessageContent =
   GenerateParams |
   ResetChatParams |
   ForwardTokensAndSampleParams |
+  ChatCompletionNonStreamingParams |
+  ChatCompletionStreamInitParams |
   CustomRequestParams |
   InitProgressReport |
   string |
   null |
-  number;
+  number |
+  ChatCompletion |
+  ChatCompletionChunk |
+  void;
 
 /**
  * The message used in exchange between worker
@@ -84,6 +107,7 @@ export interface WorkerMessage {
  */
 export class ChatWorkerHandler {
   protected chat: ChatInterface;
+  protected chatCompletionAsyncChunkGenerator?: AsyncGenerator<ChatCompletionChunk, void, void>;
 
   constructor(chat: ChatInterface) {
     this.chat = chat;
@@ -155,6 +179,36 @@ export class ChatWorkerHandler {
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ForwardTokensAndSampleParams;
           return await this.chat.forwardTokensAndSample(params.inputIds, params.curPos, params.isPrefill);
+        })
+        return;
+      }
+      case "chatCompletionNonStreaming": {
+        // Directly return the ChatCompletion response
+        this.handleTask(msg.uuid, async () => {
+          const params = msg.content as ChatCompletionNonStreamingParams;
+          return await this.chat.chatCompletion(params.request);
+        })
+        return;
+      }
+      case "chatCompletionStreamInit": {
+        // One-time set up that instantiates the chunk generator in worker
+        this.handleTask(msg.uuid, async () => {
+          const params = msg.content as ChatCompletionStreamInitParams;
+          this.chatCompletionAsyncChunkGenerator =
+            await this.chat.chatCompletion(params.request) as AsyncGenerator<ChatCompletionChunk, void, void>;
+          return null
+        })
+        return;
+      }
+      case "chatCompletionStreamNextChunk": {
+        // For any subsequent request, we return whatever `next()` yields
+        this.handleTask(msg.uuid, async () => {
+          if (this.chatCompletionAsyncChunkGenerator === undefined) {
+            throw Error("Chunk generator in worker should be instantiated by now.");
+          }
+          // Yield the next chunk
+          const { value } = await this.chatCompletionAsyncChunkGenerator.next();
+          return value;
         })
         return;
       }
@@ -296,7 +350,7 @@ export class ChatWorkerClient implements ChatInterface {
   }
 
   async generate(
-    input: string,
+    input: string | Array<ChatCompletionMessageParam>,
     progressCallback?: GenerateProgressCallback,
     streamInterval?: number,
     genConfig?: GenerationConfig,
@@ -367,6 +421,67 @@ export class ChatWorkerClient implements ChatInterface {
       }
     };
     return await this.getPromise<number>(msg);
+  }
+
+  /**
+   * Every time the generator is called, we post a message to the worker asking it to
+   * decode one step, and we expect to receive a message of `ChatCompletionChunk` from
+   * the worker which we yield. The last message is `void`, meaning the generator has nothing
+   * to yield anymore.
+   */
+  async* chatCompletionAsyncChunkGenerator(): AsyncGenerator<ChatCompletionChunk, void, void> {
+    // Every time it gets called, sends message to worker, asking for the next chunk
+    while (true) {
+      const msg: WorkerMessage = {
+        kind: "chatCompletionStreamNextChunk",
+        uuid: crypto.randomUUID(),
+        content: null
+      };
+      const ret = await this.getPromise<ChatCompletionChunk>(msg);
+      // If the worker's generator reached the end, it would return a `void`
+      if (typeof ret !== "object") {
+        break;
+      }
+      yield ret;
+    }
+  }
+
+  async chatCompletion(
+    request: ChatCompletionRequestNonStreaming
+  ): Promise<ChatCompletion>;
+  async chatCompletion(
+    request: ChatCompletionRequestStreaming
+  ): Promise<AsyncIterable<ChatCompletionChunk>>;
+  async chatCompletion(
+    request: ChatCompletionRequestBase
+  ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion>;
+  async chatCompletion(
+    request: ChatCompletionRequest
+  ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
+    if (request.stream) {
+      // First let worker instantiate a generator
+      const msg: WorkerMessage = {
+        kind: "chatCompletionStreamInit",
+        uuid: crypto.randomUUID(),
+        content: {
+          request: request,
+        }
+      };
+      await this.getPromise<null>(msg);
+
+      // Then return an async chunk generator that resides on the client side
+      return this.chatCompletionAsyncChunkGenerator();
+    }
+
+    // Non streaming case is more straightforward
+    const msg: WorkerMessage = {
+      kind: "chatCompletionNonStreaming",
+      uuid: crypto.randomUUID(),
+      content: {
+        request: request,
+      }
+    };
+    return await this.getPromise<ChatCompletion>(msg);
   }
 
   onmessage(event: any) {

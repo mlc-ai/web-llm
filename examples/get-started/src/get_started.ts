@@ -45,8 +45,8 @@ async function main() {
 
   // Per-generation configuration
   let genConfig: webllm.GenerationConfig = {
-    presence_penalty: 0.5,
-    frequency_penalty: 0.5,
+    presence_penalty: 0.1,
+    frequency_penalty: 0.1,
     // stop: ["is", "Canada"]  // for demonstration purpose
   }
 
@@ -56,7 +56,8 @@ async function main() {
   console.log(reply0);
 
   genConfig = {
-    max_gen_len: 20,
+    presence_penalty: 0.2,
+    frequency_penalty: 0.2,
   }
   const prompt1 = "Can you write a poem about it?";
   setLabel("prompt-label", prompt1);

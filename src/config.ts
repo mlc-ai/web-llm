@@ -18,6 +18,8 @@ export interface ConvTemplateConfig {
  * This only corresponds to the chat-related fields and `tokenizer_files` of `mlc-chat-config.json`.
  * Only these fields affect the conversation in runtime.
  * i.e. The third part in https://llm.mlc.ai/docs/get_started/mlc_chat_config.html.
+ * 
+ * This is initialized in `ChatModule.reload()` with the model's `mlc-chat-config.json`.
  */
 export interface ChatConfig {
   // First three fields affect the entire conversation, i.e. used in `ChatModule.reload()`
@@ -45,6 +47,9 @@ export interface ChatOptions extends Partial<ChatConfig> { }
  * Config for a single generation.
  * Essentially `ChatConfig` without `tokenizer_files`, `conv_config`, or `conv_template`.
  * We also support additional fields not present in `mlc-chat-config.json` due to OpenAI-like APIs.
+ * 
+ * Note that all values are optional. If unspecified, we use whatever values in `ChatConfig`
+ * initialized during `ChatModule.reload()`.
  */
 export interface GenerationConfig {
   // Only used in MLC
@@ -52,13 +57,14 @@ export interface GenerationConfig {
   shift_fill_factor?: number;
   repetition_penalty?: number;
   // Shared by MLC and OpenAI APIs
-  top_p?: number;
-  temperature?: number;
+  top_p?: number | null;
+  temperature?: number | null;
   max_gen_len?: number | null;
   // Only in OpenAI APIs
   frequency_penalty?: number | null;
   presence_penalty?: number | null;
   stop?: string | null | Array<string>;
+  n?: number | null;
 }
 
 export function postInitAndCheckGenerationConfigValues(config: GenerationConfig): void {

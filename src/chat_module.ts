@@ -9,7 +9,17 @@ import {
   postInitAndCheckGenerationConfigValues
 } from "./config";
 import { LLMChatPipeline } from "./llm_chat"
-
+import {
+  ChatCompletionRequest,
+  ChatCompletion,
+  ChatCompletionChunk,
+  ChatCompletionFinishReason,
+  ChatCompletionMessageParam,
+  ChatCompletionRequestNonStreaming,
+  ChatCompletionRequestStreaming,
+  ChatCompletionRequestBase
+} from "./openai_api_protocols/index";
+import * as ChatCompletionAPI from "./openai_api_protocols/index";
 import {
   InitProgressCallback,
   ChatInterface,
@@ -21,6 +31,7 @@ import {
  * This is the main interface to the chat module.
  */
 export class ChatModule implements ChatInterface {
+  private currentLocaId?: string = undefined;  // Model current loaded, undefined if nothing is loaded
   private logger: (msg: string) => void = console.log;
   private logitProcessorRegistry?: Map<string, LogitProcessor>;
   private logitProcessor?: LogitProcessor;
@@ -155,10 +166,11 @@ export class ChatModule implements ChatInterface {
         text: text
       })
     }
+    this.currentLocaId = localId;
   }
 
   async generate(
-    input: string,
+    input: string | Array<ChatCompletionMessageParam>,
     progressCallback?: GenerateProgressCallback,
     streamInterval = 1,
     genConfig?: GenerationConfig,
@@ -184,6 +196,137 @@ export class ChatModule implements ChatInterface {
     return this.getMessage();
   }
 
+  /**
+   * Similar to `generate()`; but instead of using callback, we use an async iterable.
+   * @param request Request for chat completion.
+   * @param genConfig Generation config extraced from `request`.
+   */
+  async* chatCompletionAsyncChunkGenerator(
+    request: ChatCompletionRequestStreaming,
+    genConfig: GenerationConfig
+  ): AsyncGenerator<ChatCompletionChunk, void, void> {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const model = this.currentLocaId!;
+    const created = Date.now();
+    const id = crypto.randomUUID();
+
+    this.interruptSignal = false;
+    await this.prefill(request.messages, genConfig);
+    let prevMessageLength = 0;  // to know where to start slicing the delta
+    while (!this.stopped()) {
+      if (this.interruptSignal) {
+        this.getPipeline().triggerStop();
+        break;
+      }
+      await this.decode(genConfig);
+      // Remove the replacement character (U+FFFD) from the response to handle emojis.
+      // An emoji might be made up of multiple tokens. If an emoji gets truncated in the middle of
+      // its encoded byte sequence, a replacement character will appear.
+      const curMessage = this.getMessage().split("�").join("");  // same as replaceAll("�", "")
+      const deltaMessage = curMessage.slice(prevMessageLength);
+      prevMessageLength = curMessage.length;
+      if (deltaMessage.length == 0) {
+        continue;
+      }
+      const chunk: ChatCompletionChunk = {
+        id: id,
+        choices: [{
+          delta: { content: deltaMessage, role: "assistant" },
+          finish_reason: null,  // not finished yet
+          index: 0,
+        }],
+        model: model,
+        object: "chat.completion.chunk",
+        created: created
+      }
+      yield chunk;
+    }
+    const lastChunk: ChatCompletionChunk = {
+      id: id,
+      choices: [{
+        delta: {},
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        finish_reason: this.getFinishReason()!,
+        index: 0,
+      }],
+      model: model,
+      object: "chat.completion.chunk",
+      created: created
+    }
+    yield lastChunk;
+  }
+
+  async chatCompletion(
+    request: ChatCompletionRequestNonStreaming
+  ): Promise<ChatCompletion>;
+  async chatCompletion(
+    request: ChatCompletionRequestStreaming
+  ): Promise<AsyncIterable<ChatCompletionChunk>>;
+  async chatCompletion(
+    request: ChatCompletionRequestBase
+  ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion>;
+  async chatCompletion(
+    request: ChatCompletionRequest
+  ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
+    // 0. Preprocess inputs
+    if (!this.currentLocaId) {
+      throw new Error("Please call `ChatModule.reload(model)` first.");
+    }
+    ChatCompletionAPI.postInitAndCheckFields(request);
+    const genConfig: GenerationConfig = {
+      frequency_penalty: request.frequency_penalty,
+      presence_penalty: request.presence_penalty,
+      max_gen_len: request.max_gen_len,
+      stop: request.stop,
+      top_p: request.top_p,
+      temperature: request.temperature,
+    }
+
+    // 1. If request is streaming, return an AsyncIterable (an iterable version of `generate()`)
+    if (request.stream) {
+      return this.chatCompletionAsyncChunkGenerator(request, genConfig);
+    }
+
+    // 2. If request is non-streaming, directly reuse `generate()`
+    const n = request.n ? request.n : 1;
+    const choices: Array<ChatCompletion.Choice> = [];
+    for (let i = 0; i < n; i++) {
+      await this.resetChat();
+      let outputMessage: string;
+      if (this.interruptSignal) {
+        // A single interrupt signal should stop all choices' generations
+        this.getPipeline().triggerStop();
+        outputMessage = "";
+      } else {
+        outputMessage = await this.generate(
+          request.messages,
+          /*progressCallback=*/undefined,
+          /*streamInterval=*/1,
+          /*genConfig=*/genConfig
+        );
+      }
+      choices.push({
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        finish_reason: this.getFinishReason()!,
+        index: i,
+        logprobs: null,
+        message: {
+          content: outputMessage,
+          role: "assistant",
+        }
+      });
+    }
+
+    const response: ChatCompletionAPI.ChatCompletion = {
+      id: crypto.randomUUID(),
+      choices: choices,
+      model: this.currentLocaId,
+      object: "chat.completion",
+      created: Date.now(),
+    }
+    return response;
+  }
+
   async interruptGenerate() {
     this.interruptSignal = true;
   }
@@ -199,6 +342,7 @@ export class ChatModule implements ChatInterface {
   async unload() {
     this.pipeline?.dispose();
     this.pipeline = undefined;
+    this.currentLocaId = undefined;
   }
 
   async getMaxStorageBufferBindingSize(): Promise<number> {
@@ -254,6 +398,13 @@ export class ChatModule implements ChatInterface {
   }
 
   /**
+   * @returns Finish reason; undefined if generation not started/stopped yet.
+  */
+  getFinishReason(): ChatCompletionFinishReason | undefined {
+    return this.getPipeline().getFinishReason();
+  }
+
+  /**
    * Get the current generated response.
    *
    * @returns The current output message.
@@ -263,11 +414,76 @@ export class ChatModule implements ChatInterface {
   }
 
   /**
-   * Run a prefill step with a given input.
-   * @param input The input prompt.
+   * Modify this.getPipeline().conversation according to the user provided messages.
+   * This include modifying `Conversation.messges` and `Conversation.config.system`.
+   * 
+   * @param input The messages from ChatCompletionRequest
+   * @note `input[-1]` is not included as it would be treated as a normal input to `prefill()`.
    */
-  async prefill(input: string, genConfig?: GenerationConfig) {
-    return this.getPipeline().prefillStep(input, genConfig);
+  private overrideConversationWithChatCompletionMessages(
+    input: Array<ChatCompletionMessageParam>
+  ): void {
+    if (this.getPipeline().getConversationMessages().length > 0) {
+      throw Error("Precondition violated: this method should only be called after `resetChat()`.")
+    }
+    const lastId = input.length - 1;
+    if (input[lastId].role !== "user" || typeof input[lastId].content !== "string") {
+      // TODO(Charlie): modify condition after we support multimodal inputs
+      throw Error("Last messages should be a string from the `user`.")
+    }
+    // We prepare to override the message history
+    const messages: Array<[string, string]> = [];
+    const roles: Array<string> = this.getPipeline().getRoles();
+    for (let i = 0; i < input.length - 1; i++) {
+      const message = input[i];
+      if (message.role === "system") {
+        if (i !== 0) {
+          throw new Error("System prompt should always be the first one in `messages`.");
+        }
+        this.getPipeline().overrideSystemPrompt(message.content);
+      } else if (message.role === "user") {
+        if (typeof message.content !== "string") {
+          // TODO(Charlie): modify condition after we support multimodal inputs
+          throw new Error("Last messages should be a string from the `user`.");
+        }
+        messages.push([
+          message.name ? message.name : roles[0],
+          message.content,
+        ]);
+      } else if (message.role === "assistant") {
+        if (typeof message.content !== "string") {
+          // TODO(Charlie): Remove when we support function calling
+          throw new Error("Assistant message should have string content.");
+        }
+        messages.push([
+          message.name ? message.name : roles[1],
+          message.content,
+        ]);
+      } else {
+        throw new Error("Unsuppoerted role: " + message.role);
+      }
+    }
+    this.getPipeline().overrideConversationMessages(messages);
+  }
+
+  /**
+   * Run a prefill step with a given input.
+   * @param input The input prompt, or `messages` in OpenAI-like APIs.
+   */
+  async prefill(
+    input: string | Array<ChatCompletionMessageParam>,
+    genConfig?: GenerationConfig
+  ) {
+    let input_str: string;
+    if (typeof input === "string") {
+      input_str = input;
+    } else {
+      // Process ChatCompletionMessageParam
+      // We treat the last message as our usual input
+      this.overrideConversationWithChatCompletionMessages(input);
+      input_str = input[input.length - 1].content as string;
+    }
+    return this.getPipeline().prefillStep(input_str, genConfig);
   }
 
   /**
@@ -345,12 +561,30 @@ export class ChatRestModule implements ChatInterface {
     throw new Error("Method not supported.");
   }
 
+  async chatCompletion(
+    request: ChatCompletionRequestNonStreaming
+  ): Promise<ChatCompletion>;
+  async chatCompletion(
+    request: ChatCompletionRequestStreaming
+  ): Promise<AsyncIterable<ChatCompletionChunk>>;
+  async chatCompletion(
+    request: ChatCompletionRequestBase
+  ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion>;
+  async chatCompletion(
+    request: ChatCompletionRequest
+  ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
+    throw new Error("Method not supported.");
+  }
+
   async generate(
-    input: string,
+    input: string | Array<ChatCompletionMessageParam>,
     progressCallback?: GenerateProgressCallback,
     streamInterval = 1,
     genConfig?: GenerationConfig,
   ): Promise<string> {
+    if (typeof input !== "string") {
+      throw new Error("ChatModuleRest only support string `input` for `generate`.")
+    }
     if (streamInterval == 0) {
       const response = await fetch('http://localhost:8000/v1/chat/completions', {
         method: "POST",

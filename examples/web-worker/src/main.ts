@@ -8,9 +8,10 @@ function setLabel(id: string, text: string) {
   label.innerText = text;
 }
 
-async function main() {
+async function mainGenerate() {
+  console.log("Using ChatModule.generate()");
   // Use a chat worker client instead of ChatModule here
-  const chat = new webllm.ChatWorkerClient(new Worker(
+  const chat: webllm.ChatInterface = new webllm.ChatWorkerClient(new Worker(
     new URL('./worker.ts', import.meta.url),
     { type: 'module' }
   ));
@@ -38,4 +39,84 @@ async function main() {
   console.log(await chat.runtimeStatsText());
 }
 
-main();
+async function mainOpenAIAPINonStreaming() {
+  console.log("Using ChatModule.chatCompletion() without streaming.");
+  // Use a chat worker client instead of ChatModule here
+  const chat: webllm.ChatInterface = new webllm.ChatWorkerClient(new Worker(
+    new URL('./worker.ts', import.meta.url),
+    { type: 'module' }
+  ));
+
+  chat.setInitProgressCallback((report: webllm.InitProgressReport) => {
+    setLabel("init-label", report.text);
+  });
+
+  await chat.reload("Llama-2-7b-chat-hf-q4f32_1");
+
+  const request: webllm.ChatCompletionRequest = {
+    messages: [
+      {
+        "role": "system",
+        "content": "[INST] <<SYS>>\n\nYou are a helpful, respectful and honest assistant. " +
+          "Be as happy as you can when speaking please.\n<</SYS>>\n\n "
+      },
+      { "role": "user", "content": "Provide me three US states." },
+      { "role": "assistant", "content": "California, New York, Pennsylvania." },
+      { "role": "user", "content": "Two more please!" },
+    ],
+    n: 3,
+    temperature: 1.5,
+    max_gen_len: 25,
+  };
+
+  const reply0 = await chat.chatCompletion(request);
+  console.log(reply0);
+
+  console.log(await chat.runtimeStatsText());
+}
+
+async function mainOpenAIAPIStreaming() {
+  console.log("Using ChatModule.chatCompletion() with streaming.");
+  // Use a chat worker client instead of ChatModule here
+  const chat: webllm.ChatInterface = new webllm.ChatWorkerClient(new Worker(
+    new URL('./worker.ts', import.meta.url),
+    { type: 'module' }
+  ));
+
+  chat.setInitProgressCallback((report: webllm.InitProgressReport) => {
+    setLabel("init-label", report.text);
+  });
+
+  await chat.reload("Llama-2-7b-chat-hf-q4f32_1");
+
+  const request: webllm.ChatCompletionRequest = {
+    stream: true,
+    messages: [
+      {
+        "role": "system",
+        "content": "[INST] <<SYS>>\n\nYou are a helpful, respectful and honest assistant. " +
+          "Be as happy as you can when speaking please.\n<</SYS>>\n\n "
+      },
+      { "role": "user", "content": "Provide me three US states." },
+      { "role": "assistant", "content": "California, New York, Pennsylvania." },
+      { "role": "user", "content": "Two more please!" },
+    ],
+  };
+  const asyncChunkGenerator = await chat.chatCompletion(request);
+  let message = "";
+  for await (const chunk of asyncChunkGenerator) {
+    console.log(chunk);
+    if (chunk.choices[0].delta.content) {
+      // Last chunk has undefined content
+      message += chunk.choices[0].delta.content;
+    }
+    setLabel("generate-label", message);
+    // chat.interruptGenerate();  // works with interrupt as well
+  }
+  console.log(await chat.runtimeStatsText());
+}
+
+// Run one of the function below -- three different ChatModule APIs
+// mainGenerate();
+// mainOpenAIAPINonStreaming();
+mainOpenAIAPIStreaming();
