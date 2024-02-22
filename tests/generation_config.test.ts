@@ -10,15 +10,6 @@ describe('Check generation config illegal values', () => {
             postInitAndCheckGenerationConfigValues(genConfig)
         }).toThrow("`max_gen_len` should be greater than zero.");
     });
-    test('Do not specify both reptition and frequency penalty', () => {
-        expect(() => {
-            const genConfig: GenerationConfig = {
-                repetition_penalty: 0,
-                frequency_penalty: 0,
-            }
-            postInitAndCheckGenerationConfigValues(genConfig)
-        }).toThrow("If `frequency_penalty` or `presence_penalty`");
-    });
 });
 
 describe('Check generation post init', () => {

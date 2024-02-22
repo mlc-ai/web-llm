@@ -32,9 +32,12 @@ export interface ChatConfig {
   max_gen_len: number;
   shift_fill_factor: number;
   repetition_penalty: number;
+  frequency_penalty: number;
+  presence_penalty: number;
   // Fields shared by MLC and OpenAI APIs
   top_p: number;
   temperature: number;
+  bos_token_id?: number;
 }
 
 /**
@@ -70,10 +73,6 @@ export interface GenerationConfig {
 export function postInitAndCheckGenerationConfigValues(config: GenerationConfig): void {
   function _hasValue(value: any): boolean {
     return value !== undefined && value !== null;
-  }
-  if ((_hasValue(config.frequency_penalty) || _hasValue(config.presence_penalty)) &&
-    _hasValue(config.repetition_penalty)) {
-    throw new Error("If `frequency_penalty` or `presence_penalty` is specified, do not specify `repetition_penalty`.");
   }
   if (config.frequency_penalty && (config.frequency_penalty < -2.0 || config.frequency_penalty > 2.0)) {
     throw new Error("`frequency_penalty` should be between -2.0 and 2.0.");

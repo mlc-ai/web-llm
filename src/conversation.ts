@@ -285,6 +285,18 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       stop_tokens: [0],
       ...conv_config,
     });
+  } else if (conv_template == "gemma_instruction") {
+    return new Conversation({
+      system: "",
+      roles: ["<start_of_turn>user", "<start_of_turn>model"],
+      offset: 0,
+      seps: ["<end_of_turn>\n", "<end_of_turn>\n"],
+      separator_style: "Two",
+      stop_str: "<end_of_turn>",
+      add_bos: true,
+      stop_tokens: [1, 107],
+      ...conv_config,
+    });
   } else if (conv_template == "empty") {
     // A dummy template for non-language models; should never be actually used
     return new Conversation({
