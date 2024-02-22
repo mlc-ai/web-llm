@@ -32,7 +32,6 @@ export class LLMChatPipeline {
   private filledKVCacheLength = 0;
 
   // meta data
-  // TODO(tvm-team): remove hard-coded bos from config, likely can be part of conv template
   private bosTokenId = 1;
   private maxWindowLength = -1;
   private slidingWindowSize = -1;
@@ -79,6 +78,9 @@ export class LLMChatPipeline {
     this.conversation = getConversation(config.conv_template, config.conv_config);
     this.stopStr = this.conversation.getStopStr();
     this.stopTokens = this.conversation.getStopTokens();
+    if (config.bos_token_id !== undefined) {
+      this.bosTokenId = config.bos_token_id;
+    }
 
     this.device = this.tvm.webgpu();
 
