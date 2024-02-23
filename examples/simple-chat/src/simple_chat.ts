@@ -87,7 +87,12 @@ class ChatUI {
       opt.value = item.local_id;
       opt.innerHTML = item.local_id;
       opt.selected = (i == 0);
-      if (restrictModels && (item.low_resource_required === undefined || !item.low_resource_required)) {
+      if (
+        (restrictModels && (item.low_resource_required === undefined || !item.low_resource_required)) ||
+        (item.buffer_size_required_bytes && maxStorageBufferBindingSize < item.buffer_size_required_bytes)
+      ) {
+        // Either on a low-resource device and not a low-resource model
+        // Or device's maxStorageBufferBindingSize does not satisfy the model's need (if specified)
         const params = new URLSearchParams(location.search);
         opt.disabled = !params.has("bypassRestrictions");
         opt.selected = false;

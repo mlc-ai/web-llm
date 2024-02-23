@@ -80,6 +80,7 @@ export default {
 			"model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/gemma-2b-it/gemma-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
 			"vram_required_MB": 1476.52,
 			"low_resource_required": false,
+			"buffer_size_required_bytes": 262144000,
 			"required_features": ["shader-f16"],
 		},
 		{
@@ -88,6 +89,7 @@ export default {
 			"model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/gemma-2b-it/gemma-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
 			"vram_required_MB": 1750.66,
 			"low_resource_required": false,
+			"buffer_size_required_bytes": 262144000,
 		},
 		{
 			"model_url": "https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC/resolve/main/",
@@ -95,6 +97,7 @@ export default {
 			"model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/gemma-2b-it/gemma-2b-it-q4f16_1-ctx1k_cs1k-webgpu.wasm",
 			"vram_required_MB": 1476.52,
 			"low_resource_required": true,
+			"buffer_size_required_bytes": 262144000,
 			"required_features": ["shader-f16"],
 		},
 		{
@@ -103,6 +106,7 @@ export default {
 			"model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/gemma-2b-it/gemma-2b-it-q4f32_1-ctx1k_cs1k-webgpu.wasm",
 			"vram_required_MB": 1750.66,
 			"low_resource_required": true,
+			"buffer_size_required_bytes": 262144000,
 		},
 		// RedPajama
 		{
