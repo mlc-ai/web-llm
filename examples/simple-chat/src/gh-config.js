@@ -104,6 +104,37 @@ export default {
 			"low_resource_required": false,
 			"required_features": ["shader-f16"],
 		},
+		// Gemma-2B
+		{
+			"model_url": "https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC/resolve/main/",
+			"local_id": "gemma-2b-it-q4f16_1",
+			"model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/gemma-2b-it/gemma-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+			"vram_required_MB": 1476.52,
+			"low_resource_required": false,
+			"required_features": ["shader-f16"],
+		},
+		{
+			"model_url": "https://huggingface.co/mlc-ai/gemma-2b-it-q4f32_1-MLC/resolve/main/",
+			"local_id": "gemma-2b-it-q4f32_1",
+			"model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/gemma-2b-it/gemma-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+			"vram_required_MB": 1750.66,
+			"low_resource_required": false,
+		},
+		{
+			"model_url": "https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC/resolve/main/",
+			"local_id": "gemma-2b-it-q4f16_1-1k",
+			"model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/gemma-2b-it/gemma-2b-it-q4f16_1-ctx1k_cs1k-webgpu.wasm",
+			"vram_required_MB": 1476.52,
+			"low_resource_required": true,
+			"required_features": ["shader-f16"],
+		},
+		{
+			"model_url": "https://huggingface.co/mlc-ai/gemma-2b-it-q4f32_1-MLC/resolve/main/",
+			"local_id": "gemma-2b-it-q4f32_1-1k",
+			"model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/gemma-2b-it/gemma-2b-it-q4f32_1-ctx1k_cs1k-webgpu.wasm",
+			"vram_required_MB": 1750.66,
+			"low_resource_required": true,
+		},
 		// Phi-1.5
 		{
 			"model_url": "https://huggingface.co/mlc-ai/phi-1_5-q0f16-MLC/resolve/main/",
