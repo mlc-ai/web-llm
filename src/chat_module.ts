@@ -6,7 +6,8 @@ import {
   AppConfig,
   prebuiltAppConfig,
   GenerationConfig,
-  postInitAndCheckGenerationConfigValues
+  postInitAndCheckGenerationConfigValues,
+  ModelRecord
 } from "./config";
 import { LLMChatPipeline } from "./llm_chat"
 import {
@@ -460,7 +461,7 @@ export class ChatModule implements ChatInterface {
           message.content,
         ]);
       } else {
-        throw new Error("Unsuppoerted role: " + message.role);
+        throw new Error("Unsupported role: " + message.role);
       }
     }
     this.getPipeline().overrideConversationMessages(messages);
@@ -658,20 +659,4 @@ export class ChatRestModule implements ChatInterface {
       method: "POST"
     });
   }
-}
-
-export async function hasModelInCache(localId: string, appConfig?: AppConfig): Promise<boolean> {
-  if (appConfig === undefined) {
-    appConfig = prebuiltAppConfig;
-  }
-  const findModelRecord = () => {
-    const matchedItem = appConfig?.model_list.find(
-      item => item.local_id == localId
-    );
-    if (matchedItem !== undefined) return matchedItem;
-    throw Error("Cannot find model_url for " + localId);
-  }
-  const modelRecord = findModelRecord();
-  const modelUrl = modelRecord.model_url;
-  return tvmjs.hasNDArrayInCache(modelUrl, "webllm/model");
 }
