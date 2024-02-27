@@ -12,8 +12,12 @@ export {
 
 export {
   ChatModule,
-  ChatRestModule, hasModelInCache
+  ChatRestModule,
 } from "./chat_module";
+
+export {
+  hasModelInCache, deleteChatConfigInCache, deleteModelAllInfoInCache, deleteModelWasmInCache, deleteModelInCache,
+} from "./cache_util";
 
 export {
   ChatWorkerHandler,
