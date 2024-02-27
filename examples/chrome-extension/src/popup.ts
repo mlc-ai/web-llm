@@ -62,7 +62,7 @@ if (useWebGPU) {
         }
     });
 
-    await cm.reload("Mistral-7B-Instruct-v0.1-q4f16_1", undefined, appConfig);
+    await cm.reload("Mistral-7B-Instruct-v0.2-q4f16_1", undefined, appConfig);
 
     isLoadingParams = true;
 } else {
