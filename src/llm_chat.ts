@@ -2,7 +2,7 @@
 /* eslint-disable no-prototype-builtins */
 import * as tvmjs from "tvmjs";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
-import { ChatConfig, GenerationConfig } from "./config";
+import { ChatConfig, GenerationConfig, Role } from "./config";
 import { getConversation, Conversation } from "./conversation";
 import { LogitProcessor } from "./types";
 import { getTopProbs } from "./support";
@@ -361,14 +361,41 @@ export class LLMChatPipeline {
   /**
    * Append a new message to `this.conversation`.
    */
-  appendConversationMessage(role: string, input: string): void {
+  appendConversationMessage(role: Role, input: string): void {
     this.conversation.appendMessage(role, input);
   }
 
   /**
    * Get `this.conversation.messages`.
+   * Overrides the user role name
    */
-  getConversationMessages(): Array<[string, string | undefined]> {
+  overrideUserRoleName(user_name: string): void {
+    this.conversation.config.roles[Role.User] = user_name;
+  }
+
+  /**
+   * Overrides the assistant role name
+   */
+  overrideAssistantRoleName(assistant_name: string): void {
+    this.conversation.config.roles[Role.Assistant] = assistant_name;
+  }
+
+  /**
+   * Override this.conversation.use_function_calling and
+   * this.conversation.function_string
+   * 
+   * @param use_function_calling 
+   * @param function_string 
+   */
+  overrideFunctionCalling(use_function_calling: boolean, function_string: string) : void {
+    this.conversation.use_function_calling = use_function_calling;
+    this.conversation.function_string = function_string;
+  }
+
+  /**
+   * Get this.conversation.messages.
+   */
+  getConversationMessages(): Array<[Role, string | undefined]> {
     // TODO(Charlie): Do we need to make a deep copy here?
     return this.conversation.messages;
   }
@@ -377,11 +404,8 @@ export class LLMChatPipeline {
    * @returns the roles of this.conversation's conversation template of lengths of two.
    */
   getRoles(): Array<string> {
-    const res = this.conversation.config.roles;
-    if (res.length !== 2) {
-      throw new Error("Expect the conversation template to have two roles.");
-    }
-    return res;
+    const roles = this.conversation.config.roles;
+    return [roles[Role.User], roles[Role.Assistant]];
   }
 
   async asyncLoadWebGPUPipelines() {
@@ -407,8 +431,8 @@ export class LLMChatPipeline {
     const conversation = this.conversation;
 
     // initialize
-    conversation.appendMessage(conversation.config.roles[0], inp);
-    conversation.appendReplyHeader(conversation.config.roles[1]);
+    conversation.appendMessage(Role.User, inp);
+    conversation.appendReplyHeader(Role.Assistant);
     const promptTokens = this.getInputTokens(genConfig);
 
     const tstart = performance.now();

@@ -4,13 +4,35 @@
  */
 export interface ConvTemplateConfig {
   system: string;
-  roles: Array<string>;
+  roles: Record<Role, string>;
+  role_templates?: Partial<Record<Role, string>>;
+  function_calling_template?: string;
   seps: Array<string>;
   separator_style: string;
   offset: number;
   stop_str: string;
   add_bos: boolean;
   stop_tokens: Array<number>;
+}
+
+export enum Role {
+  User,
+  Assistant
+}
+
+/**
+ * Place holders that can be used in role templates.
+ * For example, a role template of
+ * `<<question>> ${MessagePlaceholders.USER} <<function>> ${MessagePlaceholders.FUNCTION}`
+ * will insert the user message to ${MessagePlaceholders.USER}
+ * and insert the function message to ${MessagePlaceholders.FUNCTION}
+ * at run time.
+ */
+export enum MessagePlaceholders {
+  User = "{user_message}",
+  Assitant = "{assistant_message}",
+  Tool = "{tool_message}",
+  Function = "{function_string}"
 }
 
 /**

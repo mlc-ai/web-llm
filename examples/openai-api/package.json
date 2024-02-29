@@ -3,7 +3,7 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "start": "parcel src/openai_api.html  --port 8888",
+        "start": "parcel src/openai_api.html  --port 8883",
         "build": "parcel build src/openai_api.html --dist-dir lib"
     },
     "devDependencies": {
@@ -15,6 +15,6 @@
         "url": "^0.11.3"
     },
     "dependencies": {
-        "@mlc-ai/web-llm": "^0.2.28"
+        "@mlc-ai/web-llm": "file:../.."
     }
 }
