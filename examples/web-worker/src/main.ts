@@ -8,6 +8,11 @@ function setLabel(id: string, text: string) {
   label.innerText = text;
 }
 
+// There are three demonstrations, simply pick one from below
+
+/**
+ * We domnstrate using WebLLM with `genereate()`.
+ */
 async function mainGenerate() {
   console.log("Using ChatModule.generate()");
   // Use a chat worker client instead of ChatModule here
@@ -39,6 +44,9 @@ async function mainGenerate() {
   console.log(await chat.runtimeStatsText());
 }
 
+/**
+ * Chat completion (OpenAI style) without streaming, where we get the entire response at once.
+ */
 async function mainOpenAIAPINonStreaming() {
   console.log("Using ChatModule.chatCompletion() without streaming.");
   // Use a chat worker client instead of ChatModule here
@@ -54,6 +62,7 @@ async function mainOpenAIAPINonStreaming() {
   await chat.reload("Llama-2-7b-chat-hf-q4f32_1");
 
   const request: webllm.ChatCompletionRequest = {
+    // stateful: true,  // set this optionally to preserve chat history
     messages: [
       {
         "role": "system",
@@ -75,6 +84,9 @@ async function mainOpenAIAPINonStreaming() {
   console.log(await chat.runtimeStatsText());
 }
 
+/**
+ * Chat completion (OpenAI style) with streaming, where delta is sent while generating response.
+ */
 async function mainOpenAIAPIStreaming() {
   console.log("Using ChatModule.chatCompletion() with streaming.");
   // Use a chat worker client instead of ChatModule here
@@ -90,6 +102,7 @@ async function mainOpenAIAPIStreaming() {
   await chat.reload("Llama-2-7b-chat-hf-q4f32_1");
 
   const request: webllm.ChatCompletionRequest = {
+    // stateful: true,  // set this optionally to preserve chat history
     stream: true,
     messages: [
       {
@@ -113,6 +126,7 @@ async function mainOpenAIAPIStreaming() {
     setLabel("generate-label", message);
     // chat.interruptGenerate();  // works with interrupt as well
   }
+  console.log("Final message:\n", await chat.getMessage());  // the concatenated message
   console.log(await chat.runtimeStatsText());
 }
 

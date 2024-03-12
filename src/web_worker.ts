@@ -23,7 +23,7 @@ type RequestKind = (
   "reload" | "generate" | "runtimeStatsText" |
   "interruptGenerate" | "unload" | "resetChat" |
   "initProgressCallback" | "generateProgressCallback" | "getMaxStorageBufferBindingSize" |
-  "getGPUVendor" | "forwardTokensAndSample" | "chatCompletionNonStreaming" |
+  "getGPUVendor" | "forwardTokensAndSample" | "chatCompletionNonStreaming" | "getMessage" |
   "chatCompletionStreamInit" | "chatCompletionStreamNextChunk" | "customRequest"
 );
 
@@ -252,6 +252,12 @@ export class ChatWorkerHandler {
         });
         return;
       }
+      case "getMessage": {
+        this.handleTask(msg.uuid, async () => {
+          return await this.chat.getMessage();
+        });
+        return;
+      }
       case "customRequest": {
         return;
       }
@@ -343,6 +349,15 @@ export class ChatWorkerClient implements ChatInterface {
   async getGPUVendor(): Promise<string> {
     const msg: WorkerMessage = {
       kind: "getGPUVendor",
+      uuid: crypto.randomUUID(),
+      content: null
+    };
+    return await this.getPromise<string>(msg);
+  }
+
+  async getMessage(): Promise<string> {
+    const msg: WorkerMessage = {
+      kind: "getMessage",
       uuid: crypto.randomUUID(),
       content: null
     };

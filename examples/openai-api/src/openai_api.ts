@@ -8,6 +8,11 @@ function setLabel(id: string, text: string) {
   label.innerText = text;
 }
 
+// There are four demonstrations, pick one from below to run
+
+/**
+ * We domnstrate chat completion without streaming, where we get the entire response at once.
+ */
 async function mainNonStreaming() {
   const chat: webllm.ChatInterface = new webllm.ChatModule();
 
@@ -36,10 +41,15 @@ async function mainNonStreaming() {
 
   const reply0 = await chat.chatCompletion(request);
   console.log(reply0);
+  console.log(await chat.getMessage());  // the final response
 
   console.log(await chat.runtimeStatsText());
 }
 
+
+/**
+ * We domnstrate chat completion with streaming, where delta is sent while generating response.
+ */
 async function mainStreaming() {
   const chat: webllm.ChatInterface = new webllm.ChatModule();
 
@@ -68,9 +78,55 @@ async function mainStreaming() {
     console.log(chunk);
   }
 
+  console.log(await chat.getMessage());  // the final response
+  console.log(await chat.runtimeStatsText());
+}
+
+/**
+ * We domnstrate stateful chat completion, where chat history is preserved across requests.
+ */
+async function mainStateful() {
+  const chat: webllm.ChatInterface = new webllm.ChatModule();
+
+  chat.setInitProgressCallback((report: webllm.InitProgressReport) => {
+    setLabel("init-label", report.text);
+  });
+
+  await chat.reload("Llama-2-7b-chat-hf-q4f32_1");
+
+  const request0: webllm.ChatCompletionRequest = {
+    stateful: true,
+    // stream: true, // works with and without streaming
+    messages: [
+      {
+        "role": "system",
+        "content": "[INST] <<SYS>>\n\nYou are a helpful, respectful and honest assistant. " +
+          "Be as happy as you can when speaking please.\n<</SYS>>\n\n "
+      },
+      { "role": "user", "content": "Provide me three US states." },
+    ],
+  };
+
+  const reply0 = await chat.chatCompletion(request0);
+  console.log(reply0);
+  console.log(await chat.getMessage());
+
+  const request1: webllm.ChatCompletionRequest = {
+    stateful: true,
+    // stream: true, // works with and without streaming
+    messages: [
+      { "role": "user", "content": "Two more please!" },
+    ],
+  };
+
+  const reply1 = await chat.chatCompletion(request1);
+  console.log(reply1);
+  console.log(await chat.getMessage());
+
   console.log(await chat.runtimeStatsText());
 }
 
 // Run one of the functions
 // mainNonStreaming();
-mainStreaming();
+// mainStreaming();
+mainStateful();
