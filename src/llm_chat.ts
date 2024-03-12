@@ -318,15 +318,14 @@ export class LLMChatPipeline {
   }
 
   /**
-   * Override this.conversation.messages.
+   * Append a new message to `this.conversation`.
    */
-  overrideConversationMessages(messages: Array<[string, string | undefined]>): void {
-    // TODO(Charlie): Do we need to make a deep copy here?
-    this.conversation.messages = messages;
+  appendConversationMessage(role: string, input: string): void {
+    this.conversation.appendMessage(role, input);
   }
 
   /**
-   * Get this.conversation.messages.
+   * Get `this.conversation.messages`.
    */
   getConversationMessages(): Array<[string, string | undefined]> {
     // TODO(Charlie): Do we need to make a deep copy here?

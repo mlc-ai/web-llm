@@ -29,6 +29,16 @@
  */
 export interface ChatCompletionRequestBase {
     /**
+     * Whether we keep previous chat history before completing this request.
+     * 
+     * That is, if `stateful` is `false` or unspecified, we will clear chat history prior to
+     * generating the response. If `stateful` is `true`, we keep the chat history.
+     * 
+     * @note When `stateful` is `true`, `n` has to be 1, similar to having a multiround chat.
+     */
+    stateful?: boolean | null;
+
+    /**
      * A list of messages comprising the conversation so far.
      */
     messages: Array<ChatCompletionMessageParam>;
@@ -40,7 +50,6 @@ export interface ChatCompletionRequestBase {
 
     /**
      * How many chat completion choices to generate for each input message.
-     * 
      */
     n?: number | null;
 
@@ -340,7 +349,12 @@ export function postInitAndCheckFields(request: ChatCompletionRequest): void {
 
     // 4. If streaming, n cannot be > 1, since we cannot manage multiple sequences at once
     if (request.stream && request.n && request.n > 1) {
-        throw new Error("When streaming, `n` cannot be > 1.")
+        throw new Error("When streaming, `n` cannot be > 1.");
+    }
+
+    // 5. If stateful, n cannot be > 1, since the behavior is hard to define
+    if (request.stateful && request.n && request.n > 1) {
+        throw new Error("If the request is stateful, `n` cannot be > 1.");
     }
 }
 

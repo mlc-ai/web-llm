@@ -111,7 +111,7 @@ export interface ChatInterface {
   ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion>;
   chatCompletion(
     request: ChatCompletionRequest
-  ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion>
+  ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion>;
 
   /**
    * @returns A text summarizing the runtime stats.
@@ -134,6 +134,13 @@ export interface ChatInterface {
    * @param keepStats: If True, do not reset the statistics.
    */
   resetChat: (keepStats?: boolean) => Promise<void>;
+
+  /**
+   * Get the current generated response.
+   *
+   * @returns The current output message.
+   */
+  getMessage: () => Promise<string>;
 
   /**
    * Returns the device's maxStorageBufferBindingSize, can be used to guess whether the device

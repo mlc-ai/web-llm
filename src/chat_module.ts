@@ -191,10 +191,10 @@ export class ChatModule implements ChatInterface {
       counter += 1;
       await this.decode(genConfig);
       if (counter % streamInterval == 0 && progressCallback !== undefined) {
-        progressCallback(counter, this.getMessage());
+        progressCallback(counter, await this.getMessage());
       }
     }
-    return this.getMessage();
+    return await this.getMessage();
   }
 
   /**
@@ -206,6 +206,9 @@ export class ChatModule implements ChatInterface {
     request: ChatCompletionRequestStreaming,
     genConfig: GenerationConfig
   ): AsyncGenerator<ChatCompletionChunk, void, void> {
+    if (!request.stateful) {
+      await this.resetChat();
+    }
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const model = this.currentLocaId!;
     const created = Date.now();
@@ -223,7 +226,8 @@ export class ChatModule implements ChatInterface {
       // Remove the replacement character (U+FFFD) from the response to handle emojis.
       // An emoji might be made up of multiple tokens. If an emoji gets truncated in the middle of
       // its encoded byte sequence, a replacement character will appear.
-      const curMessage = this.getMessage().split("�").join("");  // same as replaceAll("�", "")
+      let curMessage = await this.getMessage();
+      curMessage = curMessage.split("�").join("");  // same as replaceAll("�", "")
       const deltaMessage = curMessage.slice(prevMessageLength);
       prevMessageLength = curMessage.length;
       if (deltaMessage.length == 0) {
@@ -292,7 +296,9 @@ export class ChatModule implements ChatInterface {
     const n = request.n ? request.n : 1;
     const choices: Array<ChatCompletion.Choice> = [];
     for (let i = 0; i < n; i++) {
-      await this.resetChat();
+      if (!request.stateful) {
+        await this.resetChat();
+      }
       let outputMessage: string;
       if (this.interruptSignal) {
         // A single interrupt signal should stop all choices' generations
@@ -410,7 +416,7 @@ export class ChatModule implements ChatInterface {
    *
    * @returns The current output message.
    */
-  getMessage(): string {
+  async getMessage(): Promise<string> {
     return this.getPipeline().getMessage();
   }
 
@@ -421,19 +427,19 @@ export class ChatModule implements ChatInterface {
    * @param input The messages from ChatCompletionRequest
    * @note `input[-1]` is not included as it would be treated as a normal input to `prefill()`.
    */
-  private overrideConversationWithChatCompletionMessages(
+  private updateConversationWithChatCompletionMessages(
     input: Array<ChatCompletionMessageParam>
   ): void {
+    let hasHistory = false;
     if (this.getPipeline().getConversationMessages().length > 0) {
-      throw Error("Precondition violated: this method should only be called after `resetChat()`.")
+      hasHistory = true;
     }
     const lastId = input.length - 1;
     if (input[lastId].role !== "user" || typeof input[lastId].content !== "string") {
       // TODO(Charlie): modify condition after we support multimodal inputs
-      throw Error("Last messages should be a string from the `user`.")
+      throw Error("The last message should be a string from the `user`.")
     }
     // We prepare to override the message history
-    const messages: Array<[string, string]> = [];
     const roles: Array<string> = this.getPipeline().getRoles();
     for (let i = 0; i < input.length - 1; i++) {
       const message = input[i];
@@ -441,30 +447,32 @@ export class ChatModule implements ChatInterface {
         if (i !== 0) {
           throw new Error("System prompt should always be the first one in `messages`.");
         }
+        if (hasHistory) {
+          throw new Error("Can only modify system prompt in the first chat completion request.");
+        }
         this.getPipeline().overrideSystemPrompt(message.content);
       } else if (message.role === "user") {
         if (typeof message.content !== "string") {
           // TODO(Charlie): modify condition after we support multimodal inputs
           throw new Error("Last messages should be a string from the `user`.");
         }
-        messages.push([
+        this.getPipeline().appendConversationMessage(
           message.name ? message.name : roles[0],
           message.content,
-        ]);
+        );
       } else if (message.role === "assistant") {
         if (typeof message.content !== "string") {
           // TODO(Charlie): Remove when we support function calling
           throw new Error("Assistant message should have string content.");
         }
-        messages.push([
+        this.getPipeline().appendConversationMessage(
           message.name ? message.name : roles[1],
           message.content,
-        ]);
+        );
       } else {
         throw new Error("Unsupported role: " + message.role);
       }
     }
-    this.getPipeline().overrideConversationMessages(messages);
   }
 
   /**
@@ -481,7 +489,7 @@ export class ChatModule implements ChatInterface {
     } else {
       // Process ChatCompletionMessageParam
       // We treat the last message as our usual input
-      this.overrideConversationWithChatCompletionMessages(input);
+      this.updateConversationWithChatCompletionMessages(input);
       input_str = input[input.length - 1].content as string;
     }
     return this.getPipeline().prefillStep(input_str, genConfig);
@@ -545,6 +553,10 @@ export class ChatRestModule implements ChatInterface {
   }
 
   async getGPUVendor(): Promise<string> {
+    throw new Error("Method not implemented.");
+  }
+
+  async getMessage(): Promise<string> {
     throw new Error("Method not implemented.");
   }
 
