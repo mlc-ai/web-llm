@@ -30,7 +30,8 @@ export type GenerateProgressCallback = (step: number, currentMessage: string) =>
 
 /**
  * A stateful logitProcessor used to post-process logits after forwarding the input and before
- * sampling the next token.
+ * sampling the next token. If used with `GenerationConfig.logit_bias`, logit_bias is applied after
+ * `processLogits()` is called.
  */
 export interface LogitProcessor {
   /**

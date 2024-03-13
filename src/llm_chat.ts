@@ -615,7 +615,8 @@ export class LLMChatPipeline {
     logitsOnGPU: tvmjs.NDArray,
     genConfig?: GenerationConfig,
   ) {
-    // 0. Get value of temperature, top_p, and reptition_penalty, possibly overridden by genConfig
+    // 0. Get value of temperature, top_p, and various penalties, possibly overridden by genConfig
+    // Also load other genConfig items like logit_bias. Consume all fields of `genConfig` here.
     function _hasValue(value: any): boolean {
       return value !== undefined && value !== null;
     }
@@ -624,6 +625,7 @@ export class LLMChatPipeline {
     let repetition_penalty = this.config.repetition_penalty;
     let frequency_penalty = undefined;
     let presence_penalty = undefined;
+    let logit_bias = undefined;
     if (genConfig !== undefined) {
       if (_hasValue(genConfig.temperature)) { temperature = genConfig.temperature!; }
       if (_hasValue(genConfig.top_p)) { top_p = genConfig.top_p!; }
@@ -633,6 +635,7 @@ export class LLMChatPipeline {
       // If only one of frequency or presence penatly is set, make the other one 0.0
       if (_hasValue(frequency_penalty) && !_hasValue(presence_penalty)) { presence_penalty = 0.0; }
       if (_hasValue(presence_penalty) && !_hasValue(frequency_penalty)) { frequency_penalty = 0.0; }
+      if (_hasValue(genConfig.logit_bias)) { logit_bias = genConfig.logit_bias; }
     }
     // Check range validity
     if (top_p <= 0 || top_p >= 1) { throw new Error("Make sure 0 < `top_p` < 1."); }
@@ -655,10 +658,23 @@ export class LLMChatPipeline {
       throw Error("logits should be assigned");
     }
 
-    // 2. Post process logits
-    if (this.logitProcessor !== undefined) {
+    // 2. Post process logits via logitProcessor and/or logit_bias
+    if (this.logitProcessor !== undefined || _hasValue(logit_bias)) {
       let logitsOnCPUArray: Float32Array = <Float32Array>(this.logitsOnCPU.toArray());
-      logitsOnCPUArray = this.logitProcessor.processLogits(logitsOnCPUArray);
+      const vocab_size = logitsOnCPUArray.length;
+      if (this.logitProcessor !== undefined) {
+        logitsOnCPUArray = this.logitProcessor.processLogits(logitsOnCPUArray);
+      }
+      if (_hasValue(logit_bias)) {
+        for (const tokenID in logit_bias) {
+          const curBias = logit_bias[tokenID];
+          const curTokenID = parseInt(tokenID);
+          if (curTokenID > vocab_size) {
+            throw Error("Token " + curTokenID + " in logit_bias exceeds vocab_size " + vocab_size);
+          }
+          logitsOnCPUArray[curTokenID] += curBias;
+        }
+      }
       this.logitsOnCPU.copyFrom(logitsOnCPUArray);
     }
 
