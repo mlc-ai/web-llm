@@ -36,7 +36,14 @@ async function mainNonStreaming() {
     ],
     n: 3,
     temperature: 1.5,
-    max_gen_len: 25,
+    max_gen_len: 50,
+    // 13813 is "Florida", 10319 is "Texas", and 7660 is "Washington" in Llama-2-7b-chat
+    // So we would have a higher chance of seeing the latter two, but never the first in the answer
+    logit_bias: {
+      "13813": -100,
+      "10319": 5,
+      "7660": 5,
+    }
   };
 
   const reply0 = await chat.chatCompletion(request);
@@ -127,6 +134,6 @@ async function mainStateful() {
 }
 
 // Run one of the functions
-// mainNonStreaming();
+mainNonStreaming();
 // mainStreaming();
-mainStateful();
+// mainStateful();

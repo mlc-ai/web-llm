@@ -68,6 +68,7 @@ export interface GenerationConfig {
   presence_penalty?: number | null;
   stop?: string | null | Array<string>;
   n?: number | null;
+  logit_bias?: Record<string, number> | null;
 }
 
 export function postInitAndCheckGenerationConfigValues(config: GenerationConfig): void {
@@ -106,6 +107,22 @@ export function postInitAndCheckGenerationConfigValues(config: GenerationConfig)
   if (_hasValue(config.presence_penalty) && !_hasValue(config.frequency_penalty)) {
     config.frequency_penalty = 0.0;
     console.log("Only presence_penalty is set; we default frequency_penalty to 0.")
+  }
+  // Check logit_bias range
+  if (_hasValue(config.logit_bias)) {
+    for (const tokenID in config.logit_bias) {
+      const bias = config.logit_bias[tokenID];
+      if (bias > 100 || bias < -100) {
+        throw new Error(
+          "logit_bias should be in range [-100, 100]; got " + bias + "for tokenID " + tokenID
+        );
+      }
+      if (isNaN(parseInt(tokenID))) {
+        throw new Error(
+          "Expect logit_bias's keys to be number represented in string; got " + tokenID
+        )
+      }
+    }
   }
 }
 

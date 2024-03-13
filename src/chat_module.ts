@@ -285,6 +285,7 @@ export class ChatModule implements ChatInterface {
       stop: request.stop,
       top_p: request.top_p,
       temperature: request.temperature,
+      logit_bias: request.logit_bias,
     }
 
     // 1. If request is streaming, return an AsyncIterable (an iterable version of `generate()`)
