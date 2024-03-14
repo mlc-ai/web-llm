@@ -43,7 +43,9 @@ async function mainNonStreaming() {
       "13813": -100,
       "10319": 5,
       "7660": 5,
-    }
+    },
+    logprobs: true,
+    top_logprobs: 2,
   };
 
   const reply0 = await chat.chatCompletion(request);
@@ -79,6 +81,8 @@ async function mainStreaming() {
       { "role": "user", "content": "Two more please!" },
     ],
     temperature: 1.5,
+    logprobs: true,
+    top_logprobs: 2,
   };
 
   for await (const chunk of await chat.chatCompletion(request)) {

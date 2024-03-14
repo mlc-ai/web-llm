@@ -5,7 +5,12 @@ import { Tokenizer } from "@mlc-ai/web-tokenizers";
 import { ChatConfig, GenerationConfig } from "./config";
 import { getConversation, Conversation } from "./conversation";
 import { LogitProcessor } from "./types";
-import { ChatCompletionFinishReason } from "./openai_api_protocols/index"
+import { getTopProbs } from "./support";
+import {
+  ChatCompletionFinishReason,
+  ChatCompletionTokenLogprob,
+  TopLogprob,
+} from "./openai_api_protocols/index"
 
 export class LLMChatPipeline {
   private config: ChatConfig;
@@ -55,12 +60,19 @@ export class LLMChatPipeline {
   private slidingWindowCacheOffset = 0;
   // Whether we are using PagedKVCache (eventually this will become default)
   private usePagedKVCache = false;
+  // The logprob information of all tokens for this current round (cleared upon each prefillStep)
+  // Cleared & updated at the exact same spots as `outputMessage`. Only updated when
+  // `genConfig.logprobs` is true. Each entry corresponds to a single autoregressive step.
+  private tokenLogprobArray: Array<ChatCompletionTokenLogprob> = [];
 
-  // stats
+  // stats, reset at every `resetChat(keepstats=false)`
   private decodingTotalTime = 0;
   private decodingTotalTokens = 0;
   private prefillTotalTime = 0;
   private prefillTotalTokens = 0;
+  // same as `prefillTotalTokens` and `decodingTotalTokens`, but reset at every `prefillStep()`
+  private curRoundDecodingTotalTokens = 0;
+  private curRoundPrefillTotalTokens = 0;
 
   // logger
   private logger = console.log;
@@ -300,6 +312,28 @@ export class LLMChatPipeline {
   }
 
   /**
+   * @returns tokenLogprobArray for this current round of autoregressive generation.
+   * Updated upon each sampled token, cleared upon each prefillStep().
+   */
+  getTokenLogprobArray(): Array<ChatCompletionTokenLogprob> {
+    return this.tokenLogprobArray;
+  }
+
+  /**
+   * @returns the number of tokens decoded for a single request or a single choice in the request.
+   */
+  getCurRoundDecodingTotalTokens(): number {
+    return this.curRoundDecodingTotalTokens;
+  }
+
+  /**
+   * @returns the number of tokens decoded for a single request or a single choice in the request.
+   */
+  getCurRoundPrefillTotalTokens(): number {
+    return this.curRoundPrefillTotalTokens;
+  }
+
+  /**
    * @returns Runtime stats information.
    */
   runtimeStatsText(): string {
@@ -343,8 +377,6 @@ export class LLMChatPipeline {
     return res;
   }
 
-
-
   async asyncLoadWebGPUPipelines() {
     await this.tvm.asyncLoadWebGPUPipelines(this.vm.getInternalModule());
   }
@@ -361,6 +393,9 @@ export class LLMChatPipeline {
     this.outputIds = [];
     this.appearedTokensFreq.clear();
     this.outputMessage = "";
+    this.tokenLogprobArray = [];
+    this.curRoundDecodingTotalTokens = 0;
+    this.curRoundPrefillTotalTokens = 0;
     this.stopTriggered = false;
     const conversation = this.conversation;
 
@@ -411,6 +446,7 @@ export class LLMChatPipeline {
 
     this.prefillTotalTime += (tend - tstart) / 1e3;
     this.prefillTotalTokens += promptTokens.length;
+    this.curRoundPrefillTotalTokens += promptTokens.length;
 
     this.processNextToken(nextToken, genConfig);
   }
@@ -452,6 +488,7 @@ export class LLMChatPipeline {
 
     this.decodingTotalTime += (tend - tstart) / 1e3;
     this.decodingTotalTokens += 1;
+    this.curRoundDecodingTotalTokens += 1;
 
     this.processNextToken(nextToken, genConfig);
   }
@@ -618,14 +655,18 @@ export class LLMChatPipeline {
     // 0. Get value of temperature, top_p, and various penalties, possibly overridden by genConfig
     // Also load other genConfig items like logit_bias. Consume all fields of `genConfig` here.
     function _hasValue(value: any): boolean {
+      // if we use `if value` directly, `value` being 0 evaluates to false, violating semantics
       return value !== undefined && value !== null;
     }
-    let temperature = this.config.temperature;
-    let top_p = this.config.top_p;
-    let repetition_penalty = this.config.repetition_penalty;
-    let frequency_penalty = undefined;
-    let presence_penalty = undefined;
-    let logit_bias = undefined;
+    let temperature: number = this.config.temperature;
+    let top_p: number = this.config.top_p;
+    let repetition_penalty: number = this.config.repetition_penalty;
+    let frequency_penalty: number | undefined = undefined;
+    let presence_penalty: number | undefined = undefined;
+    let logit_bias: Record<string, number> | undefined = undefined;
+    let logprobs: boolean | undefined = undefined;
+    let top_logprobs: number | undefined = undefined;
+
     if (genConfig !== undefined) {
       if (_hasValue(genConfig.temperature)) { temperature = genConfig.temperature!; }
       if (_hasValue(genConfig.top_p)) { top_p = genConfig.top_p!; }
@@ -635,7 +676,9 @@ export class LLMChatPipeline {
       // If only one of frequency or presence penatly is set, make the other one 0.0
       if (_hasValue(frequency_penalty) && !_hasValue(presence_penalty)) { presence_penalty = 0.0; }
       if (_hasValue(presence_penalty) && !_hasValue(frequency_penalty)) { frequency_penalty = 0.0; }
-      if (_hasValue(genConfig.logit_bias)) { logit_bias = genConfig.logit_bias; }
+      if (_hasValue(genConfig.logit_bias)) { logit_bias = genConfig.logit_bias!; }
+      if (_hasValue(genConfig.logprobs)) { logprobs = genConfig.logprobs!; }
+      if (_hasValue(genConfig.top_logprobs)) { top_logprobs = genConfig.top_logprobs!; }
     }
     // Check range validity
     if (top_p <= 0 || top_p >= 1) { throw new Error("Make sure 0 < `top_p` < 1."); }
@@ -678,7 +721,7 @@ export class LLMChatPipeline {
       this.logitsOnCPU.copyFrom(logitsOnCPUArray);
     }
 
-    // 3. Sample
+    // 3. Apply penalties to logits
     if (_hasValue(frequency_penalty) && _hasValue(presence_penalty)) {
       // 3.1. Use frequency and presence penalty
       this.tvm.beginScope();
@@ -710,9 +753,22 @@ export class LLMChatPipeline {
         this.logitsOnCPU, appeared_tokens_ndarray, repetition_penalty);
       this.tvm.endScope();
     }
-    const sampledToken = this.tvm.sampleTopPFromLogits(this.logitsOnCPU, temperature, top_p);
 
-    // 4. Update logit processor
+    // 4. Sample token from logits
+    // If logprobs, need the actual distribution via softmax, otherwise directly sample from logits
+    let sampledToken: number;
+    if (logprobs) {
+      // Inplace transform logitsOnCPU to a distribution
+      temperature = Math.max(1e-6, temperature);  // to prevent division by zero
+      this.tvm.applySoftmaxWithTemperature(this.logitsOnCPU, temperature);
+      sampledToken = this.tvm.sampleTopPFromProb(this.logitsOnCPU, top_p);
+      this.tokenLogprobArray.push(this.getTokenLogprob(sampledToken, top_logprobs!));
+    } else {
+      // temperature being 0 is allowed here, equivalent to argmax
+      sampledToken = this.tvm.sampleTopPFromLogits(this.logitsOnCPU, temperature, top_p);
+    }
+
+    // 5. Update logit processor
     this.logitProcessor?.processSampledToken(sampledToken);
 
     return sampledToken;
@@ -833,11 +889,58 @@ export class LLMChatPipeline {
       // We assume that if the input has more than 1 token
       this.prefillTotalTime += (tend - tstart) / 1e3;
       this.prefillTotalTokens += inputIds.length;
+      this.curRoundPrefillTotalTokens += inputIds.length;
     } else {
       this.decodingTotalTime += (tend - tstart) / 1e3;
       this.decodingTotalTokens += 1;
+      this.curRoundDecodingTotalTokens += 1;
     }
     return nextToken;
+  }
+
+  /**
+   * Based on `sampledToken` and `this.logitsOnCPU`, which becomes a distribution after
+   * calling `this.tvm.applySoftmaxWithTemperature()`, generate `ChatCompletionTokenLogprob` and
+   * update `this.tokenLogprobArray`.
+   * 
+   * @param sampledToken The token ID sampled.
+   * @param top_logprobs Number of top tokens to include; `top_logprobs` in `ChatCompletionRequest`.
+   * 
+   * @return The `ChatCompletionTokenLogprob` for this single autoregressive step.
+   */
+  private getTokenLogprob(sampledToken: number, top_logprobs: number): ChatCompletionTokenLogprob {
+    if (this.logitsOnCPU == undefined) {
+      throw Error("logits should be assigned");
+    }
+    // Array of [token, prob] pairs, sorted with highest prob first.
+    const logitsOnCPUArray = <Float32Array>(this.logitsOnCPU.toArray())
+    const topLogprobs = getTopProbs(top_logprobs!, logitsOnCPUArray);
+
+    // Get entry for sampled token first
+    const textEncoder = new TextEncoder();
+    const tokenStr = this.tokenizer.decode(new Int32Array([sampledToken]));
+    const bytes: Array<number> = Array.from(textEncoder.encode(tokenStr));
+    const logprob = Math.log(logitsOnCPUArray[sampledToken]);
+
+    // Populate `top_logprobs`
+    const topLogprobArray: Array<TopLogprob> = [];
+    for (let i = 0; i < top_logprobs; i++) {
+      const tokenID_i = topLogprobs[i][0];
+      const prob_i = topLogprobs[i][1];
+      const tokenStr_i = this.tokenizer.decode(new Int32Array([tokenID_i]));
+      topLogprobArray.push({
+        token: tokenStr_i,
+        bytes: Array.from(textEncoder.encode(tokenStr_i)) as Array<number>,
+        logprob: Math.log(prob_i),
+      } as TopLogprob);
+    }
+
+    return {
+      token: tokenStr,
+      bytes: bytes,
+      logprob: logprob,
+      top_logprobs: topLogprobArray
+    } as ChatCompletionTokenLogprob;
   }
 
   async evaluate() {

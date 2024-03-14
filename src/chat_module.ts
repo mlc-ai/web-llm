@@ -18,7 +18,8 @@ import {
   ChatCompletionMessageParam,
   ChatCompletionRequestNonStreaming,
   ChatCompletionRequestStreaming,
-  ChatCompletionRequestBase
+  ChatCompletionRequestBase,
+  CompletionUsage,
 } from "./openai_api_protocols/index";
 import * as ChatCompletionAPI from "./openai_api_protocols/index";
 import {
@@ -206,6 +207,7 @@ export class ChatModule implements ChatInterface {
     request: ChatCompletionRequestStreaming,
     genConfig: GenerationConfig
   ): AsyncGenerator<ChatCompletionChunk, void, void> {
+    postInitAndCheckGenerationConfigValues(genConfig);
     if (!request.stateful) {
       await this.resetChat();
     }
@@ -213,39 +215,46 @@ export class ChatModule implements ChatInterface {
     const model = this.currentLocaId!;
     const created = Date.now();
     const id = crypto.randomUUID();
-
     this.interruptSignal = false;
-    await this.prefill(request.messages, genConfig);
     let prevMessageLength = 0;  // to know where to start slicing the delta
-    while (!this.stopped()) {
-      if (this.interruptSignal) {
-        this.getPipeline().triggerStop();
-        break;
-      }
-      await this.decode(genConfig);
+
+    async function _getChunk(thisModule: ChatModule) {
       // Remove the replacement character (U+FFFD) from the response to handle emojis.
       // An emoji might be made up of multiple tokens. If an emoji gets truncated in the middle of
       // its encoded byte sequence, a replacement character will appear.
-      let curMessage = await this.getMessage();
+      let curMessage = await thisModule.getMessage();
       curMessage = curMessage.split("�").join("");  // same as replaceAll("�", "")
       const deltaMessage = curMessage.slice(prevMessageLength);
       prevMessageLength = curMessage.length;
-      if (deltaMessage.length == 0) {
-        continue;
-      }
       const chunk: ChatCompletionChunk = {
         id: id,
         choices: [{
           delta: { content: deltaMessage, role: "assistant" },
           finish_reason: null,  // not finished yet
           index: 0,
+          logprobs: request.logprobs ? {
+            content: thisModule.getPipeline().getTokenLogprobArray().slice(-1)  // always the last entry
+          } as ChatCompletionChunk.Choice.Logprobs : null,
         }],
         model: model,
         object: "chat.completion.chunk",
         created: created
       }
-      yield chunk;
+      return chunk;
     }
+
+    await this.prefill(request.messages, genConfig);
+    yield await _getChunk(this);  // prefill produces a chunk
+
+    while (!this.stopped()) {
+      if (this.interruptSignal) {
+        this.getPipeline().triggerStop();
+        break;
+      }
+      await this.decode(genConfig);
+      yield await _getChunk(this);
+    }
+
     const lastChunk: ChatCompletionChunk = {
       id: id,
       choices: [{
@@ -286,6 +295,8 @@ export class ChatModule implements ChatInterface {
       top_p: request.top_p,
       temperature: request.temperature,
       logit_bias: request.logit_bias,
+      logprobs: request.logprobs,
+      top_logprobs: request.top_logprobs,
     }
 
     // 1. If request is streaming, return an AsyncIterable (an iterable version of `generate()`)
@@ -296,6 +307,8 @@ export class ChatModule implements ChatInterface {
     // 2. If request is non-streaming, directly reuse `generate()`
     const n = request.n ? request.n : 1;
     const choices: Array<ChatCompletion.Choice> = [];
+    let completion_tokens = 0;
+    let prompt_tokens = 0;
     for (let i = 0; i < n; i++) {
       if (!request.stateful) {
         await this.resetChat();
@@ -317,20 +330,29 @@ export class ChatModule implements ChatInterface {
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         finish_reason: this.getFinishReason()!,
         index: i,
-        logprobs: null,
+        logprobs: request.logprobs ? {
+          content: this.getPipeline().getTokenLogprobArray()
+        } as ChatCompletion.Choice.Logprobs : null,
         message: {
           content: outputMessage,
           role: "assistant",
         }
       });
+      completion_tokens += this.getPipeline().getCurRoundDecodingTotalTokens();
+      prompt_tokens += this.getPipeline().getCurRoundPrefillTotalTokens();
     }
 
-    const response: ChatCompletionAPI.ChatCompletion = {
+    const response: ChatCompletion = {
       id: crypto.randomUUID(),
       choices: choices,
       model: this.currentLocaId,
       object: "chat.completion",
       created: Date.now(),
+      usage: {
+        completion_tokens: completion_tokens,
+        prompt_tokens: prompt_tokens,
+        total_tokens: completion_tokens + prompt_tokens,
+      } as CompletionUsage,
     }
     return response;
   }
