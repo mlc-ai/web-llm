@@ -241,6 +241,14 @@ export interface ChatCompletion {
     created: number;
 
     /**
+     * Usage statistics for the completion request.
+     * 
+     * @note If request is `stateful`, past usage not counted -- only corresponds to this request.
+     * If `n > 1`, all choices' generation usages combined.
+     */
+    usage?: CompletionUsage;
+
+    /**
      * This fingerprint represents the backend configuration that the model runs with.
      *
      * Can be used in conjunction with the `seed` request parameter to understand when
@@ -249,13 +257,6 @@ export interface ChatCompletion {
      * @note Not supported yet.
      */
     system_fingerprint?: string;
-
-    /**
-     * Usage statistics for the completion request.
-     * 
-     * @note Not supported yet.
-     */
-    usage?: CompletionUsage;
 }
 
 /**
@@ -704,6 +705,8 @@ export interface CompletionUsage {
 
     /**
      * Number of tokens in the prompt.
+     * 
+     * @note If `stateful` is true, only the new prompt is counted.
      */
     prompt_tokens: number;
 

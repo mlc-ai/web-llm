@@ -65,11 +65,14 @@ export class LLMChatPipeline {
   // `genConfig.logprobs` is true. Each entry corresponds to a single autoregressive step.
   private tokenLogprobArray: Array<ChatCompletionTokenLogprob> = [];
 
-  // stats
+  // stats, reset at every `resetChat(keepstats=false)`
   private decodingTotalTime = 0;
   private decodingTotalTokens = 0;
   private prefillTotalTime = 0;
   private prefillTotalTokens = 0;
+  // same as `prefillTotalTokens` and `decodingTotalTokens`, but reset at every `prefillStep()`
+  private curRoundDecodingTotalTokens = 0;
+  private curRoundPrefillTotalTokens = 0;
 
   // logger
   private logger = console.log;
@@ -317,6 +320,20 @@ export class LLMChatPipeline {
   }
 
   /**
+   * @returns the number of tokens decoded for a single request or a single choice in the request.
+   */
+  getCurRoundDecodingTotalTokens(): number {
+    return this.curRoundDecodingTotalTokens;
+  }
+
+  /**
+   * @returns the number of tokens decoded for a single request or a single choice in the request.
+   */
+  getCurRoundPrefillTotalTokens(): number {
+    return this.curRoundPrefillTotalTokens;
+  }
+
+  /**
    * @returns Runtime stats information.
    */
   runtimeStatsText(): string {
@@ -377,6 +394,8 @@ export class LLMChatPipeline {
     this.appearedTokensFreq.clear();
     this.outputMessage = "";
     this.tokenLogprobArray = [];
+    this.curRoundDecodingTotalTokens = 0;
+    this.curRoundPrefillTotalTokens = 0;
     this.stopTriggered = false;
     const conversation = this.conversation;
 
@@ -427,6 +446,7 @@ export class LLMChatPipeline {
 
     this.prefillTotalTime += (tend - tstart) / 1e3;
     this.prefillTotalTokens += promptTokens.length;
+    this.curRoundPrefillTotalTokens += promptTokens.length;
 
     this.processNextToken(nextToken, genConfig);
   }
@@ -468,6 +488,7 @@ export class LLMChatPipeline {
 
     this.decodingTotalTime += (tend - tstart) / 1e3;
     this.decodingTotalTokens += 1;
+    this.curRoundDecodingTotalTokens += 1;
 
     this.processNextToken(nextToken, genConfig);
   }
@@ -868,9 +889,11 @@ export class LLMChatPipeline {
       // We assume that if the input has more than 1 token
       this.prefillTotalTime += (tend - tstart) / 1e3;
       this.prefillTotalTokens += inputIds.length;
+      this.curRoundPrefillTotalTokens += inputIds.length;
     } else {
       this.decodingTotalTime += (tend - tstart) / 1e3;
       this.decodingTotalTokens += 1;
+      this.curRoundDecodingTotalTokens += 1;
     }
     return nextToken;
   }

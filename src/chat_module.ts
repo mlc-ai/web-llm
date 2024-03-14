@@ -18,7 +18,8 @@ import {
   ChatCompletionMessageParam,
   ChatCompletionRequestNonStreaming,
   ChatCompletionRequestStreaming,
-  ChatCompletionRequestBase
+  ChatCompletionRequestBase,
+  CompletionUsage,
 } from "./openai_api_protocols/index";
 import * as ChatCompletionAPI from "./openai_api_protocols/index";
 import {
@@ -233,7 +234,7 @@ export class ChatModule implements ChatInterface {
           index: 0,
           logprobs: request.logprobs ? {
             content: thisModule.getPipeline().getTokenLogprobArray().slice(-1)  // always the last entry
-          } as ChatCompletionAPI.ChatCompletionChunk.Choice.Logprobs : null,
+          } as ChatCompletionChunk.Choice.Logprobs : null,
         }],
         model: model,
         object: "chat.completion.chunk",
@@ -306,6 +307,8 @@ export class ChatModule implements ChatInterface {
     // 2. If request is non-streaming, directly reuse `generate()`
     const n = request.n ? request.n : 1;
     const choices: Array<ChatCompletion.Choice> = [];
+    let completion_tokens = 0;
+    let prompt_tokens = 0;
     for (let i = 0; i < n; i++) {
       if (!request.stateful) {
         await this.resetChat();
@@ -329,20 +332,27 @@ export class ChatModule implements ChatInterface {
         index: i,
         logprobs: request.logprobs ? {
           content: this.getPipeline().getTokenLogprobArray()
-        } as ChatCompletionAPI.ChatCompletion.Choice.Logprobs : null,
+        } as ChatCompletion.Choice.Logprobs : null,
         message: {
           content: outputMessage,
           role: "assistant",
         }
       });
+      completion_tokens += this.getPipeline().getCurRoundDecodingTotalTokens();
+      prompt_tokens += this.getPipeline().getCurRoundPrefillTotalTokens();
     }
 
-    const response: ChatCompletionAPI.ChatCompletion = {
+    const response: ChatCompletion = {
       id: crypto.randomUUID(),
       choices: choices,
       model: this.currentLocaId,
       object: "chat.completion",
       created: Date.now(),
+      usage: {
+        completion_tokens: completion_tokens,
+        prompt_tokens: prompt_tokens,
+        total_tokens: completion_tokens + prompt_tokens,
+      } as CompletionUsage,
     }
     return response;
   }
