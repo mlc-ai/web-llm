@@ -69,10 +69,13 @@ export interface GenerationConfig {
   stop?: string | null | Array<string>;
   n?: number | null;
   logit_bias?: Record<string, number> | null;
+  logprobs?: boolean | null;
+  top_logprobs?: number | null;
 }
 
 export function postInitAndCheckGenerationConfigValues(config: GenerationConfig): void {
   function _hasValue(value: any): boolean {
+    // if we use `if value` directly, `value` being 0 evaluates to false, violating semantics
     return value !== undefined && value !== null;
   }
   if (config.frequency_penalty && (config.frequency_penalty < -2.0 || config.frequency_penalty > 2.0)) {
@@ -122,6 +125,23 @@ export function postInitAndCheckGenerationConfigValues(config: GenerationConfig)
           "Expect logit_bias's keys to be number represented in string; got " + tokenID
         )
       }
+    }
+  }
+  // logprobs and top_logprobs
+  if (_hasValue(config.top_logprobs)) {
+    // If top_logprobs is non-null, logprobs must be true
+    if (!config.logprobs) {
+      throw new Error("`logprobs` must be true if `top_logprobs` is set.");
+    }
+    // top_logprobs should be in range [0,5]
+    if ((config.top_logprobs! < 0 || config.top_logprobs! > 5)) {
+      throw new Error("`top_logprobs` should be in range [0,5]; got " + config.top_logprobs);
+    }
+  }
+  // If defined logprobs but not top_logprobs, simply make it 0
+  if (config.logprobs) {
+    if (!_hasValue(config.top_logprobs)) {
+      config.top_logprobs = 0;
     }
   }
 }

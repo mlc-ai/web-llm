@@ -119,6 +119,21 @@ export interface ChatCompletionRequestBase {
      */
     logit_bias?: Record<string, number> | null;
 
+    /**
+     * Whether to return log probabilities of the output tokens or not.
+     * 
+     * If true, returns the log probabilities of each output token returned in the `content` of
+     * `message`.
+     */
+    logprobs?: boolean | null;
+
+    /**
+     * An integer between 0 and 5 specifying the number of most likely tokens to return
+     * at each token position, each with an associated log probability. `logprobs` must
+     * be set to `true` if this parameter is used.
+     */
+    top_logprobs?: number | null;
+
     //////////////// BELOW FIELDS NOT SUPPORTED YET ////////////////
 
     /**
@@ -127,25 +142,6 @@ export interface ChatCompletionRequestBase {
      * @note Not supported. Instead call `ChatModule.reload(model)` before calling this API.
      */
     model?: string | null;
-
-    /**
-     * Whether to return log probabilities of the output tokens or not.
-     * 
-     * If true, returns the log probabilities of each output token returned in the `content` of
-     * `message`.
-     * 
-     * @note Not supported yet.
-     */
-    logprobs?: boolean | null;
-
-    /**
-     * An integer between 0 and 5 specifying the number of most likely tokens to return
-     * at each token position, each with an associated log probability. `logprobs` must
-     * be set to `true` if this parameter is used.
-     * 
-     * @note Not supported yet
-     */
-    top_logprobs?: number | null;
 
     /**
      * If specified, our system will make a best effort to sample deterministically, such that
@@ -306,15 +302,14 @@ export interface ChatCompletionChunk {
 
 export const ChatCompletionRequestUnsupportedFields: Array<string> = [
     "model",
-    "logprobs",
     "tool_choice",
     "tools",
     "response_format",
     "seed",
-    "top_logprobs"
 ];
 
 export function postInitAndCheckFields(request: ChatCompletionRequest): void {
+    // Generation-related checks and post inits are in `postInitAndCheckGenerationConfigValues()`
     // 1. Check unsupported fields in request
     const unsupported: Array<string> = [];
     ChatCompletionRequestUnsupportedFields.forEach((field) => {
@@ -623,7 +618,7 @@ export type ChatCompletionToolChoiceOption = 'none' | 'auto' | ChatCompletionNam
 
 //////////////////////////////// 3. OTHERS ////////////////////////////////
 
-//////////////////////////////// 3.1. LOG PROBS (NOT SUPPORTED YET) ////////////////////////////////
+//////////////////////////////// 3.1. LOG PROBS ////////////////////////////////
 export interface TopLogprob {
     /**
      * The token.
@@ -635,6 +630,9 @@ export interface TopLogprob {
      * Useful in instances where characters are represented by multiple tokens and
      * their byte representations must be combined to generate the correct text
      * representation. Can be `null` if there is no bytes representation for the token.
+     * 
+     * @note Encoded with `TextEncoder.encode()` and can be decoded with `TextDecoder.decode()`.
+     * For details, see https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder/encode.
      */
     bytes: Array<number> | null;
 
@@ -655,6 +653,9 @@ export interface ChatCompletionTokenLogprob {
      * Useful in instances where characters are represented by multiple tokens and
      * their byte representations must be combined to generate the correct text
      * representation. Can be `null` if there is no bytes representation for the token.
+     * 
+     * @note Encoded with `TextEncoder.encode()` and can be decoded with `TextDecoder.decode()`.
+     * For details, see https://developer.mozilla.org/en-US/docs/Web/API/TextEncoder/encode.
      */
     bytes: Array<number> | null;
 
@@ -737,8 +738,6 @@ export namespace ChatCompletion {
 
         /**
          * Log probability information for the choice.
-         * 
-         * @note Not supported yet.
          */
         logprobs: Choice.Logprobs | null;
 
