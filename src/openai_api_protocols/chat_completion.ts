@@ -134,6 +134,16 @@ export interface ChatCompletionRequestBase {
      */
     top_logprobs?: number | null;
 
+    /**
+     * If specified, our system will make a best effort to sample deterministically, such that
+     * repeated requests with the same `seed` and parameters should return the same result.
+     * 
+     * @note Seeding is done on a request-level rather than choice-level. That is, if `n > 1`, you
+     * would still get different content for each `Chocie`. But if two requests with `n = 2` are
+     * processed with the same seed, the two results should be the same (two choices are different).
+     */
+    seed?: number | null;
+
     //////////////// BELOW FIELDS NOT SUPPORTED YET ////////////////
 
     /**
@@ -142,14 +152,6 @@ export interface ChatCompletionRequestBase {
      * @note Not supported. Instead call `ChatModule.reload(model)` before calling this API.
      */
     model?: string | null;
-
-    /**
-     * If specified, our system will make a best effort to sample deterministically, such that
-     * repeated requests with the same `seed` and parameters should return the same result.
-     * 
-     * @note Not supported yet.
-     */
-    seed?: number | null;
 
     /**
      * Controls which (if any) function is called by the model. `none` means the model
@@ -306,7 +308,6 @@ export const ChatCompletionRequestUnsupportedFields: Array<string> = [
     "tool_choice",
     "tools",
     "response_format",
-    "seed",
 ];
 
 export function postInitAndCheckFields(request: ChatCompletionRequest): void {
@@ -362,6 +363,13 @@ export function postInitAndCheckFields(request: ChatCompletionRequest): void {
     // 5. If stateful, n cannot be > 1, since the behavior is hard to define
     if (request.stateful && request.n && request.n > 1) {
         throw new Error("If the request is stateful, `n` cannot be > 1.");
+    }
+
+    // 6. Seed should be an integer
+    if (request.seed !== undefined && request.seed !== null) {
+        if (!Number.isInteger(request.seed)) {
+            throw new Error("`seed` should be an integer, but got " + request.seed);
+        }
     }
 }
 

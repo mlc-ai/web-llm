@@ -343,7 +343,14 @@ export class LLMChatPipeline {
     )
   }
 
-  // Getters and writters for this.conversation.
+  /**
+   * Set the seed for the RNG `this.tvm.rng`.
+   */
+  setSeed(seed: number): void {
+    this.tvm.setSeed(seed);
+  }
+
+  // Getters and setters for this.conversation.
   /**
    * Overrides the system prompt.
    */

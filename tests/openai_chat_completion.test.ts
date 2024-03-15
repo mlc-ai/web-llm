@@ -68,6 +68,19 @@ describe('Check chat completion unsupported requests', () => {
         }).toThrow("If the request is stateful, `n` cannot be > 1.");
     });
 
+    test('Non-integer seed', () => {
+        expect(() => {
+            const request: ChatCompletionRequest = {
+                messages: [
+                    { role: "user", content: "Hello! " },
+                ],
+                max_gen_len: 10,
+                seed: 42.2,  // Note that Number.isInteger(42.0) is true 
+            };
+            postInitAndCheckFields(request)
+        }).toThrow("`seed` should be an integer, but got");
+    });
+
     // Remove when we support image input (e.g. LlaVA model)
     test('Image input is unsupported', () => {
         expect(() => {
@@ -128,6 +141,14 @@ describe('Supported requests', () => {
             temperature: 1.5,
             max_gen_len: 25,
             frequency_penalty: 0.2,
+            seed: 42,
+            logprobs: true,
+            top_logprobs: 2,
+            logit_bias: {
+                "13813": -100,
+                "10319": 5,
+                "7660": 5,
+            },
         };
         postInitAndCheckFields(request)
     });

@@ -208,6 +208,9 @@ export class ChatModule implements ChatInterface {
     genConfig: GenerationConfig
   ): AsyncGenerator<ChatCompletionChunk, void, void> {
     postInitAndCheckGenerationConfigValues(genConfig);
+    if (request.seed !== null && request.seed !== undefined) {
+      this.getPipeline().setSeed(request.seed);
+    }
     if (!request.stateful) {
       await this.resetChat();
     }
@@ -255,6 +258,11 @@ export class ChatModule implements ChatInterface {
       yield await _getChunk(this);
     }
 
+    // Reset seed -- we do not want this seed to affect future requests
+    if (request.seed !== null && request.seed !== undefined) {
+      this.getPipeline().setSeed(Date.now());
+    }
+
     const lastChunk: ChatCompletionChunk = {
       id: id,
       choices: [{
@@ -270,6 +278,15 @@ export class ChatModule implements ChatInterface {
     yield lastChunk;
   }
 
+  /**
+   * Completes a single ChatCompletionRequest.
+   * 
+   * @param request A OpenAI-style ChatCompletion request.
+   * 
+   * @note For each choice (i.e. `n`), a request is defined by a single `prefill()` and mulitple
+   * `decode()`. This is important as it determines the behavior of various fields including
+   * `stateful` and `seed`.
+   */
   async chatCompletion(
     request: ChatCompletionRequestNonStreaming
   ): Promise<ChatCompletion>;
@@ -302,6 +319,10 @@ export class ChatModule implements ChatInterface {
     // 1. If request is streaming, return an AsyncIterable (an iterable version of `generate()`)
     if (request.stream) {
       return this.chatCompletionAsyncChunkGenerator(request, genConfig);
+    }
+
+    if (request.seed !== null && request.seed !== undefined) {
+      this.getPipeline().setSeed(request.seed);
     }
 
     // 2. If request is non-streaming, directly reuse `generate()`
@@ -353,6 +374,11 @@ export class ChatModule implements ChatInterface {
         prompt_tokens: prompt_tokens,
         total_tokens: completion_tokens + prompt_tokens,
       } as CompletionUsage,
+    }
+
+    // Reset seed -- we do not want this seed to affect future requests
+    if (request.seed !== null && request.seed !== undefined) {
+      this.getPipeline().setSeed(Date.now());
     }
     return response;
   }
