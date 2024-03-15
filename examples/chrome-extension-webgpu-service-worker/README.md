@@ -2,14 +2,18 @@
 
 ![Chrome Extension](https://github.com/mlc-ai/mlc-llm/assets/11940172/0d94cc73-eff1-4128-a6e4-70dc879f04e0)
 
-- Chrome has added WebGPU support in Service Worker in this [commit](https://chromium-review.googlesource.com/c/chromium/src/+/5190750). This example shows how we can create a Chrome extension using WebGPU and service worker.
-The project structure is as follows:
+
+> [!WARNING]  
+> Service worker support in WebGPU is enabled by default in [Chrome 124](https://chromiumdash.appspot.com/commit/8d78510e4aca5ac3cd8ee4a33e96b404eaa43246).
+> If you are using Chrome 123, go to `chrome://flags/#enable-experimental-web-platform-features`, enable the `#enable-experimental-web-platform-features` flag, and **relaunch the browser**.
+
+This example shows how we can create a Chrome extension using WebGPU and service worker.
+
+- The project structure is as follows:
     - `manifest.json`: A required file that lists important information about the structure and behavior of that extension. Here we are using manifest V3.
     - `popup.ts`: Script of the extension pop-up window.
     - `background.ts`: Script of the service worker. An extension service worker is loaded when it is needed, and unloaded when it goes dormant.
     - `content.js`: Content script that interacts with DOM.
-- To run the extension, first make sure you are on [Google Chrome Canary](https://www.google.com/chrome/canary/).
-- In Chrome Canary, go to `chrome://flags/#enable-experimental-web-platform-features` and enable the `#enable-experimental-web-platform-features` flag. **Relaunch the browser**.
 - Run
   ```bash
   npm install
