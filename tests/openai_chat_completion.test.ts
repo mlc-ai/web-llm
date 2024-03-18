@@ -101,31 +101,6 @@ describe('Check chat completion unsupported requests', () => {
             postInitAndCheckFields(request)
         }).toThrow("User message only supports string `content` for now");
     });
-
-    // Remove two tests below after we support function calling
-    test('tool_calls is unsupported', () => {
-        expect(() => {
-            const request: ChatCompletionRequest = {
-                messages: [
-                    { role: "system", content: "You are a helpful assistant." },
-                    { role: "assistant", tool_calls: [] }, // This raises error
-                ],
-            };
-            postInitAndCheckFields(request)
-        }).toThrow("`tool_calls` is not supported yet.");
-    });
-
-    test('tool is unsupported', () => {
-        expect(() => {
-            const request: ChatCompletionRequest = {
-                messages: [
-                    { role: "system", content: "You are a helpful assistant." },
-                    { role: "tool", content: "dummy content", tool_call_id: "dummy id" }, // This raises error
-                ],
-            };
-            postInitAndCheckFields(request)
-        }).toThrow("`tool` and `function` are not supported yet.");
-    });
 });
 
 describe('Supported requests', () => {
