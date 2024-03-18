@@ -513,7 +513,7 @@ export class ChatModule implements ChatInterface {
           throw new Error("Last messages should be a string from the `user`.");
         }
         this.getPipeline().appendConversationMessage(
-          Role.User,
+          Role.user,
           message.content,
           message.name
         );
@@ -522,7 +522,7 @@ export class ChatModule implements ChatInterface {
           throw new Error("Assistant message should have string content.");
         }
         this.getPipeline().appendConversationMessage(
-          Role.Assistant,
+          Role.assistant,
           message.content,
           message.name
         );
