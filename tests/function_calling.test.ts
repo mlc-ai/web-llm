@@ -10,13 +10,13 @@ import { describe, expect, test } from '@jest/globals';
 describe('Test conversation template', () => {
     test('Test getPromptArrayInternal', () => {
         const conv = getConversation("gorilla");
-        conv.appendMessage(Role.User, "Call me an Uber ride type \"Plus\" in Berkeley at zipcode 94704 in 10 minutes");
+        conv.appendMessage(Role.User, "Call me an Uber ride type \"Plus\" in Berkeley at zipcode 94704 in 10 minutes", "Tom");
         const prompt_array = conv.getPromptArray();
         
         expect(prompt_array).toEqual([
             "A chat between a curious user and an artificial intelligence assistant. " +
             "The assistant gives helpful, detailed, and polite answers to the user's questions.\n",
-            "USER: <<question>> Call me an Uber ride type \"Plus\" in Berkeley at zipcode 94704 in 10 minutes\n"]);
+            "Tom: <<question>> Call me an Uber ride type \"Plus\" in Berkeley at zipcode 94704 in 10 minutes\n"]);
     });
 
     test('Test getPromptArrayInternal function call', () => {

@@ -4,17 +4,22 @@ import { ConvTemplateConfig, MessagePlaceholders, Role } from "./config";
  * Helper to keep track of history conversations.
  */
 export class Conversation {
-  public messages: Array<[Role, string | undefined]> = [];
+  public messages: Array<[Role, string, string | undefined]> = [];
   public config: ConvTemplateConfig;
 
   public function_string: string = "";
   public use_function_calling: boolean = false;
+
+  // Save the default system prompt in case it is overridden.
+  // It will be restored upon reset().
+  private system_prompt_default: string;
 
   // TODO(tvm-team) confirm and remove
   // private contextWindowStart = 0;
 
   constructor(config: ConvTemplateConfig) {
     this.config = config;
+    this.system_prompt_default = config.system;
   }
 
   private getPromptArrayInternal(
@@ -29,8 +34,9 @@ export class Conversation {
     for (let i = startPos; i < this.messages.length; ++i) {
       const item = this.messages[i];
       const role = item[0];
-      const message = item[1];
-      const role_str = this.config.roles[role];
+      const role_str = item[1];
+      const message = item[2];
+
       if (message !== undefined && message != "") {
         let message_str;
         if (this.use_function_calling && this.function_string !== '') {
@@ -92,6 +98,7 @@ export class Conversation {
 
   reset() {
     this.messages = [];
+    this.config.system = this.system_prompt_default;
   }
 
   getStopStr() {
@@ -107,33 +114,33 @@ export class Conversation {
     return this.config.stop_tokens;
   }
 
-  appendMessage(role: Role, message: string) {
+  appendMessage(role: Role, message: string, role_name?: string) {
     if (this.messages.length != 0 &&
-      this.messages[this.messages.length - 1][1] == undefined) {
+      this.messages[this.messages.length - 1][2] == undefined) {
       throw Error("Have unfinished reply");
     }
     if (!(role in this.config.roles)) {
       throw Error("Role is not supported: " + role);
     }
-    this.messages.push([role, message]);
+    const role_name_str = role_name ? role_name : this.config.roles[role];
+    this.messages.push([role, role_name_str, message]);
   }
 
   appendReplyHeader(role: Role) {
-    const role_name = this.config.roles[role];
     if (!(role in this.config.roles)) {
       throw Error("Role is not supported: " + role);
     }
-    this.messages.push([role, undefined]);
+    this.messages.push([role, this.config.roles[role], undefined]);
   }
 
   finishReply(message: string) {
     if (this.messages.length == 0) {
       throw Error("Message error should not be 0");
     }
-    if (this.messages[this.messages.length - 1][1] !== undefined) {
+    if (this.messages[this.messages.length - 1][2] !== undefined) {
       throw Error("Already assigned");
     }
-    this.messages[this.messages.length - 1][1] = message;
+    this.messages[this.messages.length - 1][2] = message;
   }
 }
 

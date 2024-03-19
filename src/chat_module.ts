@@ -21,6 +21,7 @@ import {
   ChatCompletionRequestStreaming,
   ChatCompletionRequestBase,
   CompletionUsage,
+  ChatCompletionUserMessageParam,
 } from "./openai_api_protocols/index";
 import * as ChatCompletionAPI from "./openai_api_protocols/index";
 import {
@@ -514,22 +515,17 @@ export class ChatModule implements ChatInterface {
         this.getPipeline().appendConversationMessage(
           Role.User,
           message.content,
+          message.name
         );
-        if (message.name !== undefined) {
-          this.getPipeline().overrideUserRoleName(message.name);
-        }
       } else if (message.role === "assistant") {
         if (typeof message.content !== "string") {
-          // TODO(Charlie): Remove when we support function calling
           throw new Error("Assistant message should have string content.");
         }
         this.getPipeline().appendConversationMessage(
           Role.Assistant,
           message.content,
+          message.name
         );
-        if (message.name !== undefined) {
-          this.getPipeline().overrideAssistantRoleName(message.name);
-        }
       } else {
         throw new Error("Unsupported role: " + message.role);
       }
@@ -576,12 +572,6 @@ export class ChatModule implements ChatInterface {
     return null;
   }
 
-  private functionCallToJson(stringified_calls: string) {
-    if (stringified_calls[0] == '[' && stringified_calls[stringified_calls.length - 1] == ']') {
-      
-    }
-  }
-
   /**
    * Run a prefill step with a given input.
    * @param input The input prompt, or `messages` in OpenAI-like APIs.
@@ -591,15 +581,18 @@ export class ChatModule implements ChatInterface {
     genConfig?: GenerationConfig
   ) {
     let input_str: string;
+    let input_role_str : string | undefined;
     if (typeof input === "string") {
       input_str = input;
     } else {
       // Process ChatCompletionMessageParam
       // We treat the last message as our usual input
       this.updateConversationWithChatCompletionMessages(input);
-      input_str = input[input.length - 1].content as string;
+      const last_msg = input[input.length - 1] as ChatCompletionUserMessageParam;
+      input_str = last_msg.content as string;
+      input_role_str = last_msg.name ? last_msg.name : undefined;
     }
-    return this.getPipeline().prefillStep(input_str, genConfig);
+    return this.getPipeline().prefillStep(input_str, input_role_str, genConfig);
   }
 
   /**

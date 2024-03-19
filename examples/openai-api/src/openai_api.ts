@@ -180,7 +180,7 @@ async function mainFunctionCalling() {
   const request: webllm.ChatCompletionRequest = {
     stream: false,
     messages: [
-      { "role": "user", "content": "What is the current weather in Pittsburgh and tokyo?" },
+      { "role": "user", "content": "What is the current weather in celsius in Pittsburgh and Tokyo?" },
     ],
     tool_choice: 'auto',
     tools: tools,

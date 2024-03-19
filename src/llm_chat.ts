@@ -361,23 +361,8 @@ export class LLMChatPipeline {
   /**
    * Append a new message to `this.conversation`.
    */
-  appendConversationMessage(role: Role, input: string): void {
-    this.conversation.appendMessage(role, input);
-  }
-
-  /**
-   * Get `this.conversation.messages`.
-   * Overrides the user role name
-   */
-  overrideUserRoleName(user_name: string): void {
-    this.conversation.config.roles[Role.User] = user_name;
-  }
-
-  /**
-   * Overrides the assistant role name
-   */
-  overrideAssistantRoleName(assistant_name: string): void {
-    this.conversation.config.roles[Role.Assistant] = assistant_name;
+  appendConversationMessage(role: Role, input: string, role_name?: string): void {
+    this.conversation.appendMessage(role, input, role_name);
   }
 
   /**
@@ -395,7 +380,7 @@ export class LLMChatPipeline {
   /**
    * Get this.conversation.messages.
    */
-  getConversationMessages(): Array<[Role, string | undefined]> {
+  getConversationMessages(): Array<[Role, string, string | undefined]> {
     // TODO(Charlie): Do we need to make a deep copy here?
     return this.conversation.messages;
   }
@@ -415,7 +400,7 @@ export class LLMChatPipeline {
   /**
    * Generate the first token given input prompt
    */
-  async prefillStep(inp: string, genConfig?: GenerationConfig): Promise<void> {
+  async prefillStep(inp: string, inp_role_str?: string, genConfig?: GenerationConfig): Promise<void> {
     if (this.resetStatsPerPrefill) {
       this.resetRuntimeStats();
     }
@@ -431,7 +416,7 @@ export class LLMChatPipeline {
     const conversation = this.conversation;
 
     // initialize
-    conversation.appendMessage(Role.User, inp);
+    conversation.appendMessage(Role.User, inp, inp_role_str);
     conversation.appendReplyHeader(Role.Assistant);
     const promptTokens = this.getInputTokens(genConfig);
 
