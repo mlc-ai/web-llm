@@ -61,13 +61,7 @@ export class Conversation {
           message_str = message;
         }
         
-        if (this.config.separator_style == "Two") {
-          ret.push(role_str + ": " + message_str + this.config.seps[i % this.config.seps.length]);
-        } else if (this.config.separator_style == "RedPajamaChat") {
-          ret.push(role_str + ": " + message_str + this.config.seps[i % this.config.seps.length] + "\n");
-        } else {
-          throw Error("Unknown separator style " + this.config.separator_style);
-        }
+        ret.push(role_str + ": " + message_str + this.config.seps[i % this.config.seps.length]);
       } else {
         ret.push(role_str + ":");
       }
@@ -107,10 +101,8 @@ export class Conversation {
   getStopStr(): string[] {
     if (this.config.stop_str.length > 0) {
       return this.config.stop_str;
-    } else if (this.config.separator_style == "Two") {
-      return [this.config.seps[this.config.seps.length - 1]];
     }
-    throw Error("Unknown separator style " + this.config.separator_style);
+    return [this.config.seps[this.config.seps.length - 1]];
   }
 
   getStopTokens() {
@@ -166,7 +158,6 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: [" ", " "],
-      separator_style: "Two",
       stop_str: ["[INST]"],
       add_bos: true,
       stop_token_ids: [2],
@@ -183,7 +174,6 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: [" ", "</s>"],
-      separator_style: "Two",
       stop_str: ["</s>"],
       add_bos: true,
       stop_token_ids: [2],
@@ -199,7 +189,6 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: ["\n\n", "</s>"],
-      separator_style: "Two",
       stop_str: ["\n\n"],
       add_bos: true,
       stop_token_ids: [2],
@@ -214,8 +203,7 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
         [Role.assistant]: "<bot>",
       },
       offset: 0,
-      seps: ["", ""],
-      separator_style: "RedPajamaChat",
+      seps: ["\n"],
       stop_str: ["<human>"],
       add_bos: false,
       stop_token_ids: [0],
@@ -232,7 +220,6 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: ["\n\n### ", "\n\n### "],
-      separator_style: "Two",
       stop_str: ["</s>"],
       add_bos: true,
       stop_token_ids: [2],
@@ -250,7 +237,6 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: [" "],
-      separator_style: "Two",
       stop_str: ["</s>"],
       add_bos: true,
       stop_token_ids: [2],
@@ -269,7 +255,6 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: ["<|im_end|>\n"],
-      separator_style: "Two",
       stop_str: ["<|im_end|>"],
       add_bos: false,
       stop_token_ids: [2, 32000],
@@ -285,7 +270,6 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: ["<|im_end|>\n"],
-      separator_style: "Two",
       stop_str: ["<|im_end|>"],
       add_bos: false,
       stop_token_ids: [2, 32000],
@@ -302,7 +286,6 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: ["", ""],
-      separator_style: "Two",
       stop_str: ["<|im_end|>"],
       add_bos: false,
       stop_token_ids: [2],
@@ -318,7 +301,6 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: ["\n"],
-      separator_style: "Two",
       stop_str: ["<|endoftext|>"],
       add_bos: false,
       stop_token_ids: [50256],
@@ -335,7 +317,6 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: ["", ""],
-      separator_style: "Two",
       stop_str: ["<|im_end|>"],
       add_bos: false,
       stop_token_ids: [2],
@@ -351,7 +332,6 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: ["<|endoftext|>", "<|endoftext|>"],
-      separator_style: "Two",
       stop_str: ["<|endoftext|>"],
       add_bos: false,
       stop_token_ids: [100257],
@@ -367,7 +347,6 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: ["<|endoftext|>", "<|endoftext|>"],
-      separator_style: "Two",
       stop_str: ["<|endoftext|>"],
       add_bos: true,
       stop_token_ids: [0],
@@ -383,7 +362,6 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: ["<end_of_turn>\n", "<end_of_turn>\n"],
-      separator_style: "Two",
       stop_str: ["<end_of_turn>"],
       add_bos: true,
       stop_token_ids: [1, 107],
@@ -403,7 +381,6 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: ["\n", "<|EOT|>"],
-      separator_style: "Two",
       stop_str: ["<|EOT|>"],
       add_bos: true,
       stop_token_ids: [2],
@@ -420,7 +397,6 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: [""],
-      separator_style: "Two",
       stop_str: [""],
       add_bos: false,
       stop_token_ids: [],

@@ -8,7 +8,6 @@ export interface ConvTemplateConfig {
   roles: Record<Role, string>;
   role_templates?: Partial<Record<Role, string>>;
   seps: Array<string>;
-  separator_style: string;
   offset: number;
   stop_str: Array<string>;
   add_bos: boolean;
