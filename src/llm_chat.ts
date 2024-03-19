@@ -2,7 +2,7 @@
 /* eslint-disable no-prototype-builtins */
 import * as tvmjs from "tvmjs";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
-import { ChatConfig, GenerationConfig } from "./config";
+import { ChatConfig, GenerationConfig, Role } from "./config";
 import { getConversation, Conversation } from "./conversation";
 import { LogitProcessor } from "./types";
 import { getTopProbs } from "./support";
@@ -361,14 +361,26 @@ export class LLMChatPipeline {
   /**
    * Append a new message to `this.conversation`.
    */
-  appendConversationMessage(role: string, input: string): void {
-    this.conversation.appendMessage(role, input);
+  appendConversationMessage(role: Role, input: string, role_name?: string): void {
+    this.conversation.appendMessage(role, input, role_name);
   }
 
   /**
-   * Get `this.conversation.messages`.
+   * Override this.conversation.use_function_calling and
+   * this.conversation.function_string
+   * 
+   * @param use_function_calling 
+   * @param function_string 
    */
-  getConversationMessages(): Array<[string, string | undefined]> {
+  overrideFunctionCalling(use_function_calling: boolean, function_string: string) : void {
+    this.conversation.use_function_calling = use_function_calling;
+    this.conversation.function_string = function_string;
+  }
+
+  /**
+   * Get this.conversation.messages.
+   */
+  getConversationMessages(): Array<[Role, string, string | undefined]> {
     // TODO(Charlie): Do we need to make a deep copy here?
     return this.conversation.messages;
   }
@@ -377,11 +389,8 @@ export class LLMChatPipeline {
    * @returns the roles of this.conversation's conversation template of lengths of two.
    */
   getRoles(): Array<string> {
-    const res = this.conversation.config.roles;
-    if (res.length !== 2) {
-      throw new Error("Expect the conversation template to have two roles.");
-    }
-    return res;
+    const roles = this.conversation.config.roles;
+    return [roles[Role.User], roles[Role.Assistant]];
   }
 
   async asyncLoadWebGPUPipelines() {
@@ -391,7 +400,7 @@ export class LLMChatPipeline {
   /**
    * Generate the first token given input prompt
    */
-  async prefillStep(inp: string, genConfig?: GenerationConfig): Promise<void> {
+  async prefillStep(inp: string, inp_role_str?: string, genConfig?: GenerationConfig): Promise<void> {
     if (this.resetStatsPerPrefill) {
       this.resetRuntimeStats();
     }
@@ -407,8 +416,8 @@ export class LLMChatPipeline {
     const conversation = this.conversation;
 
     // initialize
-    conversation.appendMessage(conversation.config.roles[0], inp);
-    conversation.appendReplyHeader(conversation.config.roles[1]);
+    conversation.appendMessage(Role.User, inp, inp_role_str);
+    conversation.appendReplyHeader(Role.Assistant);
     const promptTokens = this.getInputTokens(genConfig);
 
     const tstart = performance.now();

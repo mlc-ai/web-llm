@@ -137,7 +137,62 @@ async function mainStateful() {
   console.log(await chat.runtimeStatsText());
 }
 
+async function mainFunctionCalling() {
+  const chat: webllm.ChatInterface = new webllm.ChatModule();
+
+  chat.setInitProgressCallback((report: webllm.InitProgressReport) => {
+    setLabel("init-label", report.text);
+  });
+
+  const myAppConfig: webllm.AppConfig = {
+    model_list: [
+      {
+        "model_url": "https://huggingface.co/mlc-ai/gorilla-openfunctions-v2-q4f16_1-MLC/resolve/main/",
+        "local_id": "gorilla-openfunctions-v2-q4f16_1",
+        "model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/gorilla-openfunctions-v2/gorilla-openfunctions-v2-q4f16_1.wasm",
+      },
+    ]
+  }
+  const selectedModel = "gorilla-openfunctions-v2-q4f16_1"
+  await chat.reload(selectedModel, undefined, myAppConfig);
+
+  const tools: Array<webllm.ChatCompletionTool> = [
+    {
+      type: "function",
+      function: {
+        name: "get_current_weather",
+        description: "Get the current weather in a given location",
+        parameters: {
+          "type": "object",
+          "properties": {
+            "location": {
+              "type": "string",
+              "description": "The city and state, e.g. San Francisco, CA",
+            },
+            "unit": { "type": "string", "enum": ["celsius", "fahrenheit"] },
+          },
+          "required": ["location"],
+        },
+      },
+    }
+  ]
+
+  const request: webllm.ChatCompletionRequest = {
+    stream: false,
+    messages: [
+      { "role": "user", "content": "What is the current weather in celsius in Pittsburgh and Tokyo?" },
+    ],
+    tool_choice: 'auto',
+    tools: tools,
+  };
+
+  const reply0 = await chat.chatCompletion(request);
+  console.log(reply0.choices[0].message.content);
+
+  console.log(await chat.runtimeStatsText());
+}
+
 // Run one of the functions
-mainNonStreaming();
+// mainNonStreaming();
 // mainStreaming();
-// mainStateful();
+mainFunctionCalling();

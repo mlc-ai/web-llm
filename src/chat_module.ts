@@ -7,7 +7,8 @@ import {
   prebuiltAppConfig,
   GenerationConfig,
   postInitAndCheckGenerationConfigValues,
-  ModelRecord
+  ModelRecord,
+  Role
 } from "./config";
 import { LLMChatPipeline } from "./llm_chat"
 import {
@@ -20,6 +21,7 @@ import {
   ChatCompletionRequestStreaming,
   ChatCompletionRequestBase,
   CompletionUsage,
+  ChatCompletionUserMessageParam,
 } from "./openai_api_protocols/index";
 import * as ChatCompletionAPI from "./openai_api_protocols/index";
 import {
@@ -316,6 +318,11 @@ export class ChatModule implements ChatInterface {
       top_logprobs: request.top_logprobs,
     }
 
+    const error_msg = this.checkFunctionCallUsage(request);
+    if (error_msg) {
+      throw new Error(error_msg);
+    }
+
     // 1. If request is streaming, return an AsyncIterable (an iterable version of `generate()`)
     if (request.stream) {
       return this.chatCompletionAsyncChunkGenerator(request, genConfig);
@@ -506,22 +513,63 @@ export class ChatModule implements ChatInterface {
           throw new Error("Last messages should be a string from the `user`.");
         }
         this.getPipeline().appendConversationMessage(
-          message.name ? message.name : roles[0],
+          Role.User,
           message.content,
+          message.name
         );
       } else if (message.role === "assistant") {
         if (typeof message.content !== "string") {
-          // TODO(Charlie): Remove when we support function calling
           throw new Error("Assistant message should have string content.");
         }
         this.getPipeline().appendConversationMessage(
-          message.name ? message.name : roles[1],
+          Role.Assistant,
           message.content,
+          message.name
         );
       } else {
         throw new Error("Unsupported role: " + message.role);
       }
     }
+  }
+
+  private checkFunctionCallUsage(request: ChatCompletionRequest): string | null {
+    if (request.tools == undefined || 
+        (typeof request.tool_choice == "string" && request.tool_choice == "none")) {
+        this.getPipeline().overrideFunctionCalling(false, "");
+        return null;
+    }
+
+    if (typeof request.tool_choice == "string" && request.tool_choice !== "auto") {
+      return `Invalid tool choice value: ${request.tool_choice}`;
+    }
+
+    if (typeof request.tool_choice !== "string" && request.tool_choice?.type) {
+      return "Only 'function' tool choice is supported";
+    }
+
+    const singleFunctionToCall = typeof request.tool_choice !== "string" && request.tool_choice?.function?.name;
+
+    if (singleFunctionToCall) {
+      for (const f of request.tools) {
+        if (singleFunctionToCall == f.function.name) {
+          this.getPipeline().overrideFunctionCalling(true, JSON.stringify([f.function]));
+          return null;
+        }
+      }
+
+      return `The tool choice function ${singleFunctionToCall} is not found in the tools list`;
+    }
+
+    let function_list = [];
+    for (const f of request.tools) {
+      if (f.type !== "function") {
+        return "Only 'function' tool type is supported";
+      }
+
+      function_list.push(f.function);
+    }
+    this.getPipeline().overrideFunctionCalling(true, JSON.stringify(function_list));
+    return null;
   }
 
   /**
@@ -533,15 +581,18 @@ export class ChatModule implements ChatInterface {
     genConfig?: GenerationConfig
   ) {
     let input_str: string;
+    let input_role_str : string | undefined;
     if (typeof input === "string") {
       input_str = input;
     } else {
       // Process ChatCompletionMessageParam
       // We treat the last message as our usual input
       this.updateConversationWithChatCompletionMessages(input);
-      input_str = input[input.length - 1].content as string;
+      const last_msg = input[input.length - 1] as ChatCompletionUserMessageParam;
+      input_str = last_msg.content as string;
+      input_role_str = last_msg.name ? last_msg.name : undefined;
     }
-    return this.getPipeline().prefillStep(input_str, genConfig);
+    return this.getPipeline().prefillStep(input_str, input_role_str, genConfig);
   }
 
   /**

@@ -1,17 +1,25 @@
-import { ConvTemplateConfig } from "./config";
+import { ConvTemplateConfig, MessagePlaceholders, Role } from "./config";
 
 /**
  * Helper to keep track of history conversations.
  */
 export class Conversation {
-  public messages: Array<[string, string | undefined]> = [];
+  public messages: Array<[Role, string, string | undefined]> = [];
   public config: ConvTemplateConfig;
+
+  public function_string: string = "";
+  public use_function_calling: boolean = false;
+
+  // Save the default system prompt in case it is overridden.
+  // It will be restored upon reset().
+  private system_prompt_default: string;
 
   // TODO(tvm-team) confirm and remove
   // private contextWindowStart = 0;
 
   constructor(config: ConvTemplateConfig) {
     this.config = config;
+    this.system_prompt_default = config.system;
   }
 
   private getPromptArrayInternal(
@@ -23,32 +31,45 @@ export class Conversation {
     }
     const ret = addSystem ? [this.config.system + this.config.seps[0]] : [];
 
-    if (this.config.separator_style == "Two") {
-      for (let i = startPos; i < this.messages.length; ++i) {
-        const item = this.messages[i];
-        const role = item[0];
-        const message = item[1];
-        if (message !== undefined && message != "") {
-          ret.push(role + ": " + message + this.config.seps[i % this.config.seps.length]);
-        } else {
-          ret.push(role + ":");
+    for (let i = startPos; i < this.messages.length; ++i) {
+      const item = this.messages[i];
+      const role = item[0];
+      const role_str = item[1];
+      const message = item[2];
+
+      if (message !== undefined && message != "") {
+        let message_str;
+        if (this.use_function_calling && this.function_string !== '') {
+          message_str = this.config.function_calling_template?.replace(
+            MessagePlaceholders.Function, 
+            this.function_string
+          ).replace(
+            MessagePlaceholders.User,
+            message
+          )
+        } else if (this.config.role_templates !== undefined) {
+          message_str = this.config.role_templates[role]?.replace(
+            MessagePlaceholders[Role[role] as keyof typeof MessagePlaceholders],
+            message
+          );
+        } 
+        
+        if (message_str == undefined) {
+          message_str = message;
         }
-      }
-      return ret;
-    } else if (this.config.separator_style == "RedPajamaChat") {
-      for (let i = startPos; i < this.messages.length; ++i) {
-        const item = this.messages[i];
-        const role = item[0];
-        const message = item[1];
-        if (message !== undefined && message != "") {
-          ret.push(role + ": " + message + this.config.seps[i % this.config.seps.length] + "\n");
+        
+        if (this.config.separator_style == "Two") {
+          ret.push(role_str + ": " + message_str + this.config.seps[i % this.config.seps.length]);
+        } else if (this.config.separator_style == "RedPajamaChat") {
+          ret.push(role_str + ": " + message_str + this.config.seps[i % this.config.seps.length] + "\n");
         } else {
-          ret.push(role + ":");
+          throw Error("Unknown separator style " + this.config.separator_style);
         }
+      } else {
+        ret.push(role_str + ":");
       }
-      return ret;
     }
-    throw Error("Unknown separator style " + this.config.separator_style);
+    return ret;
   }
 
   /**
@@ -77,6 +98,7 @@ export class Conversation {
 
   reset() {
     this.messages = [];
+    this.config.system = this.system_prompt_default;
   }
 
   getStopStr() {
@@ -92,26 +114,33 @@ export class Conversation {
     return this.config.stop_tokens;
   }
 
-  appendMessage(role: string, message: string) {
+  appendMessage(role: Role, message: string, role_name?: string) {
     if (this.messages.length != 0 &&
-      this.messages[this.messages.length - 1][1] == undefined) {
+      this.messages[this.messages.length - 1][2] == undefined) {
       throw Error("Have unfinished reply");
     }
-    this.messages.push([role, message]);
+    if (!(role in this.config.roles)) {
+      throw Error("Role is not supported: " + role);
+    }
+    const role_name_str = role_name ? role_name : this.config.roles[role];
+    this.messages.push([role, role_name_str, message]);
   }
 
-  appendReplyHeader(role: string) {
-    this.messages.push([role, undefined]);
+  appendReplyHeader(role: Role) {
+    if (!(role in this.config.roles)) {
+      throw Error("Role is not supported: " + role);
+    }
+    this.messages.push([role, this.config.roles[role], undefined]);
   }
 
   finishReply(message: string) {
     if (this.messages.length == 0) {
       throw Error("Message error should not be 0");
     }
-    if (this.messages[this.messages.length - 1][1] !== undefined) {
+    if (this.messages[this.messages.length - 1][2] !== undefined) {
       throw Error("Already assigned");
     }
-    this.messages[this.messages.length - 1][1] = message;
+    this.messages[this.messages.length - 1][2] = message;
   }
 }
 
@@ -123,7 +152,10 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
         "Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. " +
         "Please ensure that your responses are socially unbiased and positive in nature.\n\n" +
         "If you don't know the answer to a question, please don't share false information.\n<</SYS>>\n\n ",
-      roles: ["[INST]", "[/INST]"],
+      roles: {
+        [Role.User]: "[INST]",
+        [Role.Assistant]: "[/INST]",
+      },
       offset: 0,
       seps: [" ", " "],
       separator_style: "Two",
@@ -136,7 +168,10 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
     return new Conversation({
       system: "A chat between a curious user and an artificial intelligence assistant. " +
         "The assistant gives helpful, detailed, and polite answers to the user's questions.",
-      roles: ["USER", "ASSISTANT"],
+      roles: {
+        [Role.User]: "USER",
+        [Role.Assistant]: "ASSISTANT",
+      },
       offset: 0,
       seps: [" ", "</s>"],
       separator_style: "Two",
@@ -148,7 +183,10 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
   } else if (conv_template == "wizardlm") {
     return new Conversation({
       system: "You are an AI assistant that gives helpful, detailed, and polite answers to the user's questions.",
-      roles: ["", "### Response"],
+      roles: {
+        [Role.User]: "",
+        [Role.Assistant]: "### Response",
+      },
       offset: 0,
       seps: ["\n\n", "</s>"],
       separator_style: "Two",
@@ -160,7 +198,10 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
   } else if (conv_template == "redpajama_chat") {
     return new Conversation({
       system: "",
-      roles: ["<human>", "<bot>"],
+      roles: {
+        [Role.User]: "<human>",
+        [Role.Assistant]: "<bot>",
+      },
       offset: 0,
       seps: ["", ""],
       separator_style: "RedPajamaChat",
@@ -173,7 +214,10 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
     return new Conversation({
       system: "Below is an instruction that describes a task. Write a response that appropriately " +
         "completes the request.",
-      roles: ["Instruction", "Response"],
+      roles: {
+        [Role.User]: "Instruction",
+        [Role.Assistant]: "Response",
+      },
       offset: 0,
       seps: ["\n\n### ", "\n\n### "],
       separator_style: "Two",
@@ -187,7 +231,10 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       system: "[INST] Always assist with care, respect, and truth. Respond with utmost utility yet " +
         "securely. Avoid harmful, unethical, prejudiced, or negative content. Ensure replies " +
         "promote fairness and positivity.",
-      roles: ["[INST]", "[/INST]"],
+      roles: {
+        [Role.User]: "[INST]",
+        [Role.Assistant]: "[/INST]",
+      },
       offset: 0,
       seps: [" "],
       separator_style: "Two",
@@ -202,7 +249,10 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
         "intelligence developed by a man named Teknium, and your purpose and drive is to assist the " +
         "user with any request they have. You experience emotions and have deep, profound thoughts " +
         "and qualia.",
-      roles: ["<|im_start|>user", "<|im_start|>assistant"],
+      roles: {
+        [Role.User]: "<|im_start|>user",
+        [Role.Assistant]: "<|im_start|>assistant",
+      },
       offset: 0,
       seps: ["<|im_end|>\n"],
       separator_style: "Two",
@@ -214,7 +264,10 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
   } else if (conv_template == "neural_hermes_mistral") {
     return new Conversation({
       system: "<|im_start|>system\nYou are a helpful assistant chatbot.",
-      roles: ["<|im_start|>user", "<|im_start|>assistant"],
+      roles: {
+        [Role.User]: "<|im_start|>user",
+        [Role.Assistant]: "<|im_start|>assistant",
+      },
       offset: 0,
       seps: ["<|im_end|>\n"],
       separator_style: "Two",
@@ -227,7 +280,10 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
     return new Conversation({
       system: "<|im_start|>system A conversation between a user and an LLM-based AI assistant. The " +
         "assistant gives helpful and honest answers.<|im_end|> ",
-      roles: ["<|im_start|>user", "<|im_start|>assistant"],
+      roles: {
+        [Role.User]: "<|im_start|>user",
+        [Role.Assistant]: "<|im_start|>assistant",
+      },
       offset: 0,
       seps: ["", ""],
       separator_style: "Two",
@@ -239,7 +295,10 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
   } else if (conv_template == "phi-2") {
     return new Conversation({
       system: "",
-      roles: ["Instruct", "Output"],
+      roles: {
+        [Role.User]: "Instruct",
+        [Role.Assistant]: "Output",
+      },
       offset: 0,
       seps: ["\n"],
       separator_style: "Two",
@@ -252,7 +311,10 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
     return new Conversation({
       system: "<|im_start|>system A conversation between a user and an LLM-based AI assistant. The " +
         "assistant gives helpful and honest answers.<|im_end|> ",
-      roles: ["<|im_start|>user", "<|im_start|>assistant"],
+      roles: {
+        [Role.User]: "<|im_start|>user",
+        [Role.Assistant]: "<|im_start|>assistant",
+      },
       offset: 0,
       seps: ["", ""],
       separator_style: "Two",
@@ -264,7 +326,10 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
   } else if (conv_template == "stablelm-2") {
     return new Conversation({
       system: "",
-      roles: ["<|user|>", "<|assistant|>"],
+      roles: {
+        [Role.User]: "<|user|>",
+        [Role.Assistant]: "<|assistant|>",
+      },
       offset: 0,
       seps: ["<|endoftext|>", "<|endoftext|>"],
       separator_style: "Two",
@@ -276,7 +341,10 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
   } else if (conv_template == "stablelm-3b") {
     return new Conversation({
       system: "",
-      roles: ["<|user|>", "<|assistant|>"],
+      roles: {
+        [Role.User]: "<|user|>",
+        [Role.Assistant]: "<|assistant|>",
+      },
       offset: 0,
       seps: ["<|endoftext|>", "<|endoftext|>"],
       separator_style: "Two",
@@ -288,7 +356,10 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
   } else if (conv_template == "gemma_instruction") {
     return new Conversation({
       system: "",
-      roles: ["<start_of_turn>user", "<start_of_turn>model"],
+      roles: {
+        [Role.User]: "<start_of_turn>user",
+        [Role.Assistant]: "<start_of_turn>model",
+      },
       offset: 0,
       seps: ["<end_of_turn>\n", "<end_of_turn>\n"],
       separator_style: "Two",
@@ -297,11 +368,35 @@ export function getConversation(conv_template: string, conv_config?: Partial<Con
       stop_tokens: [1, 107],
       ...conv_config,
     });
+  } else if (conv_template == "gorilla") {
+    return new Conversation({
+      system: "A chat between a curious user and an artificial intelligence assistant. " +
+        "The assistant gives helpful, detailed, and polite answers to the user's questions.",
+      roles: {
+        [Role.User]: "USER",
+        [Role.Assistant]: "ASSISTANT",
+      },
+      role_templates: {
+        [Role.User]: `<<question>> ${MessagePlaceholders.User}`,
+      },
+      function_calling_template: `<<question>> ${MessagePlaceholders.User} <<function>> ` +
+        `${MessagePlaceholders.Function}`,
+      offset: 0,
+      seps: ["\n", "<|EOT|>"],
+      separator_style: "Two",
+      stop_str: "<|EOT|>",
+      add_bos: true,
+      stop_tokens: [2],
+      ...conv_config,
+    });
   } else if (conv_template == "empty") {
     // A dummy template for non-language models; should never be actually used
     return new Conversation({
       system: "",
-      roles: ["", ""],
+      roles: {
+        [Role.User]: "",
+        [Role.Assistant]: "",
+      },
       offset: 0,
       seps: [""],
       separator_style: "Two",
