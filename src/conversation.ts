@@ -29,8 +29,11 @@ export class Conversation {
     if (this.config.seps.length == 0) {
       throw Error("Need seps to work")
     }
-    const system_prompt = this.config.system_template.replace(MessagePlaceholders.system, this.config.system_message);
-    const ret = addSystem ? [system_prompt + this.config.seps[0]] : [];
+    let system_prompt = this.config.system_template.replace(MessagePlaceholders.system, this.config.system_message);
+    if (system_prompt) {
+      system_prompt += this.config.seps[0]
+    }
+    const ret = addSystem ? [system_prompt] : [];
 
     for (let i = startPos; i < this.messages.length; ++i) {
       const item = this.messages[i];
@@ -60,10 +63,18 @@ export class Conversation {
         if (message_str == undefined) {
           message_str = message;
         }
+        let role_prefix;
+        if (this.config.add_role_after_system_message === false && system_prompt != "" && i == 0) {
+          role_prefix = "";
+        } else {
+          const content_sep = this.config.role_content_sep ? this.config.role_content_sep : ": ";
+          role_prefix = role_str + content_sep;
+        }
         
-        ret.push(role_str + ": " + message_str + this.config.seps[i % this.config.seps.length]);
+        ret.push(role_prefix + message_str + this.config.seps[i % this.config.seps.length]);
       } else {
-        ret.push(role_str + ":");
+        const empty_sep = this.config.role_empty_sep ? this.config.role_empty_sep : ": ";
+        ret.push(role_str + empty_sep);
       }
     }
     return ret;
@@ -146,7 +157,7 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
 
   if (conv_template == "llama-2") {
     return new Conversation({
-      system_template: `[INST] <<SYS>>\n\n${MessagePlaceholders.system}<</SYS>>\n\n `,
+      system_template: `[INST] <<SYS>>\n\n${MessagePlaceholders.system}<</SYS>>\n\n`,
       system_message: "You are a helpful, respectful and honest assistant. " +
         "Always answer as helpfully as possible, while being safe. " +
         "Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. " +
@@ -158,9 +169,12 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: [" ", " "],
+      role_content_sep: " ",
+      role_empty_sep: " ",
       stop_str: ["[INST]"],
-      add_bos: true,
+      system_prefix_token_ids: [1],
       stop_token_ids: [2],
+      add_role_after_system_message: false,
       ...conv_config,
     });
   } else if (conv_template == "vicuna_v1.1") {
@@ -175,7 +189,7 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       offset: 0,
       seps: [" ", "</s>"],
       stop_str: ["</s>"],
-      add_bos: true,
+      system_prefix_token_ids: [1],
       stop_token_ids: [2],
       ...conv_config,
     });
@@ -190,7 +204,7 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       offset: 0,
       seps: ["\n\n", "</s>"],
       stop_str: ["\n\n"],
-      add_bos: true,
+      system_prefix_token_ids: [1],
       stop_token_ids: [2],
       ...conv_config,
     });
@@ -205,7 +219,6 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       offset: 0,
       seps: ["\n"],
       stop_str: ["<human>"],
-      add_bos: false,
       stop_token_ids: [0],
       ...conv_config,
     });
@@ -220,8 +233,10 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: ["\n\n### ", "\n\n### "],
+      role_content_sep: ":\n",
+      role_empty_sep: ":\n",
       stop_str: ["</s>"],
-      add_bos: true,
+      system_prefix_token_ids: [1],
       stop_token_ids: [2],
       ...conv_config,
     });
@@ -237,8 +252,10 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: [" "],
+      role_content_sep: " ",
+      role_empty_sep: "",
       stop_str: ["</s>"],
-      add_bos: true,
+      system_prefix_token_ids: [1],
       stop_token_ids: [2],
       ...conv_config,
     });
@@ -255,8 +272,9 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: ["<|im_end|>\n"],
+      role_content_sep: "\n",
+      role_empty_sep: "\n",
       stop_str: ["<|im_end|>"],
-      add_bos: false,
       stop_token_ids: [2, 32000],
       ...conv_config,
     });
@@ -270,8 +288,9 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: ["<|im_end|>\n"],
+      role_content_sep: "\n",
+      role_empty_sep: "\n",
       stop_str: ["<|im_end|>"],
-      add_bos: false,
       stop_token_ids: [2, 32000],
       ...conv_config,
     });
@@ -286,8 +305,9 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: ["", ""],
+      role_content_sep: "\n",
+      role_empty_sep: "\n",
       stop_str: ["<|im_end|>"],
-      add_bos: false,
       stop_token_ids: [2],
       ...conv_config,
     });
@@ -302,7 +322,6 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       offset: 0,
       seps: ["\n"],
       stop_str: ["<|endoftext|>"],
-      add_bos: false,
       stop_token_ids: [50256],
       ...conv_config,
     });
@@ -317,8 +336,9 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: ["", ""],
+      role_content_sep: "\n",
+      role_empty_sep: "\n",
       stop_str: ["<|im_end|>"],
-      add_bos: false,
       stop_token_ids: [2],
       ...conv_config,
     });
@@ -332,8 +352,9 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: ["<|endoftext|>", "<|endoftext|>"],
+      role_content_sep: "\n",
+      role_empty_sep: "\n",
       stop_str: ["<|endoftext|>"],
-      add_bos: false,
       stop_token_ids: [100257],
       ...conv_config,
     });
@@ -347,8 +368,9 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: ["<|endoftext|>", "<|endoftext|>"],
+      role_content_sep: "\n",
+      role_empty_sep: "\n",
       stop_str: ["<|endoftext|>"],
-      add_bos: true,
       stop_token_ids: [0],
       ...conv_config,
     });
@@ -362,8 +384,10 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       },
       offset: 0,
       seps: ["<end_of_turn>\n", "<end_of_turn>\n"],
+      role_content_sep: "\n",
+      role_empty_sep: "\n",
       stop_str: ["<end_of_turn>"],
-      add_bos: true,
+      system_prefix_token_ids: [2],
       stop_token_ids: [1, 107],
       ...conv_config,
     });
@@ -382,7 +406,7 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       offset: 0,
       seps: ["\n", "<|EOT|>"],
       stop_str: ["<|EOT|>"],
-      add_bos: true,
+      system_prefix_token_ids: [1],
       stop_token_ids: [2],
       ...conv_config,
     });
@@ -398,7 +422,6 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
       offset: 0,
       seps: [""],
       stop_str: [""],
-      add_bos: false,
       stop_token_ids: [],
       ...conv_config,
     });

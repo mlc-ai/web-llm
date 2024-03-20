@@ -814,9 +814,6 @@ export class LLMChatPipeline {
     let prompts;
     // beginning of the conversation
     if (this.filledKVCacheLength === 0) {
-      if (this.conversation.config.add_bos) {
-        tokens = [this.bosTokenId];
-      }
       if (this.conversation.config.system_prefix_token_ids !== undefined) {
         tokens = this.conversation.config.system_prefix_token_ids;
       }
@@ -860,8 +857,8 @@ export class LLMChatPipeline {
     this.resetKVCache();
 
     // abandon all tokens we collected
-    if (this.conversation.config.add_bos) {
-      tokens = [this.bosTokenId];
+    if (this.conversation.config.system_prefix_token_ids !== undefined) {
+      tokens = this.conversation.config.system_prefix_token_ids;
     } else {
       tokens = [];
     }

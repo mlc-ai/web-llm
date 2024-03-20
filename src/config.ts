@@ -8,11 +8,13 @@ export interface ConvTemplateConfig {
   roles: Record<Role, string>;
   role_templates?: Partial<Record<Role, string>>;
   seps: Array<string>;
+  role_content_sep?: string;
+  role_empty_sep?: string;
   offset: number;
   stop_str: Array<string>;
-  add_bos: boolean;
   system_prefix_token_ids?: Array<number>;
   stop_token_ids: Array<number>;
+  add_role_after_system_message?: boolean;
 }
 
 export enum Role {

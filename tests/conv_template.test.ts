@@ -42,8 +42,12 @@ describe('Test conversation template', () => {
         "  \"top_p\": 0.9," +
         "  \"conv_template\": {" +
         "    \"name\": \"llama-2\"," +
-        "    \"system_template\": \"[INST] <<SYS>>\\n{system_message}\\n<</SYS>>\\n\\n \"," +
+        "    \"system_template\": \"[INST] <<SYS>>\\n{system_message}\\n<</SYS>>\\n\\n\"," +
         "    \"system_message\": \"You are a helpful, respectful and honest assistant.\"," +
+        "    \"system_prefix_token_ids\": [" +
+        "      1" +
+        "    ]," +
+        "    \"add_role_after_system_message\": false," +
         "    \"roles\": {" +
         "      \"user\": \"[INST]\"," +
         "      \"assistant\": \"[/INST]\"," +
@@ -66,7 +70,6 @@ describe('Test conversation template', () => {
         "    \"stop_token_ids\": [" +
         "      2" +
         "    ]," +
-        "    \"system_prefix_token_ids\": [1]," +
         "    \"function_string\": \"\"," +
         "    \"use_function_calling\": false" +
         "  }," +
@@ -82,17 +85,29 @@ describe('Test conversation template', () => {
         "}";
         const config_json = JSON.parse(config_str);
         const config = {...config_json} as ChatConfig;
-        const config_obj = getConversation(config.conv_template).config;
+        const conversation = getConversation(config.conv_template)
+        const config_obj = conversation.config;
 
-        expect(config_obj.system_template).toEqual("[INST] <<SYS>>\n{system_message}\n<</SYS>>\n\n ");
+        expect(config_obj.system_template).toEqual("[INST] <<SYS>>\n{system_message}\n<</SYS>>\n\n");
         expect(config_obj.system_message).toEqual("You are a helpful, respectful and honest assistant.");
         expect(config_obj.roles.user).toEqual("[INST]");
         expect(config_obj.roles.assistant).toEqual("[/INST]");
         expect(config_obj.role_templates?.user).toEqual("{user_message}");
         expect(config_obj.role_templates?.assistant).toEqual("{assistant_message}");
+        expect(config_obj.role_content_sep).toEqual(" ");
+        expect(config_obj.role_empty_sep).toEqual(" ");
         expect(config_obj.seps).toEqual([" "]);
         expect(config_obj.stop_str).toEqual(["[INST]"]);
         expect(config_obj.stop_token_ids).toEqual([2]);
         expect(config_obj.system_prefix_token_ids).toEqual([1]);
+        expect(config_obj.add_role_after_system_message).toBe(false);
+
+        conversation.appendMessage(Role.user, "test1");
+        conversation.appendMessage(Role.assistant, "test2");
+        conversation.appendMessage(Role.user, "test3");
+        conversation.appendReplyHeader(Role.assistant);
+        const prompt = conversation.getPromptArray().join("");
+        expect(prompt).toEqual("[INST] <<SYS>>\nYou are a helpful, respectful and honest assistant.\n<</SYS>>\n\n test1 [/INST] test2 [INST] test3 [/INST] ")
+        console.log(prompt)
     });
 })
