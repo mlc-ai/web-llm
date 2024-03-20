@@ -815,7 +815,7 @@ export class LLMChatPipeline {
     // beginning of the conversation
     if (this.filledKVCacheLength === 0) {
       if (this.conversation.config.system_prefix_token_ids !== undefined) {
-        tokens = this.conversation.config.system_prefix_token_ids;
+        tokens = [...this.conversation.config.system_prefix_token_ids];
       }
       prompts = this.conversation.getPromptArray();
     } else {
