@@ -3,21 +3,23 @@
  * Conversation template config
  */
 export interface ConvTemplateConfig {
-  system: string;
+  system_template: string;
+  system_message: string;
   roles: Record<Role, string>;
   role_templates?: Partial<Record<Role, string>>;
-  function_calling_template?: string;
   seps: Array<string>;
-  separator_style: string;
+  role_content_sep?: string;
+  role_empty_sep?: string;
   offset: number;
-  stop_str: string;
-  add_bos: boolean;
-  stop_tokens: Array<number>;
+  stop_str: Array<string>;
+  system_prefix_token_ids?: Array<number>;
+  stop_token_ids: Array<number>;
+  add_role_after_system_message?: boolean;
 }
 
 export enum Role {
-  User,
-  Assistant
+  user = "user",
+  assistant = "assistant"
 }
 
 /**
@@ -29,10 +31,11 @@ export enum Role {
  * at run time.
  */
 export enum MessagePlaceholders {
-  User = "{user_message}",
-  Assitant = "{assistant_message}",
-  Tool = "{tool_message}",
-  Function = "{function_string}"
+  system = "{system_message}",
+  user = "{user_message}",
+  assistant = "{assistant_message}",
+  tool = "{tool_message}",
+  function = "{function_string}"
 }
 
 /**
@@ -47,7 +50,7 @@ export interface ChatConfig {
   // First three fields affect the entire conversation, i.e. used in `ChatModule.reload()`
   tokenizer_files: Array<string>;
   conv_config?: Partial<ConvTemplateConfig>;
-  conv_template: string;
+  conv_template: string | ConvTemplateConfig;
   // Fields below can be swapped per-generation via `GenerationConfig`
   // Fields only used in MLC
   mean_gen_len: number;

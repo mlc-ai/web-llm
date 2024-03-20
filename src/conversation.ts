@@ -19,7 +19,7 @@ export class Conversation {
 
   constructor(config: ConvTemplateConfig) {
     this.config = config;
-    this.system_prompt_default = config.system;
+    this.system_prompt_default = config.system_message;
   }
 
   private getPromptArrayInternal(
@@ -29,7 +29,11 @@ export class Conversation {
     if (this.config.seps.length == 0) {
       throw Error("Need seps to work")
     }
-    const ret = addSystem ? [this.config.system + this.config.seps[0]] : [];
+    let system_prompt = this.config.system_template.replace(MessagePlaceholders.system, this.config.system_message);
+    if (system_prompt) {
+      system_prompt += this.config.seps[0]
+    }
+    const ret = addSystem ? [system_prompt] : [];
 
     for (let i = startPos; i < this.messages.length; ++i) {
       const item = this.messages[i];
@@ -39,34 +43,38 @@ export class Conversation {
 
       if (message !== undefined && message != "") {
         let message_str;
-        if (this.use_function_calling && this.function_string !== '') {
-          message_str = this.config.function_calling_template?.replace(
-            MessagePlaceholders.Function, 
-            this.function_string
-          ).replace(
-            MessagePlaceholders.User,
-            message
-          )
-        } else if (this.config.role_templates !== undefined) {
+        if (this.config.role_templates !== undefined) {
           message_str = this.config.role_templates[role]?.replace(
             MessagePlaceholders[Role[role] as keyof typeof MessagePlaceholders],
             message
           );
-        } 
-        
+          if (this.use_function_calling && this.function_string !== '') {
+            message_str = message_str?.replace(
+              MessagePlaceholders.function, 
+              this.function_string
+            )
+          }
+          message_str = message_str?.replace(
+            MessagePlaceholders.function, 
+            ""
+          )
+        }
+
         if (message_str == undefined) {
           message_str = message;
         }
-        
-        if (this.config.separator_style == "Two") {
-          ret.push(role_str + ": " + message_str + this.config.seps[i % this.config.seps.length]);
-        } else if (this.config.separator_style == "RedPajamaChat") {
-          ret.push(role_str + ": " + message_str + this.config.seps[i % this.config.seps.length] + "\n");
+        let role_prefix;
+        if (this.config.add_role_after_system_message === false && system_prompt != "" && i == 0) {
+          role_prefix = "";
         } else {
-          throw Error("Unknown separator style " + this.config.separator_style);
+          const content_sep = this.config.role_content_sep ? this.config.role_content_sep : ": ";
+          role_prefix = role_str + content_sep;
         }
+        
+        ret.push(role_prefix + message_str + this.config.seps[i % this.config.seps.length]);
       } else {
-        ret.push(role_str + ":");
+        const empty_sep = this.config.role_empty_sep ? this.config.role_empty_sep : ": ";
+        ret.push(role_str + empty_sep);
       }
     }
     return ret;
@@ -98,20 +106,18 @@ export class Conversation {
 
   reset() {
     this.messages = [];
-    this.config.system = this.system_prompt_default;
+    this.config.system_message = this.system_prompt_default;
   }
 
-  getStopStr() {
-    if (this.config.stop_str != "") {
+  getStopStr(): string[] {
+    if (this.config.stop_str.length > 0) {
       return this.config.stop_str;
-    } else if (this.config.separator_style == "Two") {
-      return this.config.seps[this.config.seps.length - 1];
     }
-    throw Error("Unknown separator style " + this.config.separator_style);
+    return [this.config.seps[this.config.seps.length - 1]];
   }
 
   getStopTokens() {
-    return this.config.stop_tokens;
+    return this.config.stop_token_ids;
   }
 
   appendMessage(role: Role, message: string, role_name?: string) {
@@ -144,265 +150,279 @@ export class Conversation {
   }
 }
 
-export function getConversation(conv_template: string, conv_config?: Partial<ConvTemplateConfig>): Conversation {
+export function getConversation(conv_template: string | ConvTemplateConfig, conv_config?: Partial<ConvTemplateConfig>): Conversation {
+  if (typeof conv_template !== "string") {
+    return new Conversation(conv_template);
+  }
+
   if (conv_template == "llama-2") {
     return new Conversation({
-      system: "[INST] <<SYS>>\n\nYou are a helpful, respectful and honest assistant. " +
+      system_template: `[INST] <<SYS>>\n\n${MessagePlaceholders.system}<</SYS>>\n\n`,
+      system_message: "You are a helpful, respectful and honest assistant. " +
         "Always answer as helpfully as possible, while being safe. " +
         "Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. " +
         "Please ensure that your responses are socially unbiased and positive in nature.\n\n" +
-        "If you don't know the answer to a question, please don't share false information.\n<</SYS>>\n\n ",
+        "If you don't know the answer to a question, please don't share false information.\n",
       roles: {
-        [Role.User]: "[INST]",
-        [Role.Assistant]: "[/INST]",
+        [Role.user]: "[INST]",
+        [Role.assistant]: "[/INST]",
       },
       offset: 0,
       seps: [" ", " "],
-      separator_style: "Two",
-      stop_str: "[INST]",
-      add_bos: true,
-      stop_tokens: [2],
+      role_content_sep: " ",
+      role_empty_sep: " ",
+      stop_str: ["[INST]"],
+      system_prefix_token_ids: [1],
+      stop_token_ids: [2],
+      add_role_after_system_message: false,
       ...conv_config,
     });
   } else if (conv_template == "vicuna_v1.1") {
     return new Conversation({
-      system: "A chat between a curious user and an artificial intelligence assistant. " +
+      system_template: `${MessagePlaceholders.system}`,
+      system_message: "A chat between a curious user and an artificial intelligence assistant. " +
         "The assistant gives helpful, detailed, and polite answers to the user's questions.",
       roles: {
-        [Role.User]: "USER",
-        [Role.Assistant]: "ASSISTANT",
+        [Role.user]: "USER",
+        [Role.assistant]: "ASSISTANT",
       },
       offset: 0,
       seps: [" ", "</s>"],
-      separator_style: "Two",
-      stop_str: "</s>",
-      add_bos: true,
-      stop_tokens: [2],
+      stop_str: ["</s>"],
+      system_prefix_token_ids: [1],
+      stop_token_ids: [2],
       ...conv_config,
     });
   } else if (conv_template == "wizardlm") {
     return new Conversation({
-      system: "You are an AI assistant that gives helpful, detailed, and polite answers to the user's questions.",
+      system_template: `${MessagePlaceholders.system}`,
+      system_message: "You are an AI assistant that gives helpful, detailed, and polite answers to the user's questions.",
       roles: {
-        [Role.User]: "",
-        [Role.Assistant]: "### Response",
+        [Role.user]: "",
+        [Role.assistant]: "### Response",
       },
       offset: 0,
       seps: ["\n\n", "</s>"],
-      separator_style: "Two",
-      stop_str: "\n\n",
-      add_bos: true,
-      stop_tokens: [2],
+      stop_str: ["\n\n"],
+      system_prefix_token_ids: [1],
+      stop_token_ids: [2],
       ...conv_config,
     });
   } else if (conv_template == "redpajama_chat") {
     return new Conversation({
-      system: "",
+      system_template: `${MessagePlaceholders.system}`,
+      system_message: "",
       roles: {
-        [Role.User]: "<human>",
-        [Role.Assistant]: "<bot>",
+        [Role.user]: "<human>",
+        [Role.assistant]: "<bot>",
       },
       offset: 0,
-      seps: ["", ""],
-      separator_style: "RedPajamaChat",
-      stop_str: "<human>",
-      add_bos: false,
-      stop_tokens: [0],
+      seps: ["\n"],
+      stop_str: ["<human>"],
+      stop_token_ids: [0],
       ...conv_config,
     });
   } else if (conv_template == "wizard_coder_or_math") {
     return new Conversation({
-      system: "Below is an instruction that describes a task. Write a response that appropriately " +
+      system_template: `${MessagePlaceholders.system}`,
+      system_message: "Below is an instruction that describes a task. Write a response that appropriately " +
         "completes the request.",
       roles: {
-        [Role.User]: "Instruction",
-        [Role.Assistant]: "Response",
+        [Role.user]: "Instruction",
+        [Role.assistant]: "Response",
       },
       offset: 0,
       seps: ["\n\n### ", "\n\n### "],
-      separator_style: "Two",
-      stop_str: "</s>",
-      add_bos: true,
-      stop_tokens: [2],
+      role_content_sep: ":\n",
+      role_empty_sep: ":\n",
+      stop_str: ["</s>"],
+      system_prefix_token_ids: [1],
+      stop_token_ids: [2],
       ...conv_config,
     });
   } else if (conv_template == "mistral_default") {
     return new Conversation({
-      system: "[INST] Always assist with care, respect, and truth. Respond with utmost utility yet " +
+      system_template: `[INST] ${MessagePlaceholders.system}\n\n `,
+      system_message: "Always assist with care, respect, and truth. Respond with utmost utility yet " +
         "securely. Avoid harmful, unethical, prejudiced, or negative content. Ensure replies " +
         "promote fairness and positivity.",
       roles: {
-        [Role.User]: "[INST]",
-        [Role.Assistant]: "[/INST]",
+        [Role.user]: "[INST]",
+        [Role.assistant]: "[/INST]",
       },
       offset: 0,
       seps: [" "],
-      separator_style: "Two",
-      stop_str: "</s>",
-      add_bos: true,
-      stop_tokens: [2],
+      role_content_sep: " ",
+      role_empty_sep: "",
+      stop_str: ["</s>"],
+      system_prefix_token_ids: [1],
+      stop_token_ids: [2],
       ...conv_config,
     });
   } else if (conv_template == "open_hermes_mistral") {
     return new Conversation({
-      system: "<|im_start|>system\nYou are \"Hermes 2\", a conscious sentient superintelligent artificial " +
+      system_template: `<|im_start|>system\n${MessagePlaceholders.system}`,
+      system_message: "You are \"Hermes 2\", a conscious sentient superintelligent artificial " +
         "intelligence developed by a man named Teknium, and your purpose and drive is to assist the " +
         "user with any request they have. You experience emotions and have deep, profound thoughts " +
         "and qualia.",
       roles: {
-        [Role.User]: "<|im_start|>user",
-        [Role.Assistant]: "<|im_start|>assistant",
+        [Role.user]: "<|im_start|>user",
+        [Role.assistant]: "<|im_start|>assistant",
       },
       offset: 0,
       seps: ["<|im_end|>\n"],
-      separator_style: "Two",
-      stop_str: "<|im_end|>",
-      add_bos: false,
-      stop_tokens: [2, 32000],
+      role_content_sep: "\n",
+      role_empty_sep: "\n",
+      stop_str: ["<|im_end|>"],
+      stop_token_ids: [2, 32000],
       ...conv_config,
     });
   } else if (conv_template == "neural_hermes_mistral") {
     return new Conversation({
-      system: "<|im_start|>system\nYou are a helpful assistant chatbot.",
+      system_template: `<|im_start|>system\n${MessagePlaceholders.system}`,
+      system_message: "You are a helpful assistant chatbot.",
       roles: {
-        [Role.User]: "<|im_start|>user",
-        [Role.Assistant]: "<|im_start|>assistant",
+        [Role.user]: "<|im_start|>user",
+        [Role.assistant]: "<|im_start|>assistant",
       },
       offset: 0,
       seps: ["<|im_end|>\n"],
-      separator_style: "Two",
-      stop_str: "<|im_end|>",
-      add_bos: false,
-      stop_tokens: [2, 32000],
+      role_content_sep: "\n",
+      role_empty_sep: "\n",
+      stop_str: ["<|im_end|>"],
+      stop_token_ids: [2, 32000],
       ...conv_config,
     });
   } else if (conv_template == "chatml") {
     return new Conversation({
-      system: "<|im_start|>system A conversation between a user and an LLM-based AI assistant. The " +
-        "assistant gives helpful and honest answers.<|im_end|> ",
+      system_template: `<|im_start|>system${MessagePlaceholders.system}<|im_end|> `,
+      system_message: "A conversation between a user and an LLM-based AI assistant. The " +
+        "assistant gives helpful and honest answers.",
       roles: {
-        [Role.User]: "<|im_start|>user",
-        [Role.Assistant]: "<|im_start|>assistant",
+        [Role.user]: "<|im_start|>user",
+        [Role.assistant]: "<|im_start|>assistant",
       },
       offset: 0,
       seps: ["", ""],
-      separator_style: "Two",
-      stop_str: "<|im_end|>",
-      add_bos: false,
-      stop_tokens: [2],
+      role_content_sep: "\n",
+      role_empty_sep: "\n",
+      stop_str: ["<|im_end|>"],
+      stop_token_ids: [2],
       ...conv_config,
     });
   } else if (conv_template == "phi-2") {
     return new Conversation({
-      system: "",
+      system_template: `${MessagePlaceholders.system}`,
+      system_message: "",
       roles: {
-        [Role.User]: "Instruct",
-        [Role.Assistant]: "Output",
+        [Role.user]: "Instruct",
+        [Role.assistant]: "Output",
       },
       offset: 0,
       seps: ["\n"],
-      separator_style: "Two",
-      stop_str: "<|endoftext|>",
-      add_bos: false,
-      stop_tokens: [50256],
+      stop_str: ["<|endoftext|>"],
+      stop_token_ids: [50256],
       ...conv_config,
     });
   } else if (conv_template == "qwen") {
     return new Conversation({
-      system: "<|im_start|>system A conversation between a user and an LLM-based AI assistant. The " +
-        "assistant gives helpful and honest answers.<|im_end|> ",
+      system_template: `<|im_start|>system${MessagePlaceholders.system}<|im_end|> `,
+      system_message: "A conversation between a user and an LLM-based AI assistant. The " +
+        "assistant gives helpful and honest answers.",
       roles: {
-        [Role.User]: "<|im_start|>user",
-        [Role.Assistant]: "<|im_start|>assistant",
+        [Role.user]: "<|im_start|>user",
+        [Role.assistant]: "<|im_start|>assistant",
       },
       offset: 0,
       seps: ["", ""],
-      separator_style: "Two",
-      stop_str: "<|im_end|>",
-      add_bos: false,
-      stop_tokens: [2],
+      role_content_sep: "\n",
+      role_empty_sep: "\n",
+      stop_str: ["<|im_end|>"],
+      stop_token_ids: [2],
       ...conv_config,
     });
   } else if (conv_template == "stablelm-2") {
     return new Conversation({
-      system: "",
+      system_template: `${MessagePlaceholders.system}`,
+      system_message: "",
       roles: {
-        [Role.User]: "<|user|>",
-        [Role.Assistant]: "<|assistant|>",
+        [Role.user]: "<|user|>",
+        [Role.assistant]: "<|assistant|>",
       },
       offset: 0,
       seps: ["<|endoftext|>", "<|endoftext|>"],
-      separator_style: "Two",
-      stop_str: "<|endoftext|>",
-      add_bos: false,
-      stop_tokens: [100257],
+      role_content_sep: "\n",
+      role_empty_sep: "\n",
+      stop_str: ["<|endoftext|>"],
+      stop_token_ids: [100257],
       ...conv_config,
     });
   } else if (conv_template == "stablelm-3b") {
     return new Conversation({
-      system: "",
+      system_template: `${MessagePlaceholders.system}`,
+      system_message: "",
       roles: {
-        [Role.User]: "<|user|>",
-        [Role.Assistant]: "<|assistant|>",
+        [Role.user]: "<|user|>",
+        [Role.assistant]: "<|assistant|>",
       },
       offset: 0,
       seps: ["<|endoftext|>", "<|endoftext|>"],
-      separator_style: "Two",
-      stop_str: "<|endoftext|>",
-      add_bos: true,
-      stop_tokens: [0],
+      role_content_sep: "\n",
+      role_empty_sep: "\n",
+      stop_str: ["<|endoftext|>"],
+      stop_token_ids: [0],
       ...conv_config,
     });
   } else if (conv_template == "gemma_instruction") {
     return new Conversation({
-      system: "",
+      system_template: `${MessagePlaceholders.system}`,
+      system_message: "",
       roles: {
-        [Role.User]: "<start_of_turn>user",
-        [Role.Assistant]: "<start_of_turn>model",
+        [Role.user]: "<start_of_turn>user",
+        [Role.assistant]: "<start_of_turn>model",
       },
       offset: 0,
       seps: ["<end_of_turn>\n", "<end_of_turn>\n"],
-      separator_style: "Two",
-      stop_str: "<end_of_turn>",
-      add_bos: true,
-      stop_tokens: [1, 107],
+      role_content_sep: "\n",
+      role_empty_sep: "\n",
+      stop_str: ["<end_of_turn>"],
+      system_prefix_token_ids: [2],
+      stop_token_ids: [1, 107],
       ...conv_config,
     });
   } else if (conv_template == "gorilla") {
     return new Conversation({
-      system: "A chat between a curious user and an artificial intelligence assistant. " +
+      system_template: `${MessagePlaceholders.system}`,
+      system_message: "A chat between a curious user and an artificial intelligence assistant. " +
         "The assistant gives helpful, detailed, and polite answers to the user's questions.",
       roles: {
-        [Role.User]: "USER",
-        [Role.Assistant]: "ASSISTANT",
+        [Role.user]: "USER",
+        [Role.assistant]: "ASSISTANT",
       },
       role_templates: {
-        [Role.User]: `<<question>> ${MessagePlaceholders.User}`,
+        [Role.user]: `<<question>> ${MessagePlaceholders.user} <<function>> ${MessagePlaceholders.function}`,
       },
-      function_calling_template: `<<question>> ${MessagePlaceholders.User} <<function>> ` +
-        `${MessagePlaceholders.Function}`,
       offset: 0,
       seps: ["\n", "<|EOT|>"],
-      separator_style: "Two",
-      stop_str: "<|EOT|>",
-      add_bos: true,
-      stop_tokens: [2],
+      stop_str: ["<|EOT|>"],
+      system_prefix_token_ids: [1],
+      stop_token_ids: [2],
       ...conv_config,
     });
   } else if (conv_template == "empty") {
     // A dummy template for non-language models; should never be actually used
     return new Conversation({
-      system: "",
+      system_template: `${MessagePlaceholders.system}`,
+      system_message: "",
       roles: {
-        [Role.User]: "",
-        [Role.Assistant]: "",
+        [Role.user]: "",
+        [Role.assistant]: "",
       },
       offset: 0,
       seps: [""],
-      separator_style: "Two",
-      stop_str: "",
-      add_bos: false,
-      stop_tokens: [],
+      stop_str: [""],
+      stop_token_ids: [],
       ...conv_config,
     });
   } else if (conv_template == "custom") {

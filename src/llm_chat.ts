@@ -43,7 +43,7 @@ export class LLMChatPipeline {
   private attentionSinkSize = -1;
   private prefillChunkSize = -1;
   private resetStatsPerPrefill = true;
-  private stopStr: string;
+  private stopStr: string[];
   private stopTokens: Array<number>;
 
   // states
@@ -355,7 +355,7 @@ export class LLMChatPipeline {
    * Overrides the system prompt.
    */
   overrideSystemPrompt(system: string): void {
-    this.conversation.config.system = system;
+    this.conversation.config.system_message = system;
   }
 
   /**
@@ -390,7 +390,7 @@ export class LLMChatPipeline {
    */
   getRoles(): Array<string> {
     const roles = this.conversation.config.roles;
-    return [roles[Role.User], roles[Role.Assistant]];
+    return [roles[Role.user], roles[Role.assistant]];
   }
 
   async asyncLoadWebGPUPipelines() {
@@ -416,8 +416,8 @@ export class LLMChatPipeline {
     const conversation = this.conversation;
 
     // initialize
-    conversation.appendMessage(Role.User, inp, inp_role_str);
-    conversation.appendReplyHeader(Role.Assistant);
+    conversation.appendMessage(Role.user, inp, inp_role_str);
+    conversation.appendReplyHeader(Role.assistant);
     const promptTokens = this.getInputTokens(genConfig);
 
     const tstart = performance.now();
@@ -540,7 +540,7 @@ export class LLMChatPipeline {
     if (max_gen_len <= 0) {
       throw new Error("`max_gen_len` should be greater than 0.")
     }
-    let stopStrs = [this.stopStr];
+    let stopStrs = this.stopStr;
     if (genConfig !== undefined && genConfig.stop) {
       stopStrs = stopStrs.concat(genConfig.stop);
     }
@@ -814,8 +814,8 @@ export class LLMChatPipeline {
     let prompts;
     // beginning of the conversation
     if (this.filledKVCacheLength === 0) {
-      if (this.conversation.config.add_bos) {
-        tokens = [this.bosTokenId];
+      if (this.conversation.config.system_prefix_token_ids !== undefined) {
+        tokens = [...this.conversation.config.system_prefix_token_ids];
       }
       prompts = this.conversation.getPromptArray();
     } else {
@@ -857,8 +857,8 @@ export class LLMChatPipeline {
     this.resetKVCache();
 
     // abandon all tokens we collected
-    if (this.conversation.config.add_bos) {
-      tokens = [this.bosTokenId];
+    if (this.conversation.config.system_prefix_token_ids !== undefined) {
+      tokens = [...this.conversation.config.system_prefix_token_ids];
     } else {
       tokens = [];
     }

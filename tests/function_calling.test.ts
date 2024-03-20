@@ -1,7 +1,6 @@
 import { Role } from '../src/config'
 import { getConversation } from '../src/conversation'
 import { ChatModule } from '../src/chat_module'
-import { LLMChatPipeline } from '../src/llm_chat'
 import { ChatCompletionRequest } from "../src/openai_api_protocols/chat_completion"
 
 
@@ -10,18 +9,18 @@ import { describe, expect, test } from '@jest/globals';
 describe('Test conversation template', () => {
     test('Test getPromptArrayInternal', () => {
         const conv = getConversation("gorilla");
-        conv.appendMessage(Role.User, "Call me an Uber ride type \"Plus\" in Berkeley at zipcode 94704 in 10 minutes", "Tom");
+        conv.appendMessage(Role.user, "Call me an Uber ride type \"Plus\" in Berkeley at zipcode 94704 in 10 minutes", "Tom");
         const prompt_array = conv.getPromptArray();
         
         expect(prompt_array).toEqual([
             "A chat between a curious user and an artificial intelligence assistant. " +
             "The assistant gives helpful, detailed, and polite answers to the user's questions.\n",
-            "Tom: <<question>> Call me an Uber ride type \"Plus\" in Berkeley at zipcode 94704 in 10 minutes\n"]);
+            "Tom: <<question>> Call me an Uber ride type \"Plus\" in Berkeley at zipcode 94704 in 10 minutes <<function>> \n"]);
     });
 
     test('Test getPromptArrayInternal function call', () => {
         const conv = getConversation("gorilla");
-        conv.appendMessage(Role.User, "Call me an Uber ride type \"Plus\" in Berkeley at zipcode 94704 in 10 minutes");
+        conv.appendMessage(Role.user, "Call me an Uber ride type \"Plus\" in Berkeley at zipcode 94704 in 10 minutes");
         conv.use_function_calling = true;
         conv.function_string = JSON.stringify([{
             "name": "Uber Carpool",
