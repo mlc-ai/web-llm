@@ -858,7 +858,7 @@ export class LLMChatPipeline {
 
     // abandon all tokens we collected
     if (this.conversation.config.system_prefix_token_ids !== undefined) {
-      tokens = this.conversation.config.system_prefix_token_ids;
+      tokens = [...this.conversation.config.system_prefix_token_ids];
     } else {
       tokens = [];
     }
