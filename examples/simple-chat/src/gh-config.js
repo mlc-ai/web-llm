@@ -247,6 +247,13 @@ export default {
 			"vram_required_MB": 992.11,
 			"low_resource_required": true,
 		},
+		{
+			"model_url": "https://huggingface.co/YiyanZhai/stablelm-2-zephyr-1_6b-q4f16_1-MLC/resolve/main/",
+			"local_id": "stablelm-2-zephyr-1_6b-q4f16_1",
+			"model_lib_url": "https://raw.githubusercontent.com/YiyanZhai/my-binary-mlc-llm-libs/main/stablelm-2-zephyr-1_6b-q4f16_1-webgpu.wasm",
+			"vram_required_MB": 5063.52,
+			"low_resource_required": false,
+		},
 	],
 	"use_web_worker": true
 }
