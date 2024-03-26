@@ -207,32 +207,63 @@ export class LLMChatPipeline {
 
     // Load cache functions and instantiate KVCache
     if (this.usePagedKVCache) {
-      this.fclearKVCaches = this.tvm.detachFromCurrentScope(
-        this.tvm.getGlobalFunc("vm.builtin.kv_state_clear")
-      );
-      this.fKVCacheAddSequence = this.tvm.detachFromCurrentScope(
-        this.tvm.getGlobalFunc("vm.builtin.kv_state_add_sequence")
-      );
-      this.fKVCacheRemoveSequence = this.tvm.detachFromCurrentScope(
-        this.tvm.getGlobalFunc("vm.builtin.kv_state_remove_sequence")
-      );
-      this.fKVCacheBeginForward = this.tvm.detachFromCurrentScope(
-        this.tvm.getGlobalFunc("vm.builtin.kv_state_begin_forward")
-      );
-      this.fKVCacheEndForward = this.tvm.detachFromCurrentScope(
-        this.tvm.getGlobalFunc("vm.builtin.kv_state_end_forward")
-      );
+      try {
+        this.fclearKVCaches = this.tvm.detachFromCurrentScope(
+          this.tvm.getGlobalFunc("vm.builtin.kv_state_clear")
+        );
+        this.fKVCacheAddSequence = this.tvm.detachFromCurrentScope(
+          this.tvm.getGlobalFunc("vm.builtin.kv_state_add_sequence")
+        );
+        this.fKVCacheRemoveSequence = this.tvm.detachFromCurrentScope(
+          this.tvm.getGlobalFunc("vm.builtin.kv_state_remove_sequence")
+        );
+        this.fKVCacheBeginForward = this.tvm.detachFromCurrentScope(
+          this.tvm.getGlobalFunc("vm.builtin.kv_state_begin_forward")
+        );
+        this.fKVCacheEndForward = this.tvm.detachFromCurrentScope(
+          this.tvm.getGlobalFunc("vm.builtin.kv_state_end_forward")
+        );
+      } catch (err) {
+        // If we cannot find the functions above, it means we are using an older build of binary
+        // TODO: Remove this when all prebuilts are updated
+        this.fclearKVCaches = this.tvm.detachFromCurrentScope(
+          this.tvm.getGlobalFunc("vm.builtin.paged_attention_kv_cache_clear")
+        );
+        this.fKVCacheAddSequence = this.tvm.detachFromCurrentScope(
+          this.tvm.getGlobalFunc("vm.builtin.paged_attention_kv_cache_add_sequence")
+        );
+        this.fKVCacheRemoveSequence = this.tvm.detachFromCurrentScope(
+          this.tvm.getGlobalFunc("vm.builtin.paged_attention_kv_cache_remove_sequence")
+        );
+        this.fKVCacheBeginForward = this.tvm.detachFromCurrentScope(
+          this.tvm.getGlobalFunc("vm.builtin.paged_attention_kv_cache_begin_forward")
+        );
+        this.fKVCacheEndForward = this.tvm.detachFromCurrentScope(
+          this.tvm.getGlobalFunc("vm.builtin.paged_attention_kv_cache_end_forward")
+        );
+      }
 
       // Create PagedKVCache; we do not expose KVCache config for now
       const defaultPageSize = 16;
       const defaultMaxNumSequence = 1;
-      this.kvCache = this.tvm.detachFromCurrentScope(fcreateCache(
-        this.tvm.makeShapeTuple([defaultMaxNumSequence]),  // max_num_sequence
-        this.tvm.makeShapeTuple([this.maxWindowLength]),  // max_total_sequence_length
-        this.tvm.makeShapeTuple([this.prefillChunkSize]),  // prefill_chunk_size
-        this.tvm.makeShapeTuple([defaultPageSize]),  // page_size, hard coded for now
-        this.tvm.makeShapeTuple([this.slidingWindowSize != -1 ? 1 : 0]),
-      ));
+      try {
+        this.kvCache = this.tvm.detachFromCurrentScope(fcreateCache(
+          this.tvm.makeShapeTuple([defaultMaxNumSequence]),  // max_num_sequence
+          this.tvm.makeShapeTuple([this.maxWindowLength]),  // max_total_sequence_length
+          this.tvm.makeShapeTuple([this.prefillChunkSize]),  // prefill_chunk_size
+          this.tvm.makeShapeTuple([defaultPageSize]),  // page_size, hard coded for now
+          this.tvm.makeShapeTuple([this.slidingWindowSize != -1 ? 1 : 0]),
+        ));
+      } catch (err) {
+        // If we cannot find the functions above, it means we are using an older build of binary
+        // TODO: Remove this when all prebuilts are updated
+        this.kvCache = this.tvm.detachFromCurrentScope(fcreateCache(
+          this.tvm.makeShapeTuple([defaultMaxNumSequence]),  // max_num_sequence
+          this.tvm.makeShapeTuple([this.maxWindowLength]),  // max_total_sequence_length
+          this.tvm.makeShapeTuple([this.prefillChunkSize]),  // prefill_chunk_size
+          this.tvm.makeShapeTuple([defaultPageSize]),  // page_size, hard coded for now
+        ));
+      }
     } else {
       this.fclearKVCaches = this.tvm.detachFromCurrentScope(
         this.tvm.getGlobalFunc("vm.builtin.attention_kv_cache_array_clear")
