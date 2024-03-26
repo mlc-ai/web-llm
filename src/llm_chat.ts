@@ -208,19 +208,19 @@ export class LLMChatPipeline {
     // Load cache functions and instantiate KVCache
     if (this.usePagedKVCache) {
       this.fclearKVCaches = this.tvm.detachFromCurrentScope(
-        this.tvm.getGlobalFunc("vm.builtin.paged_attention_kv_cache_clear")
+        this.tvm.getGlobalFunc("vm.builtin.kv_state_clear")
       );
       this.fKVCacheAddSequence = this.tvm.detachFromCurrentScope(
-        this.tvm.getGlobalFunc("vm.builtin.paged_attention_kv_cache_add_sequence")
+        this.tvm.getGlobalFunc("vm.builtin.kv_state_add_sequence")
       );
       this.fKVCacheRemoveSequence = this.tvm.detachFromCurrentScope(
-        this.tvm.getGlobalFunc("vm.builtin.paged_attention_kv_cache_remove_sequence")
+        this.tvm.getGlobalFunc("vm.builtin.kv_state_remove_sequence")
       );
       this.fKVCacheBeginForward = this.tvm.detachFromCurrentScope(
-        this.tvm.getGlobalFunc("vm.builtin.paged_attention_kv_cache_begin_forward")
+        this.tvm.getGlobalFunc("vm.builtin.kv_state_begin_forward")
       );
       this.fKVCacheEndForward = this.tvm.detachFromCurrentScope(
-        this.tvm.getGlobalFunc("vm.builtin.paged_attention_kv_cache_end_forward")
+        this.tvm.getGlobalFunc("vm.builtin.kv_state_end_forward")
       );
 
       // Create PagedKVCache; we do not expose KVCache config for now
@@ -231,6 +231,7 @@ export class LLMChatPipeline {
         this.tvm.makeShapeTuple([this.maxWindowLength]),  // max_total_sequence_length
         this.tvm.makeShapeTuple([this.prefillChunkSize]),  // prefill_chunk_size
         this.tvm.makeShapeTuple([defaultPageSize]),  // page_size, hard coded for now
+        this.tvm.makeShapeTuple([this.slidingWindowSize != -1 ? 1 : 0]),
       ));
     } else {
       this.fclearKVCaches = this.tvm.detachFromCurrentScope(
