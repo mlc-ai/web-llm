@@ -164,15 +164,6 @@ export interface ChatCompletionRequestBase {
      */
     tools?: Array<ChatCompletionTool>;
 
-    //////////////// BELOW FIELDS NOT SUPPORTED YET ////////////////
-
-    /**
-     * Model to carry out this API.
-     * 
-     * @note Not supported. Instead call `ChatModule.reload(model)` before calling this API.
-     */
-    model?: string | null;
-
     /**
      * An object specifying the format that the model must output.
      *
@@ -186,10 +177,17 @@ export interface ChatCompletionRequestBase {
      * the message content may be partially cut off if `finish_reason="length"`, which
      * indicates the generation exceeded `max_gen_len` or the conversation exceeded the
      * max context length.
-     * 
-     * @note **json_object not supported yet.**
      */
     response_format?: ResponseFormat;
+
+    //////////////// BELOW FIELDS NOT SUPPORTED YET ////////////////
+
+    /**
+     * Model to carry out this API.
+     * 
+     * @note Not supported. Instead call `ChatModule.reload(model)` before calling this API.
+     */
+    model?: string | null;
 }
 
 export interface ChatCompletionRequestNonStreaming extends ChatCompletionRequestBase {
@@ -301,7 +299,6 @@ export interface ChatCompletionChunk {
 
 export const ChatCompletionRequestUnsupportedFields: Array<string> = [
     "model",
-    "response_format",
 ];
 
 export function postInitAndCheckFields(request: ChatCompletionRequest): void {

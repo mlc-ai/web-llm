@@ -316,6 +316,7 @@ export class ChatModule implements ChatInterface {
       logit_bias: request.logit_bias,
       logprobs: request.logprobs,
       top_logprobs: request.top_logprobs,
+      response_format: request.response_format,
     }
 
     const error_msg = this.checkFunctionCallUsage(request);
@@ -533,10 +534,10 @@ export class ChatModule implements ChatInterface {
   }
 
   private checkFunctionCallUsage(request: ChatCompletionRequest): string | null {
-    if (request.tools == undefined || 
-        (typeof request.tool_choice == "string" && request.tool_choice == "none")) {
-        this.getPipeline().overrideFunctionCalling(false, "");
-        return null;
+    if (request.tools == undefined ||
+      (typeof request.tool_choice == "string" && request.tool_choice == "none")) {
+      this.getPipeline().overrideFunctionCalling(false, "");
+      return null;
     }
 
     if (typeof request.tool_choice == "string" && request.tool_choice !== "auto") {
@@ -581,7 +582,7 @@ export class ChatModule implements ChatInterface {
     genConfig?: GenerationConfig
   ) {
     let input_str: string;
-    let input_role_str : string | undefined;
+    let input_role_str: string | undefined;
     if (typeof input === "string") {
       input_str = input;
     } else {

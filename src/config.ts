@@ -1,4 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
+
+import { ResponseFormat } from "./openai_api_protocols";
+
 /**
  * Conversation template config
  */
@@ -96,6 +99,7 @@ export interface GenerationConfig {
   logit_bias?: Record<string, number> | null;
   logprobs?: boolean | null;
   top_logprobs?: number | null;
+  response_format?: ResponseFormat | null;
 }
 
 export function postInitAndCheckGenerationConfigValues(config: GenerationConfig): void {
