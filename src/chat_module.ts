@@ -27,7 +27,6 @@ import {
   GenerateProgressCallback,
   LogitProcessor
 } from "./types";
-import { TrialCache } from "./cache_util";
 
 
 /**
@@ -76,8 +75,7 @@ export class ChatModule implements ChatInterface {
     if (!modelUrl.startsWith("http")) {
       modelUrl = new URL(modelUrl, baseUrl).href;
     }
-    const configCache = new tvmjs.ArtifactIndexDBCache("webllm/config");
-
+    const configCache = new tvmjs.ArtifactindexDBCache("webllm/config");
 
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
@@ -87,7 +85,7 @@ export class ChatModule implements ChatInterface {
     } as ChatConfig;
 
     // load tvm wasm
-    const wasmCache = new tvmjs.ArtifactIndexDBCache("webllm/wasm");
+    const wasmCache = new tvmjs.ArtifactindexDBCache("webllm/wasm");
     const wasmUrl = modelRecord.model_lib_url;
     if (wasmUrl === undefined) {
       throw Error("You need to specify `model_lib_url` for each model in `model_list` " +
@@ -509,7 +507,7 @@ export class ChatModule implements ChatInterface {
     baseUrl: string,
     config: ChatConfig
   ): Promise<Tokenizer> {
-    const modelCache = new tvmjs.ArtifactIndexDBCache("webllm/model");
+    const modelCache = new tvmjs.ArtifactindexDBCache("webllm/model");
     if (config.tokenizer_files.includes("tokenizer.json")) {
       const url = new URL("tokenizer.json", baseUrl).href;
       const model = await modelCache.fetchWithCache(url, "arraybuffer");

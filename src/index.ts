@@ -16,7 +16,7 @@ export {
 } from "./chat_module";
 
 export {
-  hasModelInCache, deleteChatConfigInCache, deleteModelAllInfoInCache, deleteModelWasmInCache, deleteModelInCache,
+  hasModelInCache, deleteChatConfigInCache, deleteModelAllInfoInCache, deleteModelWasmInCache, deleteModelInCache, 
 } from "./cache_util";
 
 export {
@@ -25,5 +25,7 @@ export {
   WorkerMessage,
   CustomRequestParams
 } from "./web_worker";
+
+
 
 export * from './openai_api_protocols/index';
