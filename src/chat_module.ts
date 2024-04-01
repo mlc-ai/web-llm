@@ -447,10 +447,8 @@ export class ChatModule implements ChatInterface {
   //--------------------------
   // Lower level API
   //--------------------------
-  async forwardTokensAndSample(
-    inputIds: Array<number>, curPos: number, isPrefill: boolean
-  ): Promise<number> {
-    return this.getPipeline().forwardTokensAndSample(inputIds, curPos, isPrefill);
+  async forwardTokensAndSample(inputIds: Array<number>, isPrefill: boolean): Promise<number> {
+    return this.getPipeline().forwardTokensAndSample(inputIds, isPrefill);
   }
 
   /**
@@ -533,10 +531,10 @@ export class ChatModule implements ChatInterface {
   }
 
   private checkFunctionCallUsage(request: ChatCompletionRequest): string | null {
-    if (request.tools == undefined || 
-        (typeof request.tool_choice == "string" && request.tool_choice == "none")) {
-        this.getPipeline().overrideFunctionCalling(false, "");
-        return null;
+    if (request.tools == undefined ||
+      (typeof request.tool_choice == "string" && request.tool_choice == "none")) {
+      this.getPipeline().overrideFunctionCalling(false, "");
+      return null;
     }
 
     if (typeof request.tool_choice == "string" && request.tool_choice !== "auto") {
@@ -581,7 +579,7 @@ export class ChatModule implements ChatInterface {
     genConfig?: GenerationConfig
   ) {
     let input_str: string;
-    let input_role_str : string | undefined;
+    let input_role_str: string | undefined;
     if (typeof input === "string") {
       input_str = input;
     } else {
@@ -669,7 +667,7 @@ export class ChatRestModule implements ChatInterface {
   }
 
   async forwardTokensAndSample(
-    inputIds: Array<number>, curPos: number, isPrefill: boolean
+    inputIds: Array<number>, isPrefill: boolean
   ): Promise<number> {
     throw new Error("Method not supported.");
   }
