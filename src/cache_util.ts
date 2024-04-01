@@ -20,7 +20,7 @@ export async function hasModelInCache(localId: string, appConfig?: AppConfig): P
   }
   const modelRecord = await findModelRecord(localId, appConfig);
   const modelUrl = modelRecord.model_url;
-  return tvmjs.hasNDArrayInCache(modelUrl, "webllm/model");
+  return tvmjs.hasNDArrayInCache(modelUrl, "webllm/model", "indexdb");
 }
 
 export async function deleteModelAllInfoInCache(localId: string, appConfig?: AppConfig) {
@@ -43,8 +43,8 @@ export async function deleteModelInCache(localId: string, appConfig?: AppConfig)
     appConfig = prebuiltAppConfig;
   }
   const modelRecord = await findModelRecord(localId, appConfig);
-  tvmjs.deleteNDArrayCache(modelRecord.model_url, "webllm/model");
-  const modelCache = new tvmjs.ArtifactCache("webllm/model");
+  tvmjs.deleteNDArrayCache(modelRecord.model_url, "webllm/model", "indexdb");
+  const modelCache = new tvmjs.ArtifactindexDBCache("webllm/model");
   await modelCache.deleteInCache(new URL("tokenizer.model", modelRecord.model_url).href);
   await modelCache.deleteInCache(new URL("tokenizer.json", modelRecord.model_url).href);
 }
@@ -55,7 +55,7 @@ export async function deleteChatConfigInCache(localId: string, appConfig?: AppCo
     appConfig = prebuiltAppConfig;
   }
   const modelRecord = await findModelRecord(localId, appConfig);
-  const configCache = new tvmjs.ArtifactCache("webllm/config");
+  const configCache = new tvmjs.ArtifactindexDBCache("webllm/config");
   const configUrl = new URL("mlc-chat-config.json", modelRecord.model_url).href;
   await configCache.deleteInCache(configUrl);
 }
@@ -67,6 +67,6 @@ export async function deleteModelWasmInCache(localId: string, appConfig?: AppCon
     appConfig = prebuiltAppConfig;
   }
   const modelRecord = await findModelRecord(localId, appConfig);
-  const wasmCache = new tvmjs.ArtifactCache("webllm/wasm");
+  const wasmCache = new tvmjs.ArtifactindexDBCache("webllm/wasm");
   await wasmCache.deleteInCache(modelRecord.model_lib_url);
 }
