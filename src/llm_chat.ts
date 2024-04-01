@@ -581,7 +581,7 @@ export class LLMChatPipeline {
       if (_hasValue(genConfig.top_logprobs)) { top_logprobs = genConfig.top_logprobs!; }
     }
     // Check range validity
-    if (top_p <= 0 || top_p >= 1) { throw new Error("Make sure 0 < `top_p` < 1."); }
+    if (top_p <= 0 || top_p > 1) { throw new Error("Make sure 0 < `top_p` <= 1."); }
     if (temperature < 0) { throw new Error("Make sure `temperature` >= 0."); }
     if (repetition_penalty <= 0) { throw new Error("Make sure `repetition_penalty` > 0."); }
     if (frequency_penalty && (frequency_penalty < -2.0 || frequency_penalty > 2.0)) {

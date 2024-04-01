@@ -121,8 +121,8 @@ export function postInitAndCheckGenerationConfigValues(config: GenerationConfig)
   if (_hasValue(config.shift_fill_factor) && config.shift_fill_factor! <= 0 || config.shift_fill_factor! > 1) {
     throw new Error("Make sure 0 < `shift_fill_factor` <= 1.");
   }
-  if (_hasValue(config.top_p) && config.top_p! <= 0 || config.top_p! >= 1) {
-    throw new Error("Make sure 0 < `top_p` < 1.");
+  if (_hasValue(config.top_p) && config.top_p! <= 0 || config.top_p! > 1) {
+    throw new Error("Make sure 0 < `top_p` <= 1.");
   }
   if (_hasValue(config.temperature) && config.temperature! < 0) {
     throw new Error("Make sure `temperature` >= 0.");
