@@ -161,12 +161,10 @@ export interface ChatInterface {
    * This function has side effects as the model will update its KV cache.
    *
    * @param inputIds The input tokens.
-   * @param curPos Total number of tokens processed, including the inputIds (i.e.
-   * number of tokens in KV cache plus number of tokens in inputIds).
    * @param isPrefill True if prefill, false if decode; only used for statistics.
    * @returns Next token sampled.
    * @note This is an async function.
    */
-  forwardTokensAndSample(inputIds: Array<number>, curPos: number, isPrefill: boolean): Promise<number>;
+  forwardTokensAndSample(inputIds: Array<number>, isPrefill: boolean): Promise<number>;
 }
 

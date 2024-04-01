@@ -50,7 +50,6 @@ interface GenerateProgressCallbackParams {
 
 interface ForwardTokensAndSampleParams {
   inputIds: Array<number>;
-  curPos: number;
   isPrefill: boolean;
 }
 
@@ -178,7 +177,7 @@ export class ChatWorkerHandler {
       case "forwardTokensAndSample": {
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ForwardTokensAndSampleParams;
-          return await this.chat.forwardTokensAndSample(params.inputIds, params.curPos, params.isPrefill);
+          return await this.chat.forwardTokensAndSample(params.inputIds, params.isPrefill);
         })
         return;
       }
@@ -423,15 +422,12 @@ export class ChatWorkerClient implements ChatInterface {
     await this.getPromise<null>(msg);
   }
 
-  async forwardTokensAndSample(
-    inputIds: Array<number>, curPos: number, isPrefill: boolean
-  ): Promise<number> {
+  async forwardTokensAndSample(inputIds: Array<number>, isPrefill: boolean): Promise<number> {
     const msg: WorkerMessage = {
       kind: "forwardTokensAndSample",
       uuid: crypto.randomUUID(),
       content: {
         inputIds: inputIds,
-        curPos: curPos,
         isPrefill: isPrefill
       }
     };
