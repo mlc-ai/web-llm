@@ -448,10 +448,8 @@ export class ChatModule implements ChatInterface {
   //--------------------------
   // Lower level API
   //--------------------------
-  async forwardTokensAndSample(
-    inputIds: Array<number>, curPos: number, isPrefill: boolean
-  ): Promise<number> {
-    return this.getPipeline().forwardTokensAndSample(inputIds, curPos, isPrefill);
+  async forwardTokensAndSample(inputIds: Array<number>, isPrefill: boolean): Promise<number> {
+    return this.getPipeline().forwardTokensAndSample(inputIds, isPrefill);
   }
 
   /**
@@ -670,7 +668,7 @@ export class ChatRestModule implements ChatInterface {
   }
 
   async forwardTokensAndSample(
-    inputIds: Array<number>, curPos: number, isPrefill: boolean
+    inputIds: Array<number>, isPrefill: boolean
   ): Promise<number> {
     throw new Error("Method not supported.");
   }
