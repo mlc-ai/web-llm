@@ -27,11 +27,11 @@ async function main() {
   for (let i = 0; i < config.model_list.length; ++i) {
     // 1. Read each model record
     const modelRecord: ModelRecord = config.model_list[i];
-    const local_id = modelRecord.local_id;
+    const model_id = modelRecord.model_id;
     // 2. Load the wasm
     const wasmUrl = modelRecord.model_lib_url;
     const wasmSource = await (await fetch(wasmUrl)).arrayBuffer();
-    report += `${local_id}: \n`;
+    report += `${model_id}: \n`;
     // 3. Initialize tvmjs instance and virtual machine using the wasm
     const tvm = await tvmjs.instantiate(
       new Uint8Array(wasmSource),
@@ -70,7 +70,7 @@ async function main() {
         const numParams = param.shape.reduce((a: number, b: number) => a * b);
         paramBytes += numParams * dtypeBytes;
       } else {
-        console.log(`${local_id}'s ${param.name} has dynamic shape; excluded from vRAM calculation.`)
+        console.log(`${model_id}'s ${param.name} has dynamic shape; excluded from vRAM calculation.`)
       }
     });
     // 5.2. Get maximum bytes needed for temporary buffer across all functions

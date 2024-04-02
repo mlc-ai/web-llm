@@ -52,11 +52,11 @@ export class ChatModule implements ChatInterface {
     this.initProgressCallback = initProgressCallback;
   }
 
-  async reload(localId: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
+  async reload(modelId: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
     this.deviceLostIsError = false;  // so that unload() does not trigger device.lost warning
     this.unload();
 
-    this.logitProcessor = this.logitProcessorRegistry?.get(localId);
+    this.logitProcessor = this.logitProcessorRegistry?.get(modelId);
     const tstart = performance.now();
     if (appConfig === undefined) {
       appConfig = prebuiltAppConfig;
@@ -64,10 +64,10 @@ export class ChatModule implements ChatInterface {
 
     const findModelRecord = () => {
       const matchedItem = appConfig?.model_list.find(
-        item => item.local_id == localId
+        item => item.model_id == modelId
       );
       if (matchedItem !== undefined) return matchedItem;
-      throw Error("Cannot find model_url for " + localId);
+      throw Error("Cannot find model_url for " + modelId);
     }
 
     const modelRecord = findModelRecord();
@@ -170,7 +170,7 @@ export class ChatModule implements ChatInterface {
         text: text
       })
     }
-    this.currentLocaId = localId;
+    this.currentLocaId = modelId;
   }
 
   async generate(
@@ -642,7 +642,7 @@ export class ChatRestModule implements ChatInterface {
     this.initProgressCallback = initProgressCallback;
   }
 
-  async reload(localId: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
+  async reload(modelId: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
     throw new Error("Method not implemented.");
   }
 

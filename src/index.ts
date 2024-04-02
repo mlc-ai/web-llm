@@ -1,5 +1,5 @@
 export {
-  ModelRecord, AppConfig, ChatOptions, GenerationConfig
+  ModelRecord, AppConfig, ChatOptions, GenerationConfig, prebuiltAppConfig
 } from "./config";
 
 
