@@ -28,7 +28,7 @@ type RequestKind = (
 );
 
 interface ReloadParams {
-  localIdOrUrl: string;
+  modelId: string;
   chatOpts?: ChatOptions;
   appConfig?: AppConfig
 }
@@ -146,7 +146,7 @@ export class ChatWorkerHandler {
       case "reload": {
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ReloadParams;
-          await this.chat.reload(params.localIdOrUrl, params.chatOpts, params.appConfig);
+          await this.chat.reload(params.modelId, params.chatOpts, params.appConfig);
           return null;
         })
         return;
@@ -323,12 +323,12 @@ export class ChatWorkerClient implements ChatInterface {
     return promise;
   }
 
-  async reload(localIdOrUrl: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
+  async reload(modelId: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
     const msg: WorkerMessage = {
       kind: "reload",
       uuid: crypto.randomUUID(),
       content: {
-        localIdOrUrl: localIdOrUrl,
+        modelId: modelId,
         chatOpts: chatOpts,
         appConfig: appConfig,
       }

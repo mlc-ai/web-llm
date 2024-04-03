@@ -148,7 +148,7 @@ async function mainFunctionCalling() {
     model_list: [
       {
         "model_url": "https://huggingface.co/mlc-ai/gorilla-openfunctions-v2-q4f16_1-MLC/resolve/main/",
-        "local_id": "gorilla-openfunctions-v2-q4f16_1",
+        "model_id": "gorilla-openfunctions-v2-q4f16_1",
         "model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/gorilla-openfunctions-v2/gorilla-openfunctions-v2-q4f16_1.wasm",
       },
     ]
