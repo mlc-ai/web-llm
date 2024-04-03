@@ -4,22 +4,19 @@ import { ConvTemplateConfig, MessagePlaceholders, Role } from "./config";
  * Helper to keep track of history conversations.
  */
 export class Conversation {
+  // NOTE: Update `compareConversationObject()` whenever a new state is introduced.
   public messages: Array<[Role, string, string | undefined]> = [];
-  public config: ConvTemplateConfig;
+  readonly config: ConvTemplateConfig;
 
-  public function_string: string = "";
-  public use_function_calling: boolean = false;
-
-  // Save the default system prompt in case it is overridden.
-  // It will be restored upon reset().
-  private system_prompt_default: string;
+  public function_string = "";
+  public use_function_calling = false;
+  public override_system_message?: string = undefined;
 
   // TODO(tvm-team) confirm and remove
   // private contextWindowStart = 0;
 
   constructor(config: ConvTemplateConfig) {
     this.config = config;
-    this.system_prompt_default = config.system_message;
   }
 
   private getPromptArrayInternal(
@@ -29,12 +26,20 @@ export class Conversation {
     if (this.config.seps.length == 0) {
       throw Error("Need seps to work")
     }
-    let system_prompt = this.config.system_template.replace(MessagePlaceholders.system, this.config.system_message);
+
+    // Prepare system message
+    // Get overrided system message if exists, else use default one in config
+    let system_message = this.config.system_message;
+    if (this.override_system_message !== undefined) {
+      system_message = this.override_system_message;
+    }
+    let system_prompt = this.config.system_template.replace(MessagePlaceholders.system, system_message);
     if (system_prompt) {
       system_prompt += this.config.seps[0]
     }
     const ret = addSystem ? [system_prompt] : [];
 
+    // Process each message in this.messages
     for (let i = startPos; i < this.messages.length; ++i) {
       const item = this.messages[i];
       const role = item[0];
@@ -50,12 +55,12 @@ export class Conversation {
           );
           if (this.use_function_calling && this.function_string !== '') {
             message_str = message_str?.replace(
-              MessagePlaceholders.function, 
+              MessagePlaceholders.function,
               this.function_string
             )
           }
           message_str = message_str?.replace(
-            MessagePlaceholders.function, 
+            MessagePlaceholders.function,
             ""
           )
         }
@@ -70,7 +75,6 @@ export class Conversation {
           const content_sep = this.config.role_content_sep ? this.config.role_content_sep : ": ";
           role_prefix = role_str + content_sep;
         }
-        
         ret.push(role_prefix + message_str + this.config.seps[i % this.config.seps.length]);
       } else {
         const empty_sep = this.config.role_empty_sep ? this.config.role_empty_sep : ": ";
@@ -104,9 +108,15 @@ export class Conversation {
     return this.getPromptArrayInternal(false, this.messages.length - 2);
   }
 
+  /**
+   * Resets all states for this.conversation.
+   */
   reset() {
+    // Note: Update this whenever we introduce a new state to conversation.
     this.messages = [];
-    this.config.system_message = this.system_prompt_default;
+    this.override_system_message = undefined;
+    this.function_string = "";
+    this.use_function_calling = false;
   }
 
   getStopStr(): string[] {
@@ -154,7 +164,7 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
   if (typeof conv_template !== "string") {
     return new Conversation(conv_template);
   }
-
+  // TODO: Remove all these, move to test
   if (conv_template == "llama-2") {
     return new Conversation({
       system_template: `[INST] <<SYS>>\n\n${MessagePlaceholders.system}<</SYS>>\n\n`,
@@ -430,4 +440,36 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
   } else {
     throw Error("Unknown conv template " + conv_template);
   }
+}
+
+/**
+ * Compare the states of two conversation instances. Equality is defined as their getPromptArray()
+ * should return the exact same things, which is determined by fields: messages, function_string,
+ * use_function_calling, and override_system_message.
+ * 
+ * @returns True if `convA` equals to `convB`
+ * @note We assume convA and convB has the same `this.config`.
+ */
+export function compareConversationObject(convA: Conversation, convB: Conversation): boolean {
+  // NOTE: Update this function whenever a new state is introduced to `Conversation`.
+  // Check the easy ones first
+  if (convA.function_string !== convB.function_string ||
+    convA.use_function_calling !== convB.use_function_calling ||
+    convA.override_system_message !== convB.override_system_message ||
+    convA.messages.length !== convB.messages.length
+  ) {
+    return false;
+  }
+
+  // Then check message
+  const msgLen = convA.messages.length;
+  const msgEntryLen = convA.messages[0].length;
+  for (let i = 0; i < msgLen; i++) {
+    for (let j = 0; j < msgEntryLen; j++) {
+      if (convA.messages[i][j] !== convB.messages[i][j]) {
+        return false;
+      }
+    }
+  }
+  return true;
 }

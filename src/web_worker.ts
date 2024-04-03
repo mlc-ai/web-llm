@@ -34,7 +34,7 @@ interface ReloadParams {
 }
 
 interface GenerateParams {
-  input: string | Array<ChatCompletionMessageParam>,
+  input: string | ChatCompletionRequestNonStreaming,
   streamInterval?: number;
   genConfig?: GenerationConfig;
 }
@@ -364,7 +364,7 @@ export class ChatWorkerClient implements ChatInterface {
   }
 
   async generate(
-    input: string | Array<ChatCompletionMessageParam>,
+    input: string | ChatCompletionRequestNonStreaming,
     progressCallback?: GenerateProgressCallback,
     streamInterval?: number,
     genConfig?: GenerationConfig,

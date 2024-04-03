@@ -85,14 +85,14 @@ export interface ChatInterface {
   /**
    * Generate a response for a given input.
    *
-   * @param input The input prompt or an array of OpenAI-like `ChatCompletionMessageParam`.
+   * @param input The input prompt or a non-streaming ChatCompletionRequest.
    * @param progressCallback Callback that is being called to stream intermediate results.
    * @param streamInterval callback interval to call progresscallback
    * @param genConfig Configuration for this single generation that overrides pre-existing configs.
    * @returns The final result.
    */
   generate: (
-    input: string | Array<ChatCompletionMessageParam>,
+    input: string | ChatCompletionRequestNonStreaming,
     progressCallback?: GenerateProgressCallback,
     streamInterval?: number,
     genConfig?: GenerationConfig,
@@ -100,6 +100,12 @@ export interface ChatInterface {
 
   /**
    * OpenAI-style API. Generate a chat completion response for the given conversation and configuration.
+   * 
+   * The API is completely functional in behavior. That is, a previous request would not affect
+   * the current request's result. Thus, for multi-round chatting, users are responsible for
+   * maintaining the chat history. With that being said, as an implicit internal optimization, if we
+   * detect that the user is performing multiround chatting, we will preserve the KV cache and only
+   * prefill the new tokens.
    */
   chatCompletion(
     request: ChatCompletionRequestNonStreaming

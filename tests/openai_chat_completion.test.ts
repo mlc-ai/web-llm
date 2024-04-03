@@ -55,19 +55,6 @@ describe('Check chat completion unsupported requests', () => {
         }).toThrow("When streaming, `n` cannot be > 1.");
     });
 
-    test('When stateful `n` needs to be 1', () => {
-        expect(() => {
-            const request: ChatCompletionRequest = {
-                stateful: true,
-                n: 2,
-                messages: [
-                    { role: "user", content: "Hello! " },
-                ],
-            };
-            postInitAndCheckFields(request)
-        }).toThrow("If the request is stateful, `n` cannot be > 1.");
-    });
-
     test('Non-integer seed', () => {
         expect(() => {
             const request: ChatCompletionRequest = {
