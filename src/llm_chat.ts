@@ -326,45 +326,17 @@ export class LLMChatPipeline {
 
   // Getters and setters for this.conversation.
   /**
-   * Overrides the system prompt.
+   * @returns The conversation object (not a deep copy).
    */
-  overrideSystemPrompt(system: string): void {
-    this.conversation.config.system_message = system;
+  getConversationObject(): Conversation {
+    return this.conversation;
   }
 
   /**
-   * Append a new message to `this.conversation`.
+   * Set this.conversation to a new conversation object.
    */
-  appendConversationMessage(role: Role, input: string, role_name?: string): void {
-    this.conversation.appendMessage(role, input, role_name);
-  }
-
-  /**
-   * Override this.conversation.use_function_calling and
-   * this.conversation.function_string
-   * 
-   * @param use_function_calling 
-   * @param function_string 
-   */
-  overrideFunctionCalling(use_function_calling: boolean, function_string: string): void {
-    this.conversation.use_function_calling = use_function_calling;
-    this.conversation.function_string = function_string;
-  }
-
-  /**
-   * Get this.conversation.messages.
-   */
-  getConversationMessages(): Array<[Role, string, string | undefined]> {
-    // TODO(Charlie): Do we need to make a deep copy here?
-    return this.conversation.messages;
-  }
-
-  /**
-   * @returns the roles of this.conversation's conversation template of lengths of two.
-   */
-  getRoles(): Array<string> {
-    const roles = this.conversation.config.roles;
-    return [roles[Role.user], roles[Role.assistant]];
+  setConversation(newConv: Conversation) {
+    this.conversation = newConv;
   }
 
   async asyncLoadWebGPUPipelines() {
