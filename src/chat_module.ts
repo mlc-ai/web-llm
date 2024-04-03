@@ -35,7 +35,7 @@ import {
  * This is the main interface to the chat module.
  */
 export class ChatModule implements ChatInterface {
-  private currentLocaId?: string = undefined;  // Model current loaded, undefined if nothing is loaded
+  private currentModelId?: string = undefined;  // Model current loaded, undefined if nothing is loaded
   private logger: (msg: string) => void = console.log;
   private logitProcessorRegistry?: Map<string, LogitProcessor>;
   private logitProcessor?: LogitProcessor;
@@ -170,7 +170,7 @@ export class ChatModule implements ChatInterface {
         text: text
       })
     }
-    this.currentLocaId = modelId;
+    this.currentModelId = modelId;
   }
 
   async generate(
@@ -217,7 +217,7 @@ export class ChatModule implements ChatInterface {
       await this.resetChat();
     }
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const model = this.currentLocaId!;
+    const model = this.currentModelId!;
     const created = Date.now();
     const id = crypto.randomUUID();
     this.interruptSignal = false;
@@ -302,7 +302,7 @@ export class ChatModule implements ChatInterface {
     request: ChatCompletionRequest
   ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
     // 0. Preprocess inputs
-    if (!this.currentLocaId) {
+    if (!this.currentModelId) {
       throw new Error("Please call `ChatModule.reload(model)` first.");
     }
     ChatCompletionAPI.postInitAndCheckFields(request);
@@ -373,7 +373,7 @@ export class ChatModule implements ChatInterface {
     const response: ChatCompletion = {
       id: crypto.randomUUID(),
       choices: choices,
-      model: this.currentLocaId,
+      model: this.currentModelId,
       object: "chat.completion",
       created: Date.now(),
       usage: {
@@ -405,7 +405,7 @@ export class ChatModule implements ChatInterface {
   async unload() {
     this.pipeline?.dispose();
     this.pipeline = undefined;
-    this.currentLocaId = undefined;
+    this.currentModelId = undefined;
   }
 
   async getMaxStorageBufferBindingSize(): Promise<number> {
