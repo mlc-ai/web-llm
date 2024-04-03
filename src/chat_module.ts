@@ -316,6 +316,7 @@ export class ChatModule implements ChatInterface {
       logit_bias: request.logit_bias,
       logprobs: request.logprobs,
       top_logprobs: request.top_logprobs,
+      response_format: request.response_format,
     }
 
     const error_msg = this.checkFunctionCallUsage(request);
