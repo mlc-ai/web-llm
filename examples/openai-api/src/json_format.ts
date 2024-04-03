@@ -14,17 +14,7 @@ async function demonstrateJSONFormat() {
     chat.setInitProgressCallback((report: webllm.InitProgressReport) => {
         setLabel("init-label", report.text);
     });
-
-    const myAppConfig: webllm.AppConfig = {
-        model_list: [
-            {
-                "model_url": "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f16_1-MLC/resolve/main/",
-                "local_id": "Llama-2-7b-chat-hf-q4f16_1",
-                "model_lib_url": "https://raw.githubusercontent.com/CharlieFRuan/binary-mlc-llm-libs/temp-for-webllm/Llama-2-7b-chat-hf.wasm",
-            },
-        ]
-    }
-    await chat.reload("Llama-2-7b-chat-hf-q4f16_1", undefined, myAppConfig);
+    await chat.reload("Llama-2-7b-chat-hf-q4f16_1");
 
     const request: webllm.ChatCompletionRequest = {
         stream: false,  // works with streaming, logprobs, top_logprobs as well
