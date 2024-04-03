@@ -73,14 +73,14 @@ export interface ChatInterface {
   /**
    * Reload the chat with a new model.
    *
-   * @param localIdOrUrl local_id of the model or model artifact url.
+   * @param modelId model_id of the model to load.
    * @param chatOpts Extra options to overide chat behavior.
    * @param appConfig Override the app config in this load.
    * @returns A promise when reload finishes.
    * @note This is an async function.
    */
   reload: (
-    localIdOrUrl: string, chatOpts?: ChatOptions, appConfig?: AppConfig) => Promise<void>;
+    modelId: string, chatOpts?: ChatOptions, appConfig?: AppConfig) => Promise<void>;
 
   /**
    * Generate a response for a given input.
