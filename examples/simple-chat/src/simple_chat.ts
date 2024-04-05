@@ -84,8 +84,8 @@ class ChatUI {
     for (let i = 0; i < chatUI.config.model_list.length; ++i) {
       const item = chatUI.config.model_list[i];
       const opt = document.createElement("option");
-      opt.value = item.local_id;
-      opt.innerHTML = item.local_id;
+      opt.value = item.model_id;
+      opt.innerHTML = item.model_id;
       opt.selected = (i == 0);
       if (
         (restrictModels && (item.low_resource_required === undefined || !item.low_resource_required)) ||

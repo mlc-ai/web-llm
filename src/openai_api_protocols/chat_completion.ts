@@ -29,16 +29,6 @@
  */
 export interface ChatCompletionRequestBase {
     /**
-     * Whether we keep previous chat history before completing this request.
-     * 
-     * That is, if `stateful` is `false` or unspecified, we will clear chat history prior to
-     * generating the response. If `stateful` is `true`, we keep the chat history.
-     * 
-     * @note When `stateful` is `true`, `n` has to be 1, similar to having a multiround chat.
-     */
-    stateful?: boolean | null;
-
-    /**
      * A list of messages comprising the conversation so far.
      */
     messages: Array<ChatCompletionMessageParam>;
@@ -164,15 +154,6 @@ export interface ChatCompletionRequestBase {
      */
     tools?: Array<ChatCompletionTool>;
 
-    //////////////// BELOW FIELDS NOT SUPPORTED YET ////////////////
-
-    /**
-     * Model to carry out this API.
-     * 
-     * @note Not supported. Instead call `ChatModule.reload(model)` before calling this API.
-     */
-    model?: string | null;
-
     /**
      * An object specifying the format that the model must output.
      *
@@ -186,10 +167,17 @@ export interface ChatCompletionRequestBase {
      * the message content may be partially cut off if `finish_reason="length"`, which
      * indicates the generation exceeded `max_gen_len` or the conversation exceeded the
      * max context length.
-     * 
-     * @note **json_object not supported yet.**
      */
     response_format?: ResponseFormat;
+
+    //////////////// BELOW FIELDS NOT SUPPORTED YET ////////////////
+
+    /**
+     * Model to carry out this API.
+     * 
+     * @note Not supported. Instead call `ChatModule.reload(model)` before calling this API.
+     */
+    model?: string | null;
 }
 
 export interface ChatCompletionRequestNonStreaming extends ChatCompletionRequestBase {
@@ -241,8 +229,8 @@ export interface ChatCompletion {
     /**
      * Usage statistics for the completion request.
      * 
-     * @note If request is `stateful`, past usage not counted -- only corresponds to this request.
-     * If `n > 1`, all choices' generation usages combined.
+     * @note If we detect user is performing multi-round chatting, only the new portion of the
+     * prompt is counted for prompt_tokens. If `n > 1`, all choices' generation usages combined.
      */
     usage?: CompletionUsage;
 
@@ -301,7 +289,6 @@ export interface ChatCompletionChunk {
 
 export const ChatCompletionRequestUnsupportedFields: Array<string> = [
     "model",
-    "response_format",
 ];
 
 export function postInitAndCheckFields(request: ChatCompletionRequest): void {
@@ -345,12 +332,7 @@ export function postInitAndCheckFields(request: ChatCompletionRequest): void {
         throw new Error("When streaming, `n` cannot be > 1.");
     }
 
-    // 5. If stateful, n cannot be > 1, since the behavior is hard to define
-    if (request.stateful && request.n && request.n > 1) {
-        throw new Error("If the request is stateful, `n` cannot be > 1.");
-    }
-
-    // 6. Seed should be an integer
+    // 5. Seed should be an integer
     if (request.seed !== undefined && request.seed !== null) {
         if (!Number.isInteger(request.seed)) {
             throw new Error("`seed` should be an integer, but got " + request.seed);
@@ -707,7 +689,8 @@ export interface CompletionUsage {
     /**
      * Number of tokens in the prompt.
      * 
-     * @note If `stateful` is true, only the new prompt is counted.
+     * @note If we detect user is performing multi-round chatting, only the new portion of the
+     * prompt is counted for prompt_tokens.
      */
     prompt_tokens: number;
 

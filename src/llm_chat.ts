@@ -5,12 +5,14 @@ import { Tokenizer } from "@mlc-ai/web-tokenizers";
 import { ChatConfig, GenerationConfig, Role } from "./config";
 import { getConversation, Conversation } from "./conversation";
 import { LogitProcessor } from "./types";
-import { getTopProbs } from "./support";
+import { getTokenTableFromTokenizer, getTopProbs } from "./support";
 import {
   ChatCompletionFinishReason,
   ChatCompletionTokenLogprob,
   TopLogprob,
+  ResponseFormat,
 } from "./openai_api_protocols/index"
+import { GrammarFactory, GrammarStateMatcher } from "./grammar";
 
 export class LLMChatPipeline {
   private config: ChatConfig;
@@ -22,13 +24,15 @@ export class LLMChatPipeline {
   private vm: tvmjs.VirtualMachine;
   private prefill: tvmjs.PackedFunc;
   private decoding: tvmjs.PackedFunc;
+  private embed: tvmjs.PackedFunc;
+  private fapplyBitmask: tvmjs.PackedFunc;
+  // Functions related to PagedKVCache
   private fclearKVCaches: tvmjs.PackedFunc;
-  // Functions for PagedKVCache only
-  private embed?: tvmjs.PackedFunc = undefined;
-  private fKVCacheAddSequence?: tvmjs.PackedFunc = undefined;
-  private fKVCacheRemoveSequence?: tvmjs.PackedFunc = undefined;
-  private fKVCacheBeginForward?: tvmjs.PackedFunc = undefined;
-  private fKVCacheEndForward?: tvmjs.PackedFunc = undefined;
+  private fKVCacheAddSequence: tvmjs.PackedFunc;
+  private fKVCacheRemoveSequence: tvmjs.PackedFunc;
+  private fKVCacheBeginForward: tvmjs.PackedFunc;
+  private fKVCacheEndForward: tvmjs.PackedFunc;
+  private fKVCacheEnableSlidingWindowForSeq: tvmjs.PackedFunc;
 
   // parameter states
   private params: tvmjs.TVMObject;
@@ -54,12 +58,6 @@ export class LLMChatPipeline {
   // frequency of appeared token ids till now (refresh after PrefillStep); token_id mapped to freq
   private appearedTokensFreq = new Map<number, number>();
   private conversation: Conversation;
-  // Whether sink is in action
-  private sinkTriggered = false;
-  // sliding window cache offset (Next position to be overridden on the rolling kv cache.)
-  private slidingWindowCacheOffset = 0;
-  // Whether we are using PagedKVCache (eventually this will become default)
-  private usePagedKVCache = false;
   // The logprob information of all tokens for this current round (cleared upon each prefillStep)
   // Cleared & updated at the exact same spots as `outputMessage`. Only updated when
   // `genConfig.logprobs` is true. Each entry corresponds to a single autoregressive step.
@@ -80,12 +78,27 @@ export class LLMChatPipeline {
   // LogitProcessor
   private logitProcessor?: LogitProcessor = undefined;
 
+  // Grammar-related
+  // A factory to instantiate and maintain the BNF grammars and grammar state matchers.
+  private grammarFactory: GrammarFactory;
+  // A grammar state matcher for this current round (reinitialized upon each prefillStep) if
+  // response_format is set.
+  private grammarStateMatcher?: GrammarStateMatcher = undefined;
+  // A string list of tokens ordered by their token id. Once initialized, will not be reinitialized
+  // since `this.tokenizer` does not change throughout the lifetime of LLMChatPipeline.
+  private tokenTable?: string[] = undefined;
+  private bitmaskSize: number;
+  private vocabSize: number;
+
   constructor(tvm: tvmjs.Instance, tokenizer: Tokenizer, config: ChatConfig, logitProcessor?: LogitProcessor) {
     // 0. Setting attributes
     this.tvm = tvm;
     this.tokenizer = tokenizer;
     this.config = config;
     this.logitProcessor = logitProcessor;
+    this.grammarFactory = new GrammarFactory(tvm);
+    this.vocabSize = this.tokenizer.getVocabSize();
+    this.bitmaskSize = Math.ceil(this.vocabSize / 32);
 
     this.conversation = getConversation(config.conv_template, config.conv_config);
     this.stopStr = this.conversation.getStopStr();
@@ -104,62 +117,38 @@ export class LLMChatPipeline {
     this.prefill = this.tvm.detachFromCurrentScope(
       this.vm.getFunction("prefill")
     );
-    try {
-      // We expect to find `embed` if we usePagedKVCache
-      this.embed = this.tvm.detachFromCurrentScope(
-        this.vm.getFunction("embed")
-      );
-    } catch {
-      // Do nothing
-    }
+    this.embed = this.tvm.detachFromCurrentScope(
+      this.vm.getFunction("embed")
+    );
     this.decoding = this.tvm.detachFromCurrentScope(
       this.vm.getFunction("decode")
     );
+    this.fapplyBitmask = this.tvm.detachFromCurrentScope(
+      this.vm.getFunction("apply_bitmask_inplace")
+    )
 
     // 2. Get json stored in the vm's metadata function
-    let fgetMetadata;
-    let useSLIM = false;  // SLIM is the new workflow
-    try {
-      fgetMetadata = this.vm.getFunction("get_metadata");
-    } catch (err) {
-      fgetMetadata = this.vm.getFunction("_metadata");
-      useSLIM = true;
-    }
+    const fgetMetadata = this.vm.getFunction("_metadata");
     const ret_value = fgetMetadata();
     const metadataStr = this.tvm.detachFromCurrentScope(ret_value).toString();
     const metadata = JSON.parse(metadataStr);
 
-    // 3. Load parameters
-    if (useSLIM) {
-      // Under SLIM workflow, we load parameters by name
-      const paramNames: string[] = [];
-      metadata.params.forEach((param: any) => { paramNames.push(param.name) });
-      this.params = this.tvm.detachFromCurrentScope(
-        this.tvm.getParamsFromCacheByName(paramNames)
-      );
-    } else {
-      // Backward compatibility -- load parameters by ids
-      this.params = this.tvm.detachFromCurrentScope(
-        this.tvm.getParamsFromCache("param", -1)
-      );
-    }
+    // 3. Load parameters by name
+    const paramNames: string[] = [];
+    metadata.params.forEach((param: any) => { paramNames.push(param.name) });
+    this.params = this.tvm.detachFromCurrentScope(
+      this.tvm.getParamsFromCacheByName(paramNames)
+    );
 
     // 4. Read in compilation configurations from metadata
-    if (metadata.hasOwnProperty("prefill_chunk_size")) {
-      this.prefillChunkSize = metadata.prefill_chunk_size;
-      this.logger("Using prefillChunkSize: ", this.prefillChunkSize);
-      if (this.prefillChunkSize <= 0) {
-        throw Error("Prefill chunk size needs to be positive.");
-      }
-    } else {
-      throw Error("Cannot find `prefill_chunk_size` in metadta; make sure the wasm is up to date.");
+    this.prefillChunkSize = metadata.prefill_chunk_size;
+    this.logger("Using prefillChunkSize: ", this.prefillChunkSize);
+    if (this.prefillChunkSize <= 0) {
+      throw Error("Prefill chunk size needs to be positive.");
     }
     // Only use one of slidingWindowSize and maxWindowLength
     if (metadata.hasOwnProperty("sliding_window_size") && metadata.sliding_window_size != -1) {
       this.slidingWindowSize = metadata.sliding_window_size;
-      if (this.prefillChunkSize <= 0) {
-        throw Error("Need to specify prefill chunk size if using sliding window attention.");
-      }
       this.logger("Using slidingWindowSize: ", this.slidingWindowSize);
       // Parse attention sink size
       if (metadata.hasOwnProperty("attention_sink_size") && metadata.attention_sink_size >= 0) {
@@ -172,110 +161,57 @@ export class LLMChatPipeline {
           "Use `attention_sink_size=0` for default sliding window."
         );
       }
+    } else if (metadata.hasOwnProperty("context_window_size") && metadata.context_window_size != -1) {
+      this.maxWindowLength = metadata.context_window_size;
+      this.logger("Using maxWindowLength: ", this.maxWindowLength);
     } else {
-      // Depending on when the model is compiled, it can be either called
-      // `context_window_size` or `max_window_size`
-      if (metadata.hasOwnProperty("context_window_size") && metadata.context_window_size != -1) {
-        this.maxWindowLength = metadata.context_window_size;
-        this.logger("Using maxWindowLength: ", this.maxWindowLength);
-      } else if (metadata.hasOwnProperty("max_window_size") && metadata.max_window_size != -1) {
-        this.maxWindowLength = metadata.max_window_size;
-        this.logger("Using maxWindowLength: ", this.maxWindowLength);
-      } else {
-        throw Error("Need to specify either sliding window size or max window size.");
-      }
+      throw Error("Need to specify either sliding window size or max window size.");
     }
 
     // 5. Create cache
-    // Use `fcreateCache` to determine whether we are using the new KVCache implementation
-    let fcreateCache;
-    try {
-      if (useSLIM) {
-        fcreateCache = this.vm.getFunction("_initialize_effect");
-      } else {
-        fcreateCache = this.vm.getFunction("create_kv_cache");
-      }
-    } catch (err) {
-      // If we cannot find function above, it means that we are using the new PagedKVCache
-      this.usePagedKVCache = true;
-      fcreateCache = this.vm.getFunction("create_tir_paged_kv_cache");
-      console.log("Using Paged KVCache");
-      if (this.embed === undefined) {
-        throw Error("If using paged KVCache, method `embed()` needs to be defined.");
-      }
-    }
-
     // Load cache functions and instantiate KVCache
-    if (this.usePagedKVCache) {
-      try {
-        this.fclearKVCaches = this.tvm.detachFromCurrentScope(
-          this.tvm.getGlobalFunc("vm.builtin.kv_state_clear")
-        );
-        this.fKVCacheAddSequence = this.tvm.detachFromCurrentScope(
-          this.tvm.getGlobalFunc("vm.builtin.kv_state_add_sequence")
-        );
-        this.fKVCacheRemoveSequence = this.tvm.detachFromCurrentScope(
-          this.tvm.getGlobalFunc("vm.builtin.kv_state_remove_sequence")
-        );
-        this.fKVCacheBeginForward = this.tvm.detachFromCurrentScope(
-          this.tvm.getGlobalFunc("vm.builtin.kv_state_begin_forward")
-        );
-        this.fKVCacheEndForward = this.tvm.detachFromCurrentScope(
-          this.tvm.getGlobalFunc("vm.builtin.kv_state_end_forward")
-        );
-      } catch (err) {
-        // If we cannot find the functions above, it means we are using an older build of binary
-        // TODO: Remove this when all prebuilts are updated
-        this.fclearKVCaches = this.tvm.detachFromCurrentScope(
-          this.tvm.getGlobalFunc("vm.builtin.paged_attention_kv_cache_clear")
-        );
-        this.fKVCacheAddSequence = this.tvm.detachFromCurrentScope(
-          this.tvm.getGlobalFunc("vm.builtin.paged_attention_kv_cache_add_sequence")
-        );
-        this.fKVCacheRemoveSequence = this.tvm.detachFromCurrentScope(
-          this.tvm.getGlobalFunc("vm.builtin.paged_attention_kv_cache_remove_sequence")
-        );
-        this.fKVCacheBeginForward = this.tvm.detachFromCurrentScope(
-          this.tvm.getGlobalFunc("vm.builtin.paged_attention_kv_cache_begin_forward")
-        );
-        this.fKVCacheEndForward = this.tvm.detachFromCurrentScope(
-          this.tvm.getGlobalFunc("vm.builtin.paged_attention_kv_cache_end_forward")
-        );
-      }
+    this.fclearKVCaches = this.tvm.detachFromCurrentScope(
+      this.tvm.getGlobalFunc("vm.builtin.kv_state_clear")
+    );
+    this.fKVCacheAddSequence = this.tvm.detachFromCurrentScope(
+      this.tvm.getGlobalFunc("vm.builtin.kv_state_add_sequence")
+    );
+    this.fKVCacheRemoveSequence = this.tvm.detachFromCurrentScope(
+      this.tvm.getGlobalFunc("vm.builtin.kv_state_remove_sequence")
+    );
+    this.fKVCacheBeginForward = this.tvm.detachFromCurrentScope(
+      this.tvm.getGlobalFunc("vm.builtin.kv_state_begin_forward")
+    );
+    this.fKVCacheEndForward = this.tvm.detachFromCurrentScope(
+      this.tvm.getGlobalFunc("vm.builtin.kv_state_end_forward")
+    );
+    this.fKVCacheEnableSlidingWindowForSeq = this.tvm.detachFromCurrentScope(
+      this.tvm.getGlobalFunc("vm.builtin.attention_kv_cache_enable_sliding_window_for_seq")
+    );
 
-      // Create PagedKVCache; we do not expose KVCache config for now
-      const defaultPageSize = 16;
-      const defaultMaxNumSequence = 1;
-      try {
-        this.kvCache = this.tvm.detachFromCurrentScope(fcreateCache(
-          this.tvm.makeShapeTuple([defaultMaxNumSequence]),  // max_num_sequence
-          this.tvm.makeShapeTuple([this.maxWindowLength]),  // max_total_sequence_length
-          this.tvm.makeShapeTuple([this.prefillChunkSize]),  // prefill_chunk_size
-          this.tvm.makeShapeTuple([defaultPageSize]),  // page_size, hard coded for now
-          this.tvm.makeShapeTuple([this.slidingWindowSize != -1 ? 1 : 0]),
-        ));
-      } catch (err) {
-        // If we cannot find the functions above, it means we are using an older build of binary
-        // TODO: Remove this when all prebuilts are updated
-        this.kvCache = this.tvm.detachFromCurrentScope(fcreateCache(
-          this.tvm.makeShapeTuple([defaultMaxNumSequence]),  // max_num_sequence
-          this.tvm.makeShapeTuple([this.maxWindowLength]),  // max_total_sequence_length
-          this.tvm.makeShapeTuple([this.prefillChunkSize]),  // prefill_chunk_size
-          this.tvm.makeShapeTuple([defaultPageSize]),  // page_size, hard coded for now
-        ));
-      }
-    } else {
-      this.fclearKVCaches = this.tvm.detachFromCurrentScope(
-        this.tvm.getGlobalFunc("vm.builtin.attention_kv_cache_array_clear")
-      );
-      this.kvCache = this.tvm.detachFromCurrentScope(fcreateCache());
-    }
+    // Create PagedKVCache; we do not expose KVCache config for now
+    const fcreateCache = this.vm.getFunction("create_tir_paged_kv_cache");
+    const defaultPageSize = 16;
+    const defaultMaxNumSequence = 1;
+    const maxTotalSeqLen =
+      this.slidingWindowSize != -1 ? this.slidingWindowSize : this.maxWindowLength;
+    this.kvCache = this.tvm.detachFromCurrentScope(fcreateCache(
+      this.tvm.makeShapeTuple([defaultMaxNumSequence]),  // max_num_sequence
+      this.tvm.makeShapeTuple([maxTotalSeqLen]),  // max_total_sequence_length
+      this.tvm.makeShapeTuple([this.prefillChunkSize]),  // prefill_chunk_size
+      this.tvm.makeShapeTuple([defaultPageSize]),  // page_size, hard coded for now
+      this.tvm.makeShapeTuple([this.slidingWindowSize != -1 ? 1 : 0]),
+    ));
+
     this.filledKVCacheLength = 0;
     this.resetChat();  // especially needed for PagedKVCache as we need to call fKVCacheAddSequence
     tvm.endScope();
   }
 
   dispose() {
+    // TODO: Do we need to dispose all PackedFuncs here?
+    this.grammarFactory.dispose();
+    this.grammarStateMatcher?.dispose();
     this.params.dispose();
     this.decoding.dispose();
     this.prefill.dispose();
@@ -308,15 +244,15 @@ export class LLMChatPipeline {
    * Reset the chat history
    */
   resetChat(keepStats = false) {
+    this.tvm.beginScope();
     this.conversation.reset();
     if (!keepStats) {
       this.resetRuntimeStats();
     }
     this.resetKVCache();
     this.filledKVCacheLength = 0;
-    this.sinkTriggered = false;
-    this.slidingWindowCacheOffset = 0;
     this.logitProcessor?.resetState();
+    this.tvm.endScope();
   }
 
   /**
@@ -324,8 +260,14 @@ export class LLMChatPipeline {
    */
   resetKVCache() {
     this.fclearKVCaches(this.kvCache);
-    if (this.usePagedKVCache) {
-      this.fKVCacheAddSequence!(this.kvCache, new tvmjs.Scalar(0, "int64"));
+    this.fKVCacheAddSequence!(this.kvCache, new tvmjs.Scalar(0, "int64"));
+    if (this.slidingWindowSize != -1) {
+      this.fKVCacheEnableSlidingWindowForSeq(
+        this.kvCache,
+        new tvmjs.Scalar(0, "int64"),
+        new tvmjs.Scalar(this.slidingWindowSize, "int32"),
+        new tvmjs.Scalar(this.attentionSinkSize, "int32")
+      );
     }
   }
 
@@ -384,45 +326,17 @@ export class LLMChatPipeline {
 
   // Getters and setters for this.conversation.
   /**
-   * Overrides the system prompt.
+   * @returns The conversation object (not a deep copy).
    */
-  overrideSystemPrompt(system: string): void {
-    this.conversation.config.system_message = system;
+  getConversationObject(): Conversation {
+    return this.conversation;
   }
 
   /**
-   * Append a new message to `this.conversation`.
+   * Set this.conversation to a new conversation object.
    */
-  appendConversationMessage(role: Role, input: string, role_name?: string): void {
-    this.conversation.appendMessage(role, input, role_name);
-  }
-
-  /**
-   * Override this.conversation.use_function_calling and
-   * this.conversation.function_string
-   * 
-   * @param use_function_calling 
-   * @param function_string 
-   */
-  overrideFunctionCalling(use_function_calling: boolean, function_string: string) : void {
-    this.conversation.use_function_calling = use_function_calling;
-    this.conversation.function_string = function_string;
-  }
-
-  /**
-   * Get this.conversation.messages.
-   */
-  getConversationMessages(): Array<[Role, string, string | undefined]> {
-    // TODO(Charlie): Do we need to make a deep copy here?
-    return this.conversation.messages;
-  }
-
-  /**
-   * @returns the roles of this.conversation's conversation template of lengths of two.
-   */
-  getRoles(): Array<string> {
-    const roles = this.conversation.config.roles;
-    return [roles[Role.user], roles[Role.assistant]];
+  setConversation(newConv: Conversation) {
+    this.conversation = newConv;
   }
 
   async asyncLoadWebGPUPipelines() {
@@ -462,30 +376,31 @@ export class LLMChatPipeline {
     for (let begin = 0; begin < tokenLen; begin += this.prefillChunkSize) {
       const end = Math.min(tokenLen, begin + this.prefillChunkSize);
       const chunk = promptTokens.slice(begin, end);
-      const inputData = this.tvm.empty([1, chunk.length], "int32", this.device);
+      const inputData = this.tvm.empty([chunk.length], "int32", this.device);
       inputData.copyFrom(chunk);
       newSeqLen += chunk.length;
       logits = this.tvm.detachFromCurrentScope(
-        this.forward(inputData, newSeqLen)
+        this.forward(inputData)
       );
-
-      // Update window cache offset (prefill)
-      if (this.slidingWindowSize != -1) {
-        if (this.sinkTriggered) {
-          this.slidingWindowCacheOffset = Math.max(
-            (this.slidingWindowCacheOffset + chunk.length) % this.slidingWindowSize,
-            this.attentionSinkSize
-          )
-        } else {
-          this.slidingWindowCacheOffset += chunk.length;
-          this.sinkTriggered = this.slidingWindowCacheOffset >= this.attentionSinkSize;
-        }
-      }
     }
     if (newSeqLen != this.filledKVCacheLength + tokenLen) {
       throw Error("Expect chunking process all tokens.")
     }
     this.filledKVCacheLength = newSeqLen;
+
+    // Instantiate grammar state matcher according to generation config
+    if (this.grammarStateMatcher) {
+      this.grammarStateMatcher.dispose();
+    }
+    if (genConfig?.response_format?.type === "json_object") {
+      // Currently only support JSON grammar
+      const JSONgrammar = this.grammarFactory.getBNFGrammarOfJSON();
+      this.tokenTable = getTokenTableFromTokenizer(this.tokenizer);
+      this.grammarStateMatcher = this.tvm.detachFromCurrentScope(
+        this.grammarFactory.getGrammarStateMatcherFromTokenTable(JSONgrammar, this.tokenTable)
+      );
+    }
+
     this.tvm.endScope();
 
     const nextToken = await this.sampleTokenFromLogits(logits, genConfig);
@@ -507,26 +422,13 @@ export class LLMChatPipeline {
     const tstart = performance.now();
 
     this.tvm.beginScope();
-    const inputData = this.tvm.empty([1, 1], "int32", this.device);
+    const inputData = this.tvm.empty([1], "int32", this.device);
     inputData.copyFrom(this.outputIds.slice(this.outputIds.length - 1));
 
     const logits = this.tvm.detachFromCurrentScope(
-      this.forward(inputData, this.filledKVCacheLength + 1)
+      this.forward(inputData)
     );
     this.filledKVCacheLength += 1;
-
-    // Update window cache offset (decoding)
-    if (this.slidingWindowSize != -1) {
-      if (this.sinkTriggered) {
-        this.slidingWindowCacheOffset = Math.max(
-          (this.slidingWindowCacheOffset + 1) % this.slidingWindowSize,
-          this.attentionSinkSize
-        )
-      } else {
-        this.slidingWindowCacheOffset += 1;
-        this.sinkTriggered = this.slidingWindowCacheOffset >= this.attentionSinkSize;
-      }
-    }
     this.tvm.endScope();
 
     // sample from logits
@@ -620,61 +522,21 @@ export class LLMChatPipeline {
     }
   }
 
-  private forward(inputs: tvmjs.NDArray, curPos: number): tvmjs.NDArray {
+  private forward(inputs: tvmjs.NDArray): tvmjs.NDArray {
     this.tvm.beginScope();
     let retValue;
-    const seqLen = inputs.shape[1];  // Num input tokens
-    const seqLenShape = this.tvm.makeShapeTuple([curPos]);
+    const seqLen = inputs.shape[0];  // Num input tokens
+    const seqIdsTuple = this.tvm.makeShapeTuple([0]);
+    const inputLenShape = this.tvm.makeShapeTuple([seqLen]);
+    this.fKVCacheBeginForward!(this.kvCache, seqIdsTuple, inputLenShape);
+    let embed = this.embed!(inputs, this.params);
+    embed = embed.view([1].concat(embed.shape));  // Reshape to [1, seqLen, hiddenSize]
     if (seqLen > 1) {
-      // Prefill
-      if (this.slidingWindowSize == -1) {
-        if (this.usePagedKVCache) {
-          const seqIdsTuple = this.tvm.makeShapeTuple([0]);
-          const inputLenShape = this.tvm.makeShapeTuple([seqLen]);
-          this.fKVCacheBeginForward!(this.kvCache, seqIdsTuple, inputLenShape);
-          const embed = this.embed!(inputs, this.params);
-          retValue = this.prefill(embed, this.kvCache, this.params);
-          this.fKVCacheEndForward!(this.kvCache);
-        } else {
-          retValue = this.prefill(inputs, seqLenShape, this.kvCache, this.params);
-        }
-      } else {
-        // Sliding window attention needs extra shape parameters
-        const cacheLen = Math.min(this.slidingWindowSize, curPos - seqLen);  // Num elements in the cache
-        const cacheLenShape = this.tvm.makeShapeTuple([cacheLen]);
-        const kvSeqLenShape = this.tvm.makeShapeTuple([cacheLen + seqLen]);
-        // Next position to be overridden on the rolling kv cache.
-        const slidingWindowCacheOffsetShape = this.tvm.makeShapeTuple([this.slidingWindowCacheOffset]);
-        retValue = this.prefill(
-          inputs, cacheLenShape, kvSeqLenShape, slidingWindowCacheOffsetShape, this.kvCache, this.params
-        );
-      }
+      retValue = this.prefill(embed, this.kvCache, this.params);
     } else {
-      // Decode
-      if (this.slidingWindowSize == -1) {
-        if (this.usePagedKVCache) {
-          const seqIdsTuple = this.tvm.makeShapeTuple([0]);
-          const appendLength = this.tvm.makeShapeTuple([1]);
-          this.fKVCacheBeginForward!(this.kvCache, seqIdsTuple, appendLength);
-          const embed = this.embed!(inputs, this.params);
-          retValue = this.decoding(embed, this.kvCache, this.params);
-          this.fKVCacheEndForward!(this.kvCache);
-        } else {
-          retValue = this.decoding(inputs, seqLenShape, this.kvCache, this.params);
-        }
-      } else {
-        // Same logic as above; keeping this if-else structure to match mlc-llm's llm_chat.cc
-        const seqLen = inputs.shape[1];  // Num input tokens
-        const cacheLen = Math.min(this.slidingWindowSize, curPos - seqLen);  // Num elements in the cache
-        const cacheLenShape = this.tvm.makeShapeTuple([cacheLen]);
-        const kvSeqLenShape = this.tvm.makeShapeTuple([cacheLen + seqLen]);
-        // Next position to be overridden on the rolling kv cache.
-        const slidingWindowCacheOffsetShape = this.tvm.makeShapeTuple([this.slidingWindowCacheOffset]);
-        retValue = this.decoding(
-          inputs, cacheLenShape, kvSeqLenShape, slidingWindowCacheOffsetShape, this.kvCache, this.params
-        );
-      }
+      retValue = this.decoding(embed, this.kvCache, this.params);
     }
+    this.fKVCacheEndForward!(this.kvCache);
     const logits = this.tvm.detachFromCurrentScope(retValue.get(0));
     this.tvm.endScope();
     this.tvm.attachToCurrentScope(logits);
@@ -714,6 +576,7 @@ export class LLMChatPipeline {
     let logit_bias: Record<string, number> | undefined = undefined;
     let logprobs: boolean | undefined = undefined;
     let top_logprobs: number | undefined = undefined;
+    let response_format: ResponseFormat | undefined = undefined;
 
     if (genConfig !== undefined) {
       if (_hasValue(genConfig.temperature)) { temperature = genConfig.temperature!; }
@@ -727,9 +590,10 @@ export class LLMChatPipeline {
       if (_hasValue(genConfig.logit_bias)) { logit_bias = genConfig.logit_bias!; }
       if (_hasValue(genConfig.logprobs)) { logprobs = genConfig.logprobs!; }
       if (_hasValue(genConfig.top_logprobs)) { top_logprobs = genConfig.top_logprobs!; }
+      if (_hasValue(genConfig.response_format)) { response_format = genConfig.response_format!; }
     }
     // Check range validity
-    if (top_p <= 0 || top_p >= 1) { throw new Error("Make sure 0 < `top_p` < 1."); }
+    if (top_p <= 0 || top_p > 1) { throw new Error("Make sure 0 < `top_p` <= 1."); }
     if (temperature < 0) { throw new Error("Make sure `temperature` >= 0."); }
     if (repetition_penalty <= 0) { throw new Error("Make sure `repetition_penalty` > 0."); }
     if (frequency_penalty && (frequency_penalty < -2.0 || frequency_penalty > 2.0)) {
@@ -737,6 +601,22 @@ export class LLMChatPipeline {
     }
     if (presence_penalty && (presence_penalty < -2.0 || presence_penalty > 2.0)) {
       throw new Error("`presence_penalty` should be between -2.0 and 2.0.");
+    }
+
+    // 0. Update logitsOnGPU with on-GPU grammar bitmasking
+    if (response_format?.type === "json_object") {
+      this.tvm.beginScope();
+      if (this.grammarStateMatcher === undefined) {
+        throw Error("Expect grammar state matcher to be initialized.");
+      }
+      // TODO(Charlie): Do we detach from current scope here for bitmask?
+      const bitMaskOnCPU = this.grammarFactory.findNextTokenBitmask(
+        this.grammarStateMatcher) as unknown as tvmjs.NDArray;
+      const bitMaskOnGPU = this.tvm.empty([1, this.bitmaskSize], "int32",
+        this.device).copyFrom(bitMaskOnCPU);
+      const seqIdsArray = this.tvm.empty([1], "int32", this.device).copyFrom([0]);
+      this.fapplyBitmask(logitsOnGPU.view([1, this.vocabSize]), seqIdsArray, bitMaskOnGPU);
+      this.tvm.endScope();
     }
 
     // 1. Move logits to CPU
@@ -818,6 +698,19 @@ export class LLMChatPipeline {
 
     // 5. Update logit processor
     this.logitProcessor?.processSampledToken(sampledToken);
+
+    // 6. Update grammar state matcher with new token
+    if (response_format?.type === "json_object") {
+      this.tvm.beginScope();
+      if (this.grammarStateMatcher === undefined) {
+        throw Error("Expect grammar state matcher to be initialized.");
+      }
+      const accepted = this.grammarFactory.acceptToken(this.grammarStateMatcher, sampledToken);
+      if (!accepted) {
+        throw Error("Grammar state matcher rejected the newly sampled token.");
+      }
+      this.tvm.endScope();
+    }
 
     return sampledToken;
   }
@@ -917,17 +810,15 @@ export class LLMChatPipeline {
     return tokens;
   }
 
-  async forwardTokensAndSample(
-    inputIds: Array<number>, curPos: number, isPrefill: boolean
-  ): Promise<number> {
+  async forwardTokensAndSample(inputIds: Array<number>, isPrefill: boolean): Promise<number> {
     // 1. Convert input to NDArray
     const tstart = performance.now();
     this.tvm.beginScope();
-    const inputData = this.tvm.empty([1, inputIds.length], "int32", this.device);
+    const inputData = this.tvm.empty([inputIds.length], "int32", this.device);
     inputData.copyFrom(inputIds);
 
     // 2. Forward tokens and get logits
-    const logitsOnGPU: tvmjs.NDArray = this.forward(inputData, curPos);
+    const logitsOnGPU: tvmjs.NDArray = this.forward(inputData);
     const nextToken = await this.sampleTokenFromLogits(logitsOnGPU);
     this.tvm.endScope();
 
@@ -1005,18 +896,18 @@ export class LLMChatPipeline {
     }
 
     this.tvm.beginScope();
-    const inputData = this.tvm.empty([1, tokens.length], "int32", this.device);
+    const inputData = this.tvm.empty([tokens.length], "int32", this.device);
     inputData.copyFrom(tokens);
     const prefillStart = performance.now();
-    this.forward(inputData, tokens.length);
+    this.forward(inputData);
     this.tvm.endScope();
     await this.device.sync();
 
     const decodingStart = performance.now();
 
     this.tvm.beginScope();
-    const firstSampleToken = this.tvm.empty([1, 1], "int32", this.device).copyFrom([6234]);
-    const logitsOnCPU = this.updateLogitsOnCPU(this.forward(firstSampleToken, tokens.length + 1));
+    const firstSampleToken = this.tvm.empty([1], "int32", this.device).copyFrom([6234]);
+    const logitsOnCPU = this.updateLogitsOnCPU(this.forward(firstSampleToken));
     await this.device.sync();
     this.tvm.endScope();
 

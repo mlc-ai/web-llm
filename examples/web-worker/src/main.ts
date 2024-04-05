@@ -62,7 +62,6 @@ async function mainOpenAIAPINonStreaming() {
   await chat.reload("Llama-2-7b-chat-hf-q4f32_1");
 
   const request: webllm.ChatCompletionRequest = {
-    // stateful: true,  // set this optionally to preserve chat history
     messages: [
       {
         "role": "system",
@@ -102,7 +101,6 @@ async function mainOpenAIAPIStreaming() {
   await chat.reload("Llama-2-7b-chat-hf-q4f32_1");
 
   const request: webllm.ChatCompletionRequest = {
-    // stateful: true,  // set this optionally to preserve chat history
     stream: true,
     messages: [
       {

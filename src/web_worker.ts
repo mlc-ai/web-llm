@@ -28,13 +28,13 @@ type RequestKind = (
 );
 
 interface ReloadParams {
-  localIdOrUrl: string;
+  modelId: string;
   chatOpts?: ChatOptions;
   appConfig?: AppConfig
 }
 
 interface GenerateParams {
-  input: string | Array<ChatCompletionMessageParam>,
+  input: string | ChatCompletionRequestNonStreaming,
   streamInterval?: number;
   genConfig?: GenerationConfig;
 }
@@ -50,7 +50,6 @@ interface GenerateProgressCallbackParams {
 
 interface ForwardTokensAndSampleParams {
   inputIds: Array<number>;
-  curPos: number;
   isPrefill: boolean;
 }
 
@@ -147,7 +146,7 @@ export class ChatWorkerHandler {
       case "reload": {
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ReloadParams;
-          await this.chat.reload(params.localIdOrUrl, params.chatOpts, params.appConfig);
+          await this.chat.reload(params.modelId, params.chatOpts, params.appConfig);
           return null;
         })
         return;
@@ -178,7 +177,7 @@ export class ChatWorkerHandler {
       case "forwardTokensAndSample": {
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ForwardTokensAndSampleParams;
-          return await this.chat.forwardTokensAndSample(params.inputIds, params.curPos, params.isPrefill);
+          return await this.chat.forwardTokensAndSample(params.inputIds, params.isPrefill);
         })
         return;
       }
@@ -324,12 +323,12 @@ export class ChatWorkerClient implements ChatInterface {
     return promise;
   }
 
-  async reload(localIdOrUrl: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
+  async reload(modelId: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
     const msg: WorkerMessage = {
       kind: "reload",
       uuid: crypto.randomUUID(),
       content: {
-        localIdOrUrl: localIdOrUrl,
+        modelId: modelId,
         chatOpts: chatOpts,
         appConfig: appConfig,
       }
@@ -365,7 +364,7 @@ export class ChatWorkerClient implements ChatInterface {
   }
 
   async generate(
-    input: string | Array<ChatCompletionMessageParam>,
+    input: string | ChatCompletionRequestNonStreaming,
     progressCallback?: GenerateProgressCallback,
     streamInterval?: number,
     genConfig?: GenerationConfig,
@@ -423,15 +422,12 @@ export class ChatWorkerClient implements ChatInterface {
     await this.getPromise<null>(msg);
   }
 
-  async forwardTokensAndSample(
-    inputIds: Array<number>, curPos: number, isPrefill: boolean
-  ): Promise<number> {
+  async forwardTokensAndSample(inputIds: Array<number>, isPrefill: boolean): Promise<number> {
     const msg: WorkerMessage = {
       kind: "forwardTokensAndSample",
       uuid: crypto.randomUUID(),
       content: {
         inputIds: inputIds,
-        curPos: curPos,
         isPrefill: isPrefill
       }
     };

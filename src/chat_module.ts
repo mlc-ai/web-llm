@@ -7,8 +7,7 @@ import {
   prebuiltAppConfig,
   GenerationConfig,
   postInitAndCheckGenerationConfigValues,
-  ModelRecord,
-  Role
+  Role,
 } from "./config";
 import { LLMChatPipeline } from "./llm_chat"
 import {
@@ -30,12 +29,13 @@ import {
   GenerateProgressCallback,
   LogitProcessor
 } from "./types";
+import { Conversation, compareConversationObject, getConversation } from "./conversation"
 
 /**
  * This is the main interface to the chat module.
  */
 export class ChatModule implements ChatInterface {
-  private currentLocaId?: string = undefined;  // Model current loaded, undefined if nothing is loaded
+  private currentModelId?: string = undefined;  // Model current loaded, undefined if nothing is loaded
   private logger: (msg: string) => void = console.log;
   private logitProcessorRegistry?: Map<string, LogitProcessor>;
   private logitProcessor?: LogitProcessor;
@@ -43,6 +43,7 @@ export class ChatModule implements ChatInterface {
   private initProgressCallback?: InitProgressCallback;
   private interruptSignal = false;
   private deviceLostIsError = false;  // whether device.lost is due to actual error or model reload
+  private config?: ChatConfig;
 
   constructor(logitProcessorRegistry?: Map<string, LogitProcessor>) {
     this.logitProcessorRegistry = logitProcessorRegistry;
@@ -52,11 +53,11 @@ export class ChatModule implements ChatInterface {
     this.initProgressCallback = initProgressCallback;
   }
 
-  async reload(localId: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
+  async reload(modelId: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
     this.deviceLostIsError = false;  // so that unload() does not trigger device.lost warning
     this.unload();
 
-    this.logitProcessor = this.logitProcessorRegistry?.get(localId);
+    this.logitProcessor = this.logitProcessorRegistry?.get(modelId);
     const tstart = performance.now();
     if (appConfig === undefined) {
       appConfig = prebuiltAppConfig;
@@ -64,10 +65,10 @@ export class ChatModule implements ChatInterface {
 
     const findModelRecord = () => {
       const matchedItem = appConfig?.model_list.find(
-        item => item.local_id == localId
+        item => item.model_id == modelId
       );
       if (matchedItem !== undefined) return matchedItem;
-      throw Error("Cannot find model_url for " + localId);
+      throw Error("Cannot find model_url for " + modelId);
     }
 
     const modelRecord = findModelRecord();
@@ -80,7 +81,7 @@ export class ChatModule implements ChatInterface {
 
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
-    const config = {
+    this.config = {
       ...(await configCache.fetchWithCache(configUrl, "json")),
       ...chatOpts
     } as ChatConfig;
@@ -155,10 +156,9 @@ export class ChatModule implements ChatInterface {
       }
     });
     this.deviceLostIsError = true;
-    const tokenizer = await this.asyncLoadTokenizer(modelUrl, config);
+    const tokenizer = await this.asyncLoadTokenizer(modelUrl, this.config);
     await tvm.fetchNDArrayCache(modelUrl, tvm.webgpu(), "webllm/model", "indexdb");
-
-    this.pipeline = new LLMChatPipeline(tvm, tokenizer, config, this.logitProcessor);
+    this.pipeline = new LLMChatPipeline(tvm, tokenizer, this.config, this.logitProcessor);
     await this.pipeline?.asyncLoadWebGPUPipelines();
     const tend = performance.now();
 
@@ -170,11 +170,11 @@ export class ChatModule implements ChatInterface {
         text: text
       })
     }
-    this.currentLocaId = localId;
+    this.currentModelId = modelId;
   }
 
   async generate(
-    input: string | Array<ChatCompletionMessageParam>,
+    input: string | ChatCompletionRequestNonStreaming,
     progressCallback?: GenerateProgressCallback,
     streamInterval = 1,
     genConfig?: GenerationConfig,
@@ -213,11 +213,8 @@ export class ChatModule implements ChatInterface {
     if (request.seed !== null && request.seed !== undefined) {
       this.getPipeline().setSeed(request.seed);
     }
-    if (!request.stateful) {
-      await this.resetChat();
-    }
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const model = this.currentLocaId!;
+    const model = this.currentModelId!;
     const created = Date.now();
     const id = crypto.randomUUID();
     this.interruptSignal = false;
@@ -248,7 +245,7 @@ export class ChatModule implements ChatInterface {
       return chunk;
     }
 
-    await this.prefill(request.messages, genConfig);
+    await this.prefill(request, genConfig);
     yield await _getChunk(this);  // prefill produces a chunk
 
     while (!this.stopped()) {
@@ -286,8 +283,7 @@ export class ChatModule implements ChatInterface {
    * @param request A OpenAI-style ChatCompletion request.
    * 
    * @note For each choice (i.e. `n`), a request is defined by a single `prefill()` and mulitple
-   * `decode()`. This is important as it determines the behavior of various fields including
-   * `stateful` and `seed`.
+   * `decode()`. This is important as it determines the behavior of various fields including `seed`.
    */
   async chatCompletion(
     request: ChatCompletionRequestNonStreaming
@@ -302,7 +298,7 @@ export class ChatModule implements ChatInterface {
     request: ChatCompletionRequest
   ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
     // 0. Preprocess inputs
-    if (!this.currentLocaId) {
+    if (!this.currentModelId) {
       throw new Error("Please call `ChatModule.reload(model)` first.");
     }
     ChatCompletionAPI.postInitAndCheckFields(request);
@@ -316,11 +312,7 @@ export class ChatModule implements ChatInterface {
       logit_bias: request.logit_bias,
       logprobs: request.logprobs,
       top_logprobs: request.top_logprobs,
-    }
-
-    const error_msg = this.checkFunctionCallUsage(request);
-    if (error_msg) {
-      throw new Error(error_msg);
+      response_format: request.response_format,
     }
 
     // 1. If request is streaming, return an AsyncIterable (an iterable version of `generate()`)
@@ -338,9 +330,6 @@ export class ChatModule implements ChatInterface {
     let completion_tokens = 0;
     let prompt_tokens = 0;
     for (let i = 0; i < n; i++) {
-      if (!request.stateful) {
-        await this.resetChat();
-      }
       let outputMessage: string;
       if (this.interruptSignal) {
         // A single interrupt signal should stop all choices' generations
@@ -348,7 +337,7 @@ export class ChatModule implements ChatInterface {
         outputMessage = "";
       } else {
         outputMessage = await this.generate(
-          request.messages,
+          request,
           /*progressCallback=*/undefined,
           /*streamInterval=*/1,
           /*genConfig=*/genConfig
@@ -373,7 +362,7 @@ export class ChatModule implements ChatInterface {
     const response: ChatCompletion = {
       id: crypto.randomUUID(),
       choices: choices,
-      model: this.currentLocaId,
+      model: this.currentModelId,
       object: "chat.completion",
       created: Date.now(),
       usage: {
@@ -405,7 +394,7 @@ export class ChatModule implements ChatInterface {
   async unload() {
     this.pipeline?.dispose();
     this.pipeline = undefined;
-    this.currentLocaId = undefined;
+    this.currentModelId = undefined;
   }
 
   async getMaxStorageBufferBindingSize(): Promise<number> {
@@ -447,10 +436,8 @@ export class ChatModule implements ChatInterface {
   //--------------------------
   // Lower level API
   //--------------------------
-  async forwardTokensAndSample(
-    inputIds: Array<number>, curPos: number, isPrefill: boolean
-  ): Promise<number> {
-    return this.getPipeline().forwardTokensAndSample(inputIds, curPos, isPrefill);
+  async forwardTokensAndSample(inputIds: Array<number>, isPrefill: boolean): Promise<number> {
+    return this.getPipeline().forwardTokensAndSample(inputIds, isPrefill);
   }
 
   /**
@@ -477,42 +464,44 @@ export class ChatModule implements ChatInterface {
   }
 
   /**
-   * Modify this.getPipeline().conversation according to the user provided messages.
-   * This include modifying `Conversation.messges` and `Conversation.config.system`.
+   * Get a new Conversation object based on the chat completion request.
    * 
-   * @param input The messages from ChatCompletionRequest
-   * @note `input[-1]` is not included as it would be treated as a normal input to `prefill()`.
+   * @param request The incoming ChatCompletionRequest
+   * @note `request.messages[-1]` is not included as it would be treated as a normal input to
+   * `prefill()`.
    */
-  private updateConversationWithChatCompletionMessages(
-    input: Array<ChatCompletionMessageParam>
-  ): void {
-    let hasHistory = false;
-    if (this.getPipeline().getConversationMessages().length > 0) {
-      hasHistory = true;
-    }
+  private getConversationFromChatCompletionRequest(
+    request: ChatCompletionRequest,
+    config: ChatConfig
+  ): Conversation {
+    // 0. Instantiate a new Conversation object
+    const conversation = getConversation(config.conv_template, config.conv_config);
+
+    // 1. Populate function-calling-related fields
+    const functionCallUsage = this.getFunctionCallUsage(request);
+    conversation.function_string = functionCallUsage;
+    conversation.use_function_calling = functionCallUsage === "";
+
+    // 2. Populate conversation.messages
+    const input = request.messages;
     const lastId = input.length - 1;
     if (input[lastId].role !== "user" || typeof input[lastId].content !== "string") {
       // TODO(Charlie): modify condition after we support multimodal inputs
       throw Error("The last message should be a string from the `user`.")
     }
-    // We prepare to override the message history
-    const roles: Array<string> = this.getPipeline().getRoles();
     for (let i = 0; i < input.length - 1; i++) {
-      const message = input[i];
+      const message: ChatCompletionMessageParam = input[i];
       if (message.role === "system") {
         if (i !== 0) {
           throw new Error("System prompt should always be the first one in `messages`.");
         }
-        if (hasHistory) {
-          throw new Error("Can only modify system prompt in the first chat completion request.");
-        }
-        this.getPipeline().overrideSystemPrompt(message.content);
+        conversation.override_system_message = message.content;
       } else if (message.role === "user") {
         if (typeof message.content !== "string") {
           // TODO(Charlie): modify condition after we support multimodal inputs
           throw new Error("Last messages should be a string from the `user`.");
         }
-        this.getPipeline().appendConversationMessage(
+        conversation.appendMessage(
           Role.user,
           message.content,
           message.name
@@ -521,7 +510,7 @@ export class ChatModule implements ChatInterface {
         if (typeof message.content !== "string") {
           throw new Error("Assistant message should have string content.");
         }
-        this.getPipeline().appendConversationMessage(
+        conversation.appendMessage(
           Role.assistant,
           message.content,
           message.name
@@ -530,65 +519,86 @@ export class ChatModule implements ChatInterface {
         throw new Error("Unsupported role: " + message.role);
       }
     }
+    return conversation;
   }
 
-  private checkFunctionCallUsage(request: ChatCompletionRequest): string | null {
-    if (request.tools == undefined || 
-        (typeof request.tool_choice == "string" && request.tool_choice == "none")) {
-        this.getPipeline().overrideFunctionCalling(false, "");
-        return null;
+  /**
+   * Returns the function string based on the request.tools and request.tool_choice, raises erros if
+   * encounter invalid request.
+   * 
+   * @param request The chatCompletionRequest we are about to prefill for.
+   * @returns The string used to set Conversatoin.function_string
+   */
+  private getFunctionCallUsage(request: ChatCompletionRequest): string {
+    if (request.tools == undefined ||
+      (typeof request.tool_choice == "string" && request.tool_choice == "none")) {
+      return "";
     }
-
     if (typeof request.tool_choice == "string" && request.tool_choice !== "auto") {
-      return `Invalid tool choice value: ${request.tool_choice}`;
+      throw Error(`Invalid tool choice value: ${request.tool_choice}`);
     }
-
-    if (typeof request.tool_choice !== "string" && request.tool_choice?.type) {
-      return "Only 'function' tool choice is supported";
+    if (typeof request.tool_choice !== "string" && request.tool_choice?.type !== "function") {
+      throw Error("Only 'function' tool choice is supported");
     }
 
     const singleFunctionToCall = typeof request.tool_choice !== "string" && request.tool_choice?.function?.name;
-
     if (singleFunctionToCall) {
       for (const f of request.tools) {
         if (singleFunctionToCall == f.function.name) {
-          this.getPipeline().overrideFunctionCalling(true, JSON.stringify([f.function]));
-          return null;
+          return JSON.stringify([f.function]);
         }
       }
-
-      return `The tool choice function ${singleFunctionToCall} is not found in the tools list`;
+      throw Error(`The tool choice function ${singleFunctionToCall} is not found in the tools list`);
     }
 
-    let function_list = [];
+    const function_list = [];
     for (const f of request.tools) {
       if (f.type !== "function") {
-        return "Only 'function' tool type is supported";
+        throw Error("Only 'function' tool type is supported");
       }
-
       function_list.push(f.function);
     }
-    this.getPipeline().overrideFunctionCalling(true, JSON.stringify(function_list));
-    return null;
+    return JSON.stringify(function_list);
   }
 
   /**
    * Run a prefill step with a given input.
+   * 
+   * If `input` is a chatCompletionRequest, we treat `input.messages[-1]` as the usual user input.
+   * We then convert `input.messages[:-1]` to a `Conversation` object, representing a conversation
+   * history.
+   * 
+   * If the new `Conversation` object matches the current one loaded, it means we are
+   * performing multi-round chatting, so we do not reset, hence reusing KV cache. Otherwise, we
+   * reset every thing, treating the request as something completely new.
+   * 
    * @param input The input prompt, or `messages` in OpenAI-like APIs.
    */
   async prefill(
-    input: string | Array<ChatCompletionMessageParam>,
+    input: string | ChatCompletionRequest,
     genConfig?: GenerationConfig
   ) {
+    if (this.config === undefined) {
+      throw Error("Expect this.config to be initialized. Did you call `reload()`?");
+    }
     let input_str: string;
-    let input_role_str : string | undefined;
+    let input_role_str: string | undefined;
     if (typeof input === "string") {
       input_str = input;
     } else {
-      // Process ChatCompletionMessageParam
-      // We treat the last message as our usual input
-      this.updateConversationWithChatCompletionMessages(input);
-      const last_msg = input[input.length - 1] as ChatCompletionUserMessageParam;
+      // 1. Get new conversation based on request, determine if we are in multiround chatting
+      const oldConv = this.getPipeline().getConversationObject();
+      const newConv = this.getConversationFromChatCompletionRequest(input, this.config);
+      if (!compareConversationObject(oldConv, newConv)) {
+        // Not the same conversation, so not multiround chatting, reset everything (KV cache, etc.)
+        this.resetChat();
+        this.getPipeline().setConversation(newConv);
+      } else {
+        console.log("Multiround chatting, reuse KVCache.");
+      }
+
+      // 2. Treat the last message as the usual input
+      const last_msg = input.messages[input.messages.length - 1] as ChatCompletionUserMessageParam;
       input_str = last_msg.content as string;
       input_role_str = last_msg.name ? last_msg.name : undefined;
     }
@@ -644,7 +654,7 @@ export class ChatRestModule implements ChatInterface {
     this.initProgressCallback = initProgressCallback;
   }
 
-  async reload(localId: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
+  async reload(modelId: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
     throw new Error("Method not implemented.");
   }
 
@@ -669,7 +679,7 @@ export class ChatRestModule implements ChatInterface {
   }
 
   async forwardTokensAndSample(
-    inputIds: Array<number>, curPos: number, isPrefill: boolean
+    inputIds: Array<number>, isPrefill: boolean
   ): Promise<number> {
     throw new Error("Method not supported.");
   }
@@ -690,7 +700,7 @@ export class ChatRestModule implements ChatInterface {
   }
 
   async generate(
-    input: string | Array<ChatCompletionMessageParam>,
+    input: string | ChatCompletionRequestNonStreaming,
     progressCallback?: GenerateProgressCallback,
     streamInterval = 1,
     genConfig?: GenerationConfig,

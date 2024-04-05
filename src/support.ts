@@ -1,4 +1,5 @@
 /** Util methods. */
+import { Tokenizer } from "@mlc-ai/web-tokenizers";
 
 /**
  * Based on `p_prob` of size (vocabSize,) which becomes a distribution after calling
@@ -47,4 +48,55 @@ export function getTopProbs(
         }
     }
     return top_probs;
+}
+
+/**
+ * Post-process a raw token (which may be a raw byte or contain lower one eights block) to the
+ * actual token. We do this in order to conform with the tokenizers' setup.
+ * 
+ * Follow implementation of [https://github.com/mlc-ai/mlc-llm/blob/
+ * bcb9b6a33a672a70d760c9a8b03234124aab50c4/cpp/tokenizers.cc#L99]
+ */
+export function postProcessToken(token: string): string {
+    // 1. The token represents a byte.
+    const charCode0 = "0".charCodeAt(0);
+    const charCode9 = "9".charCodeAt(0);
+    const charCodeA = "A".charCodeAt(0);
+    if (token.length == 6 && token.substring(0, 3) === "<0x" && token.slice(-1) === ">") {
+        let byte = 0;
+        for (let i = 0; i < 2; i++) {
+            byte *= 16;
+            const curCharCode = token.charCodeAt(3 + i);
+            if (curCharCode >= charCode0 && curCharCode <= charCode9) {
+                byte += curCharCode - charCode0;
+            } else {
+                byte += curCharCode - charCodeA + 10;
+            }
+        }
+        if (byte < 0 || byte >= 256) {
+            throw Error("Expect byte to be in range [0, 256).")
+        }
+        return String.fromCharCode(byte);
+    }
+
+    // 2. The token contains lower one eight block which means space, e.g. `▁response` in Llama-2.
+    // https://www.compart.com/en/unicode/U+2581 
+    const lowerOneEighthBlock = "\u2581";
+    token = token.split(lowerOneEighthBlock).join(" ");
+
+    return token;
+}
+
+/**
+ * Get the token table in the form of a string list of tokens, ordered by their token id.
+ * @param tokenizer A loaded tokenizer.
+ */
+export function getTokenTableFromTokenizer(tokenizer: Tokenizer): string[] {
+    const tokenTable: string[] = [];
+    const vocabSize = tokenizer.getVocabSize();
+    for (let tokenId = 0; tokenId < vocabSize; tokenId++) {
+        const token = tokenizer.idToToken(tokenId);
+        tokenTable.push(postProcessToken(token));
+    }
+    return tokenTable;
 }

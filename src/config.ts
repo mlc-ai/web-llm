@@ -1,4 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
+
+import { ResponseFormat } from "./openai_api_protocols";
+
 /**
  * Conversation template config
  */
@@ -96,6 +99,7 @@ export interface GenerationConfig {
   logit_bias?: Record<string, number> | null;
   logprobs?: boolean | null;
   top_logprobs?: number | null;
+  response_format?: ResponseFormat | null;
 }
 
 export function postInitAndCheckGenerationConfigValues(config: GenerationConfig): void {
@@ -121,8 +125,8 @@ export function postInitAndCheckGenerationConfigValues(config: GenerationConfig)
   if (_hasValue(config.shift_fill_factor) && config.shift_fill_factor! <= 0 || config.shift_fill_factor! > 1) {
     throw new Error("Make sure 0 < `shift_fill_factor` <= 1.");
   }
-  if (_hasValue(config.top_p) && config.top_p! <= 0 || config.top_p! >= 1) {
-    throw new Error("Make sure 0 < `top_p` < 1.");
+  if (_hasValue(config.top_p) && config.top_p! <= 0 || config.top_p! > 1) {
+    throw new Error("Make sure 0 < `top_p` <= 1.");
   }
   if (_hasValue(config.temperature) && config.temperature! < 0) {
     throw new Error("Make sure `temperature` >= 0.");
@@ -174,7 +178,7 @@ export function postInitAndCheckGenerationConfigValues(config: GenerationConfig)
 /**
  * Information for a model.
  * @param model_url: the huggingface link to download the model weights.
- * @param local_id: what we call the model.
+ * @param model_id: what we call the model.
  * @param model_lib_url: link to the model library (wasm file) the model uses.
  * @param vram_required_MB: amount of vram in MB required to run the model (can use
  *    `utils/vram_requirements` to calculate).
@@ -184,7 +188,7 @@ export function postInitAndCheckGenerationConfigValues(config: GenerationConfig)
  */
 export interface ModelRecord {
   model_url: string;
-  local_id: string;
+  model_id: string;
   model_lib_url: string;
   vram_required_MB?: number;
   low_resource_required?: boolean;
@@ -203,19 +207,270 @@ export interface AppConfig {
 }
 
 /**
+ * modelVersion: the prebuilt model libraries that the current npm is compatible with, affects the
+ * `model_lib_url`s in `prebuiltAppConfig`.
+ * 
+ * @note The model version does not have to match the npm version, since not each npm update
+ * requires an update of the model libraries.
+ */
+export const modelVersion = "v0_2_30";
+export const modelLibURLPrefix =
+  "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/";
+
+/**
  * Default models and model library mapping to be used if unspecified.
+ * 
+ * @note This is the only source of truth of which prebuilt model libraries are compatible with the
+ * current WebLLM npm version.
  */
 export const prebuiltAppConfig: AppConfig = {
   model_list: [
-    {
-      "model_url": "https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC/resolve/main/",
-      "model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/RedPajama-INCITE-Chat-3B-v1/RedPajama-INCITE-Chat-3B-v1-q4f32_1-ctx2k-webgpu.wasm",
-      "local_id": "RedPajama-INCITE-Chat-3B-v1-q4f32_1",
-    },
+    // Llama-2
     {
       "model_url": "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f32_1-MLC/resolve/main/",
-      "model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Llama-2-7b-chat-hf/Llama-2-7b-chat-hf-q4f32_1-ctx4k_cs1k-webgpu.wasm",
-      "local_id": "Llama-2-7b-chat-hf-q4f32_1"
-    }
+      "model_id": "Llama-2-7b-chat-hf-q4f32_1",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/Llama-2-7b-chat-hf-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      "vram_required_MB": 9109.03,
+      "low_resource_required": false,
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f16_1-MLC/resolve/main/",
+      "model_id": "Llama-2-7b-chat-hf-q4f16_1",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/Llama-2-7b-chat-hf-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      "vram_required_MB": 6749.02,
+      "low_resource_required": false,
+      "required_features": ["shader-f16"],
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f16_1-MLC/resolve/main/",
+      "model_id": "Llama-2-7b-chat-hf-q4f16_1-1k",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/Llama-2-7b-chat-hf-q4f16_1-ctx1k-webgpu.wasm",
+      "vram_required_MB": 4618.52,
+      "low_resource_required": false,
+      "required_features": ["shader-f16"],
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/Llama-2-13b-chat-hf-q4f16_1-MLC/resolve/main/",
+      "model_id": "Llama-2-13b-chat-hf-q4f16_1",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/Llama-2-13b-chat-hf-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      "vram_required_MB": 11814.09,
+      "low_resource_required": false,
+      "required_features": ["shader-f16"],
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/Llama-2-70b-chat-hf-q4f16_1-MLC/resolve/main/",
+      "model_id": "Llama-2-70b-chat-hf-q4f16_1",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/Llama-2-70b-chat-hf-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      "vram_required_MB": 43729.05,
+      "low_resource_required": false,
+      "required_features": ["shader-f16"],
+    },
+    // Mistral variants
+    {
+      "model_url": "https://huggingface.co/mlc-ai/WizardMath-7B-V1.1-q4f16_1-MLC/resolve/main/",
+      "model_id": "WizardMath-7B-V1.1-q4f16_1",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/Mistral-7B-Instruct-v0.2-q4f16_1-sw4k_cs1k-webgpu.wasm",
+      "vram_required_MB": 6079.02,
+      "low_resource_required": false,
+      "required_features": ["shader-f16"],
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/Mistral-7B-Instruct-v0.2-q4f16_1-MLC/resolve/main/",
+      "model_id": "Mistral-7B-Instruct-v0.2-q4f16_1",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/Mistral-7B-Instruct-v0.2-q4f16_1-sw4k_cs1k-webgpu.wasm",
+      "vram_required_MB": 6079.02,
+      "low_resource_required": false,
+      "required_features": ["shader-f16"],
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/OpenHermes-2.5-Mistral-7B-q4f16_1-MLC/resolve/main/",
+      "model_id": "OpenHermes-2.5-Mistral-7B-q4f16_1",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/Mistral-7B-Instruct-v0.2-q4f16_1-sw4k_cs1k-webgpu.wasm",
+      "vram_required_MB": 6079.02,
+      "low_resource_required": false,
+      "required_features": ["shader-f16"],
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/NeuralHermes-2.5-Mistral-7B-q4f16_1-MLC/resolve/main/",
+      "model_id": "NeuralHermes-2.5-Mistral-7B-q4f16_1",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/Mistral-7B-Instruct-v0.2-q4f16_1-sw4k_cs1k-webgpu.wasm",
+      "vram_required_MB": 6079.02,
+      "low_resource_required": false,
+      "required_features": ["shader-f16"],
+    },
+    // Gemma-2B
+    {
+      "model_url": "https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC/resolve/main/",
+      "model_id": "gemma-2b-it-q4f16_1",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/gemma-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      "vram_required_MB": 1476.52,
+      "low_resource_required": false,
+      "buffer_size_required_bytes": 262144000,
+      "required_features": ["shader-f16"],
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/gemma-2b-it-q4f32_1-MLC/resolve/main/",
+      "model_id": "gemma-2b-it-q4f32_1",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/gemma-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      "vram_required_MB": 1750.66,
+      "low_resource_required": false,
+      "buffer_size_required_bytes": 262144000,
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC/resolve/main/",
+      "model_id": "gemma-2b-it-q4f16_1-1k",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/gemma-2b-it-q4f16_1-ctx1k_cs1k-webgpu.wasm",
+      "vram_required_MB": 1476.52,
+      "low_resource_required": true,
+      "buffer_size_required_bytes": 262144000,
+      "required_features": ["shader-f16"],
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/gemma-2b-it-q4f32_1-MLC/resolve/main/",
+      "model_id": "gemma-2b-it-q4f32_1-1k",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/gemma-2b-it-q4f32_1-ctx1k_cs1k-webgpu.wasm",
+      "vram_required_MB": 1750.66,
+      "low_resource_required": true,
+      "buffer_size_required_bytes": 262144000,
+    },
+    // RedPajama
+    {
+      "model_url": "https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC/resolve/main/",
+      "model_id": "RedPajama-INCITE-Chat-3B-v1-q4f16_1",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/RedPajama-INCITE-Chat-3B-v1-q4f16_1-ctx2k-webgpu.wasm",
+      "vram_required_MB": 2972.09,
+      "low_resource_required": false,
+      "required_features": ["shader-f16"],
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC/resolve/main/",
+      "model_id": "RedPajama-INCITE-Chat-3B-v1-q4f32_1",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/RedPajama-INCITE-Chat-3B-v1-q4f32_1-ctx2k-webgpu.wasm",
+      "vram_required_MB": 3928.09,
+      "low_resource_required": false,
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC/resolve/main/",
+      "model_id": "RedPajama-INCITE-Chat-3B-v1-q4f16_1-1k",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/RedPajama-INCITE-Chat-3B-v1-q4f16_1-ctx1k-webgpu.wasm",
+      "vram_required_MB": 2041.09,
+      "low_resource_required": true,
+      "required_features": ["shader-f16"],
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC/resolve/main/",
+      "model_id": "RedPajama-INCITE-Chat-3B-v1-q4f32_1-1k",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/RedPajama-INCITE-Chat-3B-v1-q4f32_1-ctx1k-webgpu.wasm",
+      "vram_required_MB": 2558.09,
+      "low_resource_required": true,
+    },
+    // Phi-2
+    {
+      "model_url": "https://huggingface.co/mlc-ai/phi-2-q0f16-MLC/resolve/main/",
+      "model_id": "Phi2-q0f16",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/phi-2-q0f16-ctx2k-webgpu.wasm",
+      "vram_required_MB": 11079.47,
+      "low_resource_required": false,
+      "required_features": ["shader-f16"],
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/phi-2-q0f32-MLC/resolve/main/",
+      "model_id": "Phi2-q0f32",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/phi-2-q0f32-ctx2k-webgpu.wasm",
+      "vram_required_MB": 12043.48,
+      "low_resource_required": false,
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/phi-2-q4f16_1-MLC/resolve/main/",
+      "model_id": "Phi2-q4f16_1",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/phi-2-q4f16_1-ctx2k-webgpu.wasm",
+      "vram_required_MB": 3053.97,
+      "low_resource_required": false,
+      "required_features": ["shader-f16"],
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/phi-2-q4f32_1-MLC/resolve/main/",
+      "model_id": "Phi2-q4f32_1",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/phi-2-q4f32_1-ctx2k-webgpu.wasm",
+      "vram_required_MB": 4032.48,
+      "low_resource_required": false,
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/phi-2-q4f16_1-MLC/resolve/main/",
+      "model_id": "Phi2-q4f16_1-1k",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/phi-2-q4f16_1-ctx1k-webgpu.wasm",
+      "vram_required_MB": 2131.97,
+      "low_resource_required": true,
+      "required_features": ["shader-f16"],
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/phi-2-q4f32_1-MLC/resolve/main/",
+      "model_id": "Phi2-q4f32_1-1k",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/phi-2-q4f32_1-ctx1k-webgpu.wasm",
+      "vram_required_MB": 2740.48,
+      "low_resource_required": true,
+    },
+    // Phi-1.5
+    {
+      "model_url": "https://huggingface.co/mlc-ai/phi-1_5-q0f16-MLC/resolve/main/",
+      "model_id": "Phi1.5-q0f16",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/phi-1_5-q0f16-ctx2k-webgpu.wasm",
+      "vram_required_MB": 5818.09,
+      "low_resource_required": false,
+      "required_features": ["shader-f16"],
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/phi-1_5-q0f32-MLC/resolve/main/",
+      "model_id": "Phi1.5-q0f32",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/phi-1_5-q0f32-ctx2k-webgpu.wasm",
+      "vram_required_MB": 6514.09,
+      "low_resource_required": false,
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/phi-1_5-q4f16_1-MLC/resolve/main/",
+      "model_id": "Phi1.5-q4f16_1-1k",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/phi-1_5-q4f16_1-ctx1k-webgpu.wasm",
+      "vram_required_MB": 1210.09,
+      "low_resource_required": true,
+      "required_features": ["shader-f16"],
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/phi-1_5-q4f32_1-MLC/resolve/main/",
+      "model_id": "Phi1.5-q4f32_1-1k",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/phi-1_5-q4f32_1-ctx1k-webgpu.wasm",
+      "vram_required_MB": 1682.09,
+      "low_resource_required": true,
+    },
+    // TinyLlama
+    {
+      "model_url": "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q0f16-MLC/resolve/main/",
+      "model_id": "TinyLlama-1.1B-Chat-v0.4-q0f16",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/TinyLlama-1.1B-Chat-v0.4-q0f16-ctx2k-webgpu.wasm",
+      "vram_required_MB": 5063.52,
+      "low_resource_required": false,
+      "required_features": ["shader-f16"],
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q0f32-MLC/resolve/main/",
+      "model_id": "TinyLlama-1.1B-Chat-v0.4-q0f32",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/TinyLlama-1.1B-Chat-v0.4-q0f32-ctx2k-webgpu.wasm",
+      "vram_required_MB": 5394.53,
+      "low_resource_required": false,
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC/resolve/main/",
+      "model_id": "TinyLlama-1.1B-Chat-v0.4-q4f16_1-1k",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/TinyLlama-1.1B-Chat-v0.4-q4f16_1-ctx1k-webgpu.wasm",
+      "vram_required_MB": 899.11,
+      "low_resource_required": true,
+      "required_features": ["shader-f16"],
+    },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC/resolve/main/",
+      "model_id": "TinyLlama-1.1B-Chat-v0.4-q4f32_1-1k",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/TinyLlama-1.1B-Chat-v0.4-q4f32_1-ctx1k-webgpu.wasm",
+      "vram_required_MB": 992.11,
+      "low_resource_required": true,
+    },
   ]
 }
