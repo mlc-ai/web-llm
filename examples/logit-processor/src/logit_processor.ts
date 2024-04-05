@@ -13,17 +13,6 @@ function setLabel(id: string, text: string) {
 }
 
 async function main() {
-  // Define modelRecord
-  const myAppConfig: webllm.AppConfig = {
-    model_list: [
-      {
-        "model_url": "https://huggingface.co/mlc-ai/phi-2-q4f32_1-MLC/resolve/main/",
-        "model_id": "Phi2-q4f32_1",
-        "model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/phi-2/phi-2-q4f32_1-ctx2k-webgpu.wasm",
-      },
-    ]
-  }
-
   // Instantiate myLogitProcessor, registering in the logitProcessorRegistry
   const myLogitProcessor = new MyLogitProcessor();
   const logitProcessorRegistry = new Map<string, webllm.LogitProcessor>();
@@ -47,7 +36,7 @@ async function main() {
   });
 
   // Reload chat module with a logit processor
-  await chat.reload("Phi2-q4f32_1", undefined, myAppConfig);
+  await chat.reload("Phi2-q4f32_1");
 
   // Below we demonstrate the usage of a low-level API `forwardTokensAndSample()`
   const prompt: Array<number> = [42];

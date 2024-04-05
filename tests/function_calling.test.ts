@@ -11,7 +11,7 @@ describe('Test conversation template', () => {
         const conv = getConversation("gorilla");
         conv.appendMessage(Role.user, "Call me an Uber ride type \"Plus\" in Berkeley at zipcode 94704 in 10 minutes", "Tom");
         const prompt_array = conv.getPromptArray();
-        
+
         expect(prompt_array).toEqual([
             "A chat between a curious user and an artificial intelligence assistant. " +
             "The assistant gives helpful, detailed, and polite answers to the user's questions.\n",
@@ -26,14 +26,14 @@ describe('Test conversation template', () => {
             "name": "Uber Carpool",
             "api_name": "uber.ride",
             "description": "Find suitable ride for customers given the location, type of ride, and the amount of time the customer is willing to wait as parameters",
-            "parameters":  [
-                {"name": "loc", "description": "Location of the starting place of the Uber ride"},
-                {"name": "type", "enum": ["plus", "comfort", "black"], "description": "Types of Uber ride user is ordering"},
-                {"name": "time", "description": "The amount of time in minutes the customer is willing to wait"}
+            "parameters": [
+                { "name": "loc", "description": "Location of the starting place of the Uber ride" },
+                { "name": "type", "enum": ["plus", "comfort", "black"], "description": "Types of Uber ride user is ordering" },
+                { "name": "time", "description": "The amount of time in minutes the customer is willing to wait" }
             ]
         }]);
         const prompt_array = conv.getPromptArray();
-        
+
         expect(prompt_array).toEqual([
             "A chat between a curious user and an artificial intelligence assistant. The assistant gives helpful, detailed, and polite answers to the user's questions.\n",
             "USER: <<question>> Call me an Uber ride type \"Plus\" in Berkeley at zipcode 94704 in 10 minutes <<function>> [{\"name\":\"Uber Carpool\",\"api_name\":\"uber.ride\",\"description\":\"Find suitable ride for customers given the location, type of ride, and the amount of time the customer is willing to wait as parameters\",\"parameters\":[{\"name\":\"loc\",\"description\":\"Location of the starting place of the Uber ride\"},{\"name\":\"type\",\"enum\":[\"plus\",\"comfort\",\"black\"],\"description\":\"Types of Uber ride user is ordering\"},{\"name\":\"time\",\"description\":\"The amount of time in minutes the customer is willing to wait\"}]}]\n"
@@ -53,9 +53,9 @@ describe('Test ChatModule', () => {
             ],
             tool_choice: 'none',
             tools: [
-              { type: 'function', function: { description: 'A', name: 'fn_A', parameters: { foo: 'bar' } } },
-              { type: 'function', function: { description: 'B', name: 'fn_B', parameters: { foo: 'bar' } } },
-              { type: 'function', function: { description: 'C', name: 'fn_C', parameters: { foo: 'bar' } } },
+                { type: 'function', function: { description: 'A', name: 'fn_A', parameters: { foo: 'bar' } } },
+                { type: 'function', function: { description: 'B', name: 'fn_B', parameters: { foo: 'bar' } } },
+                { type: 'function', function: { description: 'C', name: 'fn_C', parameters: { foo: 'bar' } } },
             ],
         };
 

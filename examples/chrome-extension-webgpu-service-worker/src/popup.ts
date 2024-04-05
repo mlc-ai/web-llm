@@ -6,6 +6,7 @@
 import './popup.css';
 
 import { ChatModule, AppConfig, InitProgressReport } from "@mlc-ai/web-llm";
+import { prebuiltAppConfig } from '@mlc-ai/web-llm';
 import { ProgressBar, Line } from "progressbar.js";
 
 // Whether or not to use the content from the active tab as the context
@@ -35,16 +36,7 @@ var progressBar: ProgressBar = new Line('#loadingContainer', {
     svgStyle: { width: '100%', height: '100%' }
 });
 
-const appConfig: AppConfig = {
-    model_list: [
-        {
-            "model_url": "https://huggingface.co/mlc-ai/Mistral-7B-Instruct-v0.2-q4f16_1-MLC/resolve/main/",
-            "model_id": "Mistral-7B-Instruct-v0.2-q4f16_1",
-            "model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Mistral-7B-Instruct-v0.2/Mistral-7B-Instruct-v0.2-q4f16_1-sw4k_cs1k-webgpu.wasm",
-            "required_features": ["shader-f16"],
-        }
-    ]
-}
+const appConfig: AppConfig = prebuiltAppConfig;
 
 chrome.runtime.sendMessage({ reload: appConfig });
 chrome.runtime.onMessage.addListener(function (request) {
