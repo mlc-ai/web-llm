@@ -77,7 +77,7 @@ export class ChatModule implements ChatInterface {
     if (!modelUrl.startsWith("http")) {
       modelUrl = new URL(modelUrl, baseUrl).href;
     }
-    const configCache = new tvmjs.ArtifactindexDBCache("webllm/config");
+    const configCache = new tvmjs.ArtifactIndexedDBCache("webllm/config");
 
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
@@ -87,7 +87,7 @@ export class ChatModule implements ChatInterface {
     } as ChatConfig;
 
     // load tvm wasm
-    const wasmCache = new tvmjs.ArtifactindexDBCache("webllm/wasm");
+    const wasmCache = new tvmjs.ArtifactIndexedDBCache("webllm/wasm");
     const wasmUrl = modelRecord.model_lib_url;
     if (wasmUrl === undefined) {
       throw Error("You need to specify `model_lib_url` for each model in `model_list` " +
@@ -157,7 +157,7 @@ export class ChatModule implements ChatInterface {
     });
     this.deviceLostIsError = true;
     const tokenizer = await this.asyncLoadTokenizer(modelUrl, this.config);
-    await tvm.fetchNDArrayCache(modelUrl, tvm.webgpu(), "webllm/model", "indexdb");
+    await tvm.fetchNDArrayCache(modelUrl, tvm.webgpu(), "webllm/model", "indexeddb");
     this.pipeline = new LLMChatPipeline(tvm, tokenizer, this.config, this.logitProcessor);
     await this.pipeline?.asyncLoadWebGPUPipelines();
     const tend = performance.now();
@@ -623,7 +623,7 @@ export class ChatModule implements ChatInterface {
     baseUrl: string,
     config: ChatConfig
   ): Promise<Tokenizer> {
-    const modelCache = new tvmjs.ArtifactindexDBCache("webllm/model");
+    const modelCache = new tvmjs.ArtifactIndexedDBCache("webllm/model");
     if (config.tokenizer_files.includes("tokenizer.json")) {
       const url = new URL("tokenizer.json", baseUrl).href;
       const model = await modelCache.fetchWithCache(url, "arraybuffer");
