@@ -30,7 +30,6 @@ import {
   LogitProcessor
 } from "./types";
 import { Conversation, compareConversationObject, getConversation } from "./conversation"
-import { ArtifactCacheTemplate } from "tvmjs/lib/artifact_cache";
 
 /**
  * This is the main interface to the chat module.
@@ -79,7 +78,7 @@ export class ChatModule implements ChatInterface {
       modelUrl = new URL(modelUrl, baseUrl).href;
     }
 
-    let configCache: ArtifactCacheTemplate;
+    let configCache: tvmjs.ArtifactCacheTemplate;
     if (appConfig.useIndexedDBCache) {
       configCache = new tvmjs.ArtifactIndexedDBCache("webllm/config");
     } else {
@@ -94,7 +93,7 @@ export class ChatModule implements ChatInterface {
     } as ChatConfig;
 
     // load tvm wasm
-    let wasmCache: ArtifactCacheTemplate;
+    let wasmCache: tvmjs.ArtifactCacheTemplate;
     if (appConfig.useIndexedDBCache) {
       wasmCache = new tvmjs.ArtifactIndexedDBCache("webllm/wasm");
     } else {
@@ -638,7 +637,7 @@ export class ChatModule implements ChatInterface {
     config: ChatConfig,
     appConfig: AppConfig,
   ): Promise<Tokenizer> {
-    let modelCache: ArtifactCacheTemplate;
+    let modelCache: tvmjs.ArtifactCacheTemplate;
     if (appConfig.useIndexedDBCache) {
       modelCache = new tvmjs.ArtifactIndexedDBCache("webllm/model");
     } else {

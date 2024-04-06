@@ -4,7 +4,6 @@ import {
   ModelRecord,
   prebuiltAppConfig,
 } from "./config";
-import { ArtifactCacheTemplate } from "tvmjs/lib/artifact_cache";
 
 function findModelRecord(modelId: string, appConfig?: AppConfig): ModelRecord {
   const matchedItem = appConfig?.model_list.find(
@@ -46,7 +45,7 @@ export async function deleteModelInCache(modelId: string, appConfig?: AppConfig)
     appConfig = prebuiltAppConfig;
   }
   const modelRecord = findModelRecord(modelId, appConfig);
-  let modelCache: ArtifactCacheTemplate;
+  let modelCache: tvmjs.ArtifactCacheTemplate;
   if (appConfig.useIndexedDBCache) {
     tvmjs.deleteNDArrayCache(modelRecord.model_url, "webllm/model", "indexeddb");
     modelCache = new tvmjs.ArtifactIndexedDBCache("webllm/model");
@@ -64,7 +63,7 @@ export async function deleteChatConfigInCache(modelId: string, appConfig?: AppCo
     appConfig = prebuiltAppConfig;
   }
   const modelRecord = findModelRecord(modelId, appConfig);
-  let configCache: ArtifactCacheTemplate;
+  let configCache: tvmjs.ArtifactCacheTemplate;
   if (appConfig.useIndexedDBCache) {
     configCache = new tvmjs.ArtifactIndexedDBCache("webllm/config");
   } else {
@@ -80,7 +79,7 @@ export async function deleteModelWasmInCache(modelId: string, appConfig?: AppCon
     appConfig = prebuiltAppConfig;
   }
   const modelRecord = findModelRecord(modelId, appConfig);
-  let wasmCache: ArtifactCacheTemplate;
+  let wasmCache: tvmjs.ArtifactCacheTemplate;
   if (appConfig.useIndexedDBCache) {
     wasmCache = new tvmjs.ArtifactIndexedDBCache("webllm/wasm");
   } else {
