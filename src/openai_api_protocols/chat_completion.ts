@@ -15,7 +15,32 @@
  * limitations under the License.
 */
 
+import { EngineInterface } from "../types";
+
 /* eslint-disable @typescript-eslint/no-namespace */
+
+export class Completions {
+    private engine: EngineInterface;
+
+    constructor(engine: EngineInterface) {
+        this.engine = engine;
+    }
+
+    create(
+        request: ChatCompletionRequestNonStreaming
+    ): Promise<ChatCompletion>;
+    create(
+        request: ChatCompletionRequestStreaming
+    ): Promise<AsyncIterable<ChatCompletionChunk>>;
+    create(
+        request: ChatCompletionRequestBase
+    ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion>;
+    create(
+        request: ChatCompletionRequest
+    ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
+        return this.engine.chatCompletion(request);
+    }
+}
 
 //////////////////////////////// 0. HIGH-LEVEL INTERFACES ////////////////////////////////
 
@@ -175,7 +200,7 @@ export interface ChatCompletionRequestBase {
     /**
      * Model to carry out this API.
      * 
-     * @note Not supported. Instead call `ChatModule.reload(model)` before calling this API.
+     * @note Not supported. Instead call `CreateEngine(model)` or `engine.reload(model)` instead.
      */
     model?: string | null;
 }

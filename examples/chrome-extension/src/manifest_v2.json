@@ -19,10 +19,6 @@
       "js": ["content.js"]
     }
   ],
-  "background": {
-    "scripts": ["background.ts"],
-    "persistent": false
-  },
   "permissions": [
       "storage",
       "tabs",

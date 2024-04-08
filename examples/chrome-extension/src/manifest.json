@@ -16,10 +16,6 @@
     "default_title": "MLCBot",
     "default_popup": "popup.html"
   },
-  "background": {
-    "service_worker": "background.ts",
-    "type": "module"
-  },
   "permissions": [
       "storage",
       "tabs",

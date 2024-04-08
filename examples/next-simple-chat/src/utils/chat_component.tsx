@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChatModule } from "@mlc-ai/web-llm";
+import { Engine } from "@mlc-ai/web-llm";
 import ChatUI from "~/utils/chat_ui";
 
 const ChatComponent = () => {
@@ -8,7 +8,7 @@ const ChatComponent = () => {
   );
   const [prompt, setPrompt] = useState("");
   const [runtimeStats, setRuntimeStats] = useState("");
-  const [chat_ui] = useState(new ChatUI(new ChatModule()));
+  const [chat_ui] = useState(new ChatUI(new Engine()));
   const updateMessage = (kind: string, text: string, append: boolean) => {
     if (kind == "init") {
       text = "[System Initalize] " + text;

@@ -1,10 +1,10 @@
 {
-    "name": "get-started",
+    "name": "openai-api",
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "start": "parcel src/get_started.html  --port 8888",
-        "build": "parcel build src/get_started.html --dist-dir lib"
+        "start": "parcel src/json_mode.html  --port 8888",
+        "build": "parcel build src/json_mode.html --dist-dir lib"
     },
     "devDependencies": {
         "buffer": "^5.7.1",

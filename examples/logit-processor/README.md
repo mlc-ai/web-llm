@@ -5,7 +5,7 @@ manipulate the raw logits before sampling the token (e.g. setting certain tokens
 We demonstrate how to use it with and without a web worker, which can be toggled with `USE_WEB_WORKER`
 in `logit_processor.ts` (see `worker.ts` on how `LogitProcessor` plays a role there).
 
-We also demonstrate the usage of a low-level API `forwardTokenAndSample()`, which, unlike `generate()`
+We also demonstrate the usage of a low-level API `forwardTokenAndSample()`, which, unlike `chat.completions.create()`
 that assumes the usage is for autoregressive chatting, here we have more fine-grained control.
 
 See `my_logit_processor.ts` on how to customize your own logit processor. Here we make the logit

@@ -8,8 +8,9 @@ const myLogitProcessor = new MyLogitProcessor();
 const logitProcessorRegistry = new Map<string, webllm.LogitProcessor>();
 logitProcessorRegistry.set("Phi2-q4f32_1", myLogitProcessor);
 
-const chat = new webllm.ChatModule(logitProcessorRegistry);
-const handler = new webllm.ChatWorkerHandler(chat);
+const engine = new webllm.Engine();
+engine.setLogitProcessorRegistry(logitProcessorRegistry);
+const handler = new webllm.EngineWorkerHandler(engine);
 self.onmessage = (msg: MessageEvent) => {
   handler.onmessage(msg);
 };
