@@ -18,7 +18,10 @@ async function main() {
     setLabel("init-label", report.text);
   };
   const selectedModel = "Llama-2-7b-chat-hf-q4f32_1";
-  const engine: webllm.Engine = await webllm.CreateEngine(selectedModel, undefined, undefined, initProgressCallback);
+  const engine: webllm.Engine = await webllm.CreateEngine(
+    selectedModel,
+    { initProgressCallback: initProgressCallback }
+  );
 
 
   // Round 0

@@ -1,4 +1,4 @@
-import { AppConfig, ChatOptions, GenerationConfig } from "./config";
+import { AppConfig, ChatOptions, EngineConfig, GenerationConfig } from "./config";
 import {
   EngineInterface,
   GenerateProgressCallback,
@@ -278,22 +278,21 @@ interface ChatWorker {
  * Equivalent to `new webllm.WebWorkerEngine(worker).reload(...)`.
  * 
  * @param worker The worker that holds the actual Engine, intialized with `new Worker()`.
- * @param modelId The model to load, needs to either be in `webllm.prebuiltAppConfig`, or in `appConfig`.
- * @param chatOpts To optionally override the `mlc-chat-config.json` of `modelId`.
- * @param appConfig Configure the app, including the list of models and whether to use IndexedDB cache.
- * @param initProgressCallback A callback for showing the progress of loading the model.
+ * @param modelId The model to load, needs to either be in `webllm.prebuiltAppConfig`, or in
+ * `engineConfig.appConfig`.
+ * @param engineConfig Optionally configures the engine, see `webllm.EngineConfig` for more.
  * @returns An initialized `WebLLM.WebWorkerEngine` with `modelId` loaded.
+ * 
+ * @note engineConfig.logitProcessorRegistry is ignored for `CreateWebWorkEngine()`.
  */
 export async function CreateWebWorkerEngine(
   worker: any,
   modelId: string,
-  chatOpts?: ChatOptions,
-  appConfig?: AppConfig,
-  initProgressCallback?: InitProgressCallback,
+  engineConfig?: EngineConfig,
 ): Promise<WebWorkerEngine> {
   const webWorkerEngine = new WebWorkerEngine(worker);
-  webWorkerEngine.setInitProgressCallback(initProgressCallback);
-  await webWorkerEngine.reload(modelId, chatOpts, appConfig);
+  webWorkerEngine.setInitProgressCallback(engineConfig?.initProgressCallback);
+  await webWorkerEngine.reload(modelId, engineConfig?.chatOpts, engineConfig?.appConfig);
   return webWorkerEngine;
 }
 

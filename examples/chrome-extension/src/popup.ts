@@ -43,7 +43,10 @@ const initProgressCallback = (report: InitProgressReport) => {
 
 // const selectedModel = "TinyLlama-1.1B-Chat-v0.4-q4f16_1-1k";
 const selectedModel = "Mistral-7B-Instruct-v0.2-q4f16_1";
-const engine: Engine = await CreateEngine(selectedModel, undefined, undefined, initProgressCallback);
+const engine: Engine = await CreateEngine(
+    selectedModel,
+    { initProgressCallback: initProgressCallback }
+);
 const chatHistory: ChatCompletionMessageParam[] = [];
 
 isLoadingParams = true;
@@ -99,11 +102,11 @@ async function handleClick() {
     let curMessage = "";
     const completion = await engine.chat.completions.create({ stream: true, messages: chatHistory });
     for await (const chunk of completion) {
-      const curDelta = chunk.choices[0].delta.content;
-      if (curDelta) {
-        curMessage += curDelta;
-      }
-      updateAnswer(curMessage);
+        const curDelta = chunk.choices[0].delta.content;
+        if (curDelta) {
+            curMessage += curDelta;
+        }
+        updateAnswer(curMessage);
     }
     const response = await engine.getMessage();
     chatHistory.push({ "role": "assistant", "content": await engine.getMessage() });

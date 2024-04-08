@@ -11,10 +11,12 @@ function setLabel(id: string, text: string) {
 async function main() {
     const initProgressCallback = (report: webllm.InitProgressReport) => {
         setLabel("init-label", report.text);
-      };
-      const selectedModel = "Llama-2-7b-chat-hf-q4f32_1";
-      const engine: webllm.Engine = await webllm.CreateEngine(selectedModel, undefined, undefined, initProgressCallback);
-    
+    };
+    const selectedModel = "Llama-2-7b-chat-hf-q4f32_1";
+    const engine: webllm.Engine = await webllm.CreateEngine(
+        selectedModel,
+        { initProgressCallback: initProgressCallback }
+    );
 
     const request: webllm.ChatCompletionRequest = {
         stream: false,  // works with streaming, logprobs, top_logprobs as well

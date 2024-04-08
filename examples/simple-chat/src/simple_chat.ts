@@ -263,6 +263,7 @@ class ChatUI {
     try {
       let curMessage = "";
       const completion = await this.engine.chat.completions.create({ stream: true, messages: this.chatHistory });
+      // TODO(Charlie): Processing of � requires changes
       for await (const chunk of completion) {
         const curDelta = chunk.choices[0].delta.content;
         if (curDelta) {
@@ -271,7 +272,9 @@ class ChatUI {
         this.updateLastMessage("left", curMessage);
       }
       this.uiChatInfoLabel.innerHTML = await this.engine.runtimeStatsText();
-      this.chatHistory.push({ "role": "assistant", "content": await this.engine.getMessage() });
+      const finalMessage = await this.engine.getMessage();
+      this.updateLastMessage("left", finalMessage);  // TODO: Remove this after � issue is fixed
+      this.chatHistory.push({ "role": "assistant", "content": finalMessage });
     } catch (err) {
       this.appendMessage("error", "Generate error, " + err.toString());
       console.log(err.stack);

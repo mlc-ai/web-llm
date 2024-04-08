@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 
 import { ResponseFormat } from "./openai_api_protocols";
+import { LogitProcessor, InitProgressCallback } from "./types";
 
 /**
  * Conversation template config
@@ -73,6 +74,24 @@ export interface ChatConfig {
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-interface
 export interface ChatOptions extends Partial<ChatConfig> { }
+
+/**
+ * Optional configurations for `CreateEngine()` and `CreateWebWorkerEngine()`.
+ * 
+ * chatOpts: To optionally override the `mlc-chat-config.json` of `modelId`.
+ * appConfig: Configure the app, including the list of models and whether to use IndexedDB cache.
+ * initProgressCallback: A callback for showing the progress of loading the model.
+ * logitProcessorRegistry: A register for stateful logit processors, see `webllm.LogitProcessor`.
+ * 
+ * @note All fields are optional, and `logitProcessorRegistry` is only used for `CreateEngine()`
+ * not `CreateWebWorkerEngine()`.
+ */
+export interface EngineConfig {
+  chatOpts?: ChatOptions,
+  appConfig?: AppConfig,
+  initProgressCallback?: InitProgressCallback,
+  logitProcessorRegistry?: Map<string, LogitProcessor>
+}
 
 /**
  * Config for a single generation.

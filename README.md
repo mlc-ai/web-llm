@@ -38,7 +38,10 @@ async function main() {
     label.innerText = report.text;
   };
   const selectedModel = "Llama-2-7b-chat-hf-q4f32_1";
-  const engine: webllm.Engine = await webllm.CreateEngine(selectedModel, undefined, undefined, initProgressCallback);
+  const engine: webllm.Engine = await webllm.CreateEngine(
+    selectedModel,
+    /*engineConfig=*/{ initProgressCallback: initProgressCallback }
+  );
 
   const reply0 = await engine.chat.completions.create({
     messages: [{ "role": "user", "content": "Tell me about Pittsburgh." }]
@@ -53,7 +56,10 @@ main();
 Note that if you need to separate the instantiation of `webllm.Engine` from loading a model, you could substitute
 
 ```typescript
-const engine: webllm.Engine = await webllm.CreateEngine(selectedModel, chatConfig, appConfig, initProgressCallback);
+const engine: webllm.Engine = await webllm.CreateEngine(
+  selectedModel,
+  /*engineConfig=*/{ initProgressCallback: initProgressCallback }
+);
 ```
 
 with the equivalent
@@ -95,14 +101,12 @@ import * as webllm from "@mlc-ai/web-llm";
 async function main() {
   // Use a WebWorkerEngine instead of Engine here
   const engine: webllm.WebWorkerEngine = await webllm.CreateWebWorkerEngine(
-    new Worker(
+    /*worker=*/new Worker(
       new URL('./worker.ts', import.meta.url),
       { type: 'module' }
     ),
-    selectedModel,
-    undefined,
-    undefined,
-    initProgressCallback
+    /*modelId=*/selectedModel,
+    /*engineConfig=*/{ initProgressCallback: initProgressCallback }
   );
   // everything else remains the same
 }
@@ -176,7 +180,10 @@ async main() {
   // and cache it in the browser cache
   // The chat will also load the model library from "/url/to/myllama3b.wasm",
   // assuming that it is compatible to the model in myLlamaUrl.
-  const engine = await webllm.CreateEngine("MyLlama-3b-v1-q4f32_0", chatOpts, appConfig);
+  const engine = await webllm.CreateEngine(
+    "MyLlama-3b-v1-q4f32_0", 
+    /*engineConfig=*/{ chatOpts: chatOpts, appConfig: appConfig }
+  );
 }
 ```
 

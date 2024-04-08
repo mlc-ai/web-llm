@@ -25,9 +25,7 @@ async function mainNonStreaming() {
       { type: 'module' }
     ),
     selectedModel,
-    undefined,
-    undefined,
-    initProgressCallback
+    { initProgressCallback: initProgressCallback }
   );
 
   const request: webllm.ChatCompletionRequest = {
@@ -67,9 +65,7 @@ async function mainStreaming() {
       { type: 'module' }
     ),
     selectedModel,
-    undefined,
-    undefined,
-    initProgressCallback
+    { initProgressCallback: initProgressCallback }
   );
 
   const request: webllm.ChatCompletionRequest = {

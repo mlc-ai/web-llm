@@ -89,6 +89,10 @@ export interface EngineInterface {
    * @param streamInterval callback interval to call progresscallback
    * @param genConfig Configuration for this single generation that overrides pre-existing configs.
    * @returns The final result.
+   * 
+   * @note This will be deprecated soon. Please use `engine.chat.completions.create()` instead.
+   * For multi-round chatting, see `examples/multi-round-chat` on how to use
+   * `engine.chat.completions.create()` to achieve the same effect.
    */
   generate: (
     input: string | ChatCompletionRequestNonStreaming,

@@ -19,11 +19,11 @@ chrome.runtime.onMessage.addListener(async function (request) {
         let curMessage = "";
         const completion = await engine.chat.completions.create({ stream: true, messages: chatHistory });
         for await (const chunk of completion) {
-          const curDelta = chunk.choices[0].delta.content;
-          if (curDelta) {
-            curMessage += curDelta;
-          }
-          chrome.runtime.sendMessage({ answer: curMessage });
+            const curDelta = chunk.choices[0].delta.content;
+            if (curDelta) {
+                curMessage += curDelta;
+            }
+            chrome.runtime.sendMessage({ answer: curMessage });
         }
         chatHistory.push({ "role": "assistant", "content": await engine.getMessage() });
     }
@@ -41,7 +41,10 @@ chrome.runtime.onMessage.addListener(async function (request) {
             }
             // const selectedModel = "TinyLlama-1.1B-Chat-v0.4-q4f16_1-1k";
             const selectedModel = "Mistral-7B-Instruct-v0.2-q4f16_1";
-            engine = await CreateEngine(selectedModel, undefined, appConfig, initProgressCallback);
+            engine = await CreateEngine(
+                selectedModel,
+                { appConfig: appConfig, initProgressCallback: initProgressCallback }
+            );
             console.log("Model loaded");
             model_loaded = true;
         } else {

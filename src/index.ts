@@ -2,6 +2,7 @@ export {
   ModelRecord,
   AppConfig,
   ChatOptions,
+  EngineConfig,
   GenerationConfig,
   prebuiltAppConfig,
   modelVersion,

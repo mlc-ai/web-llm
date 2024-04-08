@@ -14,7 +14,10 @@ async function main() {
   };
   // Option 1: If we do not specify appConfig, we use `prebuiltAppConfig` defined in `config.ts`
   const selectedModel = "Llama-2-7b-chat-hf-q4f32_1";
-  const engine: webllm.Engine = await webllm.CreateEngine(selectedModel, undefined, undefined, initProgressCallback);
+  const engine: webllm.Engine = await webllm.CreateEngine(
+    selectedModel,
+    { initProgressCallback: initProgressCallback }
+  );
 
   // Option 2: Specify your own model other than the prebuilt ones
   // const appConfig: webllm.AppConfig = {
@@ -26,7 +29,10 @@ async function main() {
   //     },
   //   ]
   // };
-  // const engine: webllm.Engine = await webllm.CreateEngine(selectedModel, undefined, appConfig, initProgressCallback);
+  // const engine: webllm.Engine = await webllm.CreateEngine(
+  //   selectedModel,
+  //   { appConfig: appConfig, initProgressCallback: initProgressCallback }
+  // );
 
   const reply0 = await engine.chat.completions.create({
     messages: [

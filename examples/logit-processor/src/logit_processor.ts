@@ -32,17 +32,15 @@ async function main() {
         { type: 'module' }
       ),
       "Phi2-q4f32_1",
-      undefined,
-      undefined,
-      initProgressCallback,
+      { initProgressCallback: initProgressCallback }
     );
   } else {
     engine = await webllm.CreateEngine(
       "Phi2-q4f32_1",
-      undefined,
-      undefined,
-      initProgressCallback,
-      logitProcessorRegistry
+      {
+        initProgressCallback: initProgressCallback,
+        logitProcessorRegistry: logitProcessorRegistry,
+      }
     );
   }
 

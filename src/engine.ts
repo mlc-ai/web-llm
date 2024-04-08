@@ -9,6 +9,7 @@ import {
   GenerationConfig,
   postInitAndCheckGenerationConfigValues,
   Role,
+  EngineConfig,
 } from "./config";
 import { LLMChatPipeline } from "./llm_chat";
 import {
@@ -38,24 +39,19 @@ import { Conversation, compareConversationObject, getConversation } from "./conv
  * 
  * Equivalent to `new webllm.Engine().reload(...)`.
  * 
- * @param modelId The model to load, needs to either be in `webllm.prebuiltAppConfig`, or in `appConfig`.
- * @param chatOpts To optionally override the `mlc-chat-config.json` of `modelId`.
- * @param appConfig Configure the app, including the list of models and whether to use IndexedDB cache.
- * @param initProgressCallback A callback for showing the progress of loading the model.
- * @param logitProcessorRegistry See `webllm.LogitProcessor`.
+ * @param modelId The model to load, needs to either be in `webllm.prebuiltAppConfig`, or in
+ * `engineConfig.appConfig`.
+ * @param engineConfig Optionally configures the engine, see `webllm.EngineConfig`.
  * @returns An intialized `WebLLM.Engine` with `modelId` loaded.
  */
 export async function CreateEngine(
   modelId: string,
-  chatOpts?: ChatOptions,
-  appConfig?: AppConfig,
-  initProgressCallback?: InitProgressCallback,
-  logitProcessorRegistry?: Map<string, LogitProcessor>,
+  engineConfig?: EngineConfig,
 ): Promise<Engine> {
   const engine = new Engine();
-  engine.setInitProgressCallback(initProgressCallback);
-  engine.setLogitProcessorRegistry(logitProcessorRegistry);
-  await engine.reload(modelId, chatOpts, appConfig);
+  engine.setInitProgressCallback(engineConfig?.initProgressCallback);
+  engine.setLogitProcessorRegistry(engineConfig?.logitProcessorRegistry);
+  await engine.reload(modelId, engineConfig?.chatOpts, engineConfig?.appConfig);
   return engine;
 }
 
@@ -216,6 +212,21 @@ export class Engine implements EngineInterface {
     streamInterval = 1,
     genConfig?: GenerationConfig,
   ): Promise<string> {
+    console.log(
+      "WARNING: `generate()` will soon be deprecated. " +
+      "Please use `engine.chat.completions.create()` instead. " +
+      "For multi-round chatting, see `examples/multi-round-chat` on how to use " +
+      "`engine.chat.completions.create()` to achieve the same effect."
+    );
+    return this._generate(input, progressCallback, streamInterval, genConfig);
+  }
+
+  private async _generate(
+    input: string | ChatCompletionRequestNonStreaming,
+    progressCallback?: GenerateProgressCallback,
+    streamInterval = 1,
+    genConfig?: GenerationConfig,
+  ): Promise<string> {
     this.interruptSignal = false;
     if (genConfig !== undefined) {
       postInitAndCheckGenerationConfigValues(genConfig);
@@ -273,7 +284,7 @@ export class Engine implements EngineInterface {
       // Remove the replacement character (U+FFFD) from the response to handle emojis.
       // Each emoji is made up of multiples of 4 tokens; when truncated, it is displayed as �, so
       // we skip this delta until a full emoji is rendered
-      // TODO: This may not consider cases for � not for emoji
+      // TODO(Charlie): This does not consider cases of � not being emoji, need to fix with Streamer
       const curMessage = await thisModule.getMessage();
       const numTrailingReplacementChar = _countTrailingReplacementChar(curMessage);
       if (numTrailingReplacementChar % 4 !== 0) {
@@ -396,7 +407,7 @@ export class Engine implements EngineInterface {
         this.getPipeline().triggerStop();
         outputMessage = "";
       } else {
-        outputMessage = await this.generate(
+        outputMessage = await this._generate(
           request,
           /*progressCallback=*/undefined,
           /*streamInterval=*/1,
