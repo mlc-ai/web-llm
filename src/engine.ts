@@ -1,5 +1,6 @@
 import * as tvmjs from "tvmjs";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
+import * as API from "./openai_api_protocols/apis";
 import {
   ChatConfig,
   ChatOptions,
@@ -8,8 +9,9 @@ import {
   GenerationConfig,
   postInitAndCheckGenerationConfigValues,
   Role,
+  EngineConfig,
 } from "./config";
-import { LLMChatPipeline } from "./llm_chat"
+import { LLMChatPipeline } from "./llm_chat";
 import {
   ChatCompletionRequest,
   ChatCompletion,
@@ -25,16 +27,42 @@ import {
 import * as ChatCompletionAPI from "./openai_api_protocols/index";
 import {
   InitProgressCallback,
-  ChatInterface,
+  EngineInterface,
   GenerateProgressCallback,
   LogitProcessor
 } from "./types";
-import { Conversation, compareConversationObject, getConversation } from "./conversation"
+import { Conversation, compareConversationObject, getConversation } from "./conversation";
+
 
 /**
- * This is the main interface to the chat module.
+ * Creates `Engine`, and loads `modelId` onto WebGPU.
+ * 
+ * Equivalent to `new webllm.Engine().reload(...)`.
+ * 
+ * @param modelId The model to load, needs to either be in `webllm.prebuiltAppConfig`, or in
+ * `engineConfig.appConfig`.
+ * @param engineConfig Optionally configures the engine, see `webllm.EngineConfig`.
+ * @returns An intialized `WebLLM.Engine` with `modelId` loaded.
  */
-export class ChatModule implements ChatInterface {
+export async function CreateEngine(
+  modelId: string,
+  engineConfig?: EngineConfig,
+): Promise<Engine> {
+  const engine = new Engine();
+  engine.setInitProgressCallback(engineConfig?.initProgressCallback);
+  engine.setLogitProcessorRegistry(engineConfig?.logitProcessorRegistry);
+  await engine.reload(modelId, engineConfig?.chatOpts, engineConfig?.appConfig);
+  return engine;
+}
+
+/**
+ * The main interface of Engine, which loads a model and performs tasks.
+ * 
+ * You can either initialize one with `webllm.CreateEngine(modelId)`, or `webllm.Engine().reload(modelId)`.
+ */
+export class Engine implements EngineInterface {
+  public chat: API.Chat;
+
   private currentModelId?: string = undefined;  // Model current loaded, undefined if nothing is loaded
   private logger: (msg: string) => void = console.log;
   private logitProcessorRegistry?: Map<string, LogitProcessor>;
@@ -45,12 +73,16 @@ export class ChatModule implements ChatInterface {
   private deviceLostIsError = false;  // whether device.lost is due to actual error or model reload
   private config?: ChatConfig;
 
-  constructor(logitProcessorRegistry?: Map<string, LogitProcessor>) {
-    this.logitProcessorRegistry = logitProcessorRegistry;
+  constructor() {
+    this.chat = new API.Chat(this);
   }
 
-  setInitProgressCallback(initProgressCallback: InitProgressCallback) {
+  setInitProgressCallback(initProgressCallback?: InitProgressCallback) {
     this.initProgressCallback = initProgressCallback;
+  }
+
+  setLogitProcessorRegistry(logitProcessorRegistry?: Map<string, LogitProcessor>) {
+    this.logitProcessorRegistry = logitProcessorRegistry;
   }
 
   async reload(modelId: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
@@ -180,6 +212,21 @@ export class ChatModule implements ChatInterface {
     streamInterval = 1,
     genConfig?: GenerationConfig,
   ): Promise<string> {
+    console.log(
+      "WARNING: `generate()` will soon be deprecated. " +
+      "Please use `engine.chat.completions.create()` instead. " +
+      "For multi-round chatting, see `examples/multi-round-chat` on how to use " +
+      "`engine.chat.completions.create()` to achieve the same effect."
+    );
+    return this._generate(input, progressCallback, streamInterval, genConfig);
+  }
+
+  private async _generate(
+    input: string | ChatCompletionRequestNonStreaming,
+    progressCallback?: GenerateProgressCallback,
+    streamInterval = 1,
+    genConfig?: GenerationConfig,
+  ): Promise<string> {
     this.interruptSignal = false;
     if (genConfig !== undefined) {
       postInitAndCheckGenerationConfigValues(genConfig);
@@ -219,14 +266,31 @@ export class ChatModule implements ChatInterface {
     const created = Date.now();
     const id = crypto.randomUUID();
     this.interruptSignal = false;
-    let prevMessageLength = 0;  // to know where to start slicing the delta
+    let prevMessageLength = 0;  // to know where to start slicing the delta; does not count �
 
-    async function _getChunk(thisModule: ChatModule) {
+    function _countTrailingReplacementChar(curMessage: string): number {
+      let cntr = 0;
+      for (let i = curMessage.length - 1; i >= 0; i--) {
+        if (curMessage.charAt(i) === "�") {
+          cntr += 1;
+        } else {
+          return cntr;
+        }
+      }
+      return cntr;
+    }
+
+    async function _getChunk(thisModule: Engine): Promise<ChatCompletionChunk | undefined> {
       // Remove the replacement character (U+FFFD) from the response to handle emojis.
-      // An emoji might be made up of multiple tokens. If an emoji gets truncated in the middle of
-      // its encoded byte sequence, a replacement character will appear.
-      let curMessage = await thisModule.getMessage();
-      curMessage = curMessage.split("�").join("");  // same as replaceAll("�", "")
+      // Each emoji is made up of multiples of 4 tokens; when truncated, it is displayed as �, so
+      // we skip this delta until a full emoji is rendered
+      // TODO(Charlie): This does not consider cases of � not being emoji, need to fix with Streamer
+      const curMessage = await thisModule.getMessage();
+      const numTrailingReplacementChar = _countTrailingReplacementChar(curMessage);
+      if (numTrailingReplacementChar % 4 !== 0) {
+        return undefined;
+      }
+
       const deltaMessage = curMessage.slice(prevMessageLength);
       prevMessageLength = curMessage.length;
       const chunk: ChatCompletionChunk = {
@@ -247,7 +311,10 @@ export class ChatModule implements ChatInterface {
     }
 
     await this.prefill(request, genConfig);
-    yield await _getChunk(this);  // prefill produces a chunk
+    let curChunk = await _getChunk(this);  // prefill produces a chunk
+    if (curChunk) {
+      yield curChunk;
+    }
 
     while (!this.stopped()) {
       if (this.interruptSignal) {
@@ -255,7 +322,10 @@ export class ChatModule implements ChatInterface {
         break;
       }
       await this.decode(genConfig);
-      yield await _getChunk(this);
+      curChunk = await _getChunk(this);
+      if (curChunk) {
+        yield curChunk;
+      }
     }
 
     // Reset seed -- we do not want this seed to affect future requests
@@ -300,7 +370,7 @@ export class ChatModule implements ChatInterface {
   ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
     // 0. Preprocess inputs
     if (!this.currentModelId) {
-      throw new Error("Please call `ChatModule.reload(model)` first.");
+      throw new Error("Please call `Engine.reload(model)` first, or initialize with CreateEngine().");
     }
     ChatCompletionAPI.postInitAndCheckFields(request);
     const genConfig: GenerationConfig = {
@@ -337,7 +407,7 @@ export class ChatModule implements ChatInterface {
         this.getPipeline().triggerStop();
         outputMessage = "";
       } else {
-        outputMessage = await this.generate(
+        outputMessage = await this._generate(
           request,
           /*progressCallback=*/undefined,
           /*streamInterval=*/1,
@@ -641,145 +711,5 @@ export class ChatModule implements ChatInterface {
       return Tokenizer.fromSentencePiece(model);
     }
     throw Error("Cannot handle tokenizer files " + config.tokenizer_files)
-  }
-}
-
-/**
- * This is the interface to the chat module that connects to the REST API.
- */
-export class ChatRestModule implements ChatInterface {
-  private logger: (msg: string) => void = console.log
-  private initProgressCallback?: InitProgressCallback;
-
-  setInitProgressCallback(initProgressCallback: InitProgressCallback) {
-    this.initProgressCallback = initProgressCallback;
-  }
-
-  async reload(modelId: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
-    throw new Error("Method not implemented.");
-  }
-
-  async getMaxStorageBufferBindingSize(): Promise<number> {
-    throw new Error("Method not implemented.");
-  }
-
-  async getGPUVendor(): Promise<string> {
-    throw new Error("Method not implemented.");
-  }
-
-  async getMessage(): Promise<string> {
-    throw new Error("Method not implemented.");
-  }
-
-  async unload() {
-    throw new Error("Method not supported.");
-  }
-
-  async interruptGenerate() {
-    throw new Error("Method not supported.");
-  }
-
-  async forwardTokensAndSample(
-    inputIds: Array<number>, isPrefill: boolean
-  ): Promise<number> {
-    throw new Error("Method not supported.");
-  }
-
-  async chatCompletion(
-    request: ChatCompletionRequestNonStreaming
-  ): Promise<ChatCompletion>;
-  async chatCompletion(
-    request: ChatCompletionRequestStreaming
-  ): Promise<AsyncIterable<ChatCompletionChunk>>;
-  async chatCompletion(
-    request: ChatCompletionRequestBase
-  ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion>;
-  async chatCompletion(
-    request: ChatCompletionRequest
-  ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
-    throw new Error("Method not supported.");
-  }
-
-  async generate(
-    input: string | ChatCompletionRequestNonStreaming,
-    progressCallback?: GenerateProgressCallback,
-    streamInterval = 1,
-    genConfig?: GenerationConfig,
-  ): Promise<string> {
-    if (typeof input !== "string") {
-      throw new Error("ChatModuleRest only support string `input` for `generate`.")
-    }
-    if (streamInterval == 0) {
-      const response = await fetch('http://localhost:8000/v1/chat/completions', {
-        method: "POST",
-        headers: { "Content-type": "application/json" },
-        body: JSON.stringify({
-          model: "",
-          messages: [{ "role": "user", "content": input }],
-          stream: false
-        })
-      })
-        .then((response) => response.json())
-        .then((json) => {
-          const msg = json["choices"][0]["message"]["content"] as string;
-          if (progressCallback !== undefined) {
-            progressCallback(0, msg);
-          }
-          return msg;
-        });
-      return response;
-    } else {
-      let msg = "";
-      const response = await fetch('http://localhost:8000/v1/chat/completions', {
-        method: "POST",
-        headers: { "Content-type": "application/json" },
-        body: JSON.stringify({
-          model: "",
-          messages: [{ "role": "user", "content": input }],
-          stream: true
-        })
-      })
-        .then((response) => {
-          const reader = response.body!.getReader();
-          reader.read().then(function pump({ done, value }): any {
-            if (done) {
-              if (progressCallback !== undefined) {
-                progressCallback(0, msg);
-              }
-              return;
-            }
-            const jsonString = Buffer.from(value).toString('utf8').substring(6);
-            const parsedData = JSON.parse(jsonString);
-            const delta = parsedData["choices"][0]["delta"]["content"] as string;
-            // Hack to ignore chunks once we get the EOS token
-            if (delta.includes("<")) {
-              return;
-            }
-            msg += delta;
-            if (progressCallback !== undefined) {
-              progressCallback(0, msg);
-            }
-            return reader.read().then(pump);
-          });
-        });
-      return msg;
-    }
-  }
-
-  async runtimeStatsText(): Promise<string> {
-    const response = await fetch('http://localhost:8000/stats', {
-      method: "GET"
-    })
-      .then((response) => response.json())
-      .then((json) => {
-        return json;
-      });
-    return response;
-  }
-
-  async resetChat(keepStats = false) {
-    await fetch('http://localhost:8000/chat/reset', {
-      method: "POST"
-    });
   }
 }

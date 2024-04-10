@@ -6,8 +6,8 @@ import {
   ChatCompletionRequestNonStreaming,
   ChatCompletion,
   ChatCompletionChunk,
-  ChatCompletionMessageParam,
 } from "./openai_api_protocols/index";
+import * as API from "./openai_api_protocols/apis";
 
 /**
  * Report during intialization.
@@ -56,9 +56,14 @@ export interface LogitProcessor {
 
 
 /**
- * Common interface of chat module that UI can interact with
+ * Common interface of Engine that UI can interact with
  */
-export interface ChatInterface {
+export interface EngineInterface {
+  /**
+   * An object that exposes chat-related APIs.
+   */
+  chat: API.Chat;
+
   /**
    * Set an initialization progress callback function
    * which reports the progress of model loading.
@@ -90,6 +95,10 @@ export interface ChatInterface {
    * @param streamInterval callback interval to call progresscallback
    * @param genConfig Configuration for this single generation that overrides pre-existing configs.
    * @returns The final result.
+   * 
+   * @note This will be deprecated soon. Please use `engine.chat.completions.create()` instead.
+   * For multi-round chatting, see `examples/multi-round-chat` on how to use
+   * `engine.chat.completions.create()` to achieve the same effect.
    */
   generate: (
     input: string | ChatCompletionRequestNonStreaming,

@@ -8,13 +8,15 @@ function setLabel(id: string, text: string) {
     label.innerText = text;
 }
 
-async function demonstrateJSONFormat() {
-    const chat: webllm.ChatInterface = new webllm.ChatModule();
-
-    chat.setInitProgressCallback((report: webllm.InitProgressReport) => {
+async function main() {
+    const initProgressCallback = (report: webllm.InitProgressReport) => {
         setLabel("init-label", report.text);
-    });
-    await chat.reload("Llama-2-7b-chat-hf-q4f16_1");
+    };
+    const selectedModel = "Llama-2-7b-chat-hf-q4f32_1";
+    const engine: webllm.EngineInterface = await webllm.CreateEngine(
+        selectedModel,
+        { initProgressCallback: initProgressCallback }
+    );
 
     const request: webllm.ChatCompletionRequest = {
         stream: false,  // works with streaming, logprobs, top_logprobs as well
@@ -26,10 +28,10 @@ async function demonstrateJSONFormat() {
         response_format: { type: "json_object" } as webllm.ResponseFormat
     };
 
-    const reply0 = await chat.chatCompletion(request);
+    const reply0 = await engine.chatCompletion(request);
     console.log(reply0);
-    console.log("First reply's last choice:\n" + await chat.getMessage());
-    console.log(await chat.runtimeStatsText());
+    console.log("First reply's last choice:\n" + await engine.getMessage());
+    console.log(await engine.runtimeStatsText());
 }
 
-demonstrateJSONFormat();
+main();

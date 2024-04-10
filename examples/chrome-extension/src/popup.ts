@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 'use strict';
 
 // This code is partially adapted from the openai-chatgpt-chrome-extension repo:
@@ -5,60 +6,50 @@
 
 import './popup.css';
 
-import { ChatModule, AppConfig, InitProgressReport } from "@mlc-ai/web-llm";
+import { EngineInterface, InitProgressReport, CreateEngine, ChatCompletionMessageParam } from "@mlc-ai/web-llm";
 import { ProgressBar, Line } from "progressbar.js";
-
-// TODO: Surface this as an experimental option to the user
-const useWebGPU = true;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const queryInput = document.getElementById("query-input")!;
 const submitButton = document.getElementById("submit-button")!;
 
-var cm: ChatModule;
-var context = "";
-var isLoadingParams = false;
+let context = "";
+let isLoadingParams = false;
 
-const generateProgressCallback = (_step: number, message: string) => {
-    updateAnswer(message);
+fetchPageContents();
+
+(<HTMLButtonElement>submitButton).disabled = true;
+
+const progressBar: ProgressBar = new Line('#loadingContainer', {
+    strokeWidth: 4,
+    easing: 'easeInOut',
+    duration: 1400,
+    color: '#ffd166',
+    trailColor: '#eee',
+    trailWidth: 1,
+    svgStyle: { width: '100%', height: '100%' }
+});
+
+const initProgressCallback = (report: InitProgressReport) => {
+    console.log(report.text, report.progress);
+    progressBar.animate(report.progress, {
+        duration: 50
+    });
+    if (report.progress == 1.0) {
+        enableInputs();
+    }
 };
 
-if (useWebGPU) {
+// const selectedModel = "TinyLlama-1.1B-Chat-v0.4-q4f16_1-1k";
+const selectedModel = "Mistral-7B-Instruct-v0.2-q4f16_1";
+const engine: EngineInterface = await CreateEngine(
+    selectedModel,
+    { initProgressCallback: initProgressCallback }
+);
+const chatHistory: ChatCompletionMessageParam[] = [];
 
-    fetchPageContents();
-
-    (<HTMLButtonElement>submitButton).disabled = true;
-
-    cm = new ChatModule();
-    var progressBar: ProgressBar = new Line('#loadingContainer', {
-        strokeWidth: 4,
-        easing: 'easeInOut',
-        duration: 1400,
-        color: '#ffd166',
-        trailColor: '#eee',
-        trailWidth: 1,
-        svgStyle: { width: '100%', height: '100%' }
-    });
-
-    cm.setInitProgressCallback((report: InitProgressReport) => {
-        console.log(report.text, report.progress);
-        progressBar.animate(report.progress, {
-            duration: 50
-        });
-        if (report.progress == 1.0) {
-            enableInputs();
-        }
-    });
-
-    await cm.reload("Mistral-7B-Instruct-v0.2-q4f16_1");
-
-    isLoadingParams = true;
-} else {
-    const loadingBarContainer = document.getElementById("loadingContainer")!;
-    loadingBarContainer.remove();
-    queryInput.focus();
-}
+isLoadingParams = true;
 
 function enableInputs() {
     if (isLoadingParams) {
@@ -93,10 +84,6 @@ async function handleClick() {
     // Get the message from the input field
     const message = (<HTMLInputElement>queryInput).value;
     console.log("message", message);
-    if (!useWebGPU) {
-        // Send the query to the background script
-        chrome.runtime.sendMessage({ input: message });
-    }
     // Clear the answer
     document.getElementById("answer")!.innerHTML = "";
     // Hide the answer
@@ -104,16 +91,26 @@ async function handleClick() {
     // Show the loading indicator
     document.getElementById("loading-indicator")!.style.display = "block";
 
-    if (useWebGPU) {
-        // Generate response
-        var inp = message;
-        if (context.length > 0) {
-            inp = "Use only the following context when answering the question at the end. Don't use any other knowledge.\n" + context + "\n\nQuestion: " + message + "\n\nHelpful Answer: ";
-        }
-        console.log("Input:", inp);
-        const response = await cm.generate(inp, generateProgressCallback);
-        console.log("response", response);
+    // Generate response
+    let inp = message;
+    if (context.length > 0) {
+        inp = "Use only the following context when answering the question at the end. Don't use any other knowledge.\n" + context + "\n\nQuestion: " + message + "\n\nHelpful Answer: ";
     }
+    console.log("Input:", inp);
+    chatHistory.push({ "role": "user", "content": inp });
+
+    let curMessage = "";
+    const completion = await engine.chat.completions.create({ stream: true, messages: chatHistory });
+    for await (const chunk of completion) {
+        const curDelta = chunk.choices[0].delta.content;
+        if (curDelta) {
+            curMessage += curDelta;
+        }
+        updateAnswer(curMessage);
+    }
+    const response = await engine.getMessage();
+    chatHistory.push({ "role": "assistant", "content": await engine.getMessage() });
+    console.log("response", response);
 }
 submitButton.addEventListener("click", handleClick);
 
@@ -152,18 +149,7 @@ function fetchPageContents() {
         port.postMessage({});
         port.onMessage.addListener(function (msg) {
             console.log("Page contents:", msg.contents);
-            if (useWebGPU) {
-                context = msg.contents
-            } else {
-                chrome.runtime.sendMessage({ context: msg.contents });
-            }
+            context = msg.contents
         });
     });
-}
-
-// Grab the page contents when the popup is opened
-window.onload = function () {
-    if (!useWebGPU) {
-        fetchPageContents();
-    }
 }

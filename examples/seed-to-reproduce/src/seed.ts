@@ -14,14 +14,16 @@ function setLabel(id: string, text: string) {
  * that with seeding, we should see the exact same result being generated across two trials.
  * With `n > 1`, all choices should also be exactly the same.
  */
-async function demonstrateSeed() {
-    const chat: webllm.ChatInterface = new webllm.ChatModule();
-
-    chat.setInitProgressCallback((report: webllm.InitProgressReport) => {
+async function main() {
+    const initProgressCallback = (report: webllm.InitProgressReport) => {
         setLabel("init-label", report.text);
-    });
+    };
+    const selectedModel = "Llama-2-7b-chat-hf-q4f32_1";
+    const engine: webllm.EngineInterface = await webllm.CreateEngine(
+        selectedModel,
+        { initProgressCallback: initProgressCallback }
+    );
 
-    await chat.reload("Llama-2-7b-chat-hf-q4f32_1");
 
     const request: webllm.ChatCompletionRequest = {
         stream: false,  // works with streaming as well
@@ -30,17 +32,17 @@ async function demonstrateSeed() {
         ],
         n: 3,
         temperature: 1.2,  // high temperature gives much more random results
-        seed: 42,
         max_gen_len: 128,  // To save time; enough to demonstrate the effect
+        seed: 42,
     };
 
-    const reply0 = await chat.chatCompletion(request);
+    const reply0 = await engine.chat.completions.create(request);
     console.log(reply0);
-    console.log("First reply's last choice:\n" + await chat.getMessage());
+    console.log("First reply's last choice:\n" + await engine.getMessage());
 
-    const reply1 = await chat.chatCompletion(request);
+    const reply1 = await engine.chat.completions.create(request);
     console.log(reply1);
-    console.log("Second reply's last choice:\n" + await chat.getMessage());
+    console.log("Second reply's last choice:\n" + await engine.getMessage());
 
     // Rigorously check the generation results of each choice for the two requests
     for (const choice0 of reply0.choices) {
@@ -51,8 +53,8 @@ async function demonstrateSeed() {
         }
     }
 
-    console.log(await chat.runtimeStatsText());
+    console.log(await engine.runtimeStatsText());
 }
 
 // Run one of the functions
-demonstrateSeed();
+main();

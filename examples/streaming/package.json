@@ -1,10 +1,10 @@
 {
-    "name": "get-started",
+    "name": "streaming",
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "start": "parcel src/get_started.html  --port 8888",
-        "build": "parcel build src/get_started.html --dist-dir lib"
+        "start": "parcel src/streaming.html  --port 8888",
+        "build": "parcel build src/streaming.html --dist-dir lib"
     },
     "devDependencies": {
         "buffer": "^5.7.1",

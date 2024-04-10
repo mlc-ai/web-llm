@@ -1,6 +1,6 @@
 import { Role } from '../src/config'
 import { getConversation } from '../src/conversation'
-import { ChatModule } from '../src/chat_module'
+import { Engine } from '../src/engine'
 import { ChatCompletionRequest } from "../src/openai_api_protocols/chat_completion"
 
 
@@ -41,9 +41,9 @@ describe('Test conversation template', () => {
     })
 });
 
-describe('Test ChatModule', () => {
+describe('Test Engine', () => {
     test('Test getFunctionCallUsage none', () => {
-        const chat_module = new ChatModule();
+        const engine = new Engine();
 
         const request: ChatCompletionRequest = {
             model: "gorilla-openfunctions-v1-q4f16_1_MLC",
@@ -59,11 +59,11 @@ describe('Test ChatModule', () => {
             ],
         };
 
-        expect((chat_module as any).getFunctionCallUsage(request)).toEqual("");
+        expect((engine as any).getFunctionCallUsage(request)).toEqual("");
     });
 
     test('Test getFunctionCallUsage auto', () => {
-        const chat_module = new ChatModule();
+        const engine = new Engine();
 
         const request: ChatCompletionRequest = {
             model: "gorilla-openfunctions-v1-q4f16_1_MLC",
@@ -78,11 +78,11 @@ describe('Test ChatModule', () => {
                 { type: 'function', function: { description: 'C', name: 'fn_C', parameters: { foo: 'bar' } } },
             ],
         };
-        expect((chat_module as any).getFunctionCallUsage(request)).toEqual("[{\"description\":\"A\",\"name\":\"fn_A\",\"parameters\":{\"foo\":\"bar\"}},{\"description\":\"B\",\"name\":\"fn_B\",\"parameters\":{\"foo\":\"bar\"}},{\"description\":\"C\",\"name\":\"fn_C\",\"parameters\":{\"foo\":\"bar\"}}]");
+        expect((engine as any).getFunctionCallUsage(request)).toEqual("[{\"description\":\"A\",\"name\":\"fn_A\",\"parameters\":{\"foo\":\"bar\"}},{\"description\":\"B\",\"name\":\"fn_B\",\"parameters\":{\"foo\":\"bar\"}},{\"description\":\"C\",\"name\":\"fn_C\",\"parameters\":{\"foo\":\"bar\"}}]");
     });
 
     test('Test getFunctionCallUsage function', () => {
-        const chat_module = new ChatModule();
+        const engine = new Engine();
 
         const request: ChatCompletionRequest = {
             model: "gorilla-openfunctions-v1-q4f16_1_MLC",
@@ -102,7 +102,7 @@ describe('Test ChatModule', () => {
                 { type: 'function', function: { description: 'C', name: 'fn_C', parameters: { foo: 'bar' } } },
             ],
         };
-        expect((chat_module as any).getFunctionCallUsage(request)).toEqual("[{\"description\":\"B\",\"name\":\"fn_B\",\"parameters\":{\"foo\":\"bar\"}}]");
+        expect((engine as any).getFunctionCallUsage(request)).toEqual("[{\"description\":\"B\",\"name\":\"fn_B\",\"parameters\":{\"foo\":\"bar\"}}]");
 
     });
 });
