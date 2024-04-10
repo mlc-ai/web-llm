@@ -220,9 +220,15 @@ export interface ModelRecord {
  * passed to the load.
  * 
  * @param model_list: models to be used.
+ * @param useIndexedDBCache: if true, will use IndexedDBCache to cache models and other artifacts.
+ * If false or unspecified, will use the Cache API. For more information of the two, see:
+ * https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria#what_technologies_store_data_in_the_browser 
+ * 
+ * @note Note that the Cache API is more well-tested in WebLLM as of now.
  */
 export interface AppConfig {
   model_list: Array<ModelRecord>;
+  useIndexedDBCache?: boolean;
 }
 
 /**
@@ -243,6 +249,7 @@ export const modelLibURLPrefix =
  * current WebLLM npm version.
  */
 export const prebuiltAppConfig: AppConfig = {
+  useIndexedDBCache: false,
   model_list: [
     // Llama-2
     {

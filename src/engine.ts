@@ -109,17 +109,29 @@ export class Engine implements EngineInterface {
     if (!modelUrl.startsWith("http")) {
       modelUrl = new URL(modelUrl, baseUrl).href;
     }
-    const configCache = new tvmjs.ArtifactCache("webllm/config");
+
+    let configCache: tvmjs.ArtifactCacheTemplate;
+    if (appConfig.useIndexedDBCache) {
+      configCache = new tvmjs.ArtifactIndexedDBCache("webllm/config");
+    } else {
+      configCache = new tvmjs.ArtifactCache("webllm/config");
+    }
 
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
     this.config = {
-      ...(await (await configCache.fetchWithCache(configUrl)).json()),
+      ...(await configCache.fetchWithCache(configUrl, "json")),
       ...chatOpts
     } as ChatConfig;
 
     // load tvm wasm
-    const wasmCache = new tvmjs.ArtifactCache("webllm/wasm");
+    let wasmCache: tvmjs.ArtifactCacheTemplate;
+    if (appConfig.useIndexedDBCache) {
+      wasmCache = new tvmjs.ArtifactIndexedDBCache("webllm/wasm");
+    } else {
+      wasmCache = new tvmjs.ArtifactCache("webllm/wasm");
+    }
+
     const wasmUrl = modelRecord.model_lib_url;
     if (wasmUrl === undefined) {
       throw Error("You need to specify `model_lib_url` for each model in `model_list` " +
@@ -135,10 +147,10 @@ export class Engine implements EngineInterface {
         return await fetch(new URL(wasmUrl, baseUrl).href);
       } else {
         // use cache
-        return await wasmCache.fetchWithCache(wasmUrl);
+        return await wasmCache.fetchWithCache(wasmUrl, "arraybuffer");
       }
     };
-    const wasmSource = await (await fetchWasmSource()).arrayBuffer();
+    const wasmSource = await fetchWasmSource();
 
     const tvm = await tvmjs.instantiate(
       new Uint8Array(wasmSource),
@@ -188,9 +200,9 @@ export class Engine implements EngineInterface {
       }
     });
     this.deviceLostIsError = true;
-    const tokenizer = await this.asyncLoadTokenizer(modelUrl, this.config);
-    await tvm.fetchNDArrayCache(modelUrl, tvm.webgpu(), "webllm/model");
-
+    const tokenizer = await this.asyncLoadTokenizer(modelUrl, this.config, appConfig);
+    const cacheType = appConfig.useIndexedDBCache ? "indexeddb" : "cache";
+    await tvm.fetchNDArrayCache(modelUrl, tvm.webgpu(), "webllm/model", cacheType);
     this.pipeline = new LLMChatPipeline(tvm, tokenizer, this.config, this.logitProcessor);
     await this.pipeline?.asyncLoadWebGPUPipelines();
     const tend = performance.now();
@@ -692,12 +704,19 @@ export class Engine implements EngineInterface {
 
   private async asyncLoadTokenizer(
     baseUrl: string,
-    config: ChatConfig
+    config: ChatConfig,
+    appConfig: AppConfig,
   ): Promise<Tokenizer> {
-    const modelCache = new tvmjs.ArtifactCache("webllm/model");
+    let modelCache: tvmjs.ArtifactCacheTemplate;
+    if (appConfig.useIndexedDBCache) {
+      modelCache = new tvmjs.ArtifactIndexedDBCache("webllm/model");
+    } else {
+      modelCache = new tvmjs.ArtifactCache("webllm/model");
+    }
+
     if (config.tokenizer_files.includes("tokenizer.json")) {
       const url = new URL("tokenizer.json", baseUrl).href;
-      const model = await (await modelCache.fetchWithCache(url)).arrayBuffer();
+      const model = await modelCache.fetchWithCache(url, "arraybuffer");
       return Tokenizer.fromJSON(model);
     }
     else if (config.tokenizer_files.includes("tokenizer.model")) {
@@ -707,7 +726,7 @@ export class Engine implements EngineInterface {
         "Consider converting `tokenizer.model` to `tokenizer.json` by compiling the model " +
         "with MLC again, or see if MLC's huggingface provides this file.");
       const url = new URL("tokenizer.model", baseUrl).href;
-      const model = await (await modelCache.fetchWithCache(url)).arrayBuffer();
+      const model = await modelCache.fetchWithCache(url, "arraybuffer");
       return Tokenizer.fromSentencePiece(model);
     }
     throw Error("Cannot handle tokenizer files " + config.tokenizer_files)
