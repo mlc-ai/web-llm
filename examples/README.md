@@ -27,7 +27,7 @@ These examples demonstrate various capabilities via WebLLM's OpenAI-like API.
 
 #### Others
 - [logit-processor](logit-processor): while `logit_bias` is supported, we additionally support stateful logit processing where users can specify their own rules. We also expose low-level API `forwardTokensAndSample()`.
-- [cache-usage](cache-usage): demonstrates how WebLLM supports both the Cache API and IndexedDBCache, and
+- [cache-usage](cache-usage): demonstrates how WebLLM supports both the [Cache API](https://developer.mozilla.org/en-US/docs/Web/API/Cache) and [IndexedDB cache](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API), and
 users can pick with `appConfig.useIndexedDBCache`. Also demonstrates various cache utils such as checking
 whether a model is cached, deleting a model's weights from cache, deleting a model library wasm from cache, etc.
 
