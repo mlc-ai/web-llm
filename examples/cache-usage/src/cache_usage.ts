@@ -8,8 +8,11 @@ function setLabel(id: string, text: string) {
   label.innerText = text;
 }
 
+const initProgressCallback = (report: webllm.InitProgressReport) => {
+  setLabel("init-label", report.text);
+};
+
 async function main() {
-  const chat = new webllm.ChatModule();
   const appConfig = webllm.prebuiltAppConfig;
   // CHANGE THIS TO SEE EFFECTS OF BOTH, CODE BELOW DO NOT NEED TO CHANGE
   appConfig.useIndexedDBCache = true;
@@ -20,13 +23,12 @@ async function main() {
     console.log("Using Cache API");
   }
 
-  chat.setInitProgressCallback((report: webllm.InitProgressReport) => {
-    setLabel("init-label", report.text);
-  });
-  const selectedModel = "Phi2-q4f16_1";
-
   // 1. This triggers downloading and caching the model with either Cache or IndexedDB Cache
-  await chat.reload(selectedModel, undefined, appConfig);
+  const selectedModel = "Phi2-q4f16_1"
+  const engine: webllm.EngineInterface = await webllm.CreateEngine(
+    "Phi2-q4f16_1",
+    { initProgressCallback: initProgressCallback, appConfig: appConfig }
+  );
 
   const request: webllm.ChatCompletionRequest = {
     stream: false,
@@ -35,18 +37,21 @@ async function main() {
     ],
     n: 1,
   };
-  let reply = await chat.chatCompletion(request);
+  let reply = await engine.chat.completions.create(request);
   console.log(reply);
 
   // 2. Check whether model weights are cached
   let modelCached = await webllm.hasModelInCache(selectedModel, appConfig);
   console.log("hasModelInCache: ", modelCached);
+  if (!modelCached) {
+    throw Error("Expect hasModelInCache() to be true, but got: " + modelCached);
+  }
 
   // 3. We reload, and we should see this time it is much faster because the weights are cached.
   console.log("Reload model start");
-  await chat.reload(selectedModel, undefined, appConfig);
+  await engine.reload(selectedModel, undefined, appConfig);
   console.log("Reload model end");
-  reply = await chat.chatCompletion(request);
+  reply = await engine.chat.completions.create(request);
   console.log(reply);
 
   // 4. Delete every thing about this model from cache
@@ -54,12 +59,15 @@ async function main() {
   await webllm.deleteModelAllInfoInCache(selectedModel, appConfig);
   modelCached = await webllm.hasModelInCache(selectedModel, appConfig);
   console.log("After deletion, hasModelInCache: ", modelCached);
+  if (modelCached) {
+    throw Error("Expect hasModelInCache() to be false, but got: " + modelCached);
+  }
 
   // 5. If we reload, we should expect the model to start downloading again
   console.log("Reload model start");
-  await chat.reload(selectedModel, undefined, appConfig);
+  await engine.reload(selectedModel, undefined, appConfig);
   console.log("Reload model end");
-  reply = await chat.chatCompletion(request);
+  reply = await engine.chat.completions.create(request);
   console.log(reply);
 }
 
