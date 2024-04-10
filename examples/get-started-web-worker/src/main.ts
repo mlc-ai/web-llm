@@ -19,7 +19,7 @@ async function mainNonStreaming() {
   };
   const selectedModel = "Llama-2-7b-chat-hf-q4f32_1";
 
-  const engine: webllm.WebWorkerEngine = await webllm.CreateWebWorkerEngine(
+  const engine: webllm.EngineInterface = await webllm.CreateWebWorkerEngine(
     new Worker(
       new URL('./worker.ts', import.meta.url),
       { type: 'module' }
@@ -59,7 +59,7 @@ async function mainStreaming() {
   };
   const selectedModel = "Llama-2-7b-chat-hf-q4f32_1";
 
-  const engine: webllm.WebWorkerEngine = await webllm.CreateWebWorkerEngine(
+  const engine: webllm.EngineInterface = await webllm.CreateWebWorkerEngine(
     new Worker(
       new URL('./worker.ts', import.meta.url),
       { type: 'module' }

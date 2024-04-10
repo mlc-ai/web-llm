@@ -7,6 +7,7 @@ import {
   ChatCompletion,
   ChatCompletionChunk,
 } from "./openai_api_protocols/index";
+import * as API from "./openai_api_protocols/apis";
 
 /**
  * Report during intialization.
@@ -58,6 +59,11 @@ export interface LogitProcessor {
  * Common interface of Engine that UI can interact with
  */
 export interface EngineInterface {
+  /**
+   * An object that exposes chat-related APIs.
+   */
+  chat: API.Chat;
+
   /**
    * Set an initialization progress callback function
    * which reports the progress of model loading.

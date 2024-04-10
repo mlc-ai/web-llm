@@ -6,7 +6,7 @@
 
 import './popup.css';
 
-import { Engine, InitProgressReport, CreateEngine, ChatCompletionMessageParam } from "@mlc-ai/web-llm";
+import { EngineInterface, InitProgressReport, CreateEngine, ChatCompletionMessageParam } from "@mlc-ai/web-llm";
 import { ProgressBar, Line } from "progressbar.js";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -43,7 +43,7 @@ const initProgressCallback = (report: InitProgressReport) => {
 
 // const selectedModel = "TinyLlama-1.1B-Chat-v0.4-q4f16_1-1k";
 const selectedModel = "Mistral-7B-Instruct-v0.2-q4f16_1";
-const engine: Engine = await CreateEngine(
+const engine: EngineInterface = await CreateEngine(
     selectedModel,
     { initProgressCallback: initProgressCallback }
 );

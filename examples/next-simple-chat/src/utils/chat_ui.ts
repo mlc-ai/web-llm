@@ -1,7 +1,7 @@
-import { Engine, ChatCompletionMessageParam } from "@mlc-ai/web-llm";
+import { EngineInterface, ChatCompletionMessageParam } from "@mlc-ai/web-llm";
 
 export default class ChatUI {
-    private engine: Engine;
+    private engine: EngineInterface;
     private chatLoaded = false;
     private requestInProgress = false;
     // We use a request chain to ensure that
@@ -9,7 +9,7 @@ export default class ChatUI {
     private chatRequestChain: Promise<void> = Promise.resolve();
     private chatHistory: ChatCompletionMessageParam[] = [];
 
-    constructor(engine: Engine) {
+    constructor(engine: EngineInterface) {
         this.engine = engine;
     }
     /**
@@ -102,11 +102,11 @@ export default class ChatUI {
             let curMessage = "";
             const completion = await this.engine.chat.completions.create({ stream: true, messages: this.chatHistory });
             for await (const chunk of completion) {
-              const curDelta = chunk.choices[0].delta.content;
-              if (curDelta) {
-                curMessage += curDelta;
-              }
-              messageUpdate("left", curMessage, false);
+                const curDelta = chunk.choices[0].delta.content;
+                if (curDelta) {
+                    curMessage += curDelta;
+                }
+                messageUpdate("left", curMessage, false);
             }
             const output = await this.engine.getMessage();
             this.chatHistory.push({ "role": "assistant", "content": output });

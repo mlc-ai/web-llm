@@ -13,7 +13,7 @@ class ChatUI {
   private uiChat: HTMLElement;
   private uiChatInput: HTMLInputElement;
   private uiChatInfoLabel: HTMLLabelElement;
-  private engine: webllm.Engine | webllm.WebWorkerEngine;
+  private engine: webllm.EngineInterface | webllm.WebWorkerEngine;
   private config: webllm.AppConfig = appConfig;
   private selectedModel: string;
   private chatLoaded = false;
@@ -27,7 +27,7 @@ class ChatUI {
    * An asynchronous factory constructor since we need to await getMaxStorageBufferBindingSize();
    * this is not allowed in a constructor (which cannot be asynchronous).
    */
-  public static CreateAsync = async (engine: webllm.Engine | webllm.WebWorkerEngine) => {
+  public static CreateAsync = async (engine: webllm.EngineInterface) => {
     const chatUI = new ChatUI();
     chatUI.engine = engine;
     // get the elements
@@ -286,7 +286,7 @@ class ChatUI {
 }
 
 const useWebWorker = appConfig.use_web_worker;
-let engine: webllm.Engine | webllm.WebWorkerEngine;
+let engine: webllm.EngineInterface;
 
 // Here we do not use `CreateEngine()` but instantiate an engine that is not loaded with model
 if (useWebWorker) {

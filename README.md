@@ -38,7 +38,7 @@ async function main() {
     label.innerText = report.text;
   };
   const selectedModel = "Llama-2-7b-chat-hf-q4f32_1";
-  const engine: webllm.Engine = await webllm.CreateEngine(
+  const engine: webllm.EngineInterface = await webllm.CreateEngine(
     selectedModel,
     /*engineConfig=*/{ initProgressCallback: initProgressCallback }
   );
@@ -56,7 +56,7 @@ main();
 Note that if you need to separate the instantiation of `webllm.Engine` from loading a model, you could substitute
 
 ```typescript
-const engine: webllm.Engine = await webllm.CreateEngine(
+const engine: webllm.EngineInterface = await webllm.CreateEngine(
   selectedModel,
   /*engineConfig=*/{ initProgressCallback: initProgressCallback }
 );
@@ -65,7 +65,7 @@ const engine: webllm.Engine = await webllm.CreateEngine(
 with the equivalent
 
 ```typescript
-const engine: webllm.Engine = new webllm.Engine();
+const engine: webllm.EngineInterface = new webllm.Engine();
 engine.setInitProgressCallback(initProgressCallback);
 await engine.reload(selectedModel, chatConfig, appConfig);
 ```
@@ -100,7 +100,7 @@ import * as webllm from "@mlc-ai/web-llm";
 
 async function main() {
   // Use a WebWorkerEngine instead of Engine here
-  const engine: webllm.WebWorkerEngine = await webllm.CreateWebWorkerEngine(
+  const engine: webllm.EngineInterface = await webllm.CreateWebWorkerEngine(
     /*worker=*/new Worker(
       new URL('./worker.ts', import.meta.url),
       { type: 'module' }
@@ -132,7 +132,7 @@ WebLLM is designed to be fully compatible with [OpenAI API](https://platform.ope
 ## Model Support
 
 We export all supported models in `webllm.prebuiltAppConfig`, where you can see a list of models
-that you can simply call `const engine: webllm.Engine = await webllm.CreateEngine(anyModel)` with.
+that you can simply call `const engine: webllm.EngineInterface = await webllm.CreateEngine(anyModel)` with.
 Prebuilt models include:
 - Llama-2
 - Gemma

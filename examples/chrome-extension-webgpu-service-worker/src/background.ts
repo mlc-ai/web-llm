@@ -1,8 +1,8 @@
-import { Engine, CreateEngine, InitProgressReport, ChatCompletionMessageParam } from "@mlc-ai/web-llm";
+import { EngineInterface, CreateEngine, InitProgressReport, ChatCompletionMessageParam } from "@mlc-ai/web-llm";
 
 let model_loaded = false;
 
-let engine: Engine;
+let engine: EngineInterface;
 const chatHistory: ChatCompletionMessageParam[] = [];
 
 let context = "";
