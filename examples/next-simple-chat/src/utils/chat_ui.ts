@@ -1,15 +1,16 @@
-import { type ChatInterface } from "@mlc-ai/web-llm";
+import { EngineInterface, ChatCompletionMessageParam } from "@mlc-ai/web-llm";
 
 export default class ChatUI {
-    private chat: ChatInterface;
+    private engine: EngineInterface;
     private chatLoaded = false;
     private requestInProgress = false;
     // We use a request chain to ensure that
     // all requests send to chat are sequentialized
     private chatRequestChain: Promise<void> = Promise.resolve();
+    private chatHistory: ChatCompletionMessageParam[] = [];
 
-    constructor(chat: ChatInterface) {
-        this.chat = chat;
+    constructor(engine: EngineInterface) {
+        this.engine = engine;
     }
     /**
      * Push a task to the execution queue.
@@ -38,11 +39,12 @@ export default class ChatUI {
     async onReset(clearMessages: () => void) {
         if (this.requestInProgress) {
             // interrupt previous generation if any
-            this.chat.interruptGenerate();
+            this.engine.interruptGenerate();
         }
+        this.chatHistory = [];
         // try reset after previous requests finishes
         this.pushTask(async () => {
-            await this.chat.resetChat();
+            await this.engine.resetChat();
             clearMessages();
         });
         return this.chatRequestChain
@@ -55,18 +57,12 @@ export default class ChatUI {
         const initProgressCallback = (report: { text: string }) => {
             messageUpdate("init", report.text, false);
         }
-        this.chat.setInitProgressCallback(initProgressCallback);
+        this.engine.setInitProgressCallback(initProgressCallback);
 
         try {
-            await this.chat.reload("Llama-2-7b-chat-hf-q4f32_1", undefined, {
-                "model_list": [
-                    {
-                        "model_url": "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f32_1-MLC/resolve/main/",
-                        "model_id": "Llama-2-7b-chat-hf-q4f32_1",
-                        "model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/Llama-2-7b-chat-hf/Llama-2-7b-chat-hf-q4f32_1-ctx4k_cs1k-webgpu.wasm",
-                    },
-                ]
-            });
+            const selectedModel = "Llama-2-7b-chat-hf-q4f32_1";
+            // const selectedModel = "TinyLlama-1.1B-Chat-v0.4-q4f16_1-1k";
+            await this.engine.reload(selectedModel);
         } catch (err: unknown) {
             messageUpdate("error", "Init error, " + (err?.toString() ?? ""), true);
             console.log(err);
@@ -79,7 +75,7 @@ export default class ChatUI {
     }
 
     private async unloadChat() {
-        await this.chat.unload();
+        await this.engine.unload();
         this.chatLoaded = false;
     }
 
@@ -100,14 +96,22 @@ export default class ChatUI {
         // this.uiChatInput.setAttribute("placeholder", "Generating...");
 
         messageUpdate("left", "", true);
-        const callbackUpdateResponse = (step: number, msg: string) => {
-            messageUpdate("left", msg, false);
-        };
 
         try {
-            const output = await this.chat.generate(prompt, callbackUpdateResponse);
+            this.chatHistory.push({ "role": "user", "content": prompt });
+            let curMessage = "";
+            const completion = await this.engine.chat.completions.create({ stream: true, messages: this.chatHistory });
+            for await (const chunk of completion) {
+                const curDelta = chunk.choices[0].delta.content;
+                if (curDelta) {
+                    curMessage += curDelta;
+                }
+                messageUpdate("left", curMessage, false);
+            }
+            const output = await this.engine.getMessage();
+            this.chatHistory.push({ "role": "assistant", "content": output });
             messageUpdate("left", output, false);
-            this.chat.runtimeStatsText().then(stats => setRuntimeStats(stats)).catch(error => console.log(error));
+            this.engine.runtimeStatsText().then(stats => setRuntimeStats(stats)).catch(error => console.log(error));
         } catch (err: unknown) {
             messageUpdate("error", "Generate error, " + (err?.toString() ?? ""), true);
             console.log(err);

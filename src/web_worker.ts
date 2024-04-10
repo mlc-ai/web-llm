@@ -1,6 +1,6 @@
-import { AppConfig, ChatOptions, GenerationConfig } from "./config";
+import { AppConfig, ChatOptions, EngineConfig, GenerationConfig } from "./config";
 import {
-  ChatInterface,
+  EngineInterface,
   GenerateProgressCallback,
   InitProgressCallback,
   InitProgressReport
@@ -11,9 +11,9 @@ import {
   ChatCompletionRequestStreaming,
   ChatCompletionRequestNonStreaming,
   ChatCompletion,
-  ChatCompletionMessageParam,
   ChatCompletionChunk,
 } from "./openai_api_protocols/index";
+import * as API from "./openai_api_protocols/apis";
 
 /**
  * Message kind used by worker
@@ -100,17 +100,17 @@ export interface WorkerMessage {
  *
  * // setup a chat worker handler that routes
  * // requests to the chat
- * const chat = new ChatModule();
- * cont handler = new ChatWorkerHandler(chat);
+ * const engine = new Engine();
+ * cont handler = new EngineWorkerHandler(engine);
  * onmessage = handler.onmessage;
  */
-export class ChatWorkerHandler {
-  protected chat: ChatInterface;
+export class EngineWorkerHandler {
+  protected engine: EngineInterface;
   protected chatCompletionAsyncChunkGenerator?: AsyncGenerator<ChatCompletionChunk, void, void>;
 
-  constructor(chat: ChatInterface) {
-    this.chat = chat;
-    this.chat.setInitProgressCallback((report: InitProgressReport) => {
+  constructor(engine: EngineInterface) {
+    this.engine = engine;
+    this.engine.setInitProgressCallback((report: InitProgressReport) => {
       const msg: WorkerMessage = {
         kind: "initProgressCallback",
         uuid: "",
@@ -146,7 +146,7 @@ export class ChatWorkerHandler {
       case "reload": {
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ReloadParams;
-          await this.chat.reload(params.modelId, params.chatOpts, params.appConfig);
+          await this.engine.reload(params.modelId, params.chatOpts, params.appConfig);
           return null;
         })
         return;
@@ -165,7 +165,7 @@ export class ChatWorkerHandler {
             };
             postMessage(cbMessage);
           };
-          return await this.chat.generate(
+          return await this.engine.generate(
             params.input,
             progressCallback,
             params.streamInterval,
@@ -177,7 +177,7 @@ export class ChatWorkerHandler {
       case "forwardTokensAndSample": {
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ForwardTokensAndSampleParams;
-          return await this.chat.forwardTokensAndSample(params.inputIds, params.isPrefill);
+          return await this.engine.forwardTokensAndSample(params.inputIds, params.isPrefill);
         })
         return;
       }
@@ -185,7 +185,7 @@ export class ChatWorkerHandler {
         // Directly return the ChatCompletion response
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ChatCompletionNonStreamingParams;
-          return await this.chat.chatCompletion(params.request);
+          return await this.engine.chatCompletion(params.request);
         })
         return;
       }
@@ -194,7 +194,7 @@ export class ChatWorkerHandler {
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ChatCompletionStreamInitParams;
           this.chatCompletionAsyncChunkGenerator =
-            await this.chat.chatCompletion(params.request) as AsyncGenerator<ChatCompletionChunk, void, void>;
+            await this.engine.chatCompletion(params.request) as AsyncGenerator<ChatCompletionChunk, void, void>;
           return null
         })
         return;
@@ -213,20 +213,20 @@ export class ChatWorkerHandler {
       }
       case "runtimeStatsText": {
         this.handleTask(msg.uuid, async () => {
-          return await this.chat.runtimeStatsText();
+          return await this.engine.runtimeStatsText();
         });
         return;
       }
       case "interruptGenerate": {
         this.handleTask(msg.uuid, async () => {
-          this.chat.interruptGenerate();
+          this.engine.interruptGenerate();
           return null;
         });
         return;
       }
       case "unload": {
         this.handleTask(msg.uuid, async () => {
-          await this.chat.unload();
+          await this.engine.unload();
           return null;
         });
         return;
@@ -234,26 +234,26 @@ export class ChatWorkerHandler {
       case "resetChat": {
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ResetChatParams;
-          await this.chat.resetChat(params.keepStats);
+          await this.engine.resetChat(params.keepStats);
           return null;
         });
         return;
       }
       case "getMaxStorageBufferBindingSize": {
         this.handleTask(msg.uuid, async () => {
-          return await this.chat.getMaxStorageBufferBindingSize();
+          return await this.engine.getMaxStorageBufferBindingSize();
         });
         return;
       }
       case "getGPUVendor": {
         this.handleTask(msg.uuid, async () => {
-          return await this.chat.getGPUVendor();
+          return await this.engine.getGPUVendor();
         });
         return;
       }
       case "getMessage": {
         this.handleTask(msg.uuid, async () => {
-          return await this.chat.getMessage();
+          return await this.engine.getMessage();
         });
         return;
       }
@@ -273,7 +273,31 @@ interface ChatWorker {
 }
 
 /**
- * A client of chat worker that exposes the chat interface
+ * Creates `WebWorkerEngine`, a client that holds the same interface as `Engine`.
+ * 
+ * Equivalent to `new webllm.WebWorkerEngine(worker).reload(...)`.
+ * 
+ * @param worker The worker that holds the actual Engine, intialized with `new Worker()`.
+ * @param modelId The model to load, needs to either be in `webllm.prebuiltAppConfig`, or in
+ * `engineConfig.appConfig`.
+ * @param engineConfig Optionally configures the engine, see `webllm.EngineConfig` for more.
+ * @returns An initialized `WebLLM.WebWorkerEngine` with `modelId` loaded.
+ * 
+ * @note engineConfig.logitProcessorRegistry is ignored for `CreateWebWorkEngine()`.
+ */
+export async function CreateWebWorkerEngine(
+  worker: any,
+  modelId: string,
+  engineConfig?: EngineConfig,
+): Promise<WebWorkerEngine> {
+  const webWorkerEngine = new WebWorkerEngine(worker);
+  webWorkerEngine.setInitProgressCallback(engineConfig?.initProgressCallback);
+  await webWorkerEngine.reload(modelId, engineConfig?.chatOpts, engineConfig?.appConfig);
+  return webWorkerEngine;
+}
+
+/**
+ * A client of Engine that exposes the same interface
  *
  * @example
  *
@@ -282,8 +306,10 @@ interface ChatWorker {
  *   {type: 'module'}
  * ));
  */
-export class ChatWorkerClient implements ChatInterface {
+export class WebWorkerEngine implements EngineInterface {
   public worker: ChatWorker;
+  public chat: API.Chat;
+
   private initProgressCallback?: InitProgressCallback;
   private generateCallbackRegistry = new Map<string, GenerateProgressCallback>();
   private pendingPromise = new Map<string, (msg: WorkerMessage) => void>();
@@ -293,9 +319,10 @@ export class ChatWorkerClient implements ChatInterface {
     worker.onmessage = (event: any) => {
       this.onmessage(event);
     }
+    this.chat = new API.Chat(this);
   }
 
-  setInitProgressCallback(initProgressCallback: InitProgressCallback) {
+  setInitProgressCallback(initProgressCallback?: InitProgressCallback) {
     this.initProgressCallback = initProgressCallback;
   }
 

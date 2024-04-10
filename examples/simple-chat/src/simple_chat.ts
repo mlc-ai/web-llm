@@ -1,5 +1,5 @@
 import appConfig from "./app-config";
-import { ChatInterface, ChatModule, ChatRestModule, ChatWorkerClient, AppConfig } from "@mlc-ai/web-llm";
+import * as webllm from "@mlc-ai/web-llm";
 
 function getElementAndCheck(id: string): HTMLElement {
   const element = document.getElementById(id);
@@ -13,28 +13,23 @@ class ChatUI {
   private uiChat: HTMLElement;
   private uiChatInput: HTMLInputElement;
   private uiChatInfoLabel: HTMLLabelElement;
-  private chat: ChatInterface;
-  private localChat: ChatInterface;
-  private config: AppConfig = appConfig;
+  private engine: webllm.EngineInterface | webllm.WebWorkerEngine;
+  private config: webllm.AppConfig = appConfig;
   private selectedModel: string;
   private chatLoaded = false;
   private requestInProgress = false;
+  private chatHistory: webllm.ChatCompletionMessageParam[] = [];
   // We use a request chain to ensure that
   // all requests send to chat are sequentialized
   private chatRequestChain: Promise<void> = Promise.resolve();
-
-  private constructor() {
-  }
 
   /**
    * An asynchronous factory constructor since we need to await getMaxStorageBufferBindingSize();
    * this is not allowed in a constructor (which cannot be asynchronous).
    */
-  public static CreateAsync = async (chat: ChatInterface, localChat: ChatInterface) => {
+  public static CreateAsync = async (engine: webllm.EngineInterface) => {
     const chatUI = new ChatUI();
-    // use web worker to run chat generation in background
-    chatUI.chat = chat;
-    chatUI.localChat = localChat;
+    chatUI.engine = engine;
     // get the elements
     chatUI.uiChat = getElementAndCheck("chatui-chat");
     chatUI.uiChatInput = getElementAndCheck("chatui-input") as HTMLInputElement;
@@ -64,8 +59,8 @@ class ChatUI {
     let gpuVendor: string;
     try {
       [maxStorageBufferBindingSize, gpuVendor] = await Promise.all([
-        chat.getMaxStorageBufferBindingSize(),
-        chat.getGPUVendor(),
+        engine.getMaxStorageBufferBindingSize(),
+        engine.getGPUVendor(),
       ]);
     } catch (err) {
       chatUI.appendMessage("error", "Init error, " + err.toString());
@@ -104,11 +99,6 @@ class ChatUI {
     }
     modelSelector.appendChild(document.createElement("hr"));
 
-    // Append local server option to the model selector
-    const localServerOpt = document.createElement("option");
-    localServerOpt.value = "Local Server";
-    localServerOpt.innerHTML = "Local Server";
-    modelSelector.append(localServerOpt);
     chatUI.selectedModel = modelSelector.value;
     modelSelector.onchange = () => {
       chatUI.onSelectChange(modelSelector);
@@ -130,7 +120,7 @@ class ChatUI {
   // all event handler pushes the tasks to a queue
   // that get executed sequentially
   // the tasks previous tasks, which causes them to early stop
-  // can be interrupted by chat.interruptGenerate
+  // can be interrupted by engine.interruptGenerate
   private async onGenerate() {
     if (this.requestInProgress) {
       return;
@@ -143,11 +133,11 @@ class ChatUI {
   private async onSelectChange(modelSelector: HTMLSelectElement) {
     if (this.requestInProgress) {
       // interrupt previous generation if any
-      this.chat.interruptGenerate();
+      this.engine.interruptGenerate();
     }
     // try reset after previous requests finishes
     this.pushTask(async () => {
-      await this.chat.resetChat();
+      await this.engine.resetChat();
       this.resetChatHistory();
       await this.unloadChat();
       this.selectedModel = modelSelector.value;
@@ -158,11 +148,11 @@ class ChatUI {
   private async onReset() {
     if (this.requestInProgress) {
       // interrupt previous generation if any
-      this.chat.interruptGenerate();
+      this.engine.interruptGenerate();
     }
     // try reset after previous requests finishes
     this.pushTask(async () => {
-      await this.chat.resetChat();
+      await this.engine.resetChat();
       this.resetChatHistory();
     });
   }
@@ -210,6 +200,7 @@ class ChatUI {
   }
 
   private resetChatHistory() {
+    this.chatHistory = [];
     const clearTags = ["left", "right", "init", "error"];
     for (const tag of clearTags) {
       // need to unpack to list so the iterator don't get affected by mutation
@@ -230,12 +221,10 @@ class ChatUI {
     const initProgressCallback = (report) => {
       this.updateLastMessage("init", report.text);
     }
-    this.chat.setInitProgressCallback(initProgressCallback);
+    this.engine.setInitProgressCallback(initProgressCallback);
 
     try {
-      if (this.selectedModel != "Local Server") {
-        await this.chat.reload(this.selectedModel, undefined, this.config);
-      }
+      await this.engine.reload(this.selectedModel, undefined, this.config);
     } catch (err) {
       this.appendMessage("error", "Init error, " + err.toString());
       console.log(err.stack);
@@ -248,7 +237,7 @@ class ChatUI {
   }
 
   private async unloadChat() {
-    await this.chat.unload();
+    await this.engine.unload();
     this.chatLoaded = false;
   }
 
@@ -269,20 +258,23 @@ class ChatUI {
     this.uiChatInput.setAttribute("placeholder", "Generating...");
 
     this.appendMessage("left", "");
-    const callbackUpdateResponse = (step, msg) => {
-      this.updateLastMessage("left", msg);
-    };
+    this.chatHistory.push({ "role": "user", "content": prompt });
 
     try {
-      if (this.selectedModel == "Local Server") {
-        const output = await this.localChat.generate(prompt, callbackUpdateResponse);
-        this.updateLastMessage("left", output);
-        this.uiChatInfoLabel.innerHTML = await this.localChat.runtimeStatsText();
-      } else {
-        const output = await this.chat.generate(prompt, callbackUpdateResponse);
-        this.updateLastMessage("left", output);
-        this.uiChatInfoLabel.innerHTML = await this.chat.runtimeStatsText();
+      let curMessage = "";
+      const completion = await this.engine.chat.completions.create({ stream: true, messages: this.chatHistory });
+      // TODO(Charlie): Processing of � requires changes
+      for await (const chunk of completion) {
+        const curDelta = chunk.choices[0].delta.content;
+        if (curDelta) {
+          curMessage += curDelta;
+        }
+        this.updateLastMessage("left", curMessage);
       }
+      this.uiChatInfoLabel.innerHTML = await this.engine.runtimeStatsText();
+      const finalMessage = await this.engine.getMessage();
+      this.updateLastMessage("left", finalMessage);  // TODO: Remove this after � issue is fixed
+      this.chatHistory.push({ "role": "assistant", "content": finalMessage });
     } catch (err) {
       this.appendMessage("error", "Generate error, " + err.toString());
       console.log(err.stack);
@@ -294,17 +286,15 @@ class ChatUI {
 }
 
 const useWebWorker = appConfig.use_web_worker;
-let chat: ChatInterface;
-let localChat: ChatInterface;
+let engine: webllm.EngineInterface;
 
+// Here we do not use `CreateEngine()` but instantiate an engine that is not loaded with model
 if (useWebWorker) {
-  chat = new ChatWorkerClient(new Worker(
+  engine = new webllm.WebWorkerEngine(new Worker(
     new URL('./worker.ts', import.meta.url),
     { type: 'module' }
   ));
-  localChat = new ChatRestModule();
 } else {
-  chat = new ChatModule();
-  localChat = new ChatRestModule();
+  engine = new webllm.Engine();
 }
-ChatUI.CreateAsync(chat, localChat);
+ChatUI.CreateAsync(engine);

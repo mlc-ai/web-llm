@@ -5,7 +5,7 @@
 
 import './popup.css';
 
-import { ChatModule, AppConfig, InitProgressReport } from "@mlc-ai/web-llm";
+import { AppConfig } from "@mlc-ai/web-llm";
 import { prebuiltAppConfig } from '@mlc-ai/web-llm';
 import { ProgressBar, Line } from "progressbar.js";
 
@@ -17,16 +17,12 @@ const queryInput = document.getElementById("query-input")!;
 const submitButton = document.getElementById("submit-button")!;
 
 
-var isLoadingParams = false;
-
-const generateProgressCallback = (_step: number, message: string) => {
-    updateAnswer(message);
-};
+let isLoadingParams = false;
 
 
 (<HTMLButtonElement>submitButton).disabled = true;
 
-var progressBar: ProgressBar = new Line('#loadingContainer', {
+const progressBar: ProgressBar = new Line('#loadingContainer', {
     strokeWidth: 4,
     easing: 'easeInOut',
     duration: 1400,

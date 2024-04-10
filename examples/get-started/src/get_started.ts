@@ -9,46 +9,53 @@ function setLabel(id: string, text: string) {
 }
 
 async function main() {
-  const chat = new webllm.ChatModule();
-
-  chat.setInitProgressCallback((report: webllm.InitProgressReport) => {
+  const initProgressCallback = (report: webllm.InitProgressReport) => {
     setLabel("init-label", report.text);
-  });
-
-  // Option 1: Specify appConfig to decide what models to include
-  const selectedModel = "Llama-2-7b-chat-hf-q4f32_1"
-  // const selectedModel = "Mistral-7B-Instruct-v0.2-q4f16_1"
-  await chat.reload(selectedModel);
-
-  // Option 2: If we do not specify appConfig, we use `prebuiltAppConfig` defined in `config.ts`
-  // await chat.reload("Llama-2-7b-chat-hf-q4f32_1");
-
-  const generateProgressCallback = (_step: number, message: string) => {
-    setLabel("generate-label", message);
   };
+  // Option 1: If we do not specify appConfig, we use `prebuiltAppConfig` defined in `config.ts`
+  const selectedModel = "Llama-2-7b-chat-hf-q4f32_1";
+  const engine: webllm.EngineInterface = await webllm.CreateEngine(
+    selectedModel,
+    { initProgressCallback: initProgressCallback }
+  );
 
-  // Per-generation configuration
-  let genConfig: webllm.GenerationConfig = {
-    presence_penalty: 0.1,
-    frequency_penalty: 0.1,
-    // stop: ["is", "Canada"]  // for demonstration purpose
-  }
+  // Option 2: Specify your own model other than the prebuilt ones
+  // const appConfig: webllm.AppConfig = {
+  //   model_list: [
+  //     {
+  //       "model_url": "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f32_1-MLC/resolve/main/",
+  //       "model_id": "Llama-2-7b-chat-hf-q4f32_1",
+  //       "model_lib_url": webllm.modelLibURLPrefix + webllm.modelVersion + "/Llama-2-7b-chat-hf-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+  //     },
+  //   ]
+  // };
+  // const engine: webllm.EngineInterface = await webllm.CreateEngine(
+  //   selectedModel,
+  //   { appConfig: appConfig, initProgressCallback: initProgressCallback }
+  // );
 
-  const prompt0 = "What is the capital of Canada?";
-  setLabel("prompt-label", prompt0);
-  const reply0 = await chat.generate(prompt0, generateProgressCallback, 1, genConfig);
+  const reply0 = await engine.chat.completions.create({
+    messages: [
+      { "role": "user", "content": "List three US states." },
+    ],
+    // below configurations are all optional
+    n: 3,
+    temperature: 1.5,
+    max_gen_len: 256,
+    // 13813 is "Florida", 10319 is "Texas", and 7660 is "Washington" in Llama-2-7b-chat
+    // So we would have a higher chance of seeing the latter two, but never the first in the answer
+    logit_bias: {
+      "13813": -100,
+      "10319": 5,
+      "7660": 5,
+    },
+    logprobs: true,
+    top_logprobs: 2,
+  });
   console.log(reply0);
+  console.log(await engine.runtimeStatsText());
 
-  genConfig = {
-    presence_penalty: 0.2,
-    frequency_penalty: 0.2,
-  }
-  const prompt1 = "Can you write a poem about it?";
-  setLabel("prompt-label", prompt1);
-  const reply1 = await chat.generate(prompt1, generateProgressCallback, 1, genConfig);
-  console.log(reply1);
-
-  console.log(await chat.runtimeStatsText());
+  // To change model, either create a new engine via `CreateEngine()`, or call `engine.reload(modelId)`
 }
 
 main();

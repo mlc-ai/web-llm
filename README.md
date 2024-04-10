@@ -3,12 +3,17 @@
 # Web LLM
 | [NPM Package](https://www.npmjs.com/package/@mlc-ai/web-llm) | [Get Started](#get-started) | [Examples](examples) | [Documentation](https://mlc.ai/mlc-llm/docs/deploy/javascript.html) | [MLC LLM](https://github.com/mlc-ai/mlc-llm) | [Discord][discord-url] |
 
-WebLLM is a modular, customizable javascript package that directly
+WebLLM is a modular and customizable javascript package that directly
 brings language model chats directly onto web browsers with hardware acceleration.
 **Everything runs inside the browser with no server support and is accelerated with WebGPU.**
+
+**WebLLM is fully compatible with [OpenAI API](https://platform.openai.com/docs/api-reference/chat).**
+That is, you can use the same OpenAI API on **any open source models** locally, with functionalities
+including json-mode, function-calling, streaming, etc.
+
 We can bring a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration.
 
-**[Check out our demo webpage to try out!](https://webllm.mlc.ai/)**
+**[Check out our demo webpage to try it out!](https://webllm.mlc.ai/)**
 You can use WebLLM as a base [npm package](https://www.npmjs.com/package/@mlc-ai/web-llm) and build your own web application on top of it by following the [documentation](https://mlc.ai/mlc-llm/docs/deploy/javascript.html) and checking out [Get Started](#get-started).
 This project is a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm),
 which runs LLMs natively on iPhone and other native local environments.
@@ -27,43 +32,42 @@ You can check out [examples/get-started](examples/get-started/) to see the compl
 ```typescript
 import * as webllm from "@mlc-ai/web-llm";
 
-// We use label to intentionally keep it simple
-function setLabel(id: string, text: string) {
-  const label = document.getElementById(id);
-  if (label == null) {
-    throw Error("Cannot find label " + id);
-  }
-  label.innerText = text;
-}
-
 async function main() {
-  // create a ChatModule,
-  const chat = new webllm.ChatModule();
-  // This callback allows us to report initialization progress
-  chat.setInitProgressCallback((report: webllm.InitProgressReport) => {
-    setLabel("init-label", report.text);
-  });
-  // You can also try out "RedPajama-INCITE-Chat-3B-v1-q4f32_1"
-  await chat.reload("Llama-2-7b-chat-hf-q4f32_1");
-
-  const generateProgressCallback = (_step: number, message: string) => {
-    setLabel("generate-label", message);
+  const initProgressCallback = (report: webllm.InitProgressReport) => {
+    const label = document.getElementById("init-label");
+    label.innerText = report.text;
   };
+  const selectedModel = "Llama-2-7b-chat-hf-q4f32_1";
+  const engine: webllm.EngineInterface = await webllm.CreateEngine(
+    selectedModel,
+    /*engineConfig=*/{ initProgressCallback: initProgressCallback }
+  );
 
-  const prompt0 = "What is the capital of Canada?";
-  setLabel("prompt-label", prompt0);
-  const reply0 = await chat.generate(prompt0, generateProgressCallback);
+  const reply0 = await engine.chat.completions.create({
+    messages: [{ "role": "user", "content": "Tell me about Pittsburgh." }]
+  });
   console.log(reply0);
-
-  const prompt1 = "Can you write a poem about it?";
-  setLabel("prompt-label", prompt1);
-  const reply1 = await chat.generate(prompt1, generateProgressCallback);
-  console.log(reply1);
-
-  console.log(await chat.runtimeStatsText());
+  console.log(await engine.runtimeStatsText());
 }
 
 main();
+```
+
+Note that if you need to separate the instantiation of `webllm.Engine` from loading a model, you could substitute
+
+```typescript
+const engine: webllm.EngineInterface = await webllm.CreateEngine(
+  selectedModel,
+  /*engineConfig=*/{ initProgressCallback: initProgressCallback }
+);
+```
+
+with the equivalent
+
+```typescript
+const engine: webllm.EngineInterface = new webllm.Engine();
+engine.setInitProgressCallback(initProgressCallback);
+await engine.reload(selectedModel, chatConfig, appConfig);
 ```
 
 ### Using Web Worker
@@ -72,34 +76,38 @@ WebLLM comes with API support for WebWorker so you can hook
 the generation process into a separate worker thread so that
 the compute in the webworker won't disrupt the UI.
 
-We first create a worker script that created a ChatModule and
+We first create a worker script that created a Engine and
 hook it up to a handler that handles requests.
 
 ```typescript
 // worker.ts
-import { ChatWorkerHandler, ChatModule } from "@mlc-ai/web-llm";
+import { EngineWorkerHandler, Engine } from "@mlc-ai/web-llm";
 
-// Hookup a chat module to a worker handler
-const chat = new ChatModule();
-const handler = new ChatWorkerHandler(chat);
+// Hookup an Engine to a worker handler
+const engine = new Engine();
+const handler = new EngineWorkerHandler(engine);
 self.onmessage = (msg: MessageEvent) => {
   handler.onmessage(msg);
 };
 ```
 
-Then in the main logic, we create a `ChatWorkerClient` that
-implements the same `ChatInterface`. The rest of the logic remains the same.
+Then in the main logic, we create a `WebWorkerEngine` that
+implements the same `EngineInterface`. The rest of the logic remains the same.
 
 ```typescript
 // main.ts
 import * as webllm from "@mlc-ai/web-llm";
 
 async function main() {
-  // Use a chat worker client instead of ChatModule here
-  const chat = new webllm.ChatWorkerClient(new Worker(
-    new URL('./worker.ts', import.meta.url),
-    {type: 'module'}
-  ));
+  // Use a WebWorkerEngine instead of Engine here
+  const engine: webllm.EngineInterface = await webllm.CreateWebWorkerEngine(
+    /*worker=*/new Worker(
+      new URL('./worker.ts', import.meta.url),
+      { type: 'module' }
+    ),
+    /*modelId=*/selectedModel,
+    /*engineConfig=*/{ initProgressCallback: initProgressCallback }
+  );
   // everything else remains the same
 }
 ```
@@ -107,11 +115,35 @@ async function main() {
 
 ### Build a ChatApp
 
-You can find a complete
-a complete chat app example in [examples/simple-chat](examples/simple-chat/).
+You can find a complete chat app example in [examples/simple-chat](examples/simple-chat/).
 
+### Chrome Extension
 
-## Customized Model Weights
+You can also find examples on building chrome extension with WebLLM in [examples/chrome-extension](examples/chrome-extension/) and [examples/chrome-extension-webgpu-service-worker](examples/chrome-extension-webgpu-service-worker/). The latter one leverages service worker, so the extension is persisten in the background.
+
+## Full OpenAI Compatibility
+
+WebLLM is designed to be fully compatible with [OpenAI API](https://platform.openai.com/docs/api-reference/chat). Thus, besides building simple chat bot, you can also have the following functionalities with WebLLM:
+- [streaming](examples/streaming): return output as chunks in real-time in the form of an AsyncGenerator
+- [json-mode](examples/json-mode): efficiently ensure output is in json format, see [OpenAI Reference](https://platform.openai.com/docs/guides/text-generation/chat-completions-api) for more.
+- [function-calling](examples/function-calling): function calling with fields `tools` and `tool_choice`.
+- [seed-to-reproduce](examples/seed-to-reproduce): use seeding to ensure reproducible output with fields `seed`.
+
+## Model Support
+
+We export all supported models in `webllm.prebuiltAppConfig`, where you can see a list of models
+that you can simply call `const engine: webllm.EngineInterface = await webllm.CreateEngine(anyModel)` with.
+Prebuilt models include:
+- Llama-2
+- Gemma
+- Phi-1.5 and Phi-2
+- Mistral-7B-Instruct
+- OpenHermes-2.5-Mistral-7B
+- NeuralHermes-2.5-Mistral-7B
+- TinyLlama
+- RedPajama
+
+Alternatively, you can compile your own model and weights as described below.
 
 WebLLM works as a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm).
 It reuses the model artifact and builds flow of MLC LLM, please check out
@@ -120,18 +152,17 @@ on how to add new model weights and libraries to WebLLM.
 
 Here, we go over the high-level idea. There are two elements of the WebLLM package that enables new models and weight variants.
 
-- model_url: Contains a URL to model artifacts, such as weights and meta-data.
-- model_lib_url: A URL to the web assembly library (i.e. wasm file) that contains the executables to accelerate the model computations.
+- `model_url`: Contains a URL to model artifacts, such as weights and meta-data.
+- `model_lib_url`: A URL to the web assembly library (i.e. wasm file) that contains the executables to accelerate the model computations.
 
 Both are customizable in the WebLLM.
 
 ```typescript
 async main() {
-  const myLlamaUrl = "/url/to/my/llama";
   const appConfig = {
     "model_list": [
       {
-        "model_url": myLlamaUrl,
+        "model_url": "/url/to/my/llama",
         "model_id": "MyLlama-3b-v1-q4f32_0"
         "model_lib_url": "/url/to/myllama3b.wasm",
       }
@@ -149,30 +180,18 @@ async main() {
   // and cache it in the browser cache
   // The chat will also load the model library from "/url/to/myllama3b.wasm",
   // assuming that it is compatible to the model in myLlamaUrl.
-  await chat.reload("MyLlama-3b-v1-q4f32_0", chatOpts, appConfig);
+  const engine = await webllm.CreateEngine(
+    "MyLlama-3b-v1-q4f32_0", 
+    /*engineConfig=*/{ chatOpts: chatOpts, appConfig: appConfig }
+  );
 }
 ```
 
 In many cases, we only want to supply the model weight variant, but
 not necessarily a new model (e.g. `NeuralHermes-Mistral` can reuse `Mistral`'s
-model library; `WizardMath` can reuse `Llama-2`'s model library). For
-an example of how a model library is shared by different model variants,
-see `examples/simple-chat/src/gh-config.js`. We also provide
-a plethora of prebuilt model libraries, including:
+model library). For examples on how a model library can be shared by different model variants,
+see `prebuiltAppConfig`.
 
-- `Llama-2-7b-chat-hf-q4f32_1`: Llama-7b models.
-- `RedPajama-INCITE-Chat-3B-v1-q4f32_1`: RedPajama-3B variants.
-- `Mistral-7B-Instruct-v0.1-q4f16_1`: Mistral-7B variants.
-- and many more at [binary-mlc-llm-libs](https://github.com/mlc-ai/binary-mlc-llm-libs).
-
-## Use WebLLM Package
-
-You can directly use WebLLM in your package via npm. Checkout instructions
-in the following project
-
-- [get-started](examples/get-started): minimum get started example.
-- [web-worker](examples/web-worker): get started with web worker backed chat.
-- [simple-chat](examples/simple-chat): a mininum and complete chat app.
 
 ## Build WebLLM Package From Source
 

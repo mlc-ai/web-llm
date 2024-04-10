@@ -14,8 +14,6 @@ You can change web-llm dependencies as `"file:../.."`, and follow the build from
 instruction in the project to build webllm locally. This option is only recommended
 if you would like to hack WebLLM core package.
 
-If you are using the Local Server option, first start the local server using the steps outlined [here](https://mlc.ai/mlc-llm/docs/deploy/rest.html).
-
 Due to the differences in command-line tools between Unix/Linux and Windows systems, special adaptation is necessary for Windows. Unix/Linux systems natively support commands like `cp` for file operations, which are not directly available in Windows. To ensure cross-platform compatibility, we use a Node.js script for file copying in Windows.
 
 ### Steps for Windows Users
