@@ -81,6 +81,10 @@ export class Engine implements EngineInterface {
     this.initProgressCallback = initProgressCallback;
   }
 
+  getInitProgressCallback() {
+    return this.initProgressCallback;
+  }
+
   setLogitProcessorRegistry(logitProcessorRegistry?: Map<string, LogitProcessor>) {
     this.logitProcessorRegistry = logitProcessorRegistry;
   }

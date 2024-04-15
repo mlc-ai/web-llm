@@ -14,83 +14,20 @@ import {
   ChatCompletionChunk,
 } from "./openai_api_protocols/index";
 import * as API from "./openai_api_protocols/apis";
+import {
+  WorkerMessage,
+  MessageContent,
+  ReloadParams,
+  GenerateParams,
+  ForwardTokensAndSampleParams,
+  ChatCompletionNonStreamingParams,
+  ChatCompletionStreamInitParams,
+  ResetChatParams,
+  GenerateProgressCallbackParams,
+} from "./message";
 
-/**
- * Message kind used by worker
- */
-type RequestKind = (
-  "return" | "throw" |
-  "reload" | "generate" | "runtimeStatsText" |
-  "interruptGenerate" | "unload" | "resetChat" |
-  "initProgressCallback" | "generateProgressCallback" | "getMaxStorageBufferBindingSize" |
-  "getGPUVendor" | "forwardTokensAndSample" | "chatCompletionNonStreaming" | "getMessage" |
-  "chatCompletionStreamInit" | "chatCompletionStreamNextChunk" | "customRequest"
-);
-
-interface ReloadParams {
-  modelId: string;
-  chatOpts?: ChatOptions;
-  appConfig?: AppConfig
-}
-
-interface GenerateParams {
-  input: string | ChatCompletionRequestNonStreaming,
-  streamInterval?: number;
-  genConfig?: GenerationConfig;
-}
-
-interface ResetChatParams {
-  keepStats: boolean;
-}
-
-interface GenerateProgressCallbackParams {
-  step: number,
-  currentMessage: string;
-}
-
-interface ForwardTokensAndSampleParams {
-  inputIds: Array<number>;
-  isPrefill: boolean;
-}
-
-interface ChatCompletionNonStreamingParams {
-  request: ChatCompletionRequestNonStreaming;
-}
-
-interface ChatCompletionStreamInitParams {
-  request: ChatCompletionRequestStreaming;
-}
-
-export interface CustomRequestParams {
-  requestName: string;
-  requestMessage: string;
-}
-
-type MessageContent =
-  GenerateProgressCallbackParams |
-  ReloadParams |
-  GenerateParams |
-  ResetChatParams |
-  ForwardTokensAndSampleParams |
-  ChatCompletionNonStreamingParams |
-  ChatCompletionStreamInitParams |
-  CustomRequestParams |
-  InitProgressReport |
-  string |
-  null |
-  number |
-  ChatCompletion |
-  ChatCompletionChunk |
-  void;
-
-/**
- * The message used in exchange between worker
- * and the main thread.
- */
-export interface WorkerMessage {
-  kind: RequestKind,
-  uuid: string,
-  content: MessageContent;
+export interface PostMessageHandler {
+  postMessage: (message: any) => void;
 }
 
 /**
@@ -107,17 +44,34 @@ export interface WorkerMessage {
 export class EngineWorkerHandler {
   protected engine: EngineInterface;
   protected chatCompletionAsyncChunkGenerator?: AsyncGenerator<ChatCompletionChunk, void, void>;
+  protected postMessageHandler?: PostMessageHandler;
 
-  constructor(engine: EngineInterface) {
+  /**
+   * @param engine A concrete implementation of EngineInterface
+   * @param postMessageHandler Optionally, a handler to communicate with the content script. 
+   *   This is only needed in ServiceWorker. In web worker, we can use `postMessage` from
+   *   DOM API directly.
+   */
+  constructor(engine: EngineInterface, postMessageHandler?: PostMessageHandler) {
     this.engine = engine;
+    this.postMessageHandler = postMessageHandler;
     this.engine.setInitProgressCallback((report: InitProgressReport) => {
       const msg: WorkerMessage = {
         kind: "initProgressCallback",
         uuid: "",
         content: report
       };
-      postMessage(msg);
+      this.postMessageInternal(msg);
     });
+  }
+
+  postMessageInternal(event: any) {
+    // Use the Worker API postMessage by default
+    this.postMessageHandler ? this.postMessageHandler.postMessage(event) : postMessage(event);
+  }
+
+  setPostMessageHandler(postMessageHandler: PostMessageHandler) {
+    this.postMessageHandler = postMessageHandler;
   }
 
   async handleTask<T extends MessageContent>(uuid: string, task: () => Promise<T>) {
@@ -128,7 +82,7 @@ export class EngineWorkerHandler {
         uuid: uuid,
         content: res
       };
-      postMessage(msg);
+      this.postMessageInternal(msg);
     } catch (err) {
       const errStr = (err as object).toString();
       const msg: WorkerMessage = {
@@ -136,12 +90,17 @@ export class EngineWorkerHandler {
         uuid: uuid,
         content: errStr
       };
-      postMessage(msg);
+      this.postMessageInternal(msg);
     }
   }
 
-  onmessage(event: MessageEvent) {
-    const msg = event.data as WorkerMessage;
+  onmessage(event: any) {
+    let msg: WorkerMessage;
+    if (event instanceof MessageEvent) {
+      msg = event.data as WorkerMessage;
+    } else {
+      msg = event as WorkerMessage;
+    }
     switch (msg.kind) {
       case "reload": {
         this.handleTask(msg.uuid, async () => {
@@ -163,7 +122,7 @@ export class EngineWorkerHandler {
                 currentMessage: currentMessage
               }
             };
-            postMessage(cbMessage);
+            this.postMessageInternal(cbMessage);
           };
           return await this.engine.generate(
             params.input,
@@ -267,7 +226,7 @@ export class EngineWorkerHandler {
   }
 }
 
-interface ChatWorker {
+export interface ChatWorker {
   onmessage: any,
   postMessage: (message: any) => void;
 }
@@ -301,7 +260,7 @@ export async function CreateWebWorkerEngine(
  *
  * @example
  *
- * const chat = new webllm.ChatWorkerClient(new Worker(
+ * const chat = new webllm.WebWorkerEngine(new Worker(
  *   new URL('./worker.ts', import.meta.url),
  *   {type: 'module'}
  * ));
@@ -324,6 +283,10 @@ export class WebWorkerEngine implements EngineInterface {
 
   setInitProgressCallback(initProgressCallback?: InitProgressCallback) {
     this.initProgressCallback = initProgressCallback;
+  }
+
+  getInitProgressCallback(): InitProgressCallback | undefined {
+    return this.initProgressCallback;
   }
 
   protected getPromise<T extends MessageContent>(msg: WorkerMessage): Promise<T> {
@@ -523,7 +486,12 @@ export class WebWorkerEngine implements EngineInterface {
   }
 
   onmessage(event: any) {
-    const msg = event.data as WorkerMessage;
+    let msg: WorkerMessage;
+    if (event instanceof MessageEvent) {
+      msg = event.data as WorkerMessage;
+    } else {
+      msg = event as WorkerMessage;
+    }
     switch (msg.kind) {
       case "initProgressCallback": {
         if (this.initProgressCallback !== undefined) {
