@@ -196,7 +196,7 @@ see `prebuiltAppConfig`.
 ## Build WebLLM Package From Source
 
 NOTE: you don't need to build by yourself unless you would
-like to change the WebLLM package, follow [use WebLLM](#use-web-llm-package) instead.
+like to change the WebLLM package. To simply use the npm, follow [Get Started](#get-started) or any of the [examples](examples) instead.
 
 WebLLM package is a web runtime designed for [MLC LLM](https://github.com/mlc-ai/mlc-llm).
 
