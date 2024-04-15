@@ -29,9 +29,18 @@ export {
 export {
   EngineWorkerHandler,
   WebWorkerEngine,
-  WorkerMessage,
-  CustomRequestParams,
   CreateWebWorkerEngine
 } from "./web_worker";
+
+export {
+  WorkerMessage,
+  CustomRequestParams
+} from "./message"
+
+export {
+  ServiceWorkerEngineHandler,
+  ServiceWorkerEngine,
+  CreateServiceWorkerEngine,
+} from "./service_worker";
 
 export * from './openai_api_protocols/index';

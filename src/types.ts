@@ -76,6 +76,11 @@ export interface EngineInterface {
   setInitProgressCallback: (initProgressCallback: InitProgressCallback) => void;
 
   /**
+   * @returns The current initialization progress callback function.
+   */
+  getInitProgressCallback: () => InitProgressCallback | undefined;
+
+  /**
    * Reload the chat with a new model.
    *
    * @param modelId model_id of the model to load.
