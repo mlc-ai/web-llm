@@ -44,7 +44,7 @@ export interface PostMessageHandler {
 export class EngineWorkerHandler {
   protected engine: EngineInterface;
   protected chatCompletionAsyncChunkGenerator?: AsyncGenerator<ChatCompletionChunk, void, void>;
-  protected postMessageHandler: PostMessageHandler;
+  protected postMessageHandler?: PostMessageHandler;
 
   /**
    * @param engine A concrete implementation of EngineInterface
@@ -54,20 +54,20 @@ export class EngineWorkerHandler {
    */
   constructor(engine: EngineInterface, postMessageHandler?: PostMessageHandler) {
     this.engine = engine;
-    // Use the DOM API postMessage by default
-    if (postMessageHandler === undefined) {
-      this.postMessageHandler = {postMessage: postMessage};
-    } else {
-      this.postMessageHandler = postMessageHandler;
-    }
+    this.postMessageHandler = postMessageHandler;
     this.engine.setInitProgressCallback((report: InitProgressReport) => {
       const msg: WorkerMessage = {
         kind: "initProgressCallback",
         uuid: "",
         content: report
       };
-      this.postMessageHandler.postMessage(msg);
+      this.postMessageInternal(msg);
     });
+  }
+
+  postMessageInternal(event: any) {
+    // Use the Worker API postMessage by default
+    this.postMessageHandler ? this.postMessageHandler.postMessage(event) : postMessage(event);
   }
 
   setPostMessageHandler(postMessageHandler: PostMessageHandler) {
@@ -82,7 +82,7 @@ export class EngineWorkerHandler {
         uuid: uuid,
         content: res
       };
-      this.postMessageHandler.postMessage(msg);
+      this.postMessageInternal(msg);
     } catch (err) {
       const errStr = (err as object).toString();
       const msg: WorkerMessage = {
@@ -90,7 +90,7 @@ export class EngineWorkerHandler {
         uuid: uuid,
         content: errStr
       };
-      this.postMessageHandler.postMessage(msg);
+      this.postMessageInternal(msg);
     }
   }
 
@@ -122,7 +122,7 @@ export class EngineWorkerHandler {
                 currentMessage: currentMessage
               }
             };
-            this.postMessageHandler.postMessage(cbMessage);
+            this.postMessageInternal(cbMessage);
           };
           return await this.engine.generate(
             params.input,
