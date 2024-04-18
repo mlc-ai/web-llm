@@ -17,7 +17,7 @@ async function mainNonStreaming() {
   const initProgressCallback = (report: webllm.InitProgressReport) => {
     setLabel("init-label", report.text);
   };
-  const selectedModel = "Llama-2-7b-chat-hf-q4f32_1";
+  const selectedModel = "Llama-3-8B-Instruct-q4f32_1";
 
   const engine: webllm.EngineInterface = await webllm.CreateWebWorkerEngine(
     new Worker(
@@ -57,7 +57,7 @@ async function mainStreaming() {
   const initProgressCallback = (report: webllm.InitProgressReport) => {
     setLabel("init-label", report.text);
   };
-  const selectedModel = "Llama-2-7b-chat-hf-q4f32_1";
+  const selectedModel = "Llama-3-8B-Instruct-q4f32_1";
 
   const engine: webllm.EngineInterface = await webllm.CreateWebWorkerEngine(
     new Worker(

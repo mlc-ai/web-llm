@@ -501,6 +501,7 @@ export class Engine implements EngineInterface {
         `WARNING: the current maxStorageBufferBindingSize ` +
         `(${computeMB(maxStorageBufferBindingSize)}) ` +
         `may only work for a limited number of models, e.g.: \n` +
+        `- Llama-3-8B-Instruct-q4f16_1-1k \n` +
         `- Llama-2-7b-chat-hf-q4f16_1-1k \n` +
         `- RedPajama-INCITE-Chat-3B-v1-q4f16_1-1k \n` +
         `- RedPajama-INCITE-Chat-3B-v1-q4f32_1-1k \n` +
