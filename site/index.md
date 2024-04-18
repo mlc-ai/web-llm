@@ -42,7 +42,7 @@ The subsequent refreshes and runs will be faster. We have tested it on Windows a
 
 ## Chat Demo
 
-The chat demo is based on [Llama 2](https://ai.meta.com/llama/), [Mistral-7B](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.2) and its variants, and [RedPajama-INCITE-Chat-3B-v1](https://huggingface.co/togethercomputer/RedPajama-INCITE-Chat-3B-v1) model. More model supports are on the way.
+The chat demo is based on [Llama 3](https://llama.meta.com/llama3/), [Gemma](https://blog.google/technology/developers/gemma-open-models/), [Mistral-7B](https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.2) and its variants, and many more. More model supports are on the way.
 
 <div id="llm_chat"></div>
 
