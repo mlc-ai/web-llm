@@ -13,7 +13,7 @@ async function main() {
     setLabel("init-label", report.text);
   };
   // Option 1: If we do not specify appConfig, we use `prebuiltAppConfig` defined in `config.ts`
-  const selectedModel = "Llama-2-7b-chat-hf-q4f32_1";
+  const selectedModel = "Llama-3-8B-Instruct-q4f32_1";
   const engine: webllm.EngineInterface = await webllm.CreateEngine(
     selectedModel,
     { initProgressCallback: initProgressCallback }
@@ -23,9 +23,9 @@ async function main() {
   // const appConfig: webllm.AppConfig = {
   //   model_list: [
   //     {
-  //       "model_url": "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f32_1-MLC/resolve/main/",
-  //       "model_id": "Llama-2-7b-chat-hf-q4f32_1",
-  //       "model_lib_url": webllm.modelLibURLPrefix + webllm.modelVersion + "/Llama-2-7b-chat-hf-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+  //       "model_url": "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f32_1-MLC/resolve/main/",
+  //       "model_id": "Llama-3-8B-Instruct-q4f32_1",
+  //       "model_lib_url": webllm.modelLibURLPrefix + webllm.modelVersion + "/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
   //     },
   //   ]
   // };
@@ -42,12 +42,13 @@ async function main() {
     n: 3,
     temperature: 1.5,
     max_gen_len: 256,
-    // 13813 is "Florida", 10319 is "Texas", and 7660 is "Washington" in Llama-2-7b-chat
+    // 46510 and 7188 are "California", and 8421 and 51325 are "Texas" in Llama-3-8B-Instruct
     // So we would have a higher chance of seeing the latter two, but never the first in the answer
     logit_bias: {
-      "13813": -100,
-      "10319": 5,
-      "7660": 5,
+      "46510": -100,
+      "7188": -100,
+      "8421": 5,
+      "51325": 5,
     },
     logprobs: true,
     top_logprobs: 2,

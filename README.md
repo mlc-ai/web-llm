@@ -37,7 +37,7 @@ async function main() {
     const label = document.getElementById("init-label");
     label.innerText = report.text;
   };
-  const selectedModel = "Llama-2-7b-chat-hf-q4f32_1";
+  const selectedModel = "Llama-3-8B-Instruct-q4f32_1";
   const engine: webllm.EngineInterface = await webllm.CreateEngine(
     selectedModel,
     /*engineConfig=*/{ initProgressCallback: initProgressCallback }
