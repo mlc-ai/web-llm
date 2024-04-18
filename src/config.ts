@@ -285,7 +285,7 @@ export const prebuiltAppConfig: AppConfig = {
       "model_id": "Llama-3-70B-Instruct-q3f16_1",
       "model_lib_url": modelLibURLPrefix + modelVersion + "/Llama-3-70B-Instruct-q3f16_1-ctx4k_cs1k-webgpu.wasm",
       "vram_required_MB": 31153.13,
-      "low_resource_required": true,
+      "low_resource_required": false,
     },
     // Llama-2
     {
