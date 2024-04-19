@@ -9,7 +9,7 @@ function setLabel(id: string, text: string) {
 }
 
 /**
- * We domnstrate chat completion with streaming, where delta is sent while generating response.
+ * We demonstrate chat completion with streaming, where delta is sent while generating response.
  */
 async function main() {
   const initProgressCallback = (report: webllm.InitProgressReport) => {
@@ -26,14 +26,10 @@ async function main() {
     messages: [
       {
         "role": "system",
-        "content": "[INST] <<SYS>>\n\nYou are a helpful, respectful and honest assistant. " +
-          "Be as happy as you can when speaking please.\n<</SYS>>\n\n "
+        "content": "You are a pirate chatbot who always responds in pirate speak!"
       },
-      { "role": "user", "content": "Provide me three US states." },
-      { "role": "assistant", "content": "California, New York, Pennsylvania." },
-      { "role": "user", "content": "Two more please!" },
+      { "role": "user", "content": "Who are you?" },
     ],
-    temperature: 1.5,
     logprobs: true,
     top_logprobs: 2,
   };

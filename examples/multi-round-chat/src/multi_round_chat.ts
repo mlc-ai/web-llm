@@ -28,8 +28,8 @@ async function main() {
   const messages: webllm.ChatCompletionMessageParam[] = [
     {
       "role": "system",
-      "content": "[INST] <<SYS>>\n\nYou are a helpful, respectful and honest assistant. " +
-        "Be as happy as you can when speaking please.\n<</SYS>>\n\n "
+      "content": "You are a helpful, respectful and honest assistant. " +
+        "Be as happy as you can when speaking please. "
     },
     { "role": "user", "content": "Provide me three US states." },
   ];
