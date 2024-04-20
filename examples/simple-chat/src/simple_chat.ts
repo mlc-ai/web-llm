@@ -176,9 +176,28 @@ class ChatUI {
     this.uiChat.scrollTo(0, this.uiChat.scrollHeight);
   }
 
+  // Special care for user input such that we treat it as pure text instead of html
+  private appendUserMessage(text: string) {
+    if (this.uiChat === undefined) {
+      throw Error("cannot find ui chat");
+    }
+    const msg = `
+      <div class="msg right-msg">
+        <div class="msg-bubble">
+          <div class="msg-text"></div>
+        </div>
+      </div>
+    `;
+    this.uiChat.insertAdjacentHTML("beforeend", msg);
+    // Recurse three times to get `msg-text`
+    const msgElement = this.uiChat.lastElementChild?.lastElementChild?.lastElementChild as HTMLElement;
+    msgElement.insertAdjacentText("beforeend", text);
+    this.uiChat.scrollTo(0, this.uiChat.scrollHeight);
+  }
+
   private updateLastMessage(kind, text) {
     if (kind == "init") {
-      text = "[System Initalize] " + text;
+      text = "[System Initialize] " + text;
     }
     if (this.uiChat === undefined) {
       throw Error("cannot find ui chat");
@@ -253,7 +272,7 @@ class ChatUI {
       return;
     }
 
-    this.appendMessage("right", prompt);
+    this.appendUserMessage(prompt);
     this.uiChatInput.value = "";
     this.uiChatInput.setAttribute("placeholder", "Generating...");
 
