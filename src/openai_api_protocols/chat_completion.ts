@@ -363,6 +363,13 @@ export function postInitAndCheckFields(request: ChatCompletionRequest): void {
             throw new Error("`seed` should be an integer, but got " + request.seed);
         }
     }
+
+    // 6. Schema can only be specified when type is `json_object`.
+    if (request.response_format?.schema !== undefined && request.response_format?.schema !== null) {
+        if (request.response_format?.type !== "json_object") {
+            throw new Error("JSON schema is only supported with `json_object` response format.");
+        }
+    }
 }
 
 //////////////// BELOW ARE INTERFACES THAT SUPPORT THE ONES ABOVE ////////////////
@@ -868,20 +875,24 @@ export namespace ChatCompletionChunk {
  *
  * Setting to `{ "type": "json_object" }` enables JSON mode, which guarantees the
  * message the model generates is valid JSON.
+ * 
+ * Setting `schema` specifies the output format of the json object such as properties to include.
  *
- * **Important:** when using JSON mode, you **must** also instruct the model to
- * produce JSON yourself via a system or user message. Without this, the model may
- * generate an unending stream of whitespace until the generation reaches the token
+ * **Important:** when using JSON mode, you **must** also instruct the model to produce JSON
+ * following the schema (if specified) yourself via a system or user message. Without this,
+ * the model may generate an unending stream of whitespace until the generation reaches the token
  * limit, resulting in a long-running and seemingly "stuck" request. Also note that
  * the message content may be partially cut off if `finish_reason="length"`, which
  * indicates the generation exceeded `max_gen_len` or the conversation exceeded the
  * max context length.
- * 
- * @note **json_object not supported yet.**
  */
 export interface ResponseFormat {
     /**
      * Must be one of `text` or `json_object`.
      */
     type?: 'text' | 'json_object';
+    /**
+     * A schema string in the format of the schema of a JSON file. `type` needs to be `json_object`.
+     */
+    schema?: string;
 }

@@ -68,6 +68,18 @@ describe('Check chat completion unsupported requests', () => {
         }).toThrow("`seed` should be an integer, but got");
     });
 
+    test('Schema without type json object', () => {
+        expect(() => {
+            const request: ChatCompletionRequest = {
+                messages: [
+                    { role: "user", content: "Hello! " },
+                ],
+                response_format: { schema: "some json schema" },
+            };
+            postInitAndCheckFields(request)
+        }).toThrow("JSON schema is only supported with `json_object` response format.");
+    });
+
     // Remove when we support image input (e.g. LlaVA model)
     test('Image input is unsupported', () => {
         expect(() => {

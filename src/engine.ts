@@ -144,11 +144,11 @@ export class Engine implements EngineInterface {
     const fetchWasmSource = async () => {
       if (wasmUrl.includes("localhost")) {
         // do not cache wasm on local host as we might update code frequently
-        return await fetch(wasmUrl);
+        return (await fetch(wasmUrl)).arrayBuffer();
       } else if (!wasmUrl.startsWith("http")) {
         // do not cache wasm on the same server as it can also refresh
         // rely on the normal caching strategy
-        return await fetch(new URL(wasmUrl, baseUrl).href);
+        return (await fetch(new URL(wasmUrl, baseUrl).href)).arrayBuffer();
       } else {
         // use cache
         return await wasmCache.fetchWithCache(wasmUrl, "arraybuffer");
