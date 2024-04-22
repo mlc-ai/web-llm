@@ -46,6 +46,7 @@ The chat demo is based on [Llama 3](https://llama.meta.com/llama3/), [Gemma](htt
 
 <div id="llm_chat"></div>
 
+Models with "-1k" suffix signify 1024 context length, lowering ~2-3GB VRAM requirement compared to their counterparts. Feel free to start trying with those.
 
 
 ## Links
