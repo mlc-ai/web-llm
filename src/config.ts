@@ -238,7 +238,7 @@ export interface AppConfig {
  * @note The model version does not have to match the npm version, since not each npm update
  * requires an update of the model libraries.
  */
-export const modelVersion = "v0_2_30";
+export const modelVersion = "v0_2_34";
 export const modelLibURLPrefix =
   "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/";
 
@@ -316,14 +316,6 @@ export const prebuiltAppConfig: AppConfig = {
       "model_id": "Llama-2-13b-chat-hf-q4f16_1",
       "model_lib_url": modelLibURLPrefix + modelVersion + "/Llama-2-13b-chat-hf-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       "vram_required_MB": 11814.09,
-      "low_resource_required": false,
-      "required_features": ["shader-f16"],
-    },
-    {
-      "model_url": "https://huggingface.co/mlc-ai/Llama-2-70b-chat-hf-q4f16_1-MLC/resolve/main/",
-      "model_id": "Llama-2-70b-chat-hf-q4f16_1",
-      "model_lib_url": modelLibURLPrefix + modelVersion + "/Llama-2-70b-chat-hf-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-      "vram_required_MB": 43729.05,
       "low_resource_required": false,
       "required_features": ["shader-f16"],
     },
