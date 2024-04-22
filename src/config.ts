@@ -526,5 +526,33 @@ export const prebuiltAppConfig: AppConfig = {
       "vram_required_MB": 992.11,
       "low_resource_required": true,
     },
+    {
+			"model_url": "https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f16_1-MLC/resolve/main/",
+			"model_id": "stablelm-2-1_6b-q4f16_1-4k",
+			"model_lib_url": modelLibURLPrefix + modelVersion + "/stablelm-2-zephyr-1_6b-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+			"vram_required_MB": 2114.66,
+			"low_resource_required": false,
+		},
+		{
+			"model_url": "https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f32_1-MLC/resolve/main/",
+			"model_id": "stablelm-2-1_6b-q4f32_1-4k",
+			"model_lib_url": modelLibURLPrefix + modelVersion + "/stablelm-2-zephyr-1_6b-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+			"vram_required_MB": 2910.66,
+			"low_resource_required": false,
+		},
+		{
+			"model_url": "https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f16_1-MLC/resolve/main/",
+			"model_id": "stablelm-2-1_6b-q4f16_1-1k",
+			"model_lib_url": modelLibURLPrefix + modelVersion + "/stablelm-2-zephyr-1_6b-q4f16_1-ctx1k_cs1k-webgpu.wasm",
+			"vram_required_MB": 1517.66,
+			"low_resource_required": true,
+		},
+		{
+			"model_url": "https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f32_1-MLC/resolve/main/",
+			"model_id": "stablelm-2-1_6b-q4f32_1-1k",
+			"model_lib_url": modelLibURLPrefix + modelVersion + "/stablelm-2-zephyr-1_6b-q4f32_1-ctx1k_cs1k-webgpu.wasm",
+			"vram_required_MB": 1860.33,
+			"low_resource_required": true,
+		},
   ]
 }
