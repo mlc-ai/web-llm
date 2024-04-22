@@ -12,7 +12,7 @@ import {
   TopLogprob,
   ResponseFormat,
 } from "./openai_api_protocols/index"
-import { GrammarFactory, GrammarStateMatcher } from "./grammar";
+import { BNFGrammar, GrammarFactory, GrammarStateMatcher } from "./grammar";
 
 export class LLMChatPipeline {
   private config: ChatConfig;
@@ -81,9 +81,13 @@ export class LLMChatPipeline {
   // Grammar-related
   // A factory to instantiate and maintain the BNF grammars and grammar state matchers.
   private grammarFactory: GrammarFactory;
-  // A grammar state matcher for this current round (reinitialized upon each prefillStep) if
-  // response_format is set.
+  // A grammar state matcher for this current round if response_format is set. Reinitialized upon
+  // each step regardless of whether the chat is multi-round or not.
   private grammarStateMatcher?: GrammarStateMatcher = undefined;
+  // The current schema used for grammarStateMatcher; if undefined, grammarStateMatcher is simply
+  // using JSON mode. We use this field to determine whether we re-initiate a GrammarStateMatcher
+  // or simply reset the state during each round (i.e. during prefillStep).
+  private schema?: string = undefined;
   // A string list of tokens ordered by their token id. Once initialized, will not be reinitialized
   // since `this.tokenizer` does not change throughout the lifetime of LLMChatPipeline.
   private tokenTable?: string[] = undefined;
@@ -389,16 +393,27 @@ export class LLMChatPipeline {
     this.filledKVCacheLength = newSeqLen;
 
     // Instantiate grammar state matcher according to generation config
-    if (this.grammarStateMatcher) {
-      this.grammarStateMatcher.dispose();
-    }
     if (genConfig?.response_format?.type === "json_object") {
-      // Currently only support JSON grammar
-      const JSONgrammar = this.grammarFactory.getBNFGrammarOfJSON();
-      this.tokenTable = getTokenTableFromTokenizer(this.tokenizer);
-      this.grammarStateMatcher = this.tvm.detachFromCurrentScope(
-        this.grammarFactory.getGrammarStateMatcherFromTokenTable(JSONgrammar, this.tokenTable)
-      );
+      const curSchema = genConfig.response_format.schema;
+      if (curSchema === this.schema && this.grammarStateMatcher) {
+        // If we did not change the schema and have instantiated a GrammarStateMatcher, we reuse it.
+        this.grammarFactory.resetState(this.grammarStateMatcher);
+      } else {
+        // Else dispose current grammarStateMatcher, reinitialize, and update this.schema.
+        if (this.grammarStateMatcher) {
+          this.grammarStateMatcher.dispose();
+        }
+        if (this.tokenTable === undefined) {
+          this.tokenTable = getTokenTableFromTokenizer(this.tokenizer);
+        }
+        const grammar: BNFGrammar = curSchema === undefined ?
+          this.grammarFactory.getBNFGrammarOfJSON() :
+          this.grammarFactory.getBNFGrammarFromSchema(curSchema);
+        this.grammarStateMatcher = this.tvm.detachFromCurrentScope(
+          this.grammarFactory.getGrammarStateMatcherFromTokenTable(grammar, this.tokenTable)
+        );
+        this.schema = curSchema;
+      }
     }
 
     this.tvm.endScope();
@@ -716,7 +731,7 @@ export class LLMChatPipeline {
   }
 
   private getInputTokens(genConfig?: GenerationConfig): Array<number> {
-    // Get mean_gen_len and max_gen_len, possibly overriden by genConfig
+    // Get mean_gen_len and max_gen_len, possibly overridden by genConfig
     let mean_gen_len = this.config.mean_gen_len;
     let shift_fill_factor = this.config.shift_fill_factor;
     if (genConfig !== undefined) {

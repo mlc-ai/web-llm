@@ -18,6 +18,7 @@ Note that all examples below run in-browser and use WebGPU as a backend.
 These examples demonstrate various capabilities via WebLLM's OpenAI-like API.
 - [streaming](streaming): return output as chunks in real-time in the form of an AsyncGenerator
 - [json-mode](json-mode): efficiently ensure output is in json format, see [OpenAI Reference](https://platform.openai.com/docs/guides/text-generation/chat-completions-api) for more.
+- [json-schema](json-schema): besides guaranteeing output to be in JSON, ensure output to adhere to a specific JSON schema specified the user
 - [function-calling](function-calling) (WIP): function calling with fields `tools` and `tool_choice`.
 - [seed-to-reproduce](seed-to-reproduce): use seeding to ensure reproducible output with fields `seed`.
 
@@ -30,6 +31,7 @@ These examples demonstrate various capabilities via WebLLM's OpenAI-like API.
 - [cache-usage](cache-usage): demonstrates how WebLLM supports both the [Cache API](https://developer.mozilla.org/en-US/docs/Web/API/Cache) and [IndexedDB cache](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API), and
 users can pick with `appConfig.useIndexedDBCache`. Also demonstrates various cache utils such as checking
 whether a model is cached, deleting a model's weights from cache, deleting a model library wasm from cache, etc.
+- [simple-chat-upload](simple-chat-upload): demonstrates how to upload local models to WebLLM instead of downloading via a URL link
 
 ## Demo Spaces
 

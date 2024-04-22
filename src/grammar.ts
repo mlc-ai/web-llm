@@ -13,6 +13,7 @@ export type GrammarStateMatcher = tvmjs.TVMObject;
  */
 export class GrammarFactory {
   private fBNFGrammarGetGrammarOfJSON: tvmjs.PackedFunc;
+  private fBNFGrammarFromSchema: tvmjs.PackedFunc;
   private fGrammarSMFromTokenTable: tvmjs.PackedFunc;
   private fGrammarSMAcceptToken: tvmjs.PackedFunc;
   private fGrammarSMFindNextTokenBitmaskAsNDArray: tvmjs.PackedFunc;
@@ -29,6 +30,9 @@ export class GrammarFactory {
     // Get global functions.
     this.fBNFGrammarGetGrammarOfJSON = tvm.detachFromCurrentScope(
       tvm.getGlobalFunc("mlc.serve.BNFGrammarGetGrammarOfJSON")
+    );
+    this.fBNFGrammarFromSchema = tvm.detachFromCurrentScope(
+      tvm.getGlobalFunc("mlc.serve.BNFGrammarFromSchema")
     );
     this.fGrammarSMFromTokenTable = tvm.detachFromCurrentScope(
       tvm.getGlobalFunc("mlc.serve.GrammarStateMatcherFromTokenTable")
@@ -57,6 +61,43 @@ export class GrammarFactory {
   }
 
   /**
+   * Construct a BNF grammar from the json schema string. The schema string should be in the format
+   * of the schema of a JSON file. We will parse the schema and generate a BNF grammar.
+   *
+   * @param schema The schema string.
+   * @param indent The number of spaces for indentation. If undefined, the grammar will enforce the
+   *    output to be in one line.
+   * @param separators Two separators that will be enforced by the grammar: comma and colon.
+   *    Examples: (",", ":"), (", ", ": "). If undefined, the default separators will be used: 
+   *    (",", ": ") when the indent is not undefined, and (", ", ": ") otherwise. This follows the
+   *    convention in Python's json.dumps().
+   * @param strictMode Whether to use strict mode. In strict mode, the generated grammar will not
+   *    allow properties and items that is not specified in the schema. This is equivalent to
+   *    setting unevaluatedProperties and unevaluatedItems to false.
+   *
+   * @note Caller needs to handle disposal of returned object.
+   */
+  getBNFGrammarFromSchema(
+    schema_str: string,
+    indent?: number,
+    separators?: [string, string],
+    strictMode = true
+  ): BNFGrammar {
+    // Convert indent to tvmjs.Scalar
+    let indentInput: tvmjs.Scalar | undefined;
+    if (indent !== undefined && indent !== null) {
+      indentInput = new tvmjs.Scalar(indent, "int32");
+    }
+    // Convert strictMode to tvmjs.Scalar
+    const strictModeInput = strictMode ?
+      new tvmjs.Scalar(1, "int32") : new tvmjs.Scalar(0, "int32");
+
+    return this.fBNFGrammarFromSchema(
+      schema_str, indentInput, separators, strictModeInput
+    ) as BNFGrammar;
+  }
+
+  /**
    * Creates a Grammar State Matcher from a specified BNFGrammar rule and a token table.
    * 
    * @param grammar A BNFGrammar used to specify the rule for the state matcher.
@@ -74,14 +115,14 @@ export class GrammarFactory {
       throw Error("maxRollbackSteps has to be zero as rollback is not supported yet.")
     }
     return this.fGrammarSMFromTokenTable(
-      grammar, ...tokenTable, new tvmjs.Scalar(maxRollbackSteps, "int32")) as GrammarStateMatcher;
+      grammar, tokenTable, new tvmjs.Scalar(maxRollbackSteps, "int32")) as GrammarStateMatcher;
   }
 
   /**
-   * Accept a new token to the gramamr state matcher, updating its internal state.
+   * Accept a new token to the grammar state matcher, updating its internal state.
    * 
    * @param grammarStateMatcher The grammar state matcher that will accept a new token and update
-   * its stsate correspondingly.
+   * its state correspondingly.
    * @param tokenID The token to be accepted in its ID.
    * @returns Whether the token is accepted.
    */
@@ -93,7 +134,7 @@ export class GrammarFactory {
     try {
       accepted = this.fGrammarSMAcceptToken(grammarStateMatcher, new tvmjs.Scalar(tokenID, "int32"));
     } catch (error) {
-      throw Error("Ecnoutered error when accepting token " + tokenID + ": " + error);
+      throw Error("Encountered error when accepting token " + tokenID + ": " + error);
     }
     return accepted;
   }
@@ -128,6 +169,7 @@ export class GrammarFactory {
    */
   dispose() {
     this.fBNFGrammarGetGrammarOfJSON.dispose();
+    this.fBNFGrammarFromSchema.dispose();
     this.fGrammarSMFromTokenTable.dispose();
     this.fGrammarSMAcceptToken.dispose();
     this.fGrammarSMFindNextTokenBitmaskAsNDArray.dispose();
