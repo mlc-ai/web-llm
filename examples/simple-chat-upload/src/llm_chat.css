@@ -1,0 +1,188 @@
+.chatui {
+    display: flex;
+    position: relative;
+    flex-flow: column wrap;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 867px;
+    margin: 25px 10px;
+    height: 600px;
+    border: 2px solid #ddd;
+    border-radius: 5px;
+    background-color: #1F2027;
+}
+
+.chatui-select-wrapper {
+    display: flex;
+    justify-content: center;
+    background-color: #1F2027;
+    padding: 10px 0;
+}
+
+#chatui-select {
+    width: 350px;
+    background-color: #1F2027;
+    color: white;
+    border: none;
+}
+
+#chatui-select:focus {
+    outline: none;
+}
+
+#chatui-select::-webkit-scrollbar {
+    display: none;
+}
+
+#chatui-select option {
+    background-color: #1F2027;
+    color: white;
+}
+
+#chatui-select option:hover {
+    background-color: #474747;
+    color: white;
+}
+
+s .chatui-header {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px;
+    border-bottom: 2px solid #ddd;
+    background: #eee;
+    color: #666;
+}
+
+/* Used to remove tiny white lines in android devices; not sure if there is a better way */
+*,
+*::before,
+*::after {
+    box-sizing: content-box;
+}
+
+.chatui-chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px;
+    background-color: #1F2027;
+}
+
+.chatui-chat::-webkit-scrollbar {
+    width: 6px;
+}
+
+.chatui-chat::-webkit-scrollbar-track {
+    background: #1F2027;
+}
+
+.chatui-chat::-webkit-scrollbar-thumb {
+    background: #888;
+}
+
+.chatui-chat::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+.msg {
+    display: flex;
+    align-items: flex-end;
+    margin-bottom: 10px;
+}
+
+.msg:last-of-type {
+    margin: 0;
+}
+
+.msg-bubble {
+    background-color: #f0f0f0;
+    border-radius: 8px;
+    padding: 16px;
+    margin: 5px auto;
+    width: calc(100% - 20px);
+    box-sizing: border-box;
+    color: black;
+    border: none;
+    font-size: medium;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.left-msg .msg-bubble {
+    background-color: #343541;
+    color: #ececec;
+}
+
+.error-msg .msg-bubble {
+    background-color: #343541;
+    color: #f15959;
+}
+
+.init-msg .msg-bubble {
+    background-color: #343541;
+    color: #ececec;
+}
+
+.right-msg .msg-bubble {
+    background-color: #444654;
+    color: #ececec;
+}
+
+.chatui-inputarea {
+    display: flex;
+    padding: 10px;
+    border-top: 2px solid transparent;
+    background-color: #1F2027;
+}
+
+.chatui-inputarea * {
+    padding: 10px;
+    border: none;
+    border-radius: 3px;
+    font-size: 1em;
+    color: white;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.chatui-input {
+    flex: 1;
+    background-color: #40414F;
+    color: white;
+}
+
+.chatui-reset-btn {
+    margin-left: 10px;
+    background-color: #40414F;
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+    background-image: url('img/reset.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    width: 40px;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 20px 20px;
+}
+
+.chatui-reset-btn:hover {
+    background-color: #03a33e;
+}
+
+.chatui-send-btn {
+    margin-left: 10px;
+    background-color: #40414F;
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+    background-image: url('img/plane.png');
+    background-repeat: no-repeat;
+    background-position: center;
+    width: 40px;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 20px 20px;
+}
+
+.chatui-send-btn:hover {
+    background-color: #03a33e;
+}
