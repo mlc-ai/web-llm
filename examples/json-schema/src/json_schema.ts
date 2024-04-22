@@ -30,29 +30,15 @@ const T = Type.Object({
 type T = Static<typeof T>;
 const schema2 = JSON.stringify(T);
 console.log(schema2);
+// {"type":"object","properties":{"size":{"type":"integer"},"is_accepted":{"type":"boolean"},
+// "num":{"type":"number"}},"required":["size","is_accepted","num"]}
 
 async function main() {
     const initProgressCallback = (report: webllm.InitProgressReport) => {
         setLabel("init-label", report.text);
     };
-    const selectedModel = "Llama-2-7b-chat-hf-q4f16_1";
-    // const selectedModel = "Llama-3-8B-Instruct-q4f16_1";
     const engine: webllm.EngineInterface = await webllm.CreateEngine(
-        selectedModel,
-        {
-            initProgressCallback: initProgressCallback, appConfig: {
-                model_list: [{
-                    "model_url": "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f16_1-MLC/resolve/main/",
-                    "model_id": "Llama-2-7b-chat-hf-q4f16_1",
-                    "model_lib_url": "https://raw.githubusercontent.com/CharlieFRuan/binary-mlc-llm-libs/temp-for-webllm/Llama-2-7b-chat-hf.wasm",
-                },
-                {
-                    "model_url": "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f16_1-MLC/resolve/main/",
-                    "model_id": "Llama-3-8B-Instruct-q4f16_1",
-                    "model_lib_url": "https://raw.githubusercontent.com/CharlieFRuan/binary-mlc-llm-libs/temp-for-webllm/Llama-3-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-                }]
-            }
-        }
+        "Llama-2-7b-chat-hf-q4f16_1", { initProgressCallback: initProgressCallback }
     );
 
     const request: webllm.ChatCompletionRequest = {
