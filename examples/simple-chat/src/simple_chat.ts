@@ -1,6 +1,7 @@
 import appConfig from "./app-config";
 import * as webllm from "@mlc-ai/web-llm";
 
+
 function getElementAndCheck(id: string): HTMLElement {
   const element = document.getElementById(id);
   if (element == null) {
@@ -196,25 +197,54 @@ class ChatUI {
   }
 
   private updateLastMessage(kind, text) {
-    if (kind == "init") {
-      text = "[System Initialize] " + text;
-    }
-    if (this.uiChat === undefined) {
-      throw Error("cannot find ui chat");
-    }
     const matches = this.uiChat.getElementsByClassName(`msg ${kind}-msg`);
-    if (matches.length == 0) throw Error(`${kind} message do not exist`);
+    if (matches.length === 0) throw new Error(`${kind} message does not exist`);
     const msg = matches[matches.length - 1];
-    const msgText = msg.getElementsByClassName("msg-text");
-    if (msgText.length != 1) throw Error("Expect msg-text");
-    if (msgText[0].innerHTML == text) return;
-    const list = text.split('\n').map((t) => {
-      const item = document.createElement('div');
-      item.textContent = t;
-      return item;
-    });
-    msgText[0].innerHTML = '';
-    list.forEach((item) => msgText[0].append(item));
+    const msgTextElements = msg.getElementsByClassName("msg-text");
+    if (msgTextElements.length !== 1) throw new Error("Expect msg-text");
+    const msgText = msgTextElements[0];
+  
+    // Function to parse markdown-like text to HTML
+    function markdownToHTML(text) {
+      let lines = text.split('\n');
+      let inCodeBlock = false;
+      let html:any[] = [];
+      for (let line of lines) {
+        if (line.startsWith("```")) {
+          if (inCodeBlock) {
+            html.push("</code></pre>");
+            inCodeBlock = false;
+          } else {
+            html.push("<pre><code>");
+            inCodeBlock = true;
+          }
+        } else if (inCodeBlock) {
+          html.push(line + "\n");
+        } else {
+          if (line.startsWith('# ')) {
+            html.push(`<h1>${line.substring(2)}</h1>`);
+          } else if (line.startsWith('## ')) {
+            html.push(`<h2>${line.substring(3)}</h2>`);
+          } else if (line.startsWith('### ')) {
+            html.push(`<h3>${line.substring(4)}</h3>`);
+          } else if (line.startsWith('**') && line.endsWith('**')) {
+            html.push(`<strong>${line.substring(2, line.length - 2)}</strong>`);
+          } else if (line.startsWith('*') && line.endsWith('*')) {
+            html.push(`<em>${line.substring(1, line.length - 1)}</em>`);
+          } else {
+            html.push(`<p>${line}</p>`);
+          }
+        }
+      }
+      if (inCodeBlock) { // If still in code block at the end of text, close it properly
+        html.push("</code></pre>");
+      }
+      return html.join('');
+    }
+  
+    const html = markdownToHTML(text);
+    if (msgText.innerHTML === html) return; // No update if content is the same
+    msgText.innerHTML = html;
     this.uiChat.scrollTo(0, this.uiChat.scrollHeight);
   }
 
