@@ -359,6 +359,14 @@ export const prebuiltAppConfig: AppConfig = {
       "low_resource_required": false,
       "required_features": ["shader-f16"],
     },
+    {
+      "model_url": "https://huggingface.co/mlc-ai/Hermes-2-Pro-Mistral-7B-q4f16_1-MLC/resolve/main/",
+      "model_id": "Hermes-2-Pro-Mistral-7B-q4f16_1",
+      "model_lib_url": modelLibURLPrefix + modelVersion + "/Hermes-2-Pro-Mistral-7B-q4f16_1-sw4k_cs1k-webgpu.wasm",
+      "vram_required_MB": 4033.28,
+      "low_resource_required": false,
+      "required_features": ["shader-f16"],
+    },
     // Gemma-2B
     {
       "model_url": "https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC/resolve/main/",
