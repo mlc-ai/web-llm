@@ -112,6 +112,53 @@ async function main() {
 }
 ```
 
+### Use Service Worker
+
+WebLLM comes with API support for ServiceWorker so you can hook the generation process 
+into a service worker to avoid reloading the model in every page visit and optimize 
+your application's offline experience.
+
+We first create a service worker script that created a Engine and hook it up to a handler
+that handles requests when the service worker is ready.
+
+```typescript
+// sw.ts
+import {
+  WebServiceWorkerEngineHandler,
+  EngineInterface,
+  Engine,
+} from "@mlc-ai/web-llm";
+
+const engine: EngineInterface = new Engine();
+let handler: WebServiceWorkerEngineHandler;
+
+self.addEventListener("activate", function (event) {
+  handler = new WebServiceWorkerEngineHandler(engine);
+  console.log("Service Worker is ready")
+});
+
+```
+
+Then in the main logic, we register the service worker and then create the engine using
+`CreateWebServiceWorkerEngine` function. The rest of the logic remains the same.
+
+```typescript
+// main.ts
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register(
+    /*workerScriptURL=*/new URL("sw.ts", import.meta.url),
+    { type: "module" }
+  );
+}
+
+const engine: webllm.EngineInterface =
+  await webllm.CreateWebServiceWorkerEngine(
+    /*modelId=*/selectedModel,
+    /*engineConfig=*/{ initProgressCallback: initProgressCallback }
+  );
+```
+
+You can find a complete example on how to run WebLLM in service worker in [examples/service-worker](examples/service-worker/).
 
 ### Build a ChatApp
 
