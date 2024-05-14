@@ -37,10 +37,20 @@ export {
   CustomRequestParams
 } from "./message"
 
+// TODO: Rename to ExtensionServiceWorker 
 export {
   ServiceWorkerEngineHandler,
   ServiceWorkerEngine,
   CreateServiceWorkerEngine,
-} from "./service_worker";
+} from './service_worker'
+
+// TODO: Rename to ServiceWorker 
+export {
+  ServiceWorkerEngineHandler as WebServiceWorkerEngineHandler,
+  ServiceWorkerEngine as WebServiceWorkerEngine,
+  CreateServiceWorkerEngine as CreateWebServiceWorkerEngine,
+  serviceWorkerBroadcastChannel,
+  clientBroadcastChannel,
+} from "./web_service_worker";
 
 export * from './openai_api_protocols/index';

@@ -219,8 +219,11 @@ export class EngineWorkerHandler {
       case "customRequest": {
         return;
       }
+      case "throw": {
+        throw Error("Error thrown in worker: " + msg.content as string);
+      }
       default: {
-        throw Error("Invalid kind, msg=" + msg);
+        throw Error("Unknown message kind, msg: [" + msg.kind + "] " + msg.content);
       }
     }
   }
@@ -273,7 +276,7 @@ export class WebWorkerEngine implements EngineInterface {
   private generateCallbackRegistry = new Map<string, GenerateProgressCallback>();
   private pendingPromise = new Map<string, (msg: WorkerMessage) => void>();
 
-  constructor(worker: any) {
+  constructor(worker: ChatWorker) {
     this.worker = worker;
     worker.onmessage = (event: any) => {
       this.onmessage(event);
@@ -526,7 +529,7 @@ export class WebWorkerEngine implements EngineInterface {
         return;
       }
       default: {
-        throw Error("Unknown msg kind, msg=" + msg);
+        throw Error("Unknown message kind, msg=[" + msg.kind + "] " + msg.content);
       }
     }
   }
