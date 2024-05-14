@@ -166,7 +166,7 @@ You can find a complete chat app example in [examples/simple-chat](examples/simp
 
 ### Chrome Extension
 
-You can also find examples on building chrome extension with WebLLM in [examples/chrome-extension](examples/chrome-extension/) and [examples/chrome-extension-webgpu-service-worker](examples/chrome-extension-webgpu-service-worker/). The latter one leverages service worker, so the extension is persisten in the background.
+You can also find examples on building chrome extension with WebLLM in [examples/chrome-extension](examples/chrome-extension/) and [examples/chrome-extension-webgpu-service-worker](examples/chrome-extension-webgpu-service-worker/). The latter one leverages service worker, so the extension is persistent in the background.
 
 ## Full OpenAI Compatibility
 
