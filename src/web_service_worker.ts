@@ -74,6 +74,16 @@ export class ServiceWorkerEngineHandler extends EngineWorkerHandler {
     const msgEvent = event as MessageEvent;
     const msg = msgEvent.data as WorkerMessage;
 
+    if (msg.kind === "keepAlive") {
+      const msg: WorkerMessage = {
+        kind: "heartbeat",
+        uuid: msgEvent.data.uuid,
+        content: "",
+      };
+      this.postMessageInternal(msg);
+      return;
+    }
+
     if (msg.kind === "init") {
       this.handleTask(msg.uuid, async () => {
         const params = msg.content as ReloadParams;
@@ -114,7 +124,7 @@ export class ServiceWorkerEngineHandler extends EngineWorkerHandler {
       });
       return;
     }
-    super.onmessage(event);
+    super.onmessage(msg);
   }
 }
 
@@ -147,13 +157,36 @@ export async function CreateServiceWorkerEngine(
  * A client of Engine that exposes the same interface
  */
 export class ServiceWorkerEngine extends WebWorkerEngine {
-  constructor(worker: ChatWorker) {
+  missedHeatbeat = 0
+
+  constructor(worker: ChatWorker, keepAliveMs=10000) {
     super(worker);
-    clientBroadcastChannel.onmessage = this.onmessage.bind(this);
+    clientBroadcastChannel.onmessage = (event) => {
+      try {
+        this.onevent.bind(this)(event)
+      } catch (err: any) {
+        // This is expected to throw if user has multiple windows open
+        if (!err.message.startsWith("return from a unknown uuid")) {
+          console.error("CreateWebServiceWorkerEngine.onmessage", err);
+        }
+      }
+    };
+    setInterval(() => {
+      this.keepAlive();
+    }, keepAliveMs);
   }
 
   keepAlive() {
-    this.worker.postMessage({ type: "keepAlive" });
+    this.worker.postMessage({ kind: "keepAlive" });
+  }
+
+  onevent(event: MessageEvent): void {
+    const msg = event.data as WorkerMessage;
+    if (msg.kind === "heartbeat") {
+      this.missedHeatbeat = 0
+      return;
+    }
+    this.onmessage(msg);
   }
 
   /**

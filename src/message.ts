@@ -16,7 +16,8 @@ type RequestKind = (
   "interruptGenerate" | "unload" | "resetChat" | "init" |
   "initProgressCallback" | "generateProgressCallback" | "getMaxStorageBufferBindingSize" |
   "getGPUVendor" | "forwardTokensAndSample" | "chatCompletionNonStreaming" | "getMessage" |
-  "chatCompletionStreamInit" | "chatCompletionStreamNextChunk" | "customRequest");
+  "chatCompletionStreamInit" | "chatCompletionStreamNextChunk" | "customRequest" | 'keepAlive' | 'heartbeat');
+
 export interface ReloadParams {
   modelId: string;
   chatOpts?: ChatOptions;
