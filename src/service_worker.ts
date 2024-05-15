@@ -8,6 +8,7 @@ import {
   WebWorkerEngine,
   PostMessageHandler,
 } from "./web_worker";
+import { areAppConfigsEqual, areChatOptionsEqual } from "./utils";
 
 /**
  * A post message handler that sends messages to a chrome.runtime.Port.
@@ -84,8 +85,8 @@ export class ServiceWorkerEngineHandler extends EngineWorkerHandler {
         // If the modelId, chatOpts, and appConfig are the same, immediately return
         if (
           this.modelId === params.modelId &&
-          this.chatOpts === params.chatOpts &&
-          this.appConfig === params.appConfig
+          areChatOptionsEqual(this.chatOpts, params.chatOpts) &&
+          areAppConfigsEqual(this.appConfig, params.appConfig)
         ) {
           console.log("Already loaded the model. Skip loading");
           const gpuDetectOutput = await tvmjs.detectGPUDevice();

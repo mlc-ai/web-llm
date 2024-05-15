@@ -8,6 +8,7 @@ import {
   PostMessageHandler,
   ChatWorker,
 } from "./web_worker";
+import { areAppConfigsEqual, areChatOptionsEqual } from "./utils";
 
 const BROADCAST_CHANNEL_SERVICE_WORKER_ID = "@mlc-ai/web-llm-sw";
 const BROADCAST_CHANNEL_CLIENT_ID = "@mlc-ai/web-llm-client";
@@ -79,8 +80,8 @@ export class ServiceWorkerEngineHandler extends EngineWorkerHandler {
         // If the modelId, chatOpts, and appConfig are the same, immediately return
         if (
           this.modelId === params.modelId &&
-          this.chatOpts === params.chatOpts &&
-          this.appConfig === params.appConfig
+          areChatOptionsEqual(this.chatOpts, params.chatOpts) &&
+          areAppConfigsEqual(this.appConfig, params.appConfig)
         ) {
           console.log("Already loaded the model. Skip loading");
           const gpuDetectOutput = await tvmjs.detectGPUDevice();
@@ -147,8 +148,8 @@ export async function CreateServiceWorkerEngine(
  */
 export class ServiceWorkerEngine extends WebWorkerEngine {
   constructor(worker: ChatWorker) {
-    super(worker)
-    clientBroadcastChannel.onmessage = this.onmessage.bind(this)
+    super(worker);
+    clientBroadcastChannel.onmessage = this.onmessage.bind(this);
   }
 
   keepAlive() {
