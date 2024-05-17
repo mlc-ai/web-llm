@@ -139,7 +139,7 @@ export async function CreateServiceWorkerEngine(
   engineConfig?: EngineConfig,
   keepAliveMs: number = 10000
 ): Promise<ServiceWorkerEngine> {
-  const serviceWorkerEngine = new ServiceWorkerEngine();
+  const serviceWorkerEngine = new ServiceWorkerEngine(keepAliveMs);
   serviceWorkerEngine.setInitProgressCallback(
     engineConfig?.initProgressCallback
   );
@@ -148,9 +148,6 @@ export async function CreateServiceWorkerEngine(
     engineConfig?.chatOpts,
     engineConfig?.appConfig
   );
-  setInterval(() => {
-    serviceWorkerEngine.keepAlive();
-  }, keepAliveMs);
   return serviceWorkerEngine;
 }
 
@@ -191,15 +188,18 @@ class PortAdapter implements ChatWorker {
 export class ServiceWorkerEngine extends WebWorkerEngine {
   port: chrome.runtime.Port;
 
-  constructor() {
+  constructor(keepAliveMs: number = 10000) {
     let port = chrome.runtime.connect({ name: "web_llm_service_worker" });
     let chatWorker = new PortAdapter(port);
     super(chatWorker);
     this.port = port;
+    setInterval(() => {
+      this.keepAlive();
+    }, keepAliveMs);
   }
 
   keepAlive() {
-    this.port.postMessage({ type: "keepAlive" });
+    this.worker.postMessage({ kind: "keepAlive" });
   }
 
   /**
