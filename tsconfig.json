@@ -7,9 +7,10 @@
     "sourceMap": true,
     "strict": true,
     "moduleResolution": "Node",
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "lib": ["dom", "WebWorker"]
   },
-  "typeRoots": [ "./node_modules/@webgpu/types", "./node_modules/@types"],
+  "typeRoots": ["./node_modules/@webgpu/types", "./node_modules/@types"],
   "include": ["src"],
   "exclude": ["node_modules", "build", "dist", "rollup.config.cjs"]
 }

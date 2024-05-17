@@ -1,9 +1,14 @@
-import { AppConfig, ChatOptions, EngineConfig, GenerationConfig } from "./config";
+import {
+  AppConfig,
+  ChatOptions,
+  EngineConfig,
+  GenerationConfig,
+} from "./config";
 import {
   EngineInterface,
   GenerateProgressCallback,
   InitProgressCallback,
-  InitProgressReport
+  InitProgressReport,
 } from "./types";
 import {
   ChatCompletionRequest,
@@ -15,7 +20,6 @@ import {
 } from "./openai_api_protocols/index";
 import * as API from "./openai_api_protocols/apis";
 import {
-  WorkerMessage,
   MessageContent,
   ReloadParams,
   GenerateParams,
@@ -24,6 +28,8 @@ import {
   ChatCompletionStreamInitParams,
   ResetChatParams,
   GenerateProgressCallbackParams,
+  WorkerResponse,
+  WorkerRequest,
 } from "./message";
 
 export interface PostMessageHandler {
@@ -43,109 +49,143 @@ export interface PostMessageHandler {
  */
 export class EngineWorkerHandler {
   protected engine: EngineInterface;
-  protected chatCompletionAsyncChunkGenerator?: AsyncGenerator<ChatCompletionChunk, void, void>;
+  protected chatCompletionAsyncChunkGenerator?: AsyncGenerator<
+    ChatCompletionChunk,
+    void,
+    void
+  >;
   protected postMessageHandler?: PostMessageHandler;
 
   /**
    * @param engine A concrete implementation of EngineInterface
-   * @param postMessageHandler Optionally, a handler to communicate with the content script. 
+   * @param postMessageHandler Optionally, a handler to communicate with the content script.
    *   This is only needed in ServiceWorker. In web worker, we can use `postMessage` from
    *   DOM API directly.
    */
-  constructor(engine: EngineInterface, postMessageHandler?: PostMessageHandler) {
+  constructor(
+    engine: EngineInterface,
+    postMessageHandler?: PostMessageHandler,
+    initProgressCallback?: (report: InitProgressReport) => void
+  ) {
     this.engine = engine;
     this.postMessageHandler = postMessageHandler;
-    this.engine.setInitProgressCallback((report: InitProgressReport) => {
-      const msg: WorkerMessage = {
+    const defaultInitProgressCallback = (report: InitProgressReport) => {
+      const msg: WorkerResponse = {
         kind: "initProgressCallback",
         uuid: "",
-        content: report
+        content: report,
       };
       this.postMessageInternal(msg);
-    });
+    };
+    this.engine.setInitProgressCallback(
+      initProgressCallback || defaultInitProgressCallback
+    );
   }
 
   postMessageInternal(event: any) {
     // Use the Worker API postMessage by default
-    this.postMessageHandler ? this.postMessageHandler.postMessage(event) : postMessage(event);
+    this.postMessageHandler
+      ? this.postMessageHandler.postMessage(event)
+      : postMessage(event);
   }
 
   setPostMessageHandler(postMessageHandler: PostMessageHandler) {
     this.postMessageHandler = postMessageHandler;
   }
 
-  async handleTask<T extends MessageContent>(uuid: string, task: () => Promise<T>) {
+  async handleTask<T extends MessageContent>(
+    uuid: string,
+    task: () => Promise<T>
+  ) {
     try {
       const res = await task();
-      const msg: WorkerMessage = {
+      const msg: WorkerResponse = {
         kind: "return",
         uuid: uuid,
-        content: res
+        content: res,
       };
       this.postMessageInternal(msg);
     } catch (err) {
       const errStr = (err as object).toString();
-      const msg: WorkerMessage = {
+      const msg: WorkerResponse = {
         kind: "throw",
         uuid: uuid,
-        content: errStr
+        content: errStr,
       };
       this.postMessageInternal(msg);
     }
   }
 
-  onmessage(event: any) {
-    let msg: WorkerMessage;
+  onmessage(
+    event: any,
+    onComplete?: (value: any) => void,
+    onError?: () => void
+  ) {
+    let msg: WorkerRequest;
     if (event instanceof MessageEvent) {
-      msg = event.data as WorkerMessage;
+      msg = event.data as WorkerRequest;
     } else {
-      msg = event as WorkerMessage;
+      msg = event as WorkerRequest;
     }
     switch (msg.kind) {
       case "reload": {
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ReloadParams;
-          await this.engine.reload(params.modelId, params.chatOpts, params.appConfig);
+          await this.engine.reload(
+            params.modelId,
+            params.chatOpts,
+            params.appConfig
+          );
+          onComplete?.(null);
           return null;
-        })
+        });
         return;
       }
       case "generate": {
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as GenerateParams;
           const progressCallback = (step: number, currentMessage: string) => {
-            const cbMessage: WorkerMessage = {
+            const cbMessage: WorkerResponse = {
               kind: "generateProgressCallback",
               uuid: msg.uuid,
               content: {
                 step: step,
-                currentMessage: currentMessage
-              }
+                currentMessage: currentMessage,
+              },
             };
             this.postMessageInternal(cbMessage);
           };
-          return await this.engine.generate(
+          const res = await this.engine.generate(
             params.input,
             progressCallback,
             params.streamInterval,
             params.genConfig
           );
-        })
+          onComplete?.(res);
+          return res;
+        });
         return;
       }
       case "forwardTokensAndSample": {
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ForwardTokensAndSampleParams;
-          return await this.engine.forwardTokensAndSample(params.inputIds, params.isPrefill);
-        })
+          const res = await this.engine.forwardTokensAndSample(
+            params.inputIds,
+            params.isPrefill
+          );
+          onComplete?.(res);
+          return res;
+        });
         return;
       }
       case "chatCompletionNonStreaming": {
         // Directly return the ChatCompletion response
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ChatCompletionNonStreamingParams;
-          return await this.engine.chatCompletion(params.request);
-        })
+          const res = await this.engine.chatCompletion(params.request);
+          onComplete?.(res);
+          return res;
+        });
         return;
       }
       case "chatCompletionStreamInit": {
@@ -153,32 +193,41 @@ export class EngineWorkerHandler {
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ChatCompletionStreamInitParams;
           this.chatCompletionAsyncChunkGenerator =
-            await this.engine.chatCompletion(params.request) as AsyncGenerator<ChatCompletionChunk, void, void>;
-          return null
-        })
+            (await this.engine.chatCompletion(
+              params.request
+            )) as AsyncGenerator<ChatCompletionChunk, void, void>;
+          onComplete?.(null);
+          return null;
+        });
         return;
       }
       case "chatCompletionStreamNextChunk": {
         // For any subsequent request, we return whatever `next()` yields
         this.handleTask(msg.uuid, async () => {
           if (this.chatCompletionAsyncChunkGenerator === undefined) {
-            throw Error("Chunk generator in worker should be instantiated by now.");
+            throw Error(
+              "Chunk generator in worker should be instantiated by now."
+            );
           }
           // Yield the next chunk
           const { value } = await this.chatCompletionAsyncChunkGenerator.next();
+          onComplete?.(value);
           return value;
-        })
+        });
         return;
       }
       case "runtimeStatsText": {
         this.handleTask(msg.uuid, async () => {
-          return await this.engine.runtimeStatsText();
+          const res = await this.engine.runtimeStatsText();
+          onComplete?.(res);
+          return res;
         });
         return;
       }
       case "interruptGenerate": {
         this.handleTask(msg.uuid, async () => {
           this.engine.interruptGenerate();
+          onComplete?.(null);
           return null;
         });
         return;
@@ -186,6 +235,7 @@ export class EngineWorkerHandler {
       case "unload": {
         this.handleTask(msg.uuid, async () => {
           await this.engine.unload();
+          onComplete?.(null);
           return null;
         });
         return;
@@ -194,67 +244,84 @@ export class EngineWorkerHandler {
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ResetChatParams;
           await this.engine.resetChat(params.keepStats);
+          onComplete?.(null);
           return null;
         });
         return;
       }
       case "getMaxStorageBufferBindingSize": {
         this.handleTask(msg.uuid, async () => {
-          return await this.engine.getMaxStorageBufferBindingSize();
+          const res = await this.engine.getMaxStorageBufferBindingSize();
+          onComplete?.(res);
+          return res;
         });
         return;
       }
       case "getGPUVendor": {
         this.handleTask(msg.uuid, async () => {
-          return await this.engine.getGPUVendor();
+          const res = await this.engine.getGPUVendor();
+          onComplete?.(res);
+          return res;
         });
         return;
       }
       case "getMessage": {
         this.handleTask(msg.uuid, async () => {
-          return await this.engine.getMessage();
+          const res = await this.engine.getMessage();
+          onComplete?.(res);
+          return res;
         });
         return;
       }
       case "customRequest": {
+        onComplete?.(null);
         return;
       }
-      case "throw": {
-        throw Error("Error thrown in worker: " + msg.content as string);
-      }
       default: {
-        throw Error("Unknown message kind, msg: [" + msg.kind + "] " + msg.content);
+        if (msg.kind && msg.content) {
+          onError?.();
+          throw Error(
+            "Unknown message kind, msg: [" + msg.kind + "] " + msg.content
+          );
+        } else {
+          // Ignore irrelavent events
+          onComplete?.(null);
+        }
       }
     }
   }
 }
 
 export interface ChatWorker {
-  onmessage: any,
+  onmessage: any;
   postMessage: (message: any) => void;
 }
 
 /**
  * Creates `WebWorkerEngine`, a client that holds the same interface as `Engine`.
- * 
+ *
  * Equivalent to `new webllm.WebWorkerEngine(worker).reload(...)`.
- * 
+ *
  * @param worker The worker that holds the actual Engine, intialized with `new Worker()`.
  * @param modelId The model to load, needs to either be in `webllm.prebuiltAppConfig`, or in
  * `engineConfig.appConfig`.
  * @param engineConfig Optionally configures the engine, see `webllm.EngineConfig` for more.
  * @returns An initialized `WebLLM.WebWorkerEngine` with `modelId` loaded.
- * 
+ *
  * @note engineConfig.logitProcessorRegistry is ignored for `CreateWebWorkEngine()`.
  */
 export async function CreateWebWorkerEngine(
   worker: any,
   modelId: string,
-  engineConfig?: EngineConfig,
+  engineConfig?: EngineConfig
 ): Promise<WebWorkerEngine> {
   const webWorkerEngine = new WebWorkerEngine(worker);
   webWorkerEngine.setInitProgressCallback(engineConfig?.initProgressCallback);
-  await webWorkerEngine.reload(modelId, engineConfig?.chatOpts, engineConfig?.appConfig);
+  await webWorkerEngine.reload(
+    modelId,
+    engineConfig?.chatOpts,
+    engineConfig?.appConfig
+  );
   return webWorkerEngine;
 }
 
@@ -273,14 +340,17 @@ export class WebWorkerEngine implements EngineInterface {
   public chat: API.Chat;
 
   private initProgressCallback?: InitProgressCallback;
-  private generateCallbackRegistry = new Map<string, GenerateProgressCallback>();
-  private pendingPromise = new Map<string, (msg: WorkerMessage) => void>();
+  private generateCallbackRegistry = new Map<
+    string,
+    GenerateProgressCallback
+  >();
+  private pendingPromise = new Map<string, (msg: WorkerResponse) => void>();
 
   constructor(worker: ChatWorker) {
     this.worker = worker;
     worker.onmessage = (event: any) => {
       this.onmessage(event);
-    }
+    };
     this.chat = new API.Chat(this);
   }
 
@@ -292,13 +362,15 @@ export class WebWorkerEngine implements EngineInterface {
     return this.initProgressCallback;
   }
 
-  protected getPromise<T extends MessageContent>(msg: WorkerMessage): Promise<T> {
+  protected getPromise<T extends MessageContent>(
+    msg: WorkerRequest
+  ): Promise<T> {
     const uuid = msg.uuid;
     const executor = (
       resolve: (arg: T) => void,
       reject: (arg: any) => void
     ) => {
-      const cb = (msg: WorkerMessage) => {
+      const cb = (msg: WorkerResponse) => {
         if (msg.kind == "return") {
           resolve(msg.content as T);
         } else {
@@ -316,42 +388,46 @@ export class WebWorkerEngine implements EngineInterface {
     return promise;
   }
 
-  async reload(modelId: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
-    const msg: WorkerMessage = {
+  async reload(
+    modelId: string,
+    chatOpts?: ChatOptions,
+    appConfig?: AppConfig
+  ): Promise<void> {
+    const msg: WorkerRequest = {
       kind: "reload",
       uuid: crypto.randomUUID(),
       content: {
         modelId: modelId,
         chatOpts: chatOpts,
         appConfig: appConfig,
-      }
+      },
     };
     await this.getPromise<null>(msg);
   }
 
   async getMaxStorageBufferBindingSize(): Promise<number> {
-    const msg: WorkerMessage = {
+    const msg: WorkerRequest = {
       kind: "getMaxStorageBufferBindingSize",
       uuid: crypto.randomUUID(),
-      content: null
+      content: null,
     };
     return await this.getPromise<number>(msg);
   }
 
   async getGPUVendor(): Promise<string> {
-    const msg: WorkerMessage = {
+    const msg: WorkerRequest = {
       kind: "getGPUVendor",
       uuid: crypto.randomUUID(),
-      content: null
+      content: null,
     };
     return await this.getPromise<string>(msg);
   }
 
   async getMessage(): Promise<string> {
-    const msg: WorkerMessage = {
+    const msg: WorkerRequest = {
       kind: "getMessage",
       uuid: crypto.randomUUID(),
-      content: null
+      content: null,
     };
     return await this.getPromise<string>(msg);
   }
@@ -360,16 +436,16 @@ export class WebWorkerEngine implements EngineInterface {
     input: string | ChatCompletionRequestNonStreaming,
     progressCallback?: GenerateProgressCallback,
     streamInterval?: number,
-    genConfig?: GenerationConfig,
+    genConfig?: GenerationConfig
   ): Promise<string> {
-    const msg: WorkerMessage = {
+    const msg: WorkerRequest = {
       kind: "generate",
       uuid: crypto.randomUUID(),
       content: {
         input: input,
         streamInterval: streamInterval,
-        genConfig: genConfig
-      }
+        genConfig: genConfig,
+      },
     };
     if (progressCallback !== undefined) {
       this.generateCallbackRegistry.set(msg.uuid, progressCallback);
@@ -378,51 +454,54 @@ export class WebWorkerEngine implements EngineInterface {
   }
 
   async runtimeStatsText(): Promise<string> {
-    const msg: WorkerMessage = {
+    const msg: WorkerRequest = {
       kind: "runtimeStatsText",
       uuid: crypto.randomUUID(),
-      content: null
+      content: null,
     };
     return await this.getPromise<string>(msg);
   }
 
   interruptGenerate(): void {
-    const msg: WorkerMessage = {
+    const msg: WorkerRequest = {
       kind: "interruptGenerate",
       uuid: crypto.randomUUID(),
-      content: null
+      content: null,
     };
     this.getPromise<null>(msg);
   }
 
   async unload(): Promise<void> {
-    const msg: WorkerMessage = {
+    const msg: WorkerRequest = {
       kind: "unload",
       uuid: crypto.randomUUID(),
-      content: null
+      content: null,
     };
     await this.getPromise<null>(msg);
   }
 
   async resetChat(keepStats = false): Promise<void> {
-    const msg: WorkerMessage = {
+    const msg: WorkerRequest = {
       kind: "resetChat",
       uuid: crypto.randomUUID(),
       content: {
-        keepStats: keepStats
-      }
+        keepStats: keepStats,
+      },
     };
     await this.getPromise<null>(msg);
   }
 
-  async forwardTokensAndSample(inputIds: Array<number>, isPrefill: boolean): Promise<number> {
-    const msg: WorkerMessage = {
+  async forwardTokensAndSample(
+    inputIds: Array<number>,
+    isPrefill: boolean
+  ): Promise<number> {
+    const msg: WorkerRequest = {
       kind: "forwardTokensAndSample",
       uuid: crypto.randomUUID(),
       content: {
         inputIds: inputIds,
-        isPrefill: isPrefill
-      }
+        isPrefill: isPrefill,
+      },
     };
     return await this.getPromise<number>(msg);
   }
@@ -433,13 +512,17 @@ export class WebWorkerEngine implements EngineInterface {
    * the worker which we yield. The last message is `void`, meaning the generator has nothing
    * to yield anymore.
    */
-  async* chatCompletionAsyncChunkGenerator(): AsyncGenerator<ChatCompletionChunk, void, void> {
+  async *chatCompletionAsyncChunkGenerator(): AsyncGenerator<
+    ChatCompletionChunk,
+    void,
+    void
+  > {
     // Every time it gets called, sends message to worker, asking for the next chunk
     while (true) {
-      const msg: WorkerMessage = {
+      const msg: WorkerRequest = {
         kind: "chatCompletionStreamNextChunk",
         uuid: crypto.randomUUID(),
-        content: null
+        content: null,
       };
       const ret = await this.getPromise<ChatCompletionChunk>(msg);
       // If the worker's generator reached the end, it would return a `void`
@@ -464,12 +547,12 @@ export class WebWorkerEngine implements EngineInterface {
   ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
     if (request.stream) {
       // First let worker instantiate a generator
-      const msg: WorkerMessage = {
+      const msg: WorkerRequest = {
         kind: "chatCompletionStreamInit",
         uuid: crypto.randomUUID(),
         content: {
           request: request,
-        }
+        },
       };
       await this.getPromise<null>(msg);
 
@@ -478,22 +561,22 @@ export class WebWorkerEngine implements EngineInterface {
     }
 
     // Non streaming case is more straightforward
-    const msg: WorkerMessage = {
+    const msg: WorkerRequest = {
       kind: "chatCompletionNonStreaming",
       uuid: crypto.randomUUID(),
       content: {
         request: request,
-      }
+      },
     };
     return await this.getPromise<ChatCompletion>(msg);
   }
 
   onmessage(event: any) {
-    let msg: WorkerMessage;
+    let msg: WorkerResponse;
     if (event instanceof MessageEvent) {
-      msg = event.data as WorkerMessage;
+      msg = event.data as WorkerResponse;
     } else {
-      msg = event as WorkerMessage;
+      msg = event as WorkerResponse;
     }
     switch (msg.kind) {
       case "initProgressCallback": {
@@ -529,7 +612,10 @@ export class WebWorkerEngine implements EngineInterface {
         return;
       }
       default: {
-        throw Error("Unknown message kind, msg=[" + msg.kind + "] " + msg.content);
+        let unknownMsg = msg as any;
+        throw Error(
+          "Unknown message kind, msg=[" + unknownMsg.kind + "] " + unknownMsg.content
+        );
       }
     }
   }

@@ -33,24 +33,23 @@ export {
 } from "./web_worker";
 
 export {
-  WorkerMessage,
+  WorkerRequest,
+  WorkerResponse,
   CustomRequestParams
 } from "./message"
 
-// TODO: Rename to ExtensionServiceWorker 
-export {
-  ServiceWorkerEngineHandler,
-  ServiceWorkerEngine,
-  CreateServiceWorkerEngine,
-} from './service_worker'
-
-// TODO: Rename to ServiceWorker 
+// TODO: Rename classes to ServiceWorker 
 export {
   ServiceWorkerEngineHandler as WebServiceWorkerEngineHandler,
   ServiceWorkerEngine as WebServiceWorkerEngine,
   CreateServiceWorkerEngine as CreateWebServiceWorkerEngine,
-  serviceWorkerBroadcastChannel,
-  clientBroadcastChannel,
-} from "./web_service_worker";
+} from "./service_worker";
+
+// TODO: Rename classes to ExtensionServiceWorker 
+export {
+  ServiceWorkerEngineHandler,
+  ServiceWorkerEngine,
+  CreateServiceWorkerEngine,
+} from './extension_service_worker'
 
 export * from './openai_api_protocols/index';

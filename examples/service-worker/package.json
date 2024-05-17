@@ -3,7 +3,7 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "start": "parcel src/index.html  --port 3000",
+        "start": "parcel src/index.html --port 3000",
         "build": "parcel build src/index.html --dist-dir lib"
     },
     "devDependencies": {
@@ -15,6 +15,6 @@
         "url": "^0.11.3"
     },
     "dependencies": {
-        "@mlc-ai/web-llm": "file:../../lib"
+        "@mlc-ai/web-llm": "file:../../lib/"
     }
 }

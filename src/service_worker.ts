@@ -1,45 +1,19 @@
 import * as tvmjs from "tvmjs";
-import { AppConfig, ChatOptions, EngineConfig } from "./config";
-import { ReloadParams, WorkerMessage } from "./message";
-import { EngineInterface } from "./types";
-import {
-  ChatWorker,
-  EngineWorkerHandler,
-  WebWorkerEngine,
-  PostMessageHandler,
-} from "./web_worker";
+import { AppConfig, ChatOptions, EngineConfig, ModelRecord } from "./config";
+import { ReloadParams, WorkerRequest, WorkerResponse } from "./message";
+import { EngineInterface, InitProgressReport } from "./types";
+import { EngineWorkerHandler, WebWorkerEngine, ChatWorker } from "./web_worker";
 import { areAppConfigsEqual, areChatOptionsEqual } from "./utils";
 
-/**
- * A post message handler that sends messages to a chrome.runtime.Port.
- */
-export class PortPostMessageHandler implements PostMessageHandler {
-  port: chrome.runtime.Port;
-  enabled: boolean = true;
+/* Service Worker Script */
 
-  constructor(port: chrome.runtime.Port) {
-    this.port = port;
-  }
-
-  /**
-   * Close the PortPostMessageHandler. This will prevent any further messages
-   */
-  close() {
-    this.enabled = false;
-  }
-
-  postMessage(event: any) {
-    if (this.enabled) {
-      this.port.postMessage(event);
-    }
-  }
-}
+type IServiceWorker = globalThis.ServiceWorker;
 
 /**
  * Worker handler that can be used in a ServiceWorker.
- * 
+ *
  * @example
- * 
+ *
  * const engine = new Engine();
  * let handler;
  * chrome.runtime.onConnect.addListener(function (port) {
@@ -56,29 +30,74 @@ export class ServiceWorkerEngineHandler extends EngineWorkerHandler {
   chatOpts?: ChatOptions;
   appConfig?: AppConfig;
 
-  constructor(engine: EngineInterface, port: chrome.runtime.Port) {
-    let portHandler = new PortPostMessageHandler(port);
-    super(engine, portHandler);
+  private clientRegistry = new Map<
+    string,
+    IServiceWorker | Client | MessagePort
+  >();
+  private initReuqestUuid?: string;
 
-    port.onDisconnect.addListener(() => {
-      portHandler.close();
+  constructor(engine: EngineInterface) {
+    if (!self || !("addEventListener" in self)) {
+      throw new Error(
+        "ServiceWorkerGlobalScope is not defined. ServiceWorkerEngineHandler must be created in service worker script."
+      );
+    }
+    const postMessageHandler = {
+      postMessage: (message: WorkerResponse) => {
+        if (this.clientRegistry.has(message.uuid)) {
+          const client = this.clientRegistry.get(message.uuid);
+          client?.postMessage(message);
+
+          if (message.kind === "return" || message.kind === "throw") {
+            this.clientRegistry.delete(message.uuid);
+          } else {
+            // TODO: Delete clientRegistry after complete to avoid memory leak?
+          }
+        }
+      },
+    };
+    const initProgressCallback = (report: InitProgressReport) => {
+      const msg: WorkerResponse = {
+        kind: "initProgressCallback",
+        uuid: this.initReuqestUuid || "",
+        content: report,
+      };
+      this.postMessageInternal(msg);
+    };
+    super(engine, postMessageHandler, initProgressCallback);
+    const onmessage = this.onmessage.bind(this);
+
+    self.addEventListener("message", (event) => {
+      const message = event as unknown as ExtendableMessageEvent;
+      if (message.source) {
+        this.clientRegistry.set(message.data.uuid, message.source);
+      }
+      message.waitUntil(
+        new Promise((resolve, reject) => {
+          onmessage(message, resolve, reject);
+        })
+      );
     });
   }
 
-  setPort(port: chrome.runtime.Port) {
-    let portHandler = new PortPostMessageHandler(port);
-    this.setPostMessageHandler(portHandler);
-    port.onDisconnect.addListener(() => {
-      portHandler.close();
-    });
-  }
+  onmessage(
+    event: ExtendableMessageEvent,
+    onComplete?: (value: any) => void,
+    onError?: () => void
+  ): void {
+    const msg = event.data as WorkerRequest;
 
-  onmessage(event: any): void {
-    if (event.type === "keepAlive") {
+    if (msg.kind === "keepAlive") {
+      const reply: WorkerRequest = {
+        kind: "heartbeat",
+        uuid: msg.uuid,
+        content: "",
+      };
+      this.postMessageInternal(reply);
+      onComplete?.(reply);
       return;
     }
 
-    const msg = event as WorkerMessage;
     if (msg.kind === "init") {
       this.handleTask(msg.uuid, async () => {
         const params = msg.content as ReloadParams;
@@ -104,9 +123,11 @@ export class ServiceWorkerEngineHandler extends EngineWorkerHandler {
             timeElapsed: 0,
             text: "Finish loading on " + gpuLabel,
           });
+          onComplete?.(null);
           return null;
         }
 
+        this.initReuqestUuid = msg.uuid;
         await this.engine.reload(
           params.modelId,
           params.chatOpts,
@@ -115,31 +136,60 @@ export class ServiceWorkerEngineHandler extends EngineWorkerHandler {
         this.modelId = params.modelId;
         this.chatOpts = params.chatOpts;
         this.appConfig = params.appConfig;
+        onComplete?.(null);
         return null;
       });
       return;
     }
-    super.onmessage(event);
+    super.onmessage(msg, onComplete, onError);
+  }
+}
+
+/* Webapp Client */
+/**
+ * PostMessageHandler wrapper for sending message from client to service worker
+ */
+export class ServiceWorker implements ChatWorker {
+  serviceWorker: IServiceWorker;
+
+  constructor(serviceWorker: IServiceWorker) {
+    this.serviceWorker = serviceWorker;
+  }
+
+  // ServiceWorkerEngine will later overwrite this
+  onmessage() {}
+
+  postMessage(message: WorkerRequest) {
+    if (!("serviceWorker" in navigator)) {
+      throw new Error("Service worker API is not available");
+    }
+    const serviceWorker = (navigator.serviceWorker as ServiceWorkerContainer)
+      .controller;
+    if (!serviceWorker) {
+      throw new Error("There is no active service worker");
+    }
+    serviceWorker.postMessage(message);
   }
 }
 
 /**
  * Create a ServiceWorkerEngine.
- * 
+ *
  * @param modelId The model to load, needs to either be in `webllm.prebuiltAppConfig`, or in
  * `engineConfig.appConfig`.
  * @param engineConfig Optionally configures the engine, see `webllm.EngineConfig` for more.
- * @param keepAliveMs The interval to send keep alive messages to the service worker.
- * See [Service worker lifecycle](https://developer.chrome.com/docs/extensions/develop/concepts/service-workers/lifecycle#idle-shutdown)
- * The default is 10s.
  * @returns An initialized `WebLLM.ServiceWorkerEngine` with `modelId` loaded.
  */
 export async function CreateServiceWorkerEngine(
   modelId: string,
-  engineConfig?: EngineConfig,
-  keepAliveMs: number = 10000
+  engineConfig?: EngineConfig
 ): Promise<ServiceWorkerEngine> {
-  const serviceWorkerEngine = new ServiceWorkerEngine(keepAliveMs);
+  if (!("serviceWorker" in navigator)) {
+    throw new Error("Service worker API is not available");
+  }
+  const registration = await (navigator.serviceWorker as ServiceWorkerContainer)
+    .ready;
+  const serviceWorkerEngine = new ServiceWorkerEngine(registration.active!);
   serviceWorkerEngine.setInitProgressCallback(
     engineConfig?.initProgressCallback
   );
@@ -151,55 +201,42 @@ export async function CreateServiceWorkerEngine(
   return serviceWorkerEngine;
 }
 
-class PortAdapter implements ChatWorker {
-  port: chrome.runtime.Port;
-  private _onmessage!: (message: any) => void;
-
-  constructor(port: chrome.runtime.Port) {
-    this.port = port;
-    this.port.onMessage.addListener(this.handleMessage.bind(this));
-  }
-
-  // Wrapper to handle incoming messages and delegate to onmessage if available
-  private handleMessage(message: any) {
-    if (this._onmessage) {
-      this._onmessage(message);
-    }
-  }
-
-  // Getter and setter for onmessage to manage adding/removing listeners
-  get onmessage(): (message: any) => void {
-    return this._onmessage;
-  }
-
-  set onmessage(listener: (message: any) => void) {
-    this._onmessage = listener;
-  }
-
-  // Wrap port.postMessage to maintain 'this' context
-  postMessage = (message: any): void => {
-    this.port.postMessage(message);
-  };
-}
-
 /**
  * A client of Engine that exposes the same interface
  */
 export class ServiceWorkerEngine extends WebWorkerEngine {
-  port: chrome.runtime.Port;
+  missedHeatbeat = 0;
 
-  constructor(keepAliveMs: number = 10000) {
-    let port = chrome.runtime.connect({ name: "web_llm_service_worker" });
-    let chatWorker = new PortAdapter(port);
-    super(chatWorker);
-    this.port = port;
+  constructor(worker: IServiceWorker, keepAliveMs = 10000) {
+    if (!("serviceWorker" in navigator)) {
+      throw new Error("Service worker API is not available");
+    }
+    super(new ServiceWorker(worker));
+    const onmessage = this.onmessage.bind(this);
+
+    (navigator.serviceWorker as ServiceWorkerContainer).addEventListener(
+      "message",
+      (event: MessageEvent) => {
+        const msg = event.data;
+        try {
+          if (msg.kind === "heartbeat") {
+            this.missedHeatbeat = 0;
+            return;
+          }
+          onmessage(msg);
+        } catch (err: any) {
+          // This is expected to throw if user has multiple windows open
+          if (!err.message.startsWith("return from a unknown uuid")) {
+            console.error("CreateWebServiceWorkerEngine.onmessage", err);
+          }
+        }
+      }
+    );
+
     setInterval(() => {
-      this.keepAlive();
+      this.worker.postMessage({ kind: "keepAlive", uuid: crypto.randomUUID() });
+      this.missedHeatbeat += 1;
     }, keepAliveMs);
-  }
-
-  keepAlive() {
-    this.worker.postMessage({ kind: "keepAlive" });
   }
 
   /**
@@ -218,7 +255,7 @@ export class ServiceWorkerEngine extends WebWorkerEngine {
     chatOpts?: ChatOptions,
     appConfig?: AppConfig
   ): Promise<void> {
-    const msg: WorkerMessage = {
+    const msg: WorkerRequest = {
       kind: "init",
       uuid: crypto.randomUUID(),
       content: {
