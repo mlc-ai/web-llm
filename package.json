@@ -30,6 +30,7 @@
     "@rollup/plugin-node-resolve": "^13.0.4",
     "@types/chrome": "^0.0.266",
     "@types/jest": "^29.5.11",
+    "@types/serviceworker": "^0.0.86",
     "@typescript-eslint/eslint-plugin": "^5.59.6",
     "@typescript-eslint/parser": "^5.59.6",
     "@webgpu/types": "^0.1.24",

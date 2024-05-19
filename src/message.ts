@@ -4,19 +4,36 @@ import {
   ChatCompletionRequestStreaming,
   ChatCompletionRequestNonStreaming,
   ChatCompletion,
-  ChatCompletionChunk
+  ChatCompletionChunk,
 } from "./openai_api_protocols/index";
 
 /**
  * Message kind used by worker
  */
-type RequestKind = (
-  "return" | "throw" |
-  "reload" | "generate" | "runtimeStatsText" |
-  "interruptGenerate" | "unload" | "resetChat" | "init" |
-  "initProgressCallback" | "generateProgressCallback" | "getMaxStorageBufferBindingSize" |
-  "getGPUVendor" | "forwardTokensAndSample" | "chatCompletionNonStreaming" | "getMessage" |
-  "chatCompletionStreamInit" | "chatCompletionStreamNextChunk" | "customRequest" | 'keepAlive' | 'heartbeat');
+type RequestKind =
+  | "reload"
+  | "generate"
+  | "runtimeStatsText"
+  | "interruptGenerate"
+  | "unload"
+  | "resetChat"
+  | "init"
+  | "getMaxStorageBufferBindingSize"
+  | "getGPUVendor"
+  | "forwardTokensAndSample"
+  | "chatCompletionNonStreaming"
+  | "getMessage"
+  | "chatCompletionStreamInit"
+  | "chatCompletionStreamNextChunk"
+  | "customRequest"
+  | "keepAlive"
+  | "heartbeat";
+
+type ResponseKind =
+  | "return"
+  | "throw"
+  | "initProgressCallback"
+  | "generateProgressCallback";
 
 export interface ReloadParams {
   modelId: string;
@@ -51,28 +68,54 @@ export interface CustomRequestParams {
   requestMessage: string;
 }
 export type MessageContent =
-  GenerateProgressCallbackParams |
-  ReloadParams |
-  GenerateParams |
-  ResetChatParams |
-  ForwardTokensAndSampleParams |
-  ChatCompletionNonStreamingParams |
-  ChatCompletionStreamInitParams |
-  CustomRequestParams |
-  InitProgressReport |
-  string |
-  null |
-  number |
-  ChatCompletion |
-  ChatCompletionChunk |
-  void;
+  | GenerateProgressCallbackParams
+  | ReloadParams
+  | GenerateParams
+  | ResetChatParams
+  | ForwardTokensAndSampleParams
+  | ChatCompletionNonStreamingParams
+  | ChatCompletionStreamInitParams
+  | CustomRequestParams
+  | InitProgressReport
+  | string
+  | null
+  | number
+  | ChatCompletion
+  | ChatCompletionChunk
+  | void;
 /**
  * The message used in exchange between worker
  * and the main thread.
  */
 
-export interface WorkerMessage {
+export type WorkerRequest = {
   kind: RequestKind;
   uuid: string;
   content: MessageContent;
-}
+};
+
+export type OneTimeWorkerResponse = {
+  kind: "return" | "throw";
+  uuid: string;
+  content: MessageContent;
+};
+
+export type InitProgressWorkerResponse = {
+  kind: "initProgressCallback";
+  uuid: string;
+  content: InitProgressReport;
+};
+
+export type GenerateProgressWorkerResponse = {
+  kind: "generateProgressCallback";
+  uuid: string;
+  content: {
+    step: number;
+    currentMessage: string;
+  };
+};
+
+export type WorkerResponse =
+  | OneTimeWorkerResponse
+  | InitProgressWorkerResponse
+  | GenerateProgressWorkerResponse;
