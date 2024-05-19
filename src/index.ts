@@ -40,16 +40,16 @@ export {
 
 // TODO: Rename classes to ServiceWorker 
 export {
-  ServiceWorkerEngineHandler as WebServiceWorkerEngineHandler,
-  ServiceWorkerEngine as WebServiceWorkerEngine,
-  CreateServiceWorkerEngine as CreateWebServiceWorkerEngine,
+  ServiceWorkerEngineHandler,
+  ServiceWorkerEngine,
+  CreateServiceWorkerEngine,
 } from "./service_worker";
 
 // TODO: Rename classes to ExtensionServiceWorker 
 export {
-  ServiceWorkerEngineHandler,
-  ServiceWorkerEngine,
-  CreateServiceWorkerEngine,
+  ServiceWorkerEngineHandler as ExtensionServiceWorkerEngineHandler,
+  ServiceWorkerEngine as ExtensionServiceWorkerEngine,
+  CreateServiceWorkerEngine as CreateExtensionServiceWorkerEngine,
 } from './extension_service_worker'
 
 export * from './openai_api_protocols/index';
