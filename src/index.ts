@@ -38,14 +38,12 @@ export {
   CustomRequestParams
 } from "./message"
 
-// TODO: Rename classes to ServiceWorker 
 export {
   ServiceWorkerEngineHandler,
   ServiceWorkerEngine,
   CreateServiceWorkerEngine,
 } from "./service_worker";
 
-// TODO: Rename classes to ExtensionServiceWorker 
 export {
   ServiceWorkerEngineHandler as ExtensionServiceWorkerEngineHandler,
   ServiceWorkerEngine as ExtensionServiceWorkerEngine,
