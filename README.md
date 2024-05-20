@@ -182,6 +182,7 @@ We export all supported models in `webllm.prebuiltAppConfig`, where you can see 
 that you can simply call `const engine: webllm.EngineInterface = await webllm.CreateEngine(anyModel)` with.
 Prebuilt models include:
 - Llama-2
+- Llama-3
 - Gemma
 - Phi-1.5 and Phi-2
 - Mistral-7B-Instruct
