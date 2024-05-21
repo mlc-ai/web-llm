@@ -70,6 +70,35 @@ engine.setInitProgressCallback(initProgressCallback);
 await engine.reload(selectedModel, chatConfig, appConfig);
 ```
 
+### CDN Delivery
+Thanks to [jsdelivr.com](https://www.jsdelivr.com/package/npm/@mlc-ai/web-llm), the following Javascript code should work out-of-the-box on sites like [jsfiddle.net](https://jsfiddle.net/):
+
+```javascript
+import * as webllm from 'https://esm.run/@mlc-ai/web-llm';
+
+async function main() {
+  const initProgressCallback = (report) => {
+    console.log(report.text);
+  };
+  const selectedModel = "TinyLlama-1.1B-Chat-v0.4-q4f16_1-1k";
+  const engine = await webllm.CreateEngine(
+    selectedModel,
+    {initProgressCallback: initProgressCallback}
+  );
+
+  const reply = await engine.chat.completions.create({
+    messages: [{
+      "role": "user",
+      "content": "Tell me about Pittsburgh."
+    }]
+  });
+  console.log(reply);
+  console.log(await engine.runtimeStatsText());
+}
+
+main();
+```
+
 ### Using Web Worker
 
 WebLLM comes with API support for WebWorker so you can hook
