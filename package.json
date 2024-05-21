@@ -1,6 +1,6 @@
 {
   "name": "@mlc-ai/web-llm",
-  "version": "0.2.35",
+  "version": "0.2.36",
   "description": "Hardware accelerated language model chats on browsers",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
