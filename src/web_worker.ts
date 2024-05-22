@@ -65,7 +65,7 @@ export class MLCEngineWorkerHandler {
   constructor(
     engine: MLCEngineInterface,
     postMessageHandler?: PostMessageHandler,
-    initProgressCallback?: (report: InitProgressReport) => void
+    initProgressCallback?: (report: InitProgressReport) => void,
   ) {
     this.engine = engine;
     this.postMessageHandler = postMessageHandler;
@@ -78,7 +78,7 @@ export class MLCEngineWorkerHandler {
       this.postMessageInternal(msg);
     };
     this.engine.setInitProgressCallback(
-      initProgressCallback || defaultInitProgressCallback
+      initProgressCallback || defaultInitProgressCallback,
     );
   }
 
@@ -95,7 +95,7 @@ export class MLCEngineWorkerHandler {
 
   async handleTask<T extends MessageContent>(
     uuid: string,
-    task: () => Promise<T>
+    task: () => Promise<T>,
   ) {
     try {
       const res = await task();
@@ -119,7 +119,7 @@ export class MLCEngineWorkerHandler {
   onmessage(
     event: any,
     onComplete?: (value: any) => void,
-    onError?: () => void
+    onError?: () => void,
   ) {
     let msg: WorkerRequest;
     if (event instanceof MessageEvent) {
@@ -134,7 +134,7 @@ export class MLCEngineWorkerHandler {
           await this.engine.reload(
             params.modelId,
             params.chatOpts,
-            params.appConfig
+            params.appConfig,
           );
           onComplete?.(null);
           return null;
@@ -159,7 +159,7 @@ export class MLCEngineWorkerHandler {
             params.input,
             progressCallback,
             params.streamInterval,
-            params.genConfig
+            params.genConfig,
           );
           onComplete?.(res);
           return res;
@@ -171,7 +171,7 @@ export class MLCEngineWorkerHandler {
           const params = msg.content as ForwardTokensAndSampleParams;
           const res = await this.engine.forwardTokensAndSample(
             params.inputIds,
-            params.isPrefill
+            params.isPrefill,
           );
           onComplete?.(res);
           return res;
@@ -194,7 +194,7 @@ export class MLCEngineWorkerHandler {
           const params = msg.content as ChatCompletionStreamInitParams;
           this.chatCompletionAsyncChunkGenerator =
             (await this.engine.chatCompletion(
-              params.request
+              params.request,
             )) as AsyncGenerator<ChatCompletionChunk, void, void>;
           onComplete?.(null);
           return null;
@@ -206,7 +206,7 @@ export class MLCEngineWorkerHandler {
         this.handleTask(msg.uuid, async () => {
           if (this.chatCompletionAsyncChunkGenerator === undefined) {
             throw Error(
-              "Chunk generator in worker should be instantiated by now."
+              "Chunk generator in worker should be instantiated by now.",
             );
           }
           // Yield the next chunk
@@ -281,7 +281,7 @@ export class MLCEngineWorkerHandler {
         if (msg.kind && msg.content) {
           onError?.();
           throw Error(
-            "Unknown message kind, msg: [" + msg.kind + "] " + msg.content
+            "Unknown message kind, msg: [" + msg.kind + "] " + msg.content,
           );
         } else {
           // Ignore irrelavent events
@@ -313,14 +313,16 @@ export interface ChatWorker {
 export async function CreateWebWorkerMLCEngine(
   worker: any,
   modelId: string,
-  engineConfig?: MLCEngineConfig
+  engineConfig?: MLCEngineConfig,
 ): Promise<WebWorkerMLCEngine> {
   const webWorkerMLCEngine = new WebWorkerMLCEngine(worker);
-  webWorkerMLCEngine.setInitProgressCallback(engineConfig?.initProgressCallback);
+  webWorkerMLCEngine.setInitProgressCallback(
+    engineConfig?.initProgressCallback,
+  );
   await webWorkerMLCEngine.reload(
     modelId,
     engineConfig?.chatOpts,
-    engineConfig?.appConfig
+    engineConfig?.appConfig,
   );
   return webWorkerMLCEngine;
 }
@@ -349,7 +351,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
   constructor(worker: ChatWorker) {
     this.worker = worker;
     worker.onmessage = (event: any) => {
-      this.onmessage(event);
+      this.onmessage.bind(this)(event);
     };
     this.chat = new API.Chat(this);
   }
@@ -363,12 +365,12 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
   }
 
   protected getPromise<T extends MessageContent>(
-    msg: WorkerRequest
+    msg: WorkerRequest,
   ): Promise<T> {
     const uuid = msg.uuid;
     const executor = (
       resolve: (arg: T) => void,
-      reject: (arg: any) => void
+      reject: (arg: any) => void,
     ) => {
       const cb = (msg: WorkerResponse) => {
         if (msg.kind == "return") {
@@ -391,7 +393,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
   async reload(
     modelId: string,
     chatOpts?: ChatOptions,
-    appConfig?: AppConfig
+    appConfig?: AppConfig,
   ): Promise<void> {
     const msg: WorkerRequest = {
       kind: "reload",
@@ -436,7 +438,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
     input: string | ChatCompletionRequestNonStreaming,
     progressCallback?: GenerateProgressCallback,
     streamInterval?: number,
-    genConfig?: GenerationConfig
+    genConfig?: GenerationConfig,
   ): Promise<string> {
     const msg: WorkerRequest = {
       kind: "generate",
@@ -493,7 +495,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
 
   async forwardTokensAndSample(
     inputIds: Array<number>,
-    isPrefill: boolean
+    isPrefill: boolean,
   ): Promise<number> {
     const msg: WorkerRequest = {
       kind: "forwardTokensAndSample",
@@ -534,16 +536,16 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
   }
 
   async chatCompletion(
-    request: ChatCompletionRequestNonStreaming
+    request: ChatCompletionRequestNonStreaming,
   ): Promise<ChatCompletion>;
   async chatCompletion(
-    request: ChatCompletionRequestStreaming
+    request: ChatCompletionRequestStreaming,
   ): Promise<AsyncIterable<ChatCompletionChunk>>;
   async chatCompletion(
-    request: ChatCompletionRequestBase
+    request: ChatCompletionRequestBase,
   ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion>;
   async chatCompletion(
-    request: ChatCompletionRequest
+    request: ChatCompletionRequest,
   ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
     if (request.stream) {
       // First let worker instantiate a generator
@@ -612,9 +614,12 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
         return;
       }
       default: {
-        let unknownMsg = msg as any;
+        const unknownMsg = msg as any;
         throw Error(
-          "Unknown message kind, msg=[" + unknownMsg.kind + "] " + unknownMsg.content
+          "Unknown message kind, msg=[" +
+            unknownMsg.kind +
+            "] " +
+            unknownMsg.content,
         );
       }
     }

@@ -1,13 +1,9 @@
 import * as tvmjs from "tvmjs";
-import {
-  AppConfig,
-  ModelRecord,
-  prebuiltAppConfig,
-} from "./config";
+import { AppConfig, ModelRecord, prebuiltAppConfig } from "./config";
 
 function findModelRecord(modelId: string, appConfig?: AppConfig): ModelRecord {
   const matchedItem = appConfig?.model_list.find(
-    item => item.model_id == modelId
+    (item) => item.model_id == modelId,
   );
   if (matchedItem !== undefined) {
     return matchedItem;
@@ -15,7 +11,10 @@ function findModelRecord(modelId: string, appConfig?: AppConfig): ModelRecord {
   throw Error("Cannot find model_url for " + modelId);
 }
 
-export async function hasModelInCache(modelId: string, appConfig?: AppConfig): Promise<boolean> {
+export async function hasModelInCache(
+  modelId: string,
+  appConfig?: AppConfig,
+): Promise<boolean> {
   if (appConfig === undefined) {
     appConfig = prebuiltAppConfig;
   }
@@ -25,7 +24,10 @@ export async function hasModelInCache(modelId: string, appConfig?: AppConfig): P
   return tvmjs.hasNDArrayInCache(modelUrl, "webllm/model", cacheType);
 }
 
-export async function deleteModelAllInfoInCache(modelId: string, appConfig?: AppConfig) {
+export async function deleteModelAllInfoInCache(
+  modelId: string,
+  appConfig?: AppConfig,
+) {
   // function to delete model all information in cache
   if (appConfig === undefined) {
     appConfig = prebuiltAppConfig;
@@ -34,12 +36,14 @@ export async function deleteModelAllInfoInCache(modelId: string, appConfig?: App
   await deleteModelInCache(modelId, appConfig);
   // delete wasm in cache
   await deleteModelWasmInCache(modelId, appConfig);
-  // delete chat config 
+  // delete chat config
   await deleteChatConfigInCache(modelId, appConfig);
 }
 
-
-export async function deleteModelInCache(modelId: string, appConfig?: AppConfig) {
+export async function deleteModelInCache(
+  modelId: string,
+  appConfig?: AppConfig,
+) {
   // delete the model NDArray In Cache
   if (appConfig === undefined) {
     appConfig = prebuiltAppConfig;
@@ -47,17 +51,28 @@ export async function deleteModelInCache(modelId: string, appConfig?: AppConfig)
   const modelRecord = findModelRecord(modelId, appConfig);
   let modelCache: tvmjs.ArtifactCacheTemplate;
   if (appConfig.useIndexedDBCache) {
-    tvmjs.deleteNDArrayCache(modelRecord.model_url, "webllm/model", "indexeddb");
+    tvmjs.deleteNDArrayCache(
+      modelRecord.model_url,
+      "webllm/model",
+      "indexeddb",
+    );
     modelCache = new tvmjs.ArtifactIndexedDBCache("webllm/model");
   } else {
     tvmjs.deleteNDArrayCache(modelRecord.model_url, "webllm/model", "cache");
     modelCache = new tvmjs.ArtifactCache("webllm/model");
   }
-  await modelCache.deleteInCache(new URL("tokenizer.model", modelRecord.model_url).href);
-  await modelCache.deleteInCache(new URL("tokenizer.json", modelRecord.model_url).href);
+  await modelCache.deleteInCache(
+    new URL("tokenizer.model", modelRecord.model_url).href,
+  );
+  await modelCache.deleteInCache(
+    new URL("tokenizer.json", modelRecord.model_url).href,
+  );
 }
 
-export async function deleteChatConfigInCache(modelId: string, appConfig?: AppConfig) {
+export async function deleteChatConfigInCache(
+  modelId: string,
+  appConfig?: AppConfig,
+) {
   // delete the chat configuration in Cache
   if (appConfig === undefined) {
     appConfig = prebuiltAppConfig;
@@ -73,7 +88,10 @@ export async function deleteChatConfigInCache(modelId: string, appConfig?: AppCo
   await configCache.deleteInCache(configUrl);
 }
 
-export async function deleteModelWasmInCache(modelId: string, appConfig?: AppConfig) {
+export async function deleteModelWasmInCache(
+  modelId: string,
+  appConfig?: AppConfig,
+) {
   // delete the wasm in Cache
   if (appConfig === undefined) {
     appConfig = prebuiltAppConfig;

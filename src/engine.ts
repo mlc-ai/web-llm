@@ -29,16 +29,19 @@ import {
   InitProgressCallback,
   MLCEngineInterface,
   GenerateProgressCallback,
-  LogitProcessor
+  LogitProcessor,
 } from "./types";
-import { Conversation, compareConversationObject, getConversation } from "./conversation";
-
+import {
+  Conversation,
+  compareConversationObject,
+  getConversation,
+} from "./conversation";
 
 /**
  * Creates `MLCEngine`, and loads `modelId` onto WebGPU.
- * 
+ *
  * Equivalent to `new webllm.MLCEngine().reload(...)`.
- * 
+ *
  * @param modelId The model to load, needs to either be in `webllm.prebuiltAppConfig`, or in
  * `engineConfig.appConfig`.
  * @param engineConfig Optionally configures the engine, see `webllm.MLCEngineConfig`.
@@ -59,20 +62,20 @@ export async function CreateMLCEngine(
 
 /**
  * The main interface of MLCEngine, which loads a model and performs tasks.
- * 
+ *
  * You can either initialize one with `webllm.CreateMLCEngine(modelId)`, or `webllm.MLCEngine().reload(modelId)`.
  */
 export class MLCEngine implements MLCEngineInterface {
   public chat: API.Chat;
 
-  private currentModelId?: string = undefined;  // Model current loaded, undefined if nothing is loaded
+  private currentModelId?: string = undefined; // Model current loaded, undefined if nothing is loaded
   private logger: (msg: string) => void = console.log;
   private logitProcessorRegistry?: Map<string, LogitProcessor>;
   private logitProcessor?: LogitProcessor;
   private pipeline?: LLMChatPipeline;
   private initProgressCallback?: InitProgressCallback;
   private interruptSignal = false;
-  private deviceLostIsError = true;  // whether device.lost is due to actual error or model reload
+  private deviceLostIsError = true; // whether device.lost is due to actual error or model reload
   private config?: ChatConfig;
 
   constructor() {
@@ -87,7 +90,9 @@ export class MLCEngine implements MLCEngineInterface {
     return this.initProgressCallback;
   }
 
-  setLogitProcessorRegistry(logitProcessorRegistry?: Map<string, LogitProcessor>) {
+  setLogitProcessorRegistry(
+    logitProcessorRegistry?: Map<string, LogitProcessor>,
+  ) {
     this.logitProcessorRegistry = logitProcessorRegistry;
   }
 
@@ -100,7 +105,11 @@ export class MLCEngine implements MLCEngineInterface {
    * @throws Throws error when device lost (mostly due to OOM); users should re-call reload(),
    *   potentially with a smaller model or smaller context window size.
    */
-  async reload(modelId: string, chatOpts?: ChatOptions, appConfig?: AppConfig): Promise<void> {
+  async reload(
+    modelId: string,
+    chatOpts?: ChatOptions,
+    appConfig?: AppConfig,
+  ): Promise<void> {
     this.unload();
 
     this.logitProcessor = this.logitProcessorRegistry?.get(modelId);
@@ -111,14 +120,17 @@ export class MLCEngine implements MLCEngineInterface {
 
     const findModelRecord = () => {
       const matchedItem = appConfig?.model_list.find(
-        item => item.model_id == modelId
+        (item) => item.model_id == modelId,
       );
       if (matchedItem !== undefined) return matchedItem;
       throw Error("Cannot find model_url for " + modelId);
-    }
+    };
 
     const modelRecord = findModelRecord();
-    const baseUrl = typeof document !== "undefined" ? document.URL : globalThis.location.origin;
+    const baseUrl =
+      typeof document !== "undefined"
+        ? document.URL
+        : globalThis.location.origin;
     let modelUrl = modelRecord.model_url;
     if (!modelUrl.startsWith("http")) {
       modelUrl = new URL(modelUrl, baseUrl).href;
@@ -135,7 +147,7 @@ export class MLCEngine implements MLCEngineInterface {
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
     this.config = {
       ...(await configCache.fetchWithCache(configUrl, "json")),
-      ...chatOpts
+      ...chatOpts,
     } as ChatConfig;
 
     // load tvm wasm
@@ -148,8 +160,10 @@ export class MLCEngine implements MLCEngineInterface {
 
     const wasmUrl = modelRecord.model_lib_url;
     if (wasmUrl === undefined) {
-      throw Error("You need to specify `model_lib_url` for each model in `model_list` " +
-        "so that we can download the model library (i.e. wasm file).")
+      throw Error(
+        "You need to specify `model_lib_url` for each model in `model_list` " +
+          "so that we can download the model library (i.e. wasm file).",
+      );
     }
     const fetchWasmSource = async () => {
       if (wasmUrl.includes("localhost")) {
@@ -169,7 +183,7 @@ export class MLCEngine implements MLCEngineInterface {
     const tvm = await tvmjs.instantiate(
       new Uint8Array(wasmSource),
       tvmjs.createPolyfillWASI(),
-      this.logger
+      this.logger,
     );
 
     if (this.initProgressCallback !== undefined) {
@@ -193,13 +207,14 @@ export class MLCEngine implements MLCEngineInterface {
           if (feature == "shader-f16") {
             throw Error(
               "This model requires WebGPU extension shader-f16, " +
-              "which is not enabled in this browser. " +
-              "You can try to launch Chrome Canary in command line with flag \"--enable-dawn-features=allow_unsafe_apis\"."
+                "which is not enabled in this browser. " +
+                'You can try to launch Chrome Canary in command line with flag "--enable-dawn-features=allow_unsafe_apis".',
             );
           }
           throw Error(
-            "This model requires feature " + feature +
-            ", which is not yet supported by this browser. "
+            "This model requires feature " +
+              feature +
+              ", which is not yet supported by this browser. ",
           );
         }
       }
@@ -213,17 +228,34 @@ export class MLCEngine implements MLCEngineInterface {
     let deviceLostInReload = false;
     gpuDetectOutput.device.lost.then((info: any) => {
       if (this.deviceLostIsError) {
-        console.error("Device was lost, please try to initialize again. ", info);
+        console.error(
+          "Device was lost, please try to initialize again. ",
+          info,
+        );
         this.unload();
         deviceLostInReload = true;
       }
     });
     tvm.initWebGPU(gpuDetectOutput.device);
 
-    const tokenizer = await this.asyncLoadTokenizer(modelUrl, this.config, appConfig);
+    const tokenizer = await this.asyncLoadTokenizer(
+      modelUrl,
+      this.config,
+      appConfig,
+    );
     const cacheType = appConfig.useIndexedDBCache ? "indexeddb" : "cache";
-    await tvm.fetchNDArrayCache(modelUrl, tvm.webgpu(), "webllm/model", cacheType);
-    this.pipeline = new LLMChatPipeline(tvm, tokenizer, this.config, this.logitProcessor);
+    await tvm.fetchNDArrayCache(
+      modelUrl,
+      tvm.webgpu(),
+      "webllm/model",
+      cacheType,
+    );
+    this.pipeline = new LLMChatPipeline(
+      tvm,
+      tokenizer,
+      this.config,
+      this.logitProcessor,
+    );
     await this.pipeline?.asyncLoadWebGPUPipelines();
     const tend = performance.now();
 
@@ -232,15 +264,15 @@ export class MLCEngine implements MLCEngineInterface {
       this.initProgressCallback({
         progress: 1,
         timeElapsed: (tend - tstart) / 1e3,
-        text: text
-      })
+        text: text,
+      });
     }
     this.currentModelId = modelId;
 
     if (deviceLostInReload) {
       throw Error(
         "WebGPU device lost during `reload()`.\n This is probably due to OOM, try reload with a " +
-        "model that has less parameters or a smaller context length."
+          "model that has less parameters or a smaller context length.",
       );
     }
   }
@@ -253,9 +285,9 @@ export class MLCEngine implements MLCEngineInterface {
   ): Promise<string> {
     console.log(
       "WARNING: `generate()` will soon be deprecated. " +
-      "Please use `engine.chat.completions.create()` instead. " +
-      "For multi-round chatting, see `examples/multi-round-chat` on how to use " +
-      "`engine.chat.completions.create()` to achieve the same effect."
+        "Please use `engine.chat.completions.create()` instead. " +
+        "For multi-round chatting, see `examples/multi-round-chat` on how to use " +
+        "`engine.chat.completions.create()` to achieve the same effect.",
     );
     return this._generate(input, progressCallback, streamInterval, genConfig);
   }
@@ -292,9 +324,9 @@ export class MLCEngine implements MLCEngineInterface {
    * @param request Request for chat completion.
    * @param genConfig Generation config extraced from `request`.
    */
-  async* chatCompletionAsyncChunkGenerator(
+  async *chatCompletionAsyncChunkGenerator(
     request: ChatCompletionRequestStreaming,
-    genConfig: GenerationConfig
+    genConfig: GenerationConfig,
   ): AsyncGenerator<ChatCompletionChunk, void, void> {
     postInitAndCheckGenerationConfigValues(genConfig);
     if (request.seed !== null && request.seed !== undefined) {
@@ -305,7 +337,7 @@ export class MLCEngine implements MLCEngineInterface {
     const created = Date.now();
     const id = crypto.randomUUID();
     this.interruptSignal = false;
-    let prevMessageLength = 0;  // to know where to start slicing the delta; does not count �
+    let prevMessageLength = 0; // to know where to start slicing the delta; does not count �
 
     function _countTrailingReplacementChar(curMessage: string): number {
       let cntr = 0;
@@ -319,13 +351,16 @@ export class MLCEngine implements MLCEngineInterface {
       return cntr;
     }
 
-    async function _getChunk(thisModule: MLCEngine): Promise<ChatCompletionChunk | undefined> {
+    async function _getChunk(
+      thisModule: MLCEngine,
+    ): Promise<ChatCompletionChunk | undefined> {
       // Remove the replacement character (U+FFFD) from the response to handle emojis.
       // Each emoji is made up of multiples of 4 tokens; when truncated, it is displayed as �, so
       // we skip this delta until a full emoji is rendered
       // TODO(Charlie): This does not consider cases of � not being emoji, need to fix with Streamer
       const curMessage = await thisModule.getMessage();
-      const numTrailingReplacementChar = _countTrailingReplacementChar(curMessage);
+      const numTrailingReplacementChar =
+        _countTrailingReplacementChar(curMessage);
       if (numTrailingReplacementChar % 4 !== 0) {
         return undefined;
       }
@@ -334,23 +369,30 @@ export class MLCEngine implements MLCEngineInterface {
       prevMessageLength = curMessage.length;
       const chunk: ChatCompletionChunk = {
         id: id,
-        choices: [{
-          delta: { content: deltaMessage, role: "assistant" },
-          finish_reason: null,  // not finished yet
-          index: 0,
-          logprobs: request.logprobs ? {
-            content: thisModule.getPipeline().getTokenLogprobArray().slice(-1)  // always the last entry
-          } as ChatCompletionChunk.Choice.Logprobs : null,
-        }],
+        choices: [
+          {
+            delta: { content: deltaMessage, role: "assistant" },
+            finish_reason: null, // not finished yet
+            index: 0,
+            logprobs: request.logprobs
+              ? ({
+                  content: thisModule
+                    .getPipeline()
+                    .getTokenLogprobArray()
+                    .slice(-1), // always the last entry
+                } as ChatCompletionChunk.Choice.Logprobs)
+              : null,
+          },
+        ],
         model: model,
         object: "chat.completion.chunk",
-        created: created
-      }
+        created: created,
+      };
       return chunk;
     }
 
     await this.prefill(request, genConfig);
-    let curChunk = await _getChunk(this);  // prefill produces a chunk
+    let curChunk = await _getChunk(this); // prefill produces a chunk
     if (curChunk) {
       yield curChunk;
     }
@@ -374,42 +416,46 @@ export class MLCEngine implements MLCEngineInterface {
 
     const lastChunk: ChatCompletionChunk = {
       id: id,
-      choices: [{
-        delta: {},
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        finish_reason: this.getFinishReason()!,
-        index: 0,
-      }],
+      choices: [
+        {
+          delta: {},
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          finish_reason: this.getFinishReason()!,
+          index: 0,
+        },
+      ],
       model: model,
       object: "chat.completion.chunk",
-      created: created
-    }
+      created: created,
+    };
     yield lastChunk;
   }
 
   /**
    * Completes a single ChatCompletionRequest.
-   * 
+   *
    * @param request A OpenAI-style ChatCompletion request.
-   * 
+   *
    * @note For each choice (i.e. `n`), a request is defined by a single `prefill()` and mulitple
    * `decode()`. This is important as it determines the behavior of various fields including `seed`.
    */
   async chatCompletion(
-    request: ChatCompletionRequestNonStreaming
+    request: ChatCompletionRequestNonStreaming,
   ): Promise<ChatCompletion>;
   async chatCompletion(
-    request: ChatCompletionRequestStreaming
+    request: ChatCompletionRequestStreaming,
   ): Promise<AsyncIterable<ChatCompletionChunk>>;
   async chatCompletion(
-    request: ChatCompletionRequestBase
+    request: ChatCompletionRequestBase,
   ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion>;
   async chatCompletion(
-    request: ChatCompletionRequest
+    request: ChatCompletionRequest,
   ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
     // 0. Preprocess inputs
     if (!this.currentModelId) {
-      throw new Error("Please call `MLCEngine.reload(model)` first, or initialize with CreateMLCEngine().");
+      throw new Error(
+        "Please call `MLCEngine.reload(model)` first, or initialize with CreateMLCEngine().",
+      );
     }
     ChatCompletionAPI.postInitAndCheckFields(request);
     const genConfig: GenerationConfig = {
@@ -423,7 +469,7 @@ export class MLCEngine implements MLCEngineInterface {
       logprobs: request.logprobs,
       top_logprobs: request.top_logprobs,
       response_format: request.response_format,
-    }
+    };
 
     // 1. If request is streaming, return an AsyncIterable (an iterable version of `generate()`)
     if (request.stream) {
@@ -448,22 +494,24 @@ export class MLCEngine implements MLCEngineInterface {
       } else {
         outputMessage = await this._generate(
           request,
-          /*progressCallback=*/undefined,
-          /*streamInterval=*/1,
-          /*genConfig=*/genConfig
+          /*progressCallback=*/ undefined,
+          /*streamInterval=*/ 1,
+          /*genConfig=*/ genConfig,
         );
       }
       choices.push({
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         finish_reason: this.getFinishReason()!,
         index: i,
-        logprobs: request.logprobs ? {
-          content: this.getPipeline().getTokenLogprobArray()
-        } as ChatCompletion.Choice.Logprobs : null,
+        logprobs: request.logprobs
+          ? ({
+              content: this.getPipeline().getTokenLogprobArray(),
+            } as ChatCompletion.Choice.Logprobs)
+          : null,
         message: {
           content: outputMessage,
           role: "assistant",
-        }
+        },
       });
       completion_tokens += this.getPipeline().getCurRoundDecodingTotalTokens();
       prompt_tokens += this.getPipeline().getCurRoundPrefillTotalTokens();
@@ -480,7 +528,7 @@ export class MLCEngine implements MLCEngineInterface {
         prompt_tokens: prompt_tokens,
         total_tokens: completion_tokens + prompt_tokens,
       } as CompletionUsage,
-    }
+    };
 
     // Reset seed -- we do not want this seed to affect future requests
     if (request.seed !== null && request.seed !== undefined) {
@@ -502,7 +550,7 @@ export class MLCEngine implements MLCEngineInterface {
   }
 
   async unload() {
-    this.deviceLostIsError = false;  // so that unload() does not trigger device.lost error
+    this.deviceLostIsError = false; // so that unload() does not trigger device.lost error
     this.pipeline?.dispose();
     this.pipeline = undefined;
     this.currentModelId = undefined;
@@ -518,20 +566,21 @@ export class MLCEngine implements MLCEngineInterface {
 
     const computeMB = (value: number) => {
       return Math.ceil(value / (1 << 20)) + "MB";
-    }
-    const maxStorageBufferBindingSize = gpuDetectOutput.device.limits.maxStorageBufferBindingSize;
-    const defaultMaxStorageBufferBindingSize = 1 << 30;  // 1GB
+    };
+    const maxStorageBufferBindingSize =
+      gpuDetectOutput.device.limits.maxStorageBufferBindingSize;
+    const defaultMaxStorageBufferBindingSize = 1 << 30; // 1GB
     if (maxStorageBufferBindingSize < defaultMaxStorageBufferBindingSize) {
       console.log(
         `WARNING: the current maxStorageBufferBindingSize ` +
-        `(${computeMB(maxStorageBufferBindingSize)}) ` +
-        `may only work for a limited number of models, e.g.: \n` +
-        `- Llama-3-8B-Instruct-q4f16_1-1k \n` +
-        `- Llama-2-7b-chat-hf-q4f16_1-1k \n` +
-        `- RedPajama-INCITE-Chat-3B-v1-q4f16_1-1k \n` +
-        `- RedPajama-INCITE-Chat-3B-v1-q4f32_1-1k \n` +
-        `- TinyLlama-1.1B-Chat-v0.4-q4f16_1-1k \n` +
-        `- TinyLlama-1.1B-Chat-v0.4-q4f32_1-1k`
+          `(${computeMB(maxStorageBufferBindingSize)}) ` +
+          `may only work for a limited number of models, e.g.: \n` +
+          `- Llama-3-8B-Instruct-q4f16_1-1k \n` +
+          `- Llama-2-7b-chat-hf-q4f16_1-1k \n` +
+          `- RedPajama-INCITE-Chat-3B-v1-q4f16_1-1k \n` +
+          `- RedPajama-INCITE-Chat-3B-v1-q4f32_1-1k \n` +
+          `- TinyLlama-1.1B-Chat-v0.4-q4f16_1-1k \n` +
+          `- TinyLlama-1.1B-Chat-v0.4-q4f32_1-1k`,
       );
     }
     return maxStorageBufferBindingSize;
@@ -549,7 +598,10 @@ export class MLCEngine implements MLCEngineInterface {
   //--------------------------
   // Lower level API
   //--------------------------
-  async forwardTokensAndSample(inputIds: Array<number>, isPrefill: boolean): Promise<number> {
+  async forwardTokensAndSample(
+    inputIds: Array<number>,
+    isPrefill: boolean,
+  ): Promise<number> {
     return this.getPipeline().forwardTokensAndSample(inputIds, isPrefill);
   }
 
@@ -562,7 +614,7 @@ export class MLCEngine implements MLCEngineInterface {
 
   /**
    * @returns Finish reason; undefined if generation not started/stopped yet.
-  */
+   */
   getFinishReason(): ChatCompletionFinishReason | undefined {
     return this.getPipeline().getFinishReason();
   }
@@ -578,17 +630,20 @@ export class MLCEngine implements MLCEngineInterface {
 
   /**
    * Get a new Conversation object based on the chat completion request.
-   * 
+   *
    * @param request The incoming ChatCompletionRequest
    * @note `request.messages[-1]` is not included as it would be treated as a normal input to
    * `prefill()`.
    */
   private getConversationFromChatCompletionRequest(
     request: ChatCompletionRequest,
-    config: ChatConfig
+    config: ChatConfig,
   ): Conversation {
     // 0. Instantiate a new Conversation object
-    const conversation = getConversation(config.conv_template, config.conv_config);
+    const conversation = getConversation(
+      config.conv_template,
+      config.conv_config,
+    );
 
     // 1. Populate function-calling-related fields
     const functionCallUsage = this.getFunctionCallUsage(request);
@@ -598,15 +653,20 @@ export class MLCEngine implements MLCEngineInterface {
     // 2. Populate conversation.messages
     const input = request.messages;
     const lastId = input.length - 1;
-    if (input[lastId].role !== "user" || typeof input[lastId].content !== "string") {
+    if (
+      input[lastId].role !== "user" ||
+      typeof input[lastId].content !== "string"
+    ) {
       // TODO(Charlie): modify condition after we support multimodal inputs
-      throw Error("The last message should be a string from the `user`.")
+      throw Error("The last message should be a string from the `user`.");
     }
     for (let i = 0; i < input.length - 1; i++) {
       const message: ChatCompletionMessageParam = input[i];
       if (message.role === "system") {
         if (i !== 0) {
-          throw new Error("System prompt should always be the first one in `messages`.");
+          throw new Error(
+            "System prompt should always be the first one in `messages`.",
+          );
         }
         conversation.override_system_message = message.content;
       } else if (message.role === "user") {
@@ -614,11 +674,7 @@ export class MLCEngine implements MLCEngineInterface {
           // TODO(Charlie): modify condition after we support multimodal inputs
           throw new Error("Last messages should be a string from the `user`.");
         }
-        conversation.appendMessage(
-          Role.user,
-          message.content,
-          message.name
-        );
+        conversation.appendMessage(Role.user, message.content, message.name);
       } else if (message.role === "assistant") {
         if (typeof message.content !== "string") {
           throw new Error("Assistant message should have string content.");
@@ -626,7 +682,7 @@ export class MLCEngine implements MLCEngineInterface {
         conversation.appendMessage(
           Role.assistant,
           message.content,
-          message.name
+          message.name,
         );
       } else {
         throw new Error("Unsupported role: " + message.role);
@@ -638,30 +694,42 @@ export class MLCEngine implements MLCEngineInterface {
   /**
    * Returns the function string based on the request.tools and request.tool_choice, raises erros if
    * encounter invalid request.
-   * 
+   *
    * @param request The chatCompletionRequest we are about to prefill for.
    * @returns The string used to set Conversatoin.function_string
    */
   private getFunctionCallUsage(request: ChatCompletionRequest): string {
-    if (request.tools == undefined ||
-      (typeof request.tool_choice == "string" && request.tool_choice == "none")) {
+    if (
+      request.tools == undefined ||
+      (typeof request.tool_choice == "string" && request.tool_choice == "none")
+    ) {
       return "";
     }
-    if (typeof request.tool_choice == "string" && request.tool_choice !== "auto") {
+    if (
+      typeof request.tool_choice == "string" &&
+      request.tool_choice !== "auto"
+    ) {
       throw Error(`Invalid tool choice value: ${request.tool_choice}`);
     }
-    if (typeof request.tool_choice !== "string" && request.tool_choice?.type !== "function") {
+    if (
+      typeof request.tool_choice !== "string" &&
+      request.tool_choice?.type !== "function"
+    ) {
       throw Error("Only 'function' tool choice is supported");
     }
 
-    const singleFunctionToCall = typeof request.tool_choice !== "string" && request.tool_choice?.function?.name;
+    const singleFunctionToCall =
+      typeof request.tool_choice !== "string" &&
+      request.tool_choice?.function?.name;
     if (singleFunctionToCall) {
       for (const f of request.tools) {
         if (singleFunctionToCall == f.function.name) {
           return JSON.stringify([f.function]);
         }
       }
-      throw Error(`The tool choice function ${singleFunctionToCall} is not found in the tools list`);
+      throw Error(
+        `The tool choice function ${singleFunctionToCall} is not found in the tools list`,
+      );
     }
 
     const function_list = [];
@@ -676,23 +744,25 @@ export class MLCEngine implements MLCEngineInterface {
 
   /**
    * Run a prefill step with a given input.
-   * 
+   *
    * If `input` is a chatCompletionRequest, we treat `input.messages[-1]` as the usual user input.
    * We then convert `input.messages[:-1]` to a `Conversation` object, representing a conversation
    * history.
-   * 
+   *
    * If the new `Conversation` object matches the current one loaded, it means we are
    * performing multi-round chatting, so we do not reset, hence reusing KV cache. Otherwise, we
    * reset every thing, treating the request as something completely new.
-   * 
+   *
    * @param input The input prompt, or `messages` in OpenAI-like APIs.
    */
   async prefill(
     input: string | ChatCompletionRequest,
-    genConfig?: GenerationConfig
+    genConfig?: GenerationConfig,
   ) {
     if (this.config === undefined) {
-      throw Error("Expect this.config to be initialized. Did you call `reload()`?");
+      throw Error(
+        "Expect this.config to be initialized. Did you call `reload()`?",
+      );
     }
     let input_str: string;
     let input_role_str: string | undefined;
@@ -701,7 +771,10 @@ export class MLCEngine implements MLCEngineInterface {
     } else {
       // 1. Get new conversation based on request, determine if we are in multiround chatting
       const oldConv = this.getPipeline().getConversationObject();
-      const newConv = this.getConversationFromChatCompletionRequest(input, this.config);
+      const newConv = this.getConversationFromChatCompletionRequest(
+        input,
+        this.config,
+      );
       if (!compareConversationObject(oldConv, newConv)) {
         // Not the same conversation, so not multiround chatting, reset everything (KV cache, etc.)
         this.resetChat();
@@ -711,7 +784,9 @@ export class MLCEngine implements MLCEngineInterface {
       }
 
       // 2. Treat the last message as the usual input
-      const last_msg = input.messages[input.messages.length - 1] as ChatCompletionUserMessageParam;
+      const last_msg = input.messages[
+        input.messages.length - 1
+      ] as ChatCompletionUserMessageParam;
       input_str = last_msg.content as string;
       input_role_str = last_msg.name ? last_msg.name : undefined;
     }
@@ -748,17 +823,18 @@ export class MLCEngine implements MLCEngineInterface {
       const url = new URL("tokenizer.json", baseUrl).href;
       const model = await modelCache.fetchWithCache(url, "arraybuffer");
       return Tokenizer.fromJSON(model);
-    }
-    else if (config.tokenizer_files.includes("tokenizer.model")) {
-      this.logger("Using `tokenizer.model` since we cannot locate `tokenizer.json`.\n" +
-        "It is recommended to use `tokenizer.json` to ensure all token mappings are included, " +
-        "since currently, files like `added_tokens.json`, `tokenizer_config.json` are ignored.\n" +
-        "Consider converting `tokenizer.model` to `tokenizer.json` by compiling the model " +
-        "with MLC again, or see if MLC's huggingface provides this file.");
+    } else if (config.tokenizer_files.includes("tokenizer.model")) {
+      this.logger(
+        "Using `tokenizer.model` since we cannot locate `tokenizer.json`.\n" +
+          "It is recommended to use `tokenizer.json` to ensure all token mappings are included, " +
+          "since currently, files like `added_tokens.json`, `tokenizer_config.json` are ignored.\n" +
+          "Consider converting `tokenizer.model` to `tokenizer.json` by compiling the model " +
+          "with MLC again, or see if MLC's huggingface provides this file.",
+      );
       const url = new URL("tokenizer.model", baseUrl).href;
       const model = await modelCache.fetchWithCache(url, "arraybuffer");
       return Tokenizer.fromSentencePiece(model);
     }
-    throw Error("Cannot handle tokenizer files " + config.tokenizer_files)
+    throw Error("Cannot handle tokenizer files " + config.tokenizer_files);
   }
 }

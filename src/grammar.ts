@@ -6,7 +6,7 @@ export type GrammarStateMatcher = tvmjs.TVMObject;
 /**
  * A factory class for generating and calling GrammarStateMatcher (GrammarSM) and BNFGrammar related
  * methods, essentially a wrapper of related global functions in the tvm instance's wasm.
- * 
+ *
  * We implement a factory class rather than having classes of GrammarStateMatcher and BNFGrammar
  * because factory class allows us to only get/dispose PackedFunc once -- especially when we need
  * multiple instances of BNFGrammar or GrammarStateMatcher.
@@ -22,32 +22,34 @@ export class GrammarFactory {
 
   /**
    * Extract TVM global functions from tvm runtime instance.
-   * 
+   *
    * @param tvm An instantiated tvm runtime instance.
    */
   constructor(tvm: tvmjs.Instance) {
     tvm.beginScope();
     // Get global functions.
     this.fBNFGrammarGetGrammarOfJSON = tvm.detachFromCurrentScope(
-      tvm.getGlobalFunc("mlc.serve.BNFGrammarGetGrammarOfJSON")
+      tvm.getGlobalFunc("mlc.serve.BNFGrammarGetGrammarOfJSON"),
     );
     this.fBNFGrammarFromSchema = tvm.detachFromCurrentScope(
-      tvm.getGlobalFunc("mlc.serve.BNFGrammarFromSchema")
+      tvm.getGlobalFunc("mlc.serve.BNFGrammarFromSchema"),
     );
     this.fGrammarSMFromTokenTable = tvm.detachFromCurrentScope(
-      tvm.getGlobalFunc("mlc.serve.GrammarStateMatcherFromTokenTable")
+      tvm.getGlobalFunc("mlc.serve.GrammarStateMatcherFromTokenTable"),
     );
     this.fGrammarSMAcceptToken = tvm.detachFromCurrentScope(
-      tvm.getGlobalFunc("mlc.serve.GrammarStateMatcherAcceptToken")
+      tvm.getGlobalFunc("mlc.serve.GrammarStateMatcherAcceptToken"),
     );
     this.fGrammarSMFindNextTokenBitmaskAsNDArray = tvm.detachFromCurrentScope(
-      tvm.getGlobalFunc("mlc.serve.GrammarStateMatcherFindNextTokenBitmaskAsNDArray")
+      tvm.getGlobalFunc(
+        "mlc.serve.GrammarStateMatcherFindNextTokenBitmaskAsNDArray",
+      ),
     );
     this.fGrammarSMIsTerminated = tvm.detachFromCurrentScope(
-      tvm.getGlobalFunc("mlc.serve.GrammarStateMatcherIsTerminated")
+      tvm.getGlobalFunc("mlc.serve.GrammarStateMatcherIsTerminated"),
     );
     this.fGrammarSMResetState = tvm.detachFromCurrentScope(
-      tvm.getGlobalFunc("mlc.serve.GrammarStateMatcherResetState")
+      tvm.getGlobalFunc("mlc.serve.GrammarStateMatcherResetState"),
     );
     tvm.endScope();
   }
@@ -68,7 +70,7 @@ export class GrammarFactory {
    * @param indent The number of spaces for indentation. If undefined, the grammar will enforce the
    *    output to be in one line.
    * @param separators Two separators that will be enforced by the grammar: comma and colon.
-   *    Examples: (",", ":"), (", ", ": "). If undefined, the default separators will be used: 
+   *    Examples: (",", ":"), (", ", ": "). If undefined, the default separators will be used:
    *    (",", ": ") when the indent is not undefined, and (", ", ": ") otherwise. This follows the
    *    convention in Python's json.dumps().
    * @param strictMode Whether to use strict mode. In strict mode, the generated grammar will not
@@ -81,7 +83,7 @@ export class GrammarFactory {
     schema_str: string,
     indent?: number,
     separators?: [string, string],
-    strictMode = true
+    strictMode = true,
   ): BNFGrammar {
     // Convert indent to tvmjs.Scalar
     let indentInput: tvmjs.Scalar | undefined;
@@ -89,17 +91,21 @@ export class GrammarFactory {
       indentInput = new tvmjs.Scalar(indent, "int32");
     }
     // Convert strictMode to tvmjs.Scalar
-    const strictModeInput = strictMode ?
-      new tvmjs.Scalar(1, "int32") : new tvmjs.Scalar(0, "int32");
+    const strictModeInput = strictMode
+      ? new tvmjs.Scalar(1, "int32")
+      : new tvmjs.Scalar(0, "int32");
 
     return this.fBNFGrammarFromSchema(
-      schema_str, indentInput, separators, strictModeInput
+      schema_str,
+      indentInput,
+      separators,
+      strictModeInput,
     ) as BNFGrammar;
   }
 
   /**
    * Creates a Grammar State Matcher from a specified BNFGrammar rule and a token table.
-   * 
+   *
    * @param grammar A BNFGrammar used to specify the rule for the state matcher.
    * @param tokenTable A list of all tokens in the tokenizer in the order of their ids.
    * @param maxRollbackSteps Max rollback steps to support. Currently not supported, has to be zero.
@@ -112,15 +118,20 @@ export class GrammarFactory {
     maxRollbackSteps = 0,
   ): GrammarStateMatcher {
     if (maxRollbackSteps !== 0) {
-      throw Error("maxRollbackSteps has to be zero as rollback is not supported yet.")
+      throw Error(
+        "maxRollbackSteps has to be zero as rollback is not supported yet.",
+      );
     }
     return this.fGrammarSMFromTokenTable(
-      grammar, tokenTable, new tvmjs.Scalar(maxRollbackSteps, "int32")) as GrammarStateMatcher;
+      grammar,
+      tokenTable,
+      new tvmjs.Scalar(maxRollbackSteps, "int32"),
+    ) as GrammarStateMatcher;
   }
 
   /**
    * Accept a new token to the grammar state matcher, updating its internal state.
-   * 
+   *
    * @param grammarStateMatcher The grammar state matcher that will accept a new token and update
    * its state correspondingly.
    * @param tokenID The token to be accepted in its ID.
@@ -128,13 +139,18 @@ export class GrammarFactory {
    */
   acceptToken(
     grammarStateMatcher: GrammarStateMatcher,
-    tokenID: number
+    tokenID: number,
   ): boolean {
     let accepted = false;
     try {
-      accepted = this.fGrammarSMAcceptToken(grammarStateMatcher, new tvmjs.Scalar(tokenID, "int32"));
+      accepted = this.fGrammarSMAcceptToken(
+        grammarStateMatcher,
+        new tvmjs.Scalar(tokenID, "int32"),
+      );
     } catch (error) {
-      throw Error("Encountered error when accepting token " + tokenID + ": " + error);
+      throw Error(
+        "Encountered error when accepting token " + tokenID + ": " + error,
+      );
     }
     return accepted;
   }
@@ -142,11 +158,13 @@ export class GrammarFactory {
   /**
    * Returns a bitmask in the form of an NDArray of shape (max_num_token, ceildiv(vocab_size, 32))
    * based on what tokens can/cannot be accepted by the current state of the grammar state matcher.
-   * 
+   *
    * @param grammarStateMatcher The grammar state matcher that will produce the bit mask.
    * @returns A bitmask in the form of an NDArray.
    */
-  findNextTokenBitmask(grammarStateMatcher: GrammarStateMatcher): tvmjs.TVMObject {
+  findNextTokenBitmask(
+    grammarStateMatcher: GrammarStateMatcher,
+  ): tvmjs.TVMObject {
     return this.fGrammarSMFindNextTokenBitmaskAsNDArray(grammarStateMatcher);
   }
 

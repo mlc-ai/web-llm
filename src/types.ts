@@ -26,7 +26,10 @@ export type InitProgressCallback = (report: InitProgressReport) => void;
 /**
  * Callbacks used to report initialization process.
  */
-export type GenerateProgressCallback = (step: number, currentMessage: string) => void;
+export type GenerateProgressCallback = (
+  step: number,
+  currentMessage: string,
+) => void;
 
 /**
  * A stateful logitProcessor used to post-process logits after forwarding the input and before
@@ -53,7 +56,6 @@ export interface LogitProcessor {
    */
   resetState: () => void;
 }
-
 
 /**
  * Common interface of MLCEngine that UI can interact with
@@ -90,7 +92,10 @@ export interface MLCEngineInterface {
    * @note This is an async function.
    */
   reload: (
-    modelId: string, chatOpts?: ChatOptions, appConfig?: AppConfig) => Promise<void>;
+    modelId: string,
+    chatOpts?: ChatOptions,
+    appConfig?: AppConfig,
+  ) => Promise<void>;
 
   /**
    * Generate a response for a given input.
@@ -100,7 +105,7 @@ export interface MLCEngineInterface {
    * @param streamInterval callback interval to call progresscallback
    * @param genConfig Configuration for this single generation that overrides pre-existing configs.
    * @returns The final result.
-   * 
+   *
    * @note This will be deprecated soon. Please use `engine.chat.completions.create()` instead.
    * For multi-round chatting, see `examples/multi-round-chat` on how to use
    * `engine.chat.completions.create()` to achieve the same effect.
@@ -114,7 +119,7 @@ export interface MLCEngineInterface {
 
   /**
    * OpenAI-style API. Generate a chat completion response for the given conversation and configuration.
-   * 
+   *
    * The API is completely functional in behavior. That is, a previous request would not affect
    * the current request's result. Thus, for multi-round chatting, users are responsible for
    * maintaining the chat history. With that being said, as an implicit internal optimization, if we
@@ -122,16 +127,16 @@ export interface MLCEngineInterface {
    * prefill the new tokens.
    */
   chatCompletion(
-    request: ChatCompletionRequestNonStreaming
+    request: ChatCompletionRequestNonStreaming,
   ): Promise<ChatCompletion>;
   chatCompletion(
-    request: ChatCompletionRequestStreaming
+    request: ChatCompletionRequestStreaming,
   ): Promise<AsyncIterable<ChatCompletionChunk>>;
   chatCompletion(
-    request: ChatCompletionRequestBase
+    request: ChatCompletionRequestBase,
   ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion>;
   chatCompletion(
-    request: ChatCompletionRequest
+    request: ChatCompletionRequest,
   ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion>;
 
   /**
@@ -185,6 +190,8 @@ export interface MLCEngineInterface {
    * @returns Next token sampled.
    * @note This is an async function.
    */
-  forwardTokensAndSample(inputIds: Array<number>, isPrefill: boolean): Promise<number>;
+  forwardTokensAndSample(
+    inputIds: Array<number>,
+    isPrefill: boolean,
+  ): Promise<number>;
 }
-
