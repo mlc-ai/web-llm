@@ -7,7 +7,7 @@ import "./popup.css";
 
 import {
   ChatCompletionMessageParam,
-  CreateServiceWorkerEngine,
+  CreateExtensionServiceWorkerEngine,
   EngineInterface,
   InitProgressReport,
 } from "@mlc-ai/web-llm";
@@ -46,7 +46,7 @@ const initProgressCallback = (report: InitProgressReport) => {
   }
 };
 
-const engine: EngineInterface = await CreateServiceWorkerEngine(
+const engine: EngineInterface = await CreateExtensionServiceWorkerEngine(
   "Mistral-7B-Instruct-v0.2-q4f16_1",
   { initProgressCallback: initProgressCallback }
 );

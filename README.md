@@ -153,23 +153,23 @@ that handles requests when the service worker is ready.
 ```typescript
 // sw.ts
 import {
-  WebServiceWorkerEngineHandler,
+  ServiceWorkerEngineHandler,
   EngineInterface,
   Engine,
 } from "@mlc-ai/web-llm";
 
 const engine: EngineInterface = new Engine();
-let handler: WebServiceWorkerEngineHandler;
+let handler: ServiceWorkerEngineHandler;
 
 self.addEventListener("activate", function (event) {
-  handler = new WebServiceWorkerEngineHandler(engine);
+  handler = new ServiceWorkerEngineHandler(engine);
   console.log("Service Worker is ready")
 });
 
 ```
 
 Then in the main logic, we register the service worker and then create the engine using
-`CreateWebServiceWorkerEngine` function. The rest of the logic remains the same.
+`CreateServiceWorkerEngine` function. The rest of the logic remains the same.
 
 ```typescript
 // main.ts
@@ -181,7 +181,7 @@ if ("serviceWorker" in navigator) {
 }
 
 const engine: webllm.EngineInterface =
-  await webllm.CreateWebServiceWorkerEngine(
+  await webllm.CreateServiceWorkerEngine(
     /*modelId=*/selectedModel,
     /*engineConfig=*/{ initProgressCallback: initProgressCallback }
   );
