@@ -37,6 +37,10 @@ import {
   getConversation,
 } from "./conversation";
 
+const ERROR_WEBGPU_NOT_AVAILABLE = new Error(
+  "WebGPU is not available in your current environment. WebGPU is required for running WebLLM. Please ensure your browser supports WebGPU, and that it is enabled in your browser settings. You can check your browser's WebGPU support using https://webgpureport.org/ .",
+);
+
 /**
  * Creates `MLCEngine`, and loads `modelId` onto WebGPU.
  *
@@ -123,7 +127,9 @@ export class MLCEngine implements MLCEngineInterface {
         (item) => item.model_id == modelId,
       );
       if (matchedItem !== undefined) return matchedItem;
-      throw Error("Cannot find model_url for " + modelId);
+      throw Error(
+        `Failed to load model: No URL found for model ID "${modelId}". Please check if the model ID is correct and included in the model_list configuration.`,
+      );
     };
 
     const modelRecord = findModelRecord();
@@ -161,8 +167,9 @@ export class MLCEngine implements MLCEngineInterface {
     const wasmUrl = modelRecord.model_lib_url;
     if (wasmUrl === undefined) {
       throw Error(
-        "You need to specify `model_lib_url` for each model in `model_list` " +
-          "so that we can download the model library (i.e. wasm file).",
+        'Missing `model_lib_url` for the model with ID "' +
+          modelRecord.model_id +
+          '". Please ensure that `model_lib_url` is provided in `model_list` for each model. This URL is essential for downloading the WASM library necessary to run the model.',
       );
     }
     const fetchWasmSource = async () => {
@@ -193,7 +200,7 @@ export class MLCEngine implements MLCEngineInterface {
     // detect GPU
     const gpuDetectOutput = await tvmjs.detectGPUDevice();
     if (gpuDetectOutput == undefined) {
-      throw Error("Cannot find WebGPU in the environment");
+      throw ERROR_WEBGPU_NOT_AVAILABLE;
     }
     let gpuLabel = "WebGPU";
     if (gpuDetectOutput.adapterInfo.description.length != 0) {
@@ -229,8 +236,7 @@ export class MLCEngine implements MLCEngineInterface {
     gpuDetectOutput.device.lost.then((info: any) => {
       if (this.deviceLostIsError) {
         console.error(
-          "Device was lost, please try to initialize again. ",
-          info,
+          `Device was lost during reload. This can happen due to insufficient memory or other GPU constraints. Detailed error: ${info}. Please try to reload WebLLM with a less resource-intensive model.`,
         );
         this.unload();
         deviceLostInReload = true;
@@ -271,8 +277,7 @@ export class MLCEngine implements MLCEngineInterface {
 
     if (deviceLostInReload) {
       throw Error(
-        "WebGPU device lost during `reload()`.\n This is probably due to OOM, try reload with a " +
-          "model that has less parameters or a smaller context length.",
+        "The WebGPU device was lost while loading the model. This issue often occurs due to running out of memory (OOM). To resolve this, try reloading with a model that has fewer parameters or uses a smaller context length.",
       );
     }
   }
@@ -454,7 +459,7 @@ export class MLCEngine implements MLCEngineInterface {
     // 0. Preprocess inputs
     if (!this.currentModelId) {
       throw new Error(
-        "Please call `MLCEngine.reload(model)` first, or initialize with CreateMLCEngine().",
+        "Model not loaded before calling chatCompletion(). Please ensure you have called `MLCEngine.reload(model)` to load the model before initiating chat operations, or initialize your engine using `CreateMLCEngine()` with a valid model configuration.",
       );
     }
     ChatCompletionAPI.postInitAndCheckFields(request);
@@ -561,7 +566,7 @@ export class MLCEngine implements MLCEngineInterface {
     // First detect GPU
     const gpuDetectOutput = await tvmjs.detectGPUDevice();
     if (gpuDetectOutput == undefined) {
-      throw Error("Cannot find WebGPU in the environment");
+      throw ERROR_WEBGPU_NOT_AVAILABLE;
     }
 
     const computeMB = (value: number) => {
@@ -590,7 +595,7 @@ export class MLCEngine implements MLCEngineInterface {
     // First detect GPU
     const gpuDetectOutput = await tvmjs.detectGPUDevice();
     if (gpuDetectOutput == undefined) {
-      throw Error("Cannot find WebGPU in the environment");
+      throw ERROR_WEBGPU_NOT_AVAILABLE;
     }
     return gpuDetectOutput.adapterInfo.vendor;
   }
@@ -665,7 +670,7 @@ export class MLCEngine implements MLCEngineInterface {
       if (message.role === "system") {
         if (i !== 0) {
           throw new Error(
-            "System prompt should always be the first one in `messages`.",
+            "System prompt should always be the first message in `messages`.",
           );
         }
         conversation.override_system_message = message.content;
@@ -685,7 +690,7 @@ export class MLCEngine implements MLCEngineInterface {
           message.name,
         );
       } else {
-        throw new Error("Unsupported role: " + message.role);
+        throw new Error("Unsupported role of message: " + message.role);
       }
     }
     return conversation;
@@ -709,13 +714,17 @@ export class MLCEngine implements MLCEngineInterface {
       typeof request.tool_choice == "string" &&
       request.tool_choice !== "auto"
     ) {
-      throw Error(`Invalid tool choice value: ${request.tool_choice}`);
+      throw Error(
+        `Invalid tool choice value: '${request.tool_choice}'. Please check your input and try again.`,
+      );
     }
     if (
       typeof request.tool_choice !== "string" &&
       request.tool_choice?.type !== "function"
     ) {
-      throw Error("Only 'function' tool choice is supported");
+      throw Error(
+        "Unsupported tool choice type. Only tool choices of type 'function' are supported.",
+      );
     }
 
     const singleFunctionToCall =
@@ -761,7 +770,7 @@ export class MLCEngine implements MLCEngineInterface {
   ) {
     if (this.config === undefined) {
       throw Error(
-        "Expect this.config to be initialized. Did you call `reload()`?",
+        "Configuration not initialized. Ensure you have called `reload()` function first.",
       );
     }
     let input_str: string;
@@ -802,7 +811,9 @@ export class MLCEngine implements MLCEngineInterface {
 
   private getPipeline(): LLMChatPipeline {
     if (this.pipeline === undefined) {
-      throw Error("Chat module not yet initialized, did you call chat.reload?");
+      throw Error(
+        "Chat module not yet initialized. Ensure you initialize the chat module by calling `chat.reload()` first.",
+      );
     }
     return this.pipeline;
   }
