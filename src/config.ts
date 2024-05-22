@@ -76,17 +76,17 @@ export interface ChatConfig {
 export interface ChatOptions extends Partial<ChatConfig> { }
 
 /**
- * Optional configurations for `CreateEngine()` and `CreateWebWorkerEngine()`.
+ * Optional configurations for `CreateMLCEngine()` and `CreateWebWorkerMLCEngine()`.
  * 
  * chatOpts: To optionally override the `mlc-chat-config.json` of `modelId`.
  * appConfig: Configure the app, including the list of models and whether to use IndexedDB cache.
  * initProgressCallback: A callback for showing the progress of loading the model.
  * logitProcessorRegistry: A register for stateful logit processors, see `webllm.LogitProcessor`.
  * 
- * @note All fields are optional, and `logitProcessorRegistry` is only used for `CreateEngine()`
- * not `CreateWebWorkerEngine()`.
+ * @note All fields are optional, and `logitProcessorRegistry` is only used for `CreateMLCEngine()`
+ * not `CreateWebWorkerMLCEngine()`.
  */
-export interface EngineConfig {
+export interface MLCEngineConfig {
   chatOpts?: ChatOptions,
   appConfig?: AppConfig,
   initProgressCallback?: InitProgressCallback,

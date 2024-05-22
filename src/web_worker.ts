@@ -1,11 +1,11 @@
 import {
   AppConfig,
   ChatOptions,
-  EngineConfig,
+  MLCEngineConfig,
   GenerationConfig,
 } from "./config";
 import {
-  EngineInterface,
+  MLCEngineInterface,
   GenerateProgressCallback,
   InitProgressCallback,
   InitProgressReport,
@@ -43,12 +43,12 @@ export interface PostMessageHandler {
  *
  * // setup a chat worker handler that routes
  * // requests to the chat
- * const engine = new Engine();
- * cont handler = new EngineWorkerHandler(engine);
+ * const engine = new MLCEngine();
+ * cont handler = new MLCEngineWorkerHandler(engine);
  * onmessage = handler.onmessage;
  */
-export class EngineWorkerHandler {
-  protected engine: EngineInterface;
+export class MLCEngineWorkerHandler {
+  protected engine: MLCEngineInterface;
   protected chatCompletionAsyncChunkGenerator?: AsyncGenerator<
     ChatCompletionChunk,
     void,
@@ -57,13 +57,13 @@ export class EngineWorkerHandler {
   protected postMessageHandler?: PostMessageHandler;
 
   /**
-   * @param engine A concrete implementation of EngineInterface
+   * @param engine A concrete implementation of MLCEngineInterface
    * @param postMessageHandler Optionally, a handler to communicate with the content script.
    *   This is only needed in ServiceWorker. In web worker, we can use `postMessage` from
    *   DOM API directly.
    */
   constructor(
-    engine: EngineInterface,
+    engine: MLCEngineInterface,
     postMessageHandler?: PostMessageHandler,
     initProgressCallback?: (report: InitProgressReport) => void
   ) {
@@ -298,44 +298,44 @@ export interface ChatWorker {
 }
 
 /**
- * Creates `WebWorkerEngine`, a client that holds the same interface as `Engine`.
+ * Creates `WebWorkerMLCEngine`, a client that holds the same interface as `MLCEngine`.
  *
- * Equivalent to `new webllm.WebWorkerEngine(worker).reload(...)`.
+ * Equivalent to `new webllm.WebWorkerMLCEngine(worker).reload(...)`.
  *
- * @param worker The worker that holds the actual Engine, intialized with `new Worker()`.
+ * @param worker The worker that holds the actual MLCEngine, intialized with `new Worker()`.
  * @param modelId The model to load, needs to either be in `webllm.prebuiltAppConfig`, or in
  * `engineConfig.appConfig`.
- * @param engineConfig Optionally configures the engine, see `webllm.EngineConfig` for more.
- * @returns An initialized `WebLLM.WebWorkerEngine` with `modelId` loaded.
+ * @param engineConfig Optionally configures the engine, see `webllm.MLCEngineConfig` for more.
+ * @returns An initialized `WebLLM.WebWorkerMLCEngine` with `modelId` loaded.
  *
- * @note engineConfig.logitProcessorRegistry is ignored for `CreateWebWorkEngine()`.
+ * @note engineConfig.logitProcessorRegistry is ignored for `CreateWebWorkMLCEngine()`.
  */
-export async function CreateWebWorkerEngine(
+export async function CreateWebWorkerMLCEngine(
   worker: any,
   modelId: string,
-  engineConfig?: EngineConfig
-): Promise<WebWorkerEngine> {
-  const webWorkerEngine = new WebWorkerEngine(worker);
-  webWorkerEngine.setInitProgressCallback(engineConfig?.initProgressCallback);
-  await webWorkerEngine.reload(
+  engineConfig?: MLCEngineConfig
+): Promise<WebWorkerMLCEngine> {
+  const webWorkerMLCEngine = new WebWorkerMLCEngine(worker);
+  webWorkerMLCEngine.setInitProgressCallback(engineConfig?.initProgressCallback);
+  await webWorkerMLCEngine.reload(
     modelId,
     engineConfig?.chatOpts,
     engineConfig?.appConfig
   );
-  return webWorkerEngine;
+  return webWorkerMLCEngine;
 }
 
 /**
- * A client of Engine that exposes the same interface
+ * A client of MLCEngine that exposes the same interface
  *
  * @example
  *
- * const chat = new webllm.WebWorkerEngine(new Worker(
+ * const chat = new webllm.WebWorkerMLCEngine(new Worker(
  *   new URL('./worker.ts', import.meta.url),
  *   {type: 'module'}
  * ));
  */
-export class WebWorkerEngine implements EngineInterface {
+export class WebWorkerMLCEngine implements MLCEngineInterface {
   public worker: ChatWorker;
   public chat: API.Chat;
 

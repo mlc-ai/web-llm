@@ -1,8 +1,8 @@
 import * as tvmjs from "tvmjs";
-import { AppConfig, ChatOptions, EngineConfig, ModelRecord } from "./config";
+import { AppConfig, ChatOptions, MLCEngineConfig, ModelRecord } from "./config";
 import { ReloadParams, WorkerRequest, WorkerResponse } from "./message";
-import { EngineInterface, InitProgressReport } from "./types";
-import { EngineWorkerHandler, WebWorkerEngine, ChatWorker } from "./web_worker";
+import { MLCEngineInterface, InitProgressReport } from "./types";
+import { MLCEngineWorkerHandler, WebWorkerMLCEngine, ChatWorker } from "./web_worker";
 import { areAppConfigsEqual, areChatOptionsEqual } from "./utils";
 
 /* Service Worker Script */
@@ -14,18 +14,18 @@ type IServiceWorker = globalThis.ServiceWorker;
  *
  * @example
  *
- * const engine = new Engine();
+ * const engine = new MLCEngine();
  * let handler;
  * chrome.runtime.onConnect.addListener(function (port) {
  *   if (handler === undefined) {
- *     handler = new ServiceWorkerEngineHandler(engine, port);
+ *     handler = new ServiceWorkerMLCEngineHandler(engine, port);
  *   } else {
  *     handler.setPort(port);
  *   }
  *   port.onMessage.addListener(handler.onmessage.bind(handler));
  * });
  */
-export class ServiceWorkerEngineHandler extends EngineWorkerHandler {
+export class ServiceWorkerMLCEngineHandler extends MLCEngineWorkerHandler {
   modelId?: string;
   chatOpts?: ChatOptions;
   appConfig?: AppConfig;
@@ -36,10 +36,10 @@ export class ServiceWorkerEngineHandler extends EngineWorkerHandler {
   >();
   private initReuqestUuid?: string;
 
-  constructor(engine: EngineInterface) {
+  constructor(engine: MLCEngineInterface) {
     if (!self || !("addEventListener" in self)) {
       throw new Error(
-        "ServiceWorkerGlobalScope is not defined. ServiceWorkerEngineHandler must be created in service worker script."
+        "ServiceWorkerGlobalScope is not defined. ServiceWorkerMLCEngineHandler must be created in service worker script."
       );
     }
     const postMessageHandler = {
@@ -156,7 +156,7 @@ export class ServiceWorker implements ChatWorker {
     this.serviceWorker = serviceWorker;
   }
 
-  // ServiceWorkerEngine will later overwrite this
+  // ServiceWorkerMLCEngine will later overwrite this
   onmessage() {}
 
   postMessage(message: WorkerRequest) {
@@ -173,38 +173,38 @@ export class ServiceWorker implements ChatWorker {
 }
 
 /**
- * Create a ServiceWorkerEngine.
+ * Create a ServiceWorkerMLCEngine.
  *
  * @param modelId The model to load, needs to either be in `webllm.prebuiltAppConfig`, or in
  * `engineConfig.appConfig`.
- * @param engineConfig Optionally configures the engine, see `webllm.EngineConfig` for more.
- * @returns An initialized `WebLLM.ServiceWorkerEngine` with `modelId` loaded.
+ * @param engineConfig Optionally configures the engine, see `webllm.MLCEngineConfig` for more.
+ * @returns An initialized `WebLLM.ServiceWorkerMLCEngine` with `modelId` loaded.
  */
-export async function CreateServiceWorkerEngine(
+export async function CreateServiceWorkerMLCEngine(
   modelId: string,
-  engineConfig?: EngineConfig
-): Promise<ServiceWorkerEngine> {
+  engineConfig?: MLCEngineConfig
+): Promise<ServiceWorkerMLCEngine> {
   if (!("serviceWorker" in navigator)) {
     throw new Error("Service worker API is not available");
   }
   const registration = await (navigator.serviceWorker as ServiceWorkerContainer)
     .ready;
-  const serviceWorkerEngine = new ServiceWorkerEngine(registration.active!);
-  serviceWorkerEngine.setInitProgressCallback(
+  const serviceWorkerMLCEngine = new ServiceWorkerMLCEngine(registration.active!);
+  serviceWorkerMLCEngine.setInitProgressCallback(
     engineConfig?.initProgressCallback
   );
-  await serviceWorkerEngine.init(
+  await serviceWorkerMLCEngine.init(
     modelId,
     engineConfig?.chatOpts,
     engineConfig?.appConfig
   );
-  return serviceWorkerEngine;
+  return serviceWorkerMLCEngine;
 }
 
 /**
- * A client of Engine that exposes the same interface
+ * A client of MLCEngine that exposes the same interface
  */
-export class ServiceWorkerEngine extends WebWorkerEngine {
+export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
   missedHeatbeat = 0;
 
   constructor(worker: IServiceWorker, keepAliveMs = 10000) {
@@ -227,7 +227,7 @@ export class ServiceWorkerEngine extends WebWorkerEngine {
         } catch (err: any) {
           // This is expected to throw if user has multiple windows open
           if (!err.message.startsWith("return from a unknown uuid")) {
-            console.error("CreateWebServiceWorkerEngine.onmessage", err);
+            console.error("CreateWebServiceWorkerMLCEngine.onmessage", err);
           }
         }
       }

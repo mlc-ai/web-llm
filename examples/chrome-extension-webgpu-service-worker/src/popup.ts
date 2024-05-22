@@ -7,8 +7,8 @@ import "./popup.css";
 
 import {
   ChatCompletionMessageParam,
-  CreateExtensionServiceWorkerEngine,
-  EngineInterface,
+  CreateExtensionServiceWorkerMLCEngine,
+  MLCEngineInterface,
   InitProgressReport,
 } from "@mlc-ai/web-llm";
 import { prebuiltAppConfig } from "@mlc-ai/web-llm";
@@ -36,7 +36,7 @@ const progressBar: ProgressBar = new Line("#loadingContainer", {
   svgStyle: { width: "100%", height: "100%" },
 });
 
-/***************** Web-LLM Engine Configuration *****************/
+/***************** Web-LLM MLCEngine Configuration *****************/
 const initProgressCallback = (report: InitProgressReport) => {
   progressBar.animate(report.progress, {
     duration: 50,
@@ -46,7 +46,7 @@ const initProgressCallback = (report: InitProgressReport) => {
   }
 };
 
-const engine: EngineInterface = await CreateExtensionServiceWorkerEngine(
+const engine: MLCEngineInterface = await CreateExtensionServiceWorkerMLCEngine(
   "Mistral-7B-Instruct-v0.2-q4f16_1",
   { initProgressCallback: initProgressCallback }
 );

@@ -3,8 +3,8 @@
     "version": "0.1.0",
     "private": true,
     "scripts": {
-        "start": "parcel src/index.html --port 3000",
-        "build": "parcel build src/index.html --dist-dir lib"
+        "start": "rm -rf .parcel-cache && parcel src/index.html --port 3000",
+        "build": "rm -rf .parcel-cache && parcel build src/index.html --dist-dir lib"
     },
     "devDependencies": {
         "buffer": "^6.0.3",

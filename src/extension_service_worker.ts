@@ -1,11 +1,11 @@
 import * as tvmjs from "tvmjs";
-import { AppConfig, ChatOptions, EngineConfig } from "./config";
+import { AppConfig, ChatOptions, MLCEngineConfig } from "./config";
 import { ReloadParams, WorkerRequest } from "./message";
-import { EngineInterface } from "./types";
+import { MLCEngineInterface } from "./types";
 import {
   ChatWorker,
-  EngineWorkerHandler,
-  WebWorkerEngine,
+  MLCEngineWorkerHandler,
+  WebWorkerMLCEngine,
   PostMessageHandler,
 } from "./web_worker";
 import { areAppConfigsEqual, areChatOptionsEqual } from "./utils";
@@ -40,23 +40,23 @@ export class PortPostMessageHandler implements PostMessageHandler {
  *
  * @example
  *
- * const engine = new Engine();
+ * const engine = new MLCEngine();
  * let handler;
  * chrome.runtime.onConnect.addListener(function (port) {
  *   if (handler === undefined) {
- *     handler = new ServiceWorkerEngineHandler(engine, port);
+ *     handler = new ServiceWorkerMLCEngineHandler(engine, port);
  *   } else {
  *     handler.setPort(port);
  *   }
  *   port.onMessage.addListener(handler.onmessage.bind(handler));
  * });
  */
-export class ServiceWorkerEngineHandler extends EngineWorkerHandler {
+export class ServiceWorkerMLCEngineHandler extends MLCEngineWorkerHandler {
   modelId?: string;
   chatOpts?: ChatOptions;
   appConfig?: AppConfig;
 
-  constructor(engine: EngineInterface, port: chrome.runtime.Port) {
+  constructor(engine: MLCEngineInterface, port: chrome.runtime.Port) {
     let portHandler = new PortPostMessageHandler(port);
     super(engine, portHandler);
 
@@ -124,31 +124,31 @@ export class ServiceWorkerEngineHandler extends EngineWorkerHandler {
 }
 
 /**
- * Create a ServiceWorkerEngine.
+ * Create a ServiceWorkerMLCEngine.
  *
  * @param modelId The model to load, needs to either be in `webllm.prebuiltAppConfig`, or in
  * `engineConfig.appConfig`.
- * @param engineConfig Optionally configures the engine, see `webllm.EngineConfig` for more.
+ * @param engineConfig Optionally configures the engine, see `webllm.MLCEngineConfig` for more.
  * @param keepAliveMs The interval to send keep alive messages to the service worker.
  * See [Service worker lifecycle](https://developer.chrome.com/docs/extensions/develop/concepts/service-workers/lifecycle#idle-shutdown)
  * The default is 10s.
- * @returns An initialized `WebLLM.ServiceWorkerEngine` with `modelId` loaded.
+ * @returns An initialized `WebLLM.ServiceWorkerMLCEngine` with `modelId` loaded.
  */
-export async function CreateServiceWorkerEngine(
+export async function CreateServiceWorkerMLCEngine(
   modelId: string,
-  engineConfig?: EngineConfig,
+  engineConfig?: MLCEngineConfig,
   keepAliveMs: number = 10000
-): Promise<ServiceWorkerEngine> {
-  const serviceWorkerEngine = new ServiceWorkerEngine(keepAliveMs);
-  serviceWorkerEngine.setInitProgressCallback(
+): Promise<ServiceWorkerMLCEngine> {
+  const serviceWorkerMLCEngine = new ServiceWorkerMLCEngine(keepAliveMs);
+  serviceWorkerMLCEngine.setInitProgressCallback(
     engineConfig?.initProgressCallback
   );
-  await serviceWorkerEngine.init(
+  await serviceWorkerMLCEngine.init(
     modelId,
     engineConfig?.chatOpts,
     engineConfig?.appConfig
   );
-  return serviceWorkerEngine;
+  return serviceWorkerMLCEngine;
 }
 
 class PortAdapter implements ChatWorker {
@@ -183,9 +183,9 @@ class PortAdapter implements ChatWorker {
 }
 
 /**
- * A client of Engine that exposes the same interface
+ * A client of MLCEngine that exposes the same interface
  */
-export class ServiceWorkerEngine extends WebWorkerEngine {
+export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
   port: chrome.runtime.Port;
 
   constructor(keepAliveMs: number = 10000) {

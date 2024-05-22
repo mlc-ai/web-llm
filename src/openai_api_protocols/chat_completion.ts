@@ -15,14 +15,14 @@
  * limitations under the License.
 */
 
-import { EngineInterface } from "../types";
+import { MLCEngineInterface } from "../types";
 
 /* eslint-disable @typescript-eslint/no-namespace */
 
 export class Completions {
-    private engine: EngineInterface;
+    private engine: MLCEngineInterface;
 
-    constructor(engine: EngineInterface) {
+    constructor(engine: MLCEngineInterface) {
         this.engine = engine;
     }
 
@@ -200,7 +200,7 @@ export interface ChatCompletionRequestBase {
     /**
      * Model to carry out this API.
      * 
-     * @note Not supported. Instead call `CreateEngine(model)` or `engine.reload(model)` instead.
+     * @note Not supported. Instead call `CreateMLCEngine(model)` or `engine.reload(model)` instead.
      */
     model?: string | null;
 }

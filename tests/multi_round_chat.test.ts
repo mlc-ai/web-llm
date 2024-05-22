@@ -6,7 +6,7 @@ import {
     ChatCompletionRequest,
     ChatCompletionUserMessageParam,
 } from "../src/openai_api_protocols/chat_completion";
-import { Engine } from '../src/engine';
+import { MLCEngine } from '../src/engine';
 import { Conversation, compareConversationObject } from '../src/conversation';
 import { ChatConfig, Role } from '../src/config';
 
@@ -51,7 +51,7 @@ describe('Test multi-round chatting', () => {
         // Setups
         const config_json = JSON.parse(configStr);
         const chatConfig = { ...config_json } as ChatConfig;
-        const engine = new Engine();
+        const engine = new MLCEngine();
 
         // Simulate request0
         const messages: ChatCompletionMessageParam[] = [
@@ -91,7 +91,7 @@ describe('Test multi-round chatting', () => {
         // Setups
         const config_json = JSON.parse(configStr);
         const chatConfig = { ...config_json } as ChatConfig;
-        const engine = new Engine();
+        const engine = new MLCEngine();
 
         // Simulate request0
         const messages: ChatCompletionMessageParam[] = [
@@ -136,7 +136,7 @@ describe('Test multi-round chatting', () => {
         // Setups
         const config_json = JSON.parse(configStr);
         const chatConfig = { ...config_json } as ChatConfig;
-        const engine = new Engine();
+        const engine = new MLCEngine();
 
         // Simulate request0
         const messages: ChatCompletionMessageParam[] = [
@@ -180,7 +180,7 @@ describe('Test multi-round chatting', () => {
         // Setups
         const config_json = JSON.parse(configStr);
         const chatConfig = { ...config_json } as ChatConfig;
-        const engine = new Engine();
+        const engine = new MLCEngine();
 
         // Simulate request0
         const messages: ChatCompletionMessageParam[] = [

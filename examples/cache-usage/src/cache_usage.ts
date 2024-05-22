@@ -25,7 +25,7 @@ async function main() {
 
   // 1. This triggers downloading and caching the model with either Cache or IndexedDB Cache
   const selectedModel = "Phi2-q4f16_1"
-  const engine: webllm.EngineInterface = await webllm.CreateEngine(
+  const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     "Phi2-q4f16_1",
     { initProgressCallback: initProgressCallback, appConfig: appConfig }
   );

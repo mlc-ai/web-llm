@@ -39,8 +39,8 @@ async function mainNonStreaming() {
   };
   const selectedModel = "Llama-3-8B-Instruct-q4f32_1";
 
-  const engine: webllm.EngineInterface =
-    await webllm.CreateServiceWorkerEngine(selectedModel, {
+  const engine: webllm.MLCEngineInterface =
+    await webllm.CreateServiceWorkerMLCEngine(selectedModel, {
       initProgressCallback: initProgressCallback,
     });
 
@@ -77,8 +77,8 @@ async function mainStreaming() {
   };
   const selectedModel = "Llama-3-8B-Instruct-q4f32_1";
 
-  const engine: webllm.ServiceWorkerEngine =
-    await webllm.CreateServiceWorkerEngine(selectedModel, {
+  const engine: webllm.ServiceWorkerMLCEngine =
+    await webllm.CreateServiceWorkerMLCEngine(selectedModel, {
       initProgressCallback: initProgressCallback,
     });
 

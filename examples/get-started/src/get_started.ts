@@ -14,7 +14,7 @@ async function main() {
   };
   // Option 1: If we do not specify appConfig, we use `prebuiltAppConfig` defined in `config.ts`
   const selectedModel = "Llama-3-8B-Instruct-q4f32_1";
-  const engine: webllm.EngineInterface = await webllm.CreateEngine(
+  const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
     { initProgressCallback: initProgressCallback }
   );
@@ -29,7 +29,7 @@ async function main() {
   //     },
   //   ]
   // };
-  // const engine: webllm.EngineInterface = await webllm.CreateEngine(
+  // const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
   //   selectedModel,
   //   { appConfig: appConfig, initProgressCallback: initProgressCallback }
   // );
@@ -56,7 +56,7 @@ async function main() {
   console.log(reply0);
   console.log(await engine.runtimeStatsText());
 
-  // To change model, either create a new engine via `CreateEngine()`, or call `engine.reload(modelId)`
+  // To change model, either create a new engine via `CreateMLCEngine()`, or call `engine.reload(modelId)`
 }
 
 main();
