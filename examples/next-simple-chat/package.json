@@ -9,14 +9,14 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@mlc-ai/web-llm": "^0.2.37",
+    "@mlc-ai/web-llm": "^0.2.38",
     "@types/node": "20.3.3",
     "@types/react": "18.2.14",
     "@types/react-dom": "18.2.6",
     "autoprefixer": "10.4.14",
     "eslint": "8.44.0",
     "eslint-config-next": "13.4.7",
-    "next": "^13.4.7",
+    "next": "^13.5.6",
     "postcss": "8.4.24",
     "react": "18.2.0",
     "react-dom": "18.2.0",
