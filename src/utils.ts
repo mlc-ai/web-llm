@@ -31,7 +31,7 @@ function areObjectsEqual(obj1: any, obj2: any): boolean {
 // Function to compare two ModelRecord instances
 export function areModelRecordsEqual(
   record1: ModelRecord,
-  record2: ModelRecord
+  record2: ModelRecord,
 ): boolean {
   // Compare primitive fields
   if (
@@ -70,7 +70,7 @@ export function areModelRecordsEqual(
 
 export function areAppConfigsEqual(
   config1?: AppConfig,
-  config2?: AppConfig
+  config2?: AppConfig,
 ): boolean {
   if (config1 === undefined || config2 === undefined) {
     return config1 === config2;
@@ -99,7 +99,7 @@ export function areAppConfigsEqual(
 
 export function areChatOptionsEqual(
   options1?: ChatOptions,
-  options2?: ChatOptions
+  options2?: ChatOptions,
 ): boolean {
   if (options1 === undefined || options2 === undefined) {
     return options1 === options2;
