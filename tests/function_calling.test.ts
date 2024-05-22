@@ -1,6 +1,6 @@
 import { Role } from '../src/config'
 import { getConversation } from '../src/conversation'
-import { Engine } from '../src/engine'
+import { MLCEngine } from '../src/engine'
 import { ChatCompletionRequest } from "../src/openai_api_protocols/chat_completion"
 
 
@@ -41,9 +41,9 @@ describe('Test conversation template', () => {
     })
 });
 
-describe('Test Engine', () => {
+describe('Test MLCEngine', () => {
     test('Test getFunctionCallUsage none', () => {
-        const engine = new Engine();
+        const engine = new MLCEngine();
 
         const request: ChatCompletionRequest = {
             model: "gorilla-openfunctions-v1-q4f16_1_MLC",
@@ -63,7 +63,7 @@ describe('Test Engine', () => {
     });
 
     test('Test getFunctionCallUsage auto', () => {
-        const engine = new Engine();
+        const engine = new MLCEngine();
 
         const request: ChatCompletionRequest = {
             model: "gorilla-openfunctions-v1-q4f16_1_MLC",
@@ -82,7 +82,7 @@ describe('Test Engine', () => {
     });
 
     test('Test getFunctionCallUsage function', () => {
-        const engine = new Engine();
+        const engine = new MLCEngine();
 
         const request: ChatCompletionRequest = {
             model: "gorilla-openfunctions-v1-q4f16_1_MLC",

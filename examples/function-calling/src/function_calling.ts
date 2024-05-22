@@ -24,7 +24,7 @@ async function main() {
     setLabel("init-label", report.text);
   };
   const selectedModel = "gorilla-openfunctions-v2-q4f16_1"
-  const engine: webllm.EngineInterface = await webllm.CreateEngine(
+  const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
     { appConfig: myAppConfig, initProgressCallback: initProgressCallback }
   );

@@ -9,7 +9,7 @@ import {
   GenerationConfig,
   postInitAndCheckGenerationConfigValues,
   Role,
-  EngineConfig,
+  MLCEngineConfig,
 } from "./config";
 import { LLMChatPipeline } from "./llm_chat";
 import {
@@ -27,7 +27,7 @@ import {
 import * as ChatCompletionAPI from "./openai_api_protocols/index";
 import {
   InitProgressCallback,
-  EngineInterface,
+  MLCEngineInterface,
   GenerateProgressCallback,
   LogitProcessor
 } from "./types";
@@ -35,22 +35,22 @@ import { Conversation, compareConversationObject, getConversation } from "./conv
 
 
 /**
- * Creates `Engine`, and loads `modelId` onto WebGPU.
+ * Creates `MLCEngine`, and loads `modelId` onto WebGPU.
  * 
- * Equivalent to `new webllm.Engine().reload(...)`.
+ * Equivalent to `new webllm.MLCEngine().reload(...)`.
  * 
  * @param modelId The model to load, needs to either be in `webllm.prebuiltAppConfig`, or in
  * `engineConfig.appConfig`.
- * @param engineConfig Optionally configures the engine, see `webllm.EngineConfig`.
- * @returns An initialized `WebLLM.Engine` with `modelId` loaded.
- * @throws Throws error when device lost (mostly due to OOM); users should re-call `CreateEngine()`,
+ * @param engineConfig Optionally configures the engine, see `webllm.MLCEngineConfig`.
+ * @returns An initialized `WebLLM.MLCEngine` with `modelId` loaded.
+ * @throws Throws error when device lost (mostly due to OOM); users should re-call `CreateMLCEngine()`,
  *   potentially with a smaller model or smaller context window size.
  */
-export async function CreateEngine(
+export async function CreateMLCEngine(
   modelId: string,
-  engineConfig?: EngineConfig,
-): Promise<Engine> {
-  const engine = new Engine();
+  engineConfig?: MLCEngineConfig,
+): Promise<MLCEngine> {
+  const engine = new MLCEngine();
   engine.setInitProgressCallback(engineConfig?.initProgressCallback);
   engine.setLogitProcessorRegistry(engineConfig?.logitProcessorRegistry);
   await engine.reload(modelId, engineConfig?.chatOpts, engineConfig?.appConfig);
@@ -58,11 +58,11 @@ export async function CreateEngine(
 }
 
 /**
- * The main interface of Engine, which loads a model and performs tasks.
+ * The main interface of MLCEngine, which loads a model and performs tasks.
  * 
- * You can either initialize one with `webllm.CreateEngine(modelId)`, or `webllm.Engine().reload(modelId)`.
+ * You can either initialize one with `webllm.CreateMLCEngine(modelId)`, or `webllm.MLCEngine().reload(modelId)`.
  */
-export class Engine implements EngineInterface {
+export class MLCEngine implements MLCEngineInterface {
   public chat: API.Chat;
 
   private currentModelId?: string = undefined;  // Model current loaded, undefined if nothing is loaded
@@ -319,7 +319,7 @@ export class Engine implements EngineInterface {
       return cntr;
     }
 
-    async function _getChunk(thisModule: Engine): Promise<ChatCompletionChunk | undefined> {
+    async function _getChunk(thisModule: MLCEngine): Promise<ChatCompletionChunk | undefined> {
       // Remove the replacement character (U+FFFD) from the response to handle emojis.
       // Each emoji is made up of multiples of 4 tokens; when truncated, it is displayed as �, so
       // we skip this delta until a full emoji is rendered
@@ -409,7 +409,7 @@ export class Engine implements EngineInterface {
   ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
     // 0. Preprocess inputs
     if (!this.currentModelId) {
-      throw new Error("Please call `Engine.reload(model)` first, or initialize with CreateEngine().");
+      throw new Error("Please call `MLCEngine.reload(model)` first, or initialize with CreateMLCEngine().");
     }
     ChatCompletionAPI.postInitAndCheckFields(request);
     const genConfig: GenerationConfig = {

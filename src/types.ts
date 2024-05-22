@@ -56,9 +56,9 @@ export interface LogitProcessor {
 
 
 /**
- * Common interface of Engine that UI can interact with
+ * Common interface of MLCEngine that UI can interact with
  */
-export interface EngineInterface {
+export interface MLCEngineInterface {
   /**
    * An object that exposes chat-related APIs.
    */

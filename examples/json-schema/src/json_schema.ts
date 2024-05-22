@@ -37,7 +37,7 @@ async function simpleStructuredTextExample() {
   const initProgressCallback = (report: webllm.InitProgressReport) => {
     setLabel("init-label", report.text);
   };
-  const engine: webllm.EngineInterface = await webllm.CreateEngine(
+  const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     "Llama-2-7b-chat-hf-q4f16_1",
     { initProgressCallback: initProgressCallback }
   );
@@ -104,7 +104,7 @@ async function harryPotterExample() {
     setLabel("init-label", report.text);
   };
 
-  const engine: webllm.EngineInterface = await webllm.CreateEngine(
+  const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     "Llama-2-7b-chat-hf-q4f16_1",
     { initProgressCallback: initProgressCallback }
   );
@@ -171,7 +171,7 @@ async function functionCallingExample() {
   };
 
   const selectedModel = "Hermes-2-Pro-Mistral-7B-q4f16_1";
-  const engine: webllm.EngineInterface = await webllm.CreateEngine(
+  const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
     {
       initProgressCallback: initProgressCallback,

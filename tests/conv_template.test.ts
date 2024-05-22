@@ -1,6 +1,6 @@
 import { ChatConfig, ConvTemplateConfig, Role } from '../src/config'
 import { getConversation } from '../src/conversation'
-import { Engine } from '../src/engine'
+import { MLCEngine } from '../src/engine'
 import { ChatCompletionRequest } from "../src/openai_api_protocols/chat_completion"
 
 

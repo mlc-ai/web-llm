@@ -19,7 +19,7 @@ async function main() {
         setLabel("init-label", report.text);
     };
     const selectedModel = "Llama-3-8B-Instruct-q4f32_1";
-    const engine: webllm.EngineInterface = await webllm.CreateEngine(
+    const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
         selectedModel,
         { initProgressCallback: initProgressCallback }
     );

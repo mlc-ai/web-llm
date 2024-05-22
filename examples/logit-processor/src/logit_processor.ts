@@ -21,12 +21,12 @@ async function main() {
   const logitProcessorRegistry = new Map<string, webllm.LogitProcessor>();
   logitProcessorRegistry.set("Phi2-q4f32_1", myLogitProcessor);
 
-  let engine: webllm.EngineInterface;
+  let engine: webllm.MLCEngineInterface;
 
   // Depending on whether we use a web worker, the code is slightly different
   if (USE_WEB_WORKER) {
     // see worker.ts on how LogitProcessor plays a role there
-    engine = await webllm.CreateWebWorkerEngine(
+    engine = await webllm.CreateWebWorkerMLCEngine(
       new Worker(
         new URL('./worker.ts', import.meta.url),
         { type: 'module' }
@@ -35,7 +35,7 @@ async function main() {
       { initProgressCallback: initProgressCallback }
     );
   } else {
-    engine = await webllm.CreateEngine(
+    engine = await webllm.CreateMLCEngine(
       "Phi2-q4f32_1",
       {
         initProgressCallback: initProgressCallback,

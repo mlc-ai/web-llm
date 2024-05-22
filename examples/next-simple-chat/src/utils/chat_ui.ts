@@ -1,7 +1,7 @@
-import { EngineInterface, ChatCompletionMessageParam } from "@mlc-ai/web-llm";
+import { MLCEngineInterface, ChatCompletionMessageParam } from "@mlc-ai/web-llm";
 
 export default class ChatUI {
-    private engine: EngineInterface;
+    private engine: MLCEngineInterface;
     private chatLoaded = false;
     private requestInProgress = false;
     // We use a request chain to ensure that
@@ -9,7 +9,7 @@ export default class ChatUI {
     private chatRequestChain: Promise<void> = Promise.resolve();
     private chatHistory: ChatCompletionMessageParam[] = [];
 
-    constructor(engine: EngineInterface) {
+    constructor(engine: MLCEngineInterface) {
         this.engine = engine;
     }
     /**
