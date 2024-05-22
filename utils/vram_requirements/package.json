@@ -1,25 +1,25 @@
 {
-    "name": "vram-requirements",
-    "version": "0.1.0",
-    "private": true,
-    "scripts": {
-        "start": "cp src/gh-config.js src/app-config.js && parcel src/vram_requirements.html  --port 8885",
-        "build": "cp src/gh-config.js src/app-config.js && parcel build src/vram_requirements.html --dist-dir lib"
-    },
-    "devDependencies": {
-        "buffer": "^5.7.1",
-        "crypto-browserify": "^3.12.0",
-        "events": "^3.3.0",
-        "parcel": "^2.8.3",
-        "path-browserify": "^1.0.1",
-        "process": "^0.11.10",
-        "stream-browserify": "^3.0.0",
-        "tslib": "^2.3.1",
-        "typescript": "^4.9.5",
-        "url": "^0.11.3"
-    },
-    "dependencies": {
-        "@mlc-ai/web-llm": "^0.2.37",
-        "tvmjs": "file:./../../tvm_home/web"
-    }
+  "name": "vram-requirements",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "cp src/gh-config.js src/app-config.js && parcel src/vram_requirements.html  --port 8885",
+    "build": "cp src/gh-config.js src/app-config.js && parcel build src/vram_requirements.html --dist-dir lib"
+  },
+  "devDependencies": {
+    "buffer": "^5.7.1",
+    "crypto-browserify": "^3.12.0",
+    "events": "^3.3.0",
+    "parcel": "^2.8.3",
+    "path-browserify": "^1.0.1",
+    "process": "^0.11.10",
+    "stream-browserify": "^3.0.0",
+    "tslib": "^2.3.1",
+    "typescript": "^4.9.5",
+    "url": "^0.11.3"
+  },
+  "dependencies": {
+    "@mlc-ai/web-llm": "^0.2.38",
+    "tvmjs": "file:./../../tvm_home/web"
+  }
 }
