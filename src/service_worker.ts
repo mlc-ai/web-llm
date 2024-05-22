@@ -1,5 +1,5 @@
 import * as tvmjs from "tvmjs";
-import { AppConfig, ChatOptions, MLCEngineConfig, ModelRecord } from "./config";
+import { AppConfig, ChatOptions, MLCEngineConfig } from "./config";
 import { ReloadParams, WorkerRequest, WorkerResponse } from "./message";
 import { MLCEngineInterface, InitProgressReport } from "./types";
 import {
@@ -40,7 +40,7 @@ export class ServiceWorkerMLCEngineHandler extends MLCEngineWorkerHandler {
   >();
   private initReuqestUuid?: string;
 
-  constructor(engine: MLCEngineInterface, verbose = false) {
+  constructor(engine: MLCEngineInterface) {
     if (!self || !("addEventListener" in self)) {
       throw new Error(
         "ServiceWorkerGlobalScope is not defined. ServiceWorkerMLCEngineHandler must be created in service worker script.",
@@ -90,6 +90,9 @@ export class ServiceWorkerMLCEngineHandler extends MLCEngineWorkerHandler {
     onError?: () => void,
   ): void {
     const msg = event.data as WorkerRequest;
+    console.debug(
+      `ServiceWorker message: [${msg.kind}] ${JSON.stringify(msg.content)}`,
+    );
 
     if (msg.kind === "keepAlive") {
       const reply: WorkerRequest = {
@@ -212,7 +215,7 @@ export async function CreateServiceWorkerMLCEngine(
 export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
   missedHeatbeat = 0;
 
-  constructor(worker: IServiceWorker, keepAliveMs = 10000, verbose = false) {
+  constructor(worker: IServiceWorker, keepAliveMs = 10000) {
     if (!("serviceWorker" in navigator)) {
       throw new Error("Service worker API is not available");
     }
@@ -223,6 +226,9 @@ export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
       "message",
       (event: MessageEvent) => {
         const msg = event.data;
+        console.debug(
+          `MLC client message: [${msg.kind}] ${JSON.stringify(msg.content)}`,
+        );
         try {
           if (msg.kind === "heartbeat") {
             this.missedHeatbeat = 0;
@@ -241,6 +247,7 @@ export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
     setInterval(() => {
       this.worker.postMessage({ kind: "keepAlive", uuid: crypto.randomUUID() });
       this.missedHeatbeat += 1;
+      console.debug("missedHeatbeat", this.missedHeatbeat);
     }, keepAliveMs);
   }
 
