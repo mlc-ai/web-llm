@@ -15,7 +15,7 @@ sed -e s/"new (require('u' + 'rl').URL)('file:' + __filename).href"/"\"MLC_DUMMY
 # For more see https://github.com/mlc-ai/web-llm/issues/258 and https://github.com/mlc-ai/web-llm/issues/127
 sed -e s/"import require\$\$3 from 'perf_hooks';"/"const require\$\$3 = \"MLC_DUMMY_REQUIRE_VAR\""/g -i .backup lib/index.js
 # Similarly replace `const performanceNode = require(\"perf_hooks\")` with `const performanceNode = "MLC_DUMMY_REQUIRE_VAR"`
-sed -e s/'require(\\\"perf_hooks\\\")'/'\"MLC_DUMMY_REQUIRE_VAR\"'/g -i .backup lib/index.js.map
+sed -e s/'require(\\\"perf_hooks\\\")'/'\\\"MLC_DUMMY_REQUIRE_VAR\\\"'/g -i .backup lib/index.js.map
 
 # Cleanup backup files
 rm lib/index.js.backup
