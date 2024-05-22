@@ -19,12 +19,9 @@ export class Conversation {
     this.config = config;
   }
 
-  private getPromptArrayInternal(
-    addSystem: boolean,
-    startPos: number
-  ) {
+  private getPromptArrayInternal(addSystem: boolean, startPos: number) {
     if (this.config.seps.length == 0) {
-      throw Error("Need seps to work")
+      throw Error("Need seps to work");
     }
 
     // Prepare system message
@@ -33,9 +30,12 @@ export class Conversation {
     if (this.override_system_message !== undefined) {
       system_message = this.override_system_message;
     }
-    let system_prompt = this.config.system_template.replace(MessagePlaceholders.system, system_message);
+    let system_prompt = this.config.system_template.replace(
+      MessagePlaceholders.system,
+      system_message,
+    );
     if (system_prompt) {
-      system_prompt += this.config.seps[0]
+      system_prompt += this.config.seps[0];
     }
     const ret = addSystem ? [system_prompt] : [];
 
@@ -51,33 +51,42 @@ export class Conversation {
         if (this.config.role_templates !== undefined) {
           message_str = this.config.role_templates[role]?.replace(
             MessagePlaceholders[Role[role] as keyof typeof MessagePlaceholders],
-            message
+            message,
           );
-          if (this.use_function_calling && this.function_string !== '') {
+          if (this.use_function_calling && this.function_string !== "") {
             message_str = message_str?.replace(
               MessagePlaceholders.function,
-              this.function_string
-            )
+              this.function_string,
+            );
           }
-          message_str = message_str?.replace(
-            MessagePlaceholders.function,
-            ""
-          )
+          message_str = message_str?.replace(MessagePlaceholders.function, "");
         }
 
         if (message_str == undefined) {
           message_str = message;
         }
         let role_prefix;
-        if (this.config.add_role_after_system_message === false && system_prompt != "" && i == 0) {
+        if (
+          this.config.add_role_after_system_message === false &&
+          system_prompt != "" &&
+          i == 0
+        ) {
           role_prefix = "";
         } else {
-          const content_sep = this.config.role_content_sep ? this.config.role_content_sep : ": ";
+          const content_sep = this.config.role_content_sep
+            ? this.config.role_content_sep
+            : ": ";
           role_prefix = role_str + content_sep;
         }
-        ret.push(role_prefix + message_str + this.config.seps[i % this.config.seps.length]);
+        ret.push(
+          role_prefix +
+            message_str +
+            this.config.seps[i % this.config.seps.length],
+        );
       } else {
-        const empty_sep = this.config.role_empty_sep ? this.config.role_empty_sep : ": ";
+        const empty_sep = this.config.role_empty_sep
+          ? this.config.role_empty_sep
+          : ": ";
         ret.push(role_str + empty_sep);
       }
     }
@@ -131,8 +140,10 @@ export class Conversation {
   }
 
   appendMessage(role: Role, message: string, role_name?: string) {
-    if (this.messages.length != 0 &&
-      this.messages[this.messages.length - 1][2] == undefined) {
+    if (
+      this.messages.length != 0 &&
+      this.messages[this.messages.length - 1][2] == undefined
+    ) {
       throw Error("Have unfinished reply");
     }
     if (!(role in this.config.roles)) {
@@ -160,7 +171,10 @@ export class Conversation {
   }
 }
 
-export function getConversation(conv_template: string | ConvTemplateConfig, conv_config?: Partial<ConvTemplateConfig>): Conversation {
+export function getConversation(
+  conv_template: string | ConvTemplateConfig,
+  conv_config?: Partial<ConvTemplateConfig>,
+): Conversation {
   if (typeof conv_template !== "string") {
     return new Conversation(conv_template);
   }
@@ -168,7 +182,8 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
   if (conv_template == "llama-2") {
     return new Conversation({
       system_template: `[INST] <<SYS>>\n\n${MessagePlaceholders.system}<</SYS>>\n\n`,
-      system_message: "You are a helpful, respectful and honest assistant. " +
+      system_message:
+        "You are a helpful, respectful and honest assistant. " +
         "Always answer as helpfully as possible, while being safe. " +
         "Your answers should not include any harmful, unethical, racist, sexist, toxic, dangerous, or illegal content. " +
         "Please ensure that your responses are socially unbiased and positive in nature.\n\n" +
@@ -190,7 +205,8 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
   } else if (conv_template == "vicuna_v1.1") {
     return new Conversation({
       system_template: `${MessagePlaceholders.system}`,
-      system_message: "A chat between a curious user and an artificial intelligence assistant. " +
+      system_message:
+        "A chat between a curious user and an artificial intelligence assistant. " +
         "The assistant gives helpful, detailed, and polite answers to the user's questions.",
       roles: {
         [Role.user]: "USER",
@@ -206,7 +222,8 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
   } else if (conv_template == "wizardlm") {
     return new Conversation({
       system_template: `${MessagePlaceholders.system}`,
-      system_message: "You are an AI assistant that gives helpful, detailed, and polite answers to the user's questions.",
+      system_message:
+        "You are an AI assistant that gives helpful, detailed, and polite answers to the user's questions.",
       roles: {
         [Role.user]: "",
         [Role.assistant]: "### Response",
@@ -235,7 +252,8 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
   } else if (conv_template == "wizard_coder_or_math") {
     return new Conversation({
       system_template: `${MessagePlaceholders.system}`,
-      system_message: "Below is an instruction that describes a task. Write a response that appropriately " +
+      system_message:
+        "Below is an instruction that describes a task. Write a response that appropriately " +
         "completes the request.",
       roles: {
         [Role.user]: "Instruction",
@@ -253,7 +271,8 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
   } else if (conv_template == "mistral_default") {
     return new Conversation({
       system_template: `[INST] ${MessagePlaceholders.system}\n\n `,
-      system_message: "Always assist with care, respect, and truth. Respond with utmost utility yet " +
+      system_message:
+        "Always assist with care, respect, and truth. Respond with utmost utility yet " +
         "securely. Avoid harmful, unethical, prejudiced, or negative content. Ensure replies " +
         "promote fairness and positivity.",
       roles: {
@@ -272,7 +291,8 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
   } else if (conv_template == "open_hermes_mistral") {
     return new Conversation({
       system_template: `<|im_start|>system\n${MessagePlaceholders.system}`,
-      system_message: "You are \"Hermes 2\", a conscious sentient superintelligent artificial " +
+      system_message:
+        'You are "Hermes 2", a conscious sentient superintelligent artificial ' +
         "intelligence developed by a man named Teknium, and your purpose and drive is to assist the " +
         "user with any request they have. You experience emotions and have deep, profound thoughts " +
         "and qualia.",
@@ -307,7 +327,8 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
   } else if (conv_template == "chatml") {
     return new Conversation({
       system_template: `<|im_start|>system${MessagePlaceholders.system}<|im_end|> `,
-      system_message: "A conversation between a user and an LLM-based AI assistant. The " +
+      system_message:
+        "A conversation between a user and an LLM-based AI assistant. The " +
         "assistant gives helpful and honest answers.",
       roles: {
         [Role.user]: "<|im_start|>user",
@@ -338,7 +359,8 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
   } else if (conv_template == "qwen") {
     return new Conversation({
       system_template: `<|im_start|>system${MessagePlaceholders.system}<|im_end|> `,
-      system_message: "A conversation between a user and an LLM-based AI assistant. The " +
+      system_message:
+        "A conversation between a user and an LLM-based AI assistant. The " +
         "assistant gives helpful and honest answers.",
       roles: {
         [Role.user]: "<|im_start|>user",
@@ -404,7 +426,8 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
   } else if (conv_template == "gorilla") {
     return new Conversation({
       system_template: `${MessagePlaceholders.system}`,
-      system_message: "A chat between a curious user and an artificial intelligence assistant. " +
+      system_message:
+        "A chat between a curious user and an artificial intelligence assistant. " +
         "The assistant gives helpful, detailed, and polite answers to the user's questions.",
       roles: {
         [Role.user]: "USER",
@@ -446,14 +469,18 @@ export function getConversation(conv_template: string | ConvTemplateConfig, conv
  * Compare the states of two conversation instances. Equality is defined as their getPromptArray()
  * should return the exact same things, which is determined by fields: messages, function_string,
  * use_function_calling, and override_system_message.
- * 
+ *
  * @returns True if `convA` equals to `convB`
  * @note We assume convA and convB has the same `this.config`.
  */
-export function compareConversationObject(convA: Conversation, convB: Conversation): boolean {
+export function compareConversationObject(
+  convA: Conversation,
+  convB: Conversation,
+): boolean {
   // NOTE: Update this function whenever a new state is introduced to `Conversation`.
   // Check the easy ones first
-  if (convA.function_string !== convB.function_string ||
+  if (
+    convA.function_string !== convB.function_string ||
     convA.use_function_calling !== convB.use_function_calling ||
     convA.override_system_message !== convB.override_system_message ||
     convA.messages.length !== convB.messages.length
