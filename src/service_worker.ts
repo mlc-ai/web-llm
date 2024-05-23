@@ -191,13 +191,21 @@ export async function CreateServiceWorkerMLCEngine(
   engineConfig?: MLCEngineConfig,
 ): Promise<ServiceWorkerMLCEngine> {
   if (!("serviceWorker" in navigator)) {
-    throw new Error("Service worker API is not available");
+    throw new Error(
+      "Service worker API is not available in your browser. Please ensure that your browser supports service workers and that you are using a secure context (HTTPS). " +
+        "Check the browser compatibility and ensure that service workers are not disabled in your browser settings.",
+    );
   }
-  const registration = await (navigator.serviceWorker as ServiceWorkerContainer)
-    .ready;
-  const serviceWorkerMLCEngine = new ServiceWorkerMLCEngine(
-    registration.active!,
-  );
+  const serviceWorkerAPI = navigator.serviceWorker as ServiceWorkerContainer;
+  const registration = await serviceWorkerAPI.ready;
+  const serviceWorker = registration.active || serviceWorkerAPI.controller;
+  if (!serviceWorker) {
+    throw new Error(
+      "Service worker failed to initialize. This could be due to a failure in the service worker registration process or because the service worker is not active. " +
+        "Please refresh the page to retry initializing the service worker.",
+    );
+  }
+  const serviceWorkerMLCEngine = new ServiceWorkerMLCEngine(serviceWorker);
   serviceWorkerMLCEngine.setInitProgressCallback(
     engineConfig?.initProgressCallback,
   );
