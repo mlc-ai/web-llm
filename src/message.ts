@@ -29,6 +29,7 @@ type RequestKind =
   | "keepAlive"
   | "heartbeat";
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 type ResponseKind =
   | "return"
   | "throw"
