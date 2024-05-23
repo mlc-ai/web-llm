@@ -38,7 +38,10 @@ import {
 } from "./conversation";
 
 const ERROR_WEBGPU_NOT_AVAILABLE = new Error(
-  "WebGPU is not available in your current environment. WebGPU is required for running WebLLM. Please ensure your browser supports WebGPU, and that it is enabled in your browser settings. You can check your browser's WebGPU support using https://webgpureport.org/ .",
+  "WebGPU is not supported in your current environment, but it is necessary to run the WebLLM engine. " +
+    "Please make sure that your browser supports WebGPU and that it is enabled in your browser settings. " +
+    "You can also consult your browser's compatibility chart to see if it supports WebGPU. " +
+    "For more information about WebGPU support in your browser, visit https://webgpureport.org/",
 );
 
 /**
