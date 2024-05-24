@@ -7,8 +7,8 @@ sed -e s/"const{createRequire:createRequire}=await import('module');"//g -i .bac
 # Replace string "new (require('u' + 'rl').URL)('file:' + __filename).href" with "MLC_DUMMY_PATH"
 # This is required for building nextJS projects -- its compile time would complain about `require()`
 # See https://github.com/mlc-ai/web-llm/issues/383 and the fixing PR's description for more.
-sed -e s/"new (require('u' + 'rl').URL)('file:' + __filename).href"/"\"MLC_DUMMY_PATH\""/g -i .backup lib/index.js
-sed -e s/"new (require('u' + 'rl').URL)('file:' + __filename).href"/"\"MLC_DUMMY_PATH\""/g -i .backup lib/index.js.map
+sed -e s/"new (require('u' + 'rl').URL)('file:' + __filename).href"/"\\\"MLC_DUMMY_PATH\\\""/g -i .backup lib/index.js
+sed -e s/"new (require('u' + 'rl').URL)('file:' + __filename).href"/"\\\"MLC_DUMMY_PATH\\\""/g -i .backup lib/index.js.map
 
 # Replace "import require$$3 from 'perf_hooks';" with a string "const require$$3 = "MLC_DUMMY_REQUIRE_VAR""
 # This is to prevent `perf_hooks` not found error
