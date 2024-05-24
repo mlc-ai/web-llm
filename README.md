@@ -1,7 +1,16 @@
-[discord-url]: https://discord.gg/9Xpy2HGBuD
+<div align="center">
 
-# Web LLM
-| [NPM Package](https://www.npmjs.com/package/@mlc-ai/web-llm) | [Get Started](#get-started) | [Examples](examples) | [Documentation](https://mlc.ai/mlc-llm/docs/deploy/javascript.html) | [MLC LLM](https://github.com/mlc-ai/mlc-llm) | [Discord][discord-url] |
+[![NPM Package](./site/img/logo/mlc-logo-with-text-landscape.png)](https://mlc.ai)
+
+# WebLLM
+
+[![NPM Package](https://img.shields.io/badge/NPM_Package-Published-cc3534)](https://www.npmjs.com/package/@mlc-ai/web-llm)
+[!["WebLLM Chat Deployed"](https://img.shields.io/badge/WebLLM_Chat-Deployed-%2332a852?logo=github)](https://chat.webllm.ai/)
+[![Join Discoard](https://img.shields.io/badge/Join-Discord-7289DA?logo=discord&logoColor=white)]("https://discord.gg/9Xpy2HGBuD")
+
+| [WebLLM Chat](https://chat.webllm.ai/) | [Get Started](#get-started) | [Examples](examples) | [Documentation](https://mlc.ai/mlc-llm/docs/deploy/javascript.html) | [MLC LLM](https://github.com/mlc-ai/mlc-llm) |
+
+</div>
 
 WebLLM is a modular and customizable javascript package that directly
 brings language model chats directly onto web browsers with hardware acceleration.
@@ -13,13 +22,16 @@ including json-mode, function-calling, streaming, etc.
 
 We can bring a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration.
 
-**[Check out our demo webpage to try it out!](https://webllm.mlc.ai/)**
 You can use WebLLM as a base [npm package](https://www.npmjs.com/package/@mlc-ai/web-llm) and build your own web application on top of it by following the [documentation](https://mlc.ai/mlc-llm/docs/deploy/javascript.html) and checking out [Get Started](#get-started).
-This project is a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm),
-which runs LLMs natively on iPhone and other native local environments.
+This project is a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm), which runs LLMs natively on iPhone and other native local environments.
 
+<div align="center">
 
-<img src="site/img/fig/demo.gif">
+**[Check out WebLLM Chat to try it out!](https://chat.webllm.ai/)**
+
+[WebLLM Chat Demo Video](https://github.com/mlc-ai/web-llm-chat/assets/23090573/f700e27e-bb88-4068-bc8b-8a33ea5a4300)
+
+</div>
 
 ## Get Started
 
@@ -40,11 +52,11 @@ async function main() {
   const selectedModel = "Llama-3-8B-Instruct-q4f32_1";
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
-    /*engineConfig=*/{ initProgressCallback: initProgressCallback }
+    /*engineConfig=*/ { initProgressCallback: initProgressCallback },
   );
 
   const reply0 = await engine.chat.completions.create({
-    messages: [{ "role": "user", "content": "Tell me about Pittsburgh." }]
+    messages: [{ role: "user", content: "Tell me about Pittsburgh." }],
   });
   console.log(reply0);
   console.log(await engine.runtimeStatsText());
@@ -58,7 +70,7 @@ Note that if you need to separate the instantiation of `webllm.MLCEngine` from l
 ```typescript
 const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
   selectedModel,
-  /*engineConfig=*/{ initProgressCallback: initProgressCallback }
+  /*engineConfig=*/ { initProgressCallback: initProgressCallback },
 );
 ```
 
@@ -71,26 +83,28 @@ await engine.reload(selectedModel, chatConfig, appConfig);
 ```
 
 ### CDN Delivery
+
 Thanks to [jsdelivr.com](https://www.jsdelivr.com/package/npm/@mlc-ai/web-llm), the following Javascript code should work out-of-the-box on sites like [jsfiddle.net](https://jsfiddle.net/):
 
 ```javascript
-import * as webllm from 'https://esm.run/@mlc-ai/web-llm';
+import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
 async function main() {
   const initProgressCallback = (report) => {
     console.log(report.text);
   };
   const selectedModel = "TinyLlama-1.1B-Chat-v0.4-q4f16_1-1k";
-  const engine = await webllm.CreateMLCEngine(
-    selectedModel,
-    {initProgressCallback: initProgressCallback}
-  );
+  const engine = await webllm.CreateMLCEngine(selectedModel, {
+    initProgressCallback: initProgressCallback,
+  });
 
   const reply = await engine.chat.completions.create({
-    messages: [{
-      "role": "user",
-      "content": "Tell me about Pittsburgh."
-    }]
+    messages: [
+      {
+        role: "user",
+        content: "Tell me about Pittsburgh.",
+      },
+    ],
   });
   console.log(reply);
   console.log(await engine.runtimeStatsText());
@@ -129,22 +143,22 @@ import * as webllm from "@mlc-ai/web-llm";
 
 async function main() {
   // Use a WebWorkerMLCEngine instead of MLCEngine here
-  const engine: webllm.MLCEngineInterface = await webllm.CreateWebWorkerMLCEngine(
-    /*worker=*/new Worker(
-      new URL('./worker.ts', import.meta.url),
-      { type: 'module' }
-    ),
-    /*modelId=*/selectedModel,
-    /*engineConfig=*/{ initProgressCallback: initProgressCallback }
-  );
+  const engine: webllm.MLCEngineInterface =
+    await webllm.CreateWebWorkerMLCEngine(
+      /*worker=*/ new Worker(new URL("./worker.ts", import.meta.url), {
+        type: "module",
+      }),
+      /*modelId=*/ selectedModel,
+      /*engineConfig=*/ { initProgressCallback: initProgressCallback },
+    );
   // everything else remains the same
 }
 ```
 
 ### Use Service Worker
 
-WebLLM comes with API support for ServiceWorker so you can hook the generation process 
-into a service worker to avoid reloading the model in every page visit and optimize 
+WebLLM comes with API support for ServiceWorker so you can hook the generation process
+into a service worker to avoid reloading the model in every page visit and optimize
 your application's offline experience.
 
 We first create a service worker script that created a MLCEngine and hook it up to a handler
@@ -163,9 +177,8 @@ let handler: ServiceWorkerMLCEngineHandler;
 
 self.addEventListener("activate", function (event) {
   handler = new ServiceWorkerMLCEngineHandler(engine);
-  console.log("Service Worker is ready")
+  console.log("Service Worker is ready");
 });
-
 ```
 
 Then in the main logic, we register the service worker and then create the engine using
@@ -175,15 +188,15 @@ Then in the main logic, we register the service worker and then create the engin
 // main.ts
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register(
-    /*workerScriptURL=*/new URL("sw.ts", import.meta.url),
-    { type: "module" }
+    /*workerScriptURL=*/ new URL("sw.ts", import.meta.url),
+    { type: "module" },
   );
 }
 
 const engine: webllm.MLCEngineInterface =
   await webllm.CreateServiceWorkerMLCEngine(
-    /*modelId=*/selectedModel,
-    /*engineConfig=*/{ initProgressCallback: initProgressCallback }
+    /*modelId=*/ selectedModel,
+    /*engineConfig=*/ { initProgressCallback: initProgressCallback },
   );
 ```
 
@@ -200,6 +213,7 @@ You can also find examples on building chrome extension with WebLLM in [examples
 ## Full OpenAI Compatibility
 
 WebLLM is designed to be fully compatible with [OpenAI API](https://platform.openai.com/docs/api-reference/chat). Thus, besides building simple chat bot, you can also have the following functionalities with WebLLM:
+
 - [streaming](examples/streaming): return output as chunks in real-time in the form of an AsyncGenerator
 - [json-mode](examples/json-mode): efficiently ensure output is in json format, see [OpenAI Reference](https://platform.openai.com/docs/guides/text-generation/chat-completions-api) for more.
 - [function-calling](examples/function-calling): function calling with fields `tools` and `tool_choice`.
@@ -210,6 +224,7 @@ WebLLM is designed to be fully compatible with [OpenAI API](https://platform.ope
 We export all supported models in `webllm.prebuiltAppConfig`, where you can see a list of models
 that you can simply call `const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(anyModel)` with.
 Prebuilt models include:
+
 - Llama-2
 - Llama-3
 - Gemma
@@ -258,7 +273,7 @@ async main() {
   // The chat will also load the model library from "/url/to/myllama3b.wasm",
   // assuming that it is compatible to the model in myLlamaUrl.
   const engine = await webllm.CreateMLCEngine(
-    "MyLlama-3b-v1-q4f32_0", 
+    "MyLlama-3b-v1-q4f32_0",
     /*engineConfig=*/{ chatOpts: chatOpts, appConfig: appConfig }
   );
 }
@@ -269,7 +284,6 @@ not necessarily a new model (e.g. `NeuralHermes-Mistral` can reuse `Mistral`'s
 model library). For examples on how a model library can be shared by different model variants,
 see `prebuiltAppConfig`.
 
-
 ## Build WebLLM Package From Source
 
 NOTE: you don't need to build by yourself unless you would
@@ -278,36 +292,37 @@ like to change the WebLLM package. To simply use the npm, follow [Get Started](#
 WebLLM package is a web runtime designed for [MLC LLM](https://github.com/mlc-ai/mlc-llm).
 
 1. Install all the prerequisites for compilation:
-    1. [emscripten](https://emscripten.org). It is an LLVM-based compiler that compiles C/C++ source code to WebAssembly.
-        - Follow the [installation instruction](https://emscripten.org/docs/getting_started/downloads.html#installation-instructions-using-the-emsdk-recommended) to install the latest emsdk.
-        - Source `emsdk_env.sh` by `source path/to/emsdk_env.sh`, so that `emcc` is reachable from PATH and the command `emcc` works.
-    4. Install jekyll by following the [official guides](https://jekyllrb.com/docs/installation/). It is the package we use for website. This is not needed if you're using nextjs (see next-simple-chat in the examples).
-    5. Install jekyll-remote-theme by command. Try [gem mirror](https://gems.ruby-china.com/) if install blocked.
-        ```shell
-        gem install jekyll-remote-theme
-        ```
-    We can verify the successful installation by trying out `emcc` and `jekyll` in terminal, respectively.
+
+   1. [emscripten](https://emscripten.org). It is an LLVM-based compiler that compiles C/C++ source code to WebAssembly.
+      - Follow the [installation instruction](https://emscripten.org/docs/getting_started/downloads.html#installation-instructions-using-the-emsdk-recommended) to install the latest emsdk.
+      - Source `emsdk_env.sh` by `source path/to/emsdk_env.sh`, so that `emcc` is reachable from PATH and the command `emcc` works.
+   2. Install jekyll by following the [official guides](https://jekyllrb.com/docs/installation/). It is the package we use for website. This is not needed if you're using nextjs (see next-simple-chat in the examples).
+   3. Install jekyll-remote-theme by command. Try [gem mirror](https://gems.ruby-china.com/) if install blocked.
+      `shell
+gem install jekyll-remote-theme
+`
+      We can verify the successful installation by trying out `emcc` and `jekyll` in terminal, respectively.
 
 2. Setup necessary environment
 
-    Prepare all the necessary dependencies for web build:
-    ```shell
-    ./scripts/prep_deps.sh
-    ```
+   Prepare all the necessary dependencies for web build:
+
+   ```shell
+   ./scripts/prep_deps.sh
+   ```
 
 3. Buld WebLLM Package
 
-    ```shell
-    npm run build
-    ```
+   ```shell
+   npm run build
+   ```
 
 4. Validate some of the sub-packages
 
-    You can then go to the subfolders in [examples](examples) to validate some of the sub-packages.
-    We use Parcelv2 for bundling. Although Parcel is not very good at tracking parent directory
-    changes sometimes. When you make a change in the WebLLM package, try to edit the `package.json`
-    of the subfolder and save it, which will trigger Parcel to rebuild.
-
+   You can then go to the subfolders in [examples](examples) to validate some of the sub-packages.
+   We use Parcelv2 for bundling. Although Parcel is not very good at tracking parent directory
+   changes sometimes. When you make a change in the WebLLM package, try to edit the `package.json`
+   of the subfolder and save it, which will trigger Parcel to rebuild.
 
 ## Links
 
