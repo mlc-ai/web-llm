@@ -55,17 +55,7 @@
                 text-decoration: none;
                 cursor: pointer;
                 height: fit-content;
-                overflow: hidden;
-                position: relative;
                 // padding: .25rem;
-
-                .border {
-                    position: absolute;
-                    inset: -1000%;
-                    animation: spin 3s linear infinite;
-                    border-radius: 1rem;
-                    background-image: conic-gradient(from 90deg at 50% 50%, #e2cbff 0, #393bb2 50%, #e2cbff 100%);
-                }
 
                 .get-start-link-content {
                     width: 100%;
@@ -73,7 +63,7 @@
                     z-index: 1;
                     border-radius: 9999px;
                     padding: 1rem 1.75rem;
-                    background-color: black;
+                    background-color: #000000;
                     display: inline-flex;
                     gap: .5rem;
                     display: inline-flex;
@@ -102,17 +92,7 @@
                 text-decoration: none;
                 cursor: pointer;
                 height: fit-content;
-                overflow: hidden;
-                position: relative;
                 padding: .25rem;
-
-                .border {
-                    position: absolute;
-                    inset: -1000%;
-                    animation: spin 3s linear infinite;
-                    border-radius: 1rem;
-                    background-image: conic-gradient(from 90deg at 50% 50%, #e2cbff 0, #393bb2 50%, #e2cbff 100%);
-                }
 
                 .chat-link-content {
                     width: 100%;
@@ -163,6 +143,19 @@
             height: auto;
             border-radius: inherit;
         }
+    }
+}
+
+.moving-border {
+    overflow: hidden;
+    position: relative;
+
+    .border {
+        position: absolute;
+        inset: -1000%;
+        animation: spin 3s linear infinite;
+        border-radius: 1rem;
+        background-image: conic-gradient(from 90deg at 50% 50%, #e2cbff 0, #393bb2 50%, #e2cbff 100%);
     }
 }
 
