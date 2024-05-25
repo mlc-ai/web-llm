@@ -14,11 +14,12 @@
 
 </div>
 
-**WebLLM is a high-performance in-browser LLM inference engine** that directly
+## Overview
+WebLLM is a high-performance in-browser LLM inference engine that directly
 brings language model inference directly onto web browsers with hardware acceleration.
 Everything runs inside the browser with no server support and is accelerated with WebGPU.
 
-**WebLLM is fully compatible with [OpenAI API](https://platform.openai.com/docs/api-reference/chat).**
+WebLLM is **fully compatible with [OpenAI API](https://platform.openai.com/docs/api-reference/chat).**
 That is, you can use the same OpenAI API on **any open source models** locally, with functionalities
 including json-mode, function-calling, streaming, etc.
 
