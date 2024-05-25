@@ -11,7 +11,7 @@
 </div>
 
 **WebLLM is a high-performance in-browser LLM inference engine** that directly
-brings language model chats directly onto web browsers with hardware acceleration.
+brings language model inference directly onto web browsers with hardware acceleration.
 Everything runs inside the browser with no server support and is accelerated with WebGPU.
 
 **WebLLM is fully compatible with [OpenAI API](https://platform.openai.com/docs/api-reference/chat).**
@@ -21,7 +21,7 @@ including json-mode, function-calling, streaming, etc.
 We can bring a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration.
 
 You can use WebLLM as a base [npm package](https://www.npmjs.com/package/@mlc-ai/web-llm) and build your own web application on top of it by following the [documentation](https://mlc.ai/mlc-llm/docs/deploy/javascript.html) and checking out [Get Started](#get-started).
-This project is a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm), which runs LLMs natively on iPhone and other native local environments.
+This project is a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm), which enables universal deployment of LLM across hardware environments.
 
 <div align="center">
 
