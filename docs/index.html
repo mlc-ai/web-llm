@@ -131,6 +131,8 @@
 </section>
 
 <script>
+  (function() {
+
   function handlerIn(e) {
     $(this).addClass("expanded");
   }
@@ -140,6 +142,27 @@
 
   $(".chat-link").hover(handlerIn, handlerOut);
   $(".github-link").hover(handlerIn, handlerOut);
+
+  var video = $("video")[0];
+  video.play().then((_) => {
+    let observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (
+              entry.intersectionRatio !== 1 &&
+              !video.paused
+          ) {
+            video.pause();
+          } else if (video.paused) {
+            video.play();
+          }
+        });
+      },
+        { threshold: 0.2 }
+    );
+    observer.observe(video);
+  });
+})()
 </script>
 
 <h2 id="overview">Overview</h2>
