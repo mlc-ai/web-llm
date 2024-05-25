@@ -1,8 +1,6 @@
 <div align="center">
 
-[![NPM Package](./site/img/logo/mlc-logo-with-text-landscape.png)](https://mlc.ai)
-
-# WebLLM
+# WebLLM: High-Performance In-Browser LLM Inference Engine
 
 [![NPM Package](https://img.shields.io/badge/NPM_Package-Published-cc3534)](https://www.npmjs.com/package/@mlc-ai/web-llm)
 [!["WebLLM Chat Deployed"](https://img.shields.io/badge/WebLLM_Chat-Deployed-%2332a852?logo=github)](https://chat.webllm.ai/)
