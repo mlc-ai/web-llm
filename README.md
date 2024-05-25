@@ -10,7 +10,7 @@
 
 </div>
 
-WebLLM is a **high-performance in-browser LLM inference engine** that directly
+**WebLLM is a high-performance in-browser LLM inference engine** that directly
 brings language model chats directly onto web browsers with hardware acceleration.
 Everything runs inside the browser with no server support and is accelerated with WebGPU.
 
