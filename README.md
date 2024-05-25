@@ -1,6 +1,6 @@
 <div align="center">
 
-# WebLLM: High-Performance In-Browser LLM Inference Engine
+# WebLLM
 
 [![NPM Package](https://img.shields.io/badge/NPM_Package-Published-cc3534)](https://www.npmjs.com/package/@mlc-ai/web-llm)
 [!["WebLLM Chat Deployed"](https://img.shields.io/badge/WebLLM_Chat-Deployed-%2332a852?logo=github)](https://chat.webllm.ai/)
@@ -10,9 +10,9 @@
 
 </div>
 
-WebLLM is a modular and customizable javascript package that directly
+WebLLM is a **high-performance in-browser LLM inference engine** that directly
 brings language model chats directly onto web browsers with hardware acceleration.
-**Everything runs inside the browser with no server support and is accelerated with WebGPU.**
+Everything runs inside the browser with no server support and is accelerated with WebGPU.
 
 **WebLLM is fully compatible with [OpenAI API](https://platform.openai.com/docs/api-reference/chat).**
 That is, you can use the same OpenAI API on **any open source models** locally, with functionalities
