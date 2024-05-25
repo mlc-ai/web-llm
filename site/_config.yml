@@ -1,5 +1,4 @@
-
-name: "Web LLM"
+name: "WebLLM"
 short_name: "WebLLM"
 
 url: https://webllm.mlc.ai
@@ -10,7 +9,6 @@ plugins:
   - jekyll-remote-theme
 
 remote_theme: mlc-ai/jekyll-theme-mlc
-
 
 # Colorize code snippets with the rogue module if we want to deploy on GH.
 highlighter: rouge
@@ -24,7 +22,7 @@ permalink: /blog/:year/:month/:day/:title.html
 front_page_news: 8
 
 # Base pathname for links.
-base: ''
+base: ""
 
 # make pages for the _projects folder
 collections:
