@@ -1,98 +1,148 @@
 <!DOCTYPE html>
 <html>
-    <head>
-        <title>WebLLM | Home</title>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-        <link rel="stylesheet"
-              href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css"
-              integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb"
-              crossorigin="anonymous">
-        <link rel="stylesheet"
-              href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
-        <link rel="stylesheet" href="/assets/css/main.css">
-        <link rel="stylesheet" href="/assets/css/group.css">
-        <!-- <link rel="stylesheet" href="/css/table.css">          -->
-        <link rel="shortcut icon" href="/assets/img/logo/mlc-favicon.png">
-        <meta http-equiv="origin-trial" content="Agx76XA0ITxMPF0Z8rbbcMllwuxsyp9qdtQaXlLqu1JUrdHB6FPonuyIKJ3CsBREUkeioJck4nn3KO0c0kkwqAMAAABJeyJvcmlnaW4iOiJodHRwOi8vbG9jYWxob3N0Ojg4ODgiLCJmZWF0dXJlIjoiV2ViR1BVIiwiZXhwaXJ5IjoxNjkxNzExOTk5fQ==">
-<meta http-equiv="origin-trial" content="AnmwqQ1dtYDQTYkZ5iMtHdINCaxjE94uWQBKp2yOz1wPTcjSRtOHUGQG+r2BxsEuM0qhxTVnuTjyh31HgTeA8gsAAABZeyJvcmlnaW4iOiJodHRwczovL21sYy5haTo0NDMiLCJmZWF0dXJlIjoiV2ViR1BVIiwiZXhwaXJ5IjoxNjkxNzExOTk5LCJpc1N1YmRvbWFpbiI6dHJ1ZX0=">
+  <head>
+    <title>WebLLM | Home</title>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no"
+    />
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css"
+      integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"
+    />
+    <link rel="stylesheet" href="/assets/css/main.css" />
+    <link rel="stylesheet" href="/assets/css/group.css" />
+    <!-- <link rel="stylesheet" href="/css/table.css">          -->
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="/assets/img/logo/mlc-favicon-32x32.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="16x16"
+      href="/assets/img/logo/mlc-favicon-16x16.png"
+    />
+    <link
+      rel="icon"
+      type="image/x-icon"
+      sizes="48x48"
+      href="/assets/img/logo/mlc-favicon.ico"
+    />
+    <meta name="description" content="WebLLM: High-Performance In-Browser LLM Serving Engine.">
+<meta
+  http-equiv="origin-trial"
+  content="Agx76XA0ITxMPF0Z8rbbcMllwuxsyp9qdtQaXlLqu1JUrdHB6FPonuyIKJ3CsBREUkeioJck4nn3KO0c0kkwqAMAAABJeyJvcmlnaW4iOiJodHRwOi8vbG9jYWxob3N0Ojg4ODgiLCJmZWF0dXJlIjoiV2ViR1BVIiwiZXhwaXJ5IjoxNjkxNzExOTk5fQ=="
+/>
+<meta
+  http-equiv="origin-trial"
+  content="AnmwqQ1dtYDQTYkZ5iMtHdINCaxjE94uWQBKp2yOz1wPTcjSRtOHUGQG+r2BxsEuM0qhxTVnuTjyh31HgTeA8gsAAABZeyJvcmlnaW4iOiJodHRwczovL21sYy5haTo0NDMiLCJmZWF0dXJlIjoiV2ViR1BVIiwiZXhwaXJ5IjoxNjkxNzExOTk5LCJpc1N1YmRvbWFpbiI6dHJ1ZX0="
+/>
 <script src="https://code.jquery.com/jquery-3.6.3.min.js" integrity="sha256-pvPw+upLPUjgMXY0G+8O0xUf+/Im1MZjXxxgOcBQBXU=" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="/assets/css/hero.css" />
+  </head>
+  <body>
+    <div class="container">
+      <!-- This is a bit nasty, but it basically says be a column first, and on larger screens be a spaced out row -->
+      <div
+        class="header d-flex flex-column flex-md-row justify-content-md-between"
+      >
+        <a href="/" id="navtitle">
+          <img
+            src="/assets/img/logo/mlc-logo-with-text-landscape.svg"
+            height="70px"
+            alt="MLC"
+            id="logo"
+          />
+        </a>
+        <ul id="navbar" class="nav nav-pills justify-content-center">
+               
 
-    </head>
-    <body>
-        <div class="container">
-            <!-- This is a bit nasty, but it basically says be a column first, and on larger screens be a spaced out row -->
-            <div class="header d-flex
-                        flex-column
-                        flex-md-row justify-content-md-between">
-              <a href="/" id="navtitle">
-                  <img src="/assets/img/logo/mlc-logo-with-text-landscape.svg" height="70px"
-                       alt="MLC" id="logo">
-              </a>
-              <ul id="topbar" class="nav nav-pills justify-content-center">
-                    
-                    
-
-                        
-
-                        
-                        
-                        
-
-                      <li class="nav-item">
-                         
-                            <a class="nav-link active"
-                               href="/">
-                                Home
-                            </a>
-                         
-                        </li>
-
-                    
-
-                        
-
-                        
-                        
-                        
-
-                      <li class="nav-item">
-                         
-                            <a class="nav-link "
-                               href="https://github.com/mlc-ai/web-llm">
-                                GitHub
-                            </a>
-                         
-                        </li>
-
-                    
-
-                </ul>
-            </div>
-
+          <li class="nav-item">
             
+            <a
+              class="nav-link active"
+              href="/"
+            >
+              Home
+            </a>
+            
+          </li>
 
+              
+
+          <li class="nav-item">
             
-            <!-- Schedule  -->
+            <a class="nav-link " href="https://github.com/mlc-ai/web-llm">
+              GitHub
+            </a>
             
-                <script>
-  $(function(){
-    $("#llm_chat").load("llm_chat.html");
-  });
+          </li>
+
+          
+        </ul>
+      </div>
+
+       
+      <!-- Schedule  -->
+      
+      <section id="hero">
+  <div class="heading-container">
+    <h1>WebLLM: High-Performance In-Browser LLM Serving Engine.</h1>
+    <div class="link-container">
+      <a class="get-start-link" href="https://llm.mlc.ai/docs/deploy/javascript.html">
+        <!-- <span class="border"></span> -->
+        <span class="get-start-link-content">
+          <span>Get Started</span>
+          <span class="arrow-container"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false" data-testid="Button-expandable-arrow">
+  <path fill="currentColor" d="M7.28033 3.21967C6.98744 2.92678 6.51256 2.92678 6.21967 3.21967C5.92678 3.51256 5.92678 3.98744 6.21967 4.28033L7.28033 3.21967ZM11 8L11.5303 8.53033C11.8232 8.23744 11.8232 7.76256 11.5303 7.46967L11 8ZM6.21967 11.7197C5.92678 12.0126 5.92678 12.4874 6.21967 12.7803C6.51256 13.0732 6.98744 13.0732 7.28033 12.7803L6.21967 11.7197ZM6.21967 4.28033L10.4697 8.53033L11.5303 7.46967L7.28033 3.21967L6.21967 4.28033ZM10.4697 7.46967L6.21967 11.7197L7.28033 12.7803L11.5303 8.53033L10.4697 7.46967Z"></path>
+  <path class="arrow-expandable" stroke="currentColor" d="M1.75 8H11" stroke-width="1.5" stroke-linecap="round"></path>
+</svg>
+</span></span>
+      </a>
+      <a class="chat-link" href="https://chat.webllm.ai">
+        <span class="border"></span>
+        <span class="chat-link-content">
+          <span>Chat with WebLLM</span>
+          <span class="arrow-container"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" focusable="false" data-testid="Button-expandable-arrow">
+  <path fill="currentColor" d="M7.28033 3.21967C6.98744 2.92678 6.51256 2.92678 6.21967 3.21967C5.92678 3.51256 5.92678 3.98744 6.21967 4.28033L7.28033 3.21967ZM11 8L11.5303 8.53033C11.8232 8.23744 11.8232 7.76256 11.5303 7.46967L11 8ZM6.21967 11.7197C5.92678 12.0126 5.92678 12.4874 6.21967 12.7803C6.51256 13.0732 6.98744 13.0732 7.28033 12.7803L6.21967 11.7197ZM6.21967 4.28033L10.4697 8.53033L11.5303 7.46967L7.28033 3.21967L6.21967 4.28033ZM10.4697 7.46967L6.21967 11.7197L7.28033 12.7803L11.5303 8.53033L10.4697 7.46967Z"></path>
+  <path class="arrow-expandable" stroke="currentColor" d="M1.75 8H11" stroke-width="1.5" stroke-linecap="round"></path>
+</svg>
+</span>
+          </span>
+      </a>
+    </div>
+  </div>
+  <div class="video-container">
+    <video autoplay="" playsinline="" muted="" poster="/assets/img/fig/light_demo.png">
+      <source src="/assets/video/light_demo.webm" type="video/webm" />
+      <source src="/assets/video/light_demo.mp4" type="video/mp4" />
+    </video>
+  </div>
+</section>
+
+<script>
+  function handlerIn(e) {
+    $(this).addClass("expanded");
+  }
+  function handlerOut(e) {
+    $(this).removeClass("expanded");
+  }
+
+  $(".chat-link").hover(handlerIn, handlerOut);
+  $(".github-link").hover(handlerIn, handlerOut);
 </script>
 
-<h1 id="web-llm">Web LLM</h1>
-
-<p><strong>Llama 2 7B/13B are now available in Web LLM!!</strong> Try it out in our <a href="#chat-demo">chat demo</a>.</p>
-
-<p><strong>Llama 2 70B is also supported.</strong> If you have a Apple Silicon Mac with 64GB or more memory, you can follow the <a href="#instructions">instructions</a> below to download and launch Chrome Canary and try out the 70B model in Web LLM.</p>
-
-<p><strong>Mistral 7B models and WizardMath</strong> are all supported!</p>
-
-<p>This project brings large-language model and LLM-based chatbot to web browsers. <strong>Everything runs inside the browser with no server support and accelerated with WebGPU.</strong> This opens up a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration. Please check out our <a href="https://github.com/mlc-ai/web-llm">GitHub repo</a> to see how we did it.
-You can use WebLLM as a base <a href="https://www.npmjs.com/package/@mlc-ai/web-llm">npm package</a> and build your own web application on top of it by following the <a href="https://mlc.ai/mlc-llm/docs/deploy/javascript.html">documentation</a>.</p>
-
-<p><img src="img/fig/pitts.png" width="100%" /></p>
+<h2 id="overview">Overview</h2>
 
 <p>We have been seeing amazing progress in generative AI and LLM recently. Thanks to the open-source efforts like LLaMA, Alpaca, Vicuna and Dolly, we start to see an exciting future of building our own open source language models and personal AI assistant.</p>
 
@@ -106,35 +156,33 @@ You can use WebLLM as a base <a href="https://www.npmjs.com/package/@mlc-ai/web-
 
 <p>WebGPU just shipped in Chrome 113.</p>
 
-<p>Select the model you want to try out. Enter your inputs, click “Send” – we are ready to go!
-The chat bot will first fetch model parameters into local cache. The download may take a few minutes, only for the first run.
-The subsequent refreshes and runs will be faster. We have tested it on Windows and Mac, you will need a GPU with about 6GB memory to run Llama-7B, Vicuna-7B, and about 3GB memory to run RedPajama-3B.</p>
+<p>Select the model you want to try out. Enter your inputs, click “Send” – we are ready to go!</p>
 
-<h2 id="chat-demo">Chat Demo</h2>
+<p>WebLLM Chat will first fetch model parameters into local cache. The download may take a few minutes, only for the first run.</p>
 
-<p>The chat demo is based on <a href="https://llama.meta.com/llama3/">Llama 3</a>, <a href="https://blog.google/technology/developers/gemma-open-models/">Gemma</a>, <a href="https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.2">Mistral-7B</a> and its variants, and many more. More model supports are on the way.</p>
-
-<div id="llm_chat"></div>
+<p>The subsequent refreshes and runs will be faster. We have tested it on Windows and Mac, you will need a GPU with about 6GB memory to run Llama-7B, Vicuna-7B, and about 3GB memory to run RedPajama-3B.</p>
 
 <p>Models with “-1k” suffix signify 1024 context length, lowering ~2-3GB VRAM requirement compared to their counterparts. Feel free to start trying with those.</p>
 
 <h2 id="links">Links</h2>
 
 <ul>
-  <li><a href="https://github.com/mlc-ai/web-llm">Web LLM GitHub</a></li>
+  <li><a href="https://github.com/mlc-ai/web-llm">WebLLM GitHub Repository</a></li>
+  <li><a href="https://github.com/mlc-ai/web-llm-chat">WebLLM Chat GitHub Repository</a></li>
   <li>You might also be interested in <a href="https://websd.mlc.ai/">Web Stable Diffusion</a>.</li>
 </ul>
 
 <h2 id="disclaimer">Disclaimer</h2>
 
 <p>This demo site is for research purposes only, subject to the model License of LLaMA, Vicuna and RedPajama. Please contact us if you find any potential violation.</p>
+ 
+    </div>
+    <!-- /container -->
 
-            
-        </div> <!-- /container -->
-
-        <!-- Support retina images. -->
-        <script type="text/javascript"
-                src="/assets/js/srcset-polyfill.js"></script>
-    </body>
-
+    <!-- Support retina images. -->
+    <script
+      type="text/javascript"
+      src="/assets/js/srcset-polyfill.js"
+    ></script>
+  </body>
 </html>
