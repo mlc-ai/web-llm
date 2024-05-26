@@ -16,7 +16,6 @@
     }
 
     .heading-container {
-        padding-top: 2rem;
         display: flex;
         flex-direction: column;
         align-items: center;
@@ -40,7 +39,7 @@
             margin-top: 2rem;
             align-items: center;
             flex-wrap: wrap;
-            font-size: 1.2rem;
+            font-size: 1rem;
             word-break: keep-all;
             font-weight: 600;
             gap: 1rem;
@@ -190,6 +189,10 @@
             h1 {
                 font-size: 3.2rem;
             }
+
+            .link-container {
+                font-size: 1.2rem;
+            }
         }
     }
 }
@@ -227,10 +230,8 @@
 @media screen and (min-width:1760px) {
     #hero {
         background: radial-gradient(1440px 100% at 75% 50%, #3352cb, #ffffff);
-
         flex-direction: row;
         gap: 4rem;
-
         padding-bottom: 12rem;
     }
 }
