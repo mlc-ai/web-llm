@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-
+import log from "loglevel";
 import { ResponseFormat } from "./openai_api_protocols";
-import { LogitProcessor, InitProgressCallback } from "./types";
+import { LogitProcessor, InitProgressCallback, LogLevel } from "./types";
 
 /**
  * Conversation template config
@@ -25,6 +25,8 @@ export enum Role {
   user = "user",
   assistant = "assistant",
 }
+
+export const DefaultLogLevel: LogLevel = "WARN";
 
 /**
  * Place holders that can be used in role templates.
@@ -91,6 +93,7 @@ export interface MLCEngineConfig {
   appConfig?: AppConfig;
   initProgressCallback?: InitProgressCallback;
   logitProcessorRegistry?: Map<string, LogitProcessor>;
+  logLevel: LogLevel;
 }
 
 /**
@@ -167,16 +170,14 @@ export function postInitAndCheckGenerationConfigValues(
     !_hasValue(config.presence_penalty)
   ) {
     config.presence_penalty = 0.0;
-    console.log(
-      "Only frequency_penalty is set; we default presence_penaty to 0.",
-    );
+    log.warn("Only frequency_penalty is set; we default presence_penaty to 0.");
   }
   if (
     _hasValue(config.presence_penalty) &&
     !_hasValue(config.frequency_penalty)
   ) {
     config.frequency_penalty = 0.0;
-    console.log(
+    log.warn(
       "Only presence_penalty is set; we default frequency_penalty to 0.",
     );
   }

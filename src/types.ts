@@ -195,3 +195,5 @@ export interface MLCEngineInterface {
     isPrefill: boolean,
   ): Promise<number>;
 }
+
+export type LogLevel = "TRACE" | "DEBUG" | "INFO" | "WARN" | "ERROR" | "SILENT";

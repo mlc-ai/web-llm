@@ -9,6 +9,7 @@ import {
   GenerateProgressCallback,
   InitProgressCallback,
   InitProgressReport,
+  LogLevel,
 } from "./types";
 import {
   ChatCompletionRequest,
@@ -31,6 +32,7 @@ import {
   WorkerResponse,
   WorkerRequest,
 } from "./message";
+import log from "loglevel";
 
 export interface PostMessageHandler {
   postMessage: (message: any) => void;
@@ -348,7 +350,8 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
   >();
   private pendingPromise = new Map<string, (msg: WorkerResponse) => void>();
 
-  constructor(worker: ChatWorker) {
+  constructor(worker: ChatWorker, logLevel: LogLevel = "WARN") {
+    log.setLevel(logLevel);
     this.worker = worker;
     worker.onmessage = (event: any) => {
       this.onmessage.bind(this)(event);
