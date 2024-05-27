@@ -206,11 +206,10 @@ export async function CreateServiceWorkerMLCEngine(
         "Please refresh the page to retry initializing the service worker.",
     );
   }
-  const serviceWorkerMLCEngine = new ServiceWorkerMLCEngine(
-    serviceWorker,
-    undefined,
-    engineConfig?.logLevel,
-  );
+  const serviceWorkerMLCEngine = new ServiceWorkerMLCEngine(serviceWorker);
+  if (engineConfig?.logLevel) {
+    serviceWorkerMLCEngine.setLogLevel(engineConfig.logLevel);
+  }
   serviceWorkerMLCEngine.setInitProgressCallback(
     engineConfig?.initProgressCallback,
   );
@@ -228,15 +227,11 @@ export async function CreateServiceWorkerMLCEngine(
 export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
   missedHeatbeat = 0;
 
-  constructor(
-    worker: IServiceWorker,
-    keepAliveMs = 10000,
-    logLevel: LogLevel = "WARN",
-  ) {
+  constructor(worker: IServiceWorker, keepAliveMs = 10000) {
     if (!("serviceWorker" in navigator)) {
       throw new Error("Service worker API is not available");
     }
-    super(new ServiceWorker(worker), logLevel);
+    super(new ServiceWorker(worker));
     const onmessage = this.onmessage.bind(this);
 
     (navigator.serviceWorker as ServiceWorkerContainer).addEventListener(

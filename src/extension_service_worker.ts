@@ -140,10 +140,10 @@ export async function CreateServiceWorkerMLCEngine(
   engineConfig?: MLCEngineConfig,
   keepAliveMs = 10000,
 ): Promise<ServiceWorkerMLCEngine> {
-  const serviceWorkerMLCEngine = new ServiceWorkerMLCEngine(
-    keepAliveMs,
-    engineConfig?.logLevel,
-  );
+  const serviceWorkerMLCEngine = new ServiceWorkerMLCEngine(keepAliveMs);
+  if (engineConfig?.logLevel) {
+    serviceWorkerMLCEngine.setLogLevel(engineConfig.logLevel);
+  }
   serviceWorkerMLCEngine.setInitProgressCallback(
     engineConfig?.initProgressCallback,
   );
@@ -192,10 +192,10 @@ class PortAdapter implements ChatWorker {
 export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
   port: chrome.runtime.Port;
 
-  constructor(keepAliveMs = 10000, logLevel: LogLevel = "WARN") {
+  constructor(keepAliveMs = 10000) {
     const port = chrome.runtime.connect({ name: "web_llm_service_worker" });
     const chatWorker = new PortAdapter(port);
-    super(chatWorker, logLevel);
+    super(chatWorker);
     this.port = port;
     setInterval(() => {
       this.keepAlive();

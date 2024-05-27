@@ -63,8 +63,8 @@ export async function CreateMLCEngine(
   modelId: string,
   engineConfig?: MLCEngineConfig,
 ): Promise<MLCEngine> {
-  log.setLevel(engineConfig?.logLevel || DefaultLogLevel);
   const engine = new MLCEngine();
+  engine.setLogLevel(engineConfig?.logLevel || DefaultLogLevel);
   engine.setInitProgressCallback(engineConfig?.initProgressCallback);
   engine.setLogitProcessorRegistry(engineConfig?.logitProcessorRegistry);
   await engine.reload(modelId, engineConfig?.chatOpts, engineConfig?.appConfig);
@@ -638,6 +638,15 @@ export class MLCEngine implements MLCEngineInterface {
    */
   async getMessage(): Promise<string> {
     return this.getPipeline().getMessage();
+  }
+
+  /**
+   * Set MLCEngine logging output level
+   *
+   * @param logLevel The new log level
+   */
+  setLogLevel(logLevel: LogLevel) {
+    log.setLevel(logLevel);
   }
 
   /**

@@ -350,8 +350,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
   >();
   private pendingPromise = new Map<string, (msg: WorkerResponse) => void>();
 
-  constructor(worker: ChatWorker, logLevel: LogLevel = "WARN") {
-    log.setLevel(logLevel);
+  constructor(worker: ChatWorker) {
     this.worker = worker;
     worker.onmessage = (event: any) => {
       this.onmessage.bind(this)(event);
@@ -626,5 +625,9 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
         );
       }
     }
+  }
+
+  setLogLevel(logLevel: LogLevel) {
+    log.setLevel(logLevel);
   }
 }
