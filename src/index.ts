@@ -14,6 +14,7 @@ export {
   InitProgressReport,
   MLCEngineInterface,
   LogitProcessor,
+  LogLevel,
 } from "./types";
 
 export { MLCEngine, CreateMLCEngine } from "./engine";

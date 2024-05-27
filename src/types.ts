@@ -194,4 +194,21 @@ export interface MLCEngineInterface {
     inputIds: Array<number>,
     isPrefill: boolean,
   ): Promise<number>;
+
+  /**
+   * Set MLCEngine logging output level
+   *
+   * @param logLevel The new log level
+   */
+  setLogLevel(logLevel: LogLevel): void;
 }
+
+export const LOG_LEVELS = {
+  TRACE: 0,
+  DEBUG: 1,
+  INFO: 2,
+  WARN: 3,
+  ERROR: 4,
+  SILENT: 5,
+};
+export type LogLevel = keyof typeof LOG_LEVELS;

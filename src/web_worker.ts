@@ -9,6 +9,7 @@ import {
   GenerateProgressCallback,
   InitProgressCallback,
   InitProgressReport,
+  LogLevel,
 } from "./types";
 import {
   ChatCompletionRequest,
@@ -31,6 +32,7 @@ import {
   WorkerResponse,
   WorkerRequest,
 } from "./message";
+import log from "loglevel";
 
 export interface PostMessageHandler {
   postMessage: (message: any) => void;
@@ -623,5 +625,9 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
         );
       }
     }
+  }
+
+  setLogLevel(logLevel: LogLevel) {
+    log.setLevel(logLevel);
   }
 }

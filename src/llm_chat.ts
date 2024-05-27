@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable no-prototype-builtins */
 import * as tvmjs from "tvmjs";
+import log from "loglevel";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
 import { ChatConfig, GenerationConfig, Role } from "./config";
 import { getConversation, Conversation } from "./conversation";
@@ -71,9 +72,6 @@ export class LLMChatPipeline {
   // same as `prefillTotalTokens` and `decodingTotalTokens`, but reset at every `prefillStep()`
   private curRoundDecodingTotalTokens = 0;
   private curRoundPrefillTotalTokens = 0;
-
-  // logger
-  private logger = console.log;
 
   // LogitProcessor
   private logitProcessor?: LogitProcessor = undefined;
@@ -154,7 +152,7 @@ export class LLMChatPipeline {
 
     // 4. Read in compilation configurations from metadata
     this.prefillChunkSize = metadata.prefill_chunk_size;
-    this.logger("Using prefillChunkSize: ", this.prefillChunkSize);
+    log.info("Using prefillChunkSize: ", this.prefillChunkSize);
     if (this.prefillChunkSize <= 0) {
       throw Error("Prefill chunk size needs to be positive.");
     }
@@ -164,14 +162,14 @@ export class LLMChatPipeline {
       metadata.sliding_window_size != -1
     ) {
       this.slidingWindowSize = metadata.sliding_window_size;
-      this.logger("Using slidingWindowSize: ", this.slidingWindowSize);
+      log.info("Using slidingWindowSize: ", this.slidingWindowSize);
       // Parse attention sink size
       if (
         metadata.hasOwnProperty("attention_sink_size") &&
         metadata.attention_sink_size >= 0
       ) {
         this.attentionSinkSize = metadata.attention_sink_size;
-        this.logger("Using attentionSinkSize: ", this.attentionSinkSize);
+        log.info("Using attentionSinkSize: ", this.attentionSinkSize);
       } else {
         throw Error(
           "Need to specify non-negative attention_sink_size if using sliding window. " +
@@ -184,7 +182,7 @@ export class LLMChatPipeline {
       metadata.context_window_size != -1
     ) {
       this.maxWindowLength = metadata.context_window_size;
-      this.logger("Using maxWindowLength: ", this.maxWindowLength);
+      log.info("Using maxWindowLength: ", this.maxWindowLength);
     } else {
       throw Error(
         "Need to specify either sliding window size or max window size.",
@@ -905,7 +903,7 @@ export class LLMChatPipeline {
     }
 
     // need shift window and re-encode
-    this.logger("need shift window");
+    log.info("need shift window");
     this.filledKVCacheLength = 0;
     this.resetKVCache();
 
@@ -1056,8 +1054,8 @@ export class LLMChatPipeline {
       `decoding-time=${((decodingEnd - decodingStart) / 1000).toFixed(4)} sec`;
 
     // simply log tokens for eyeballing.
-    console.log("Logits:");
-    console.log(logitsOnCPU.toArray());
-    console.log(msg);
+    log.info("Logits:");
+    log.info(logitsOnCPU.toArray());
+    log.info(msg);
   }
 }

@@ -1,7 +1,8 @@
 import * as tvmjs from "tvmjs";
+import log from "loglevel";
 import { AppConfig, ChatOptions, MLCEngineConfig } from "./config";
 import { ReloadParams, WorkerRequest } from "./message";
-import { MLCEngineInterface } from "./types";
+import { LogLevel, MLCEngineInterface } from "./types";
 import {
   ChatWorker,
   MLCEngineWorkerHandler,
@@ -88,7 +89,7 @@ export class ServiceWorkerMLCEngineHandler extends MLCEngineWorkerHandler {
           areChatOptionsEqual(this.chatOpts, params.chatOpts) &&
           areAppConfigsEqual(this.appConfig, params.appConfig)
         ) {
-          console.log("Already loaded the model. Skip loading");
+          log.info("Already loaded the model. Skip loading");
           const gpuDetectOutput = await tvmjs.detectGPUDevice();
           if (gpuDetectOutput == undefined) {
             throw Error("Cannot find WebGPU in the environment");
@@ -140,6 +141,9 @@ export async function CreateServiceWorkerMLCEngine(
   keepAliveMs = 10000,
 ): Promise<ServiceWorkerMLCEngine> {
   const serviceWorkerMLCEngine = new ServiceWorkerMLCEngine(keepAliveMs);
+  if (engineConfig?.logLevel) {
+    serviceWorkerMLCEngine.setLogLevel(engineConfig.logLevel);
+  }
   serviceWorkerMLCEngine.setInitProgressCallback(
     engineConfig?.initProgressCallback,
   );

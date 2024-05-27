@@ -1,7 +1,8 @@
 import * as tvmjs from "tvmjs";
+import log from "loglevel";
 import { AppConfig, ChatOptions, MLCEngineConfig } from "./config";
 import { ReloadParams, WorkerRequest, WorkerResponse } from "./message";
-import { MLCEngineInterface, InitProgressReport } from "./types";
+import { MLCEngineInterface, InitProgressReport, LogLevel } from "./types";
 import {
   MLCEngineWorkerHandler,
   WebWorkerMLCEngine,
@@ -90,7 +91,7 @@ export class ServiceWorkerMLCEngineHandler extends MLCEngineWorkerHandler {
     onError?: () => void,
   ): void {
     const msg = event.data as WorkerRequest;
-    console.debug(
+    log.trace(
       `ServiceWorker message: [${msg.kind}] ${JSON.stringify(msg.content)}`,
     );
 
@@ -114,7 +115,7 @@ export class ServiceWorkerMLCEngineHandler extends MLCEngineWorkerHandler {
           areChatOptionsEqual(this.chatOpts, params.chatOpts) &&
           areAppConfigsEqual(this.appConfig, params.appConfig)
         ) {
-          console.log("Already loaded the model. Skip loading");
+          log.info("Already loaded the model. Skip loading");
           const gpuDetectOutput = await tvmjs.detectGPUDevice();
           if (gpuDetectOutput == undefined) {
             throw Error("Cannot find WebGPU in the environment");
@@ -206,6 +207,9 @@ export async function CreateServiceWorkerMLCEngine(
     );
   }
   const serviceWorkerMLCEngine = new ServiceWorkerMLCEngine(serviceWorker);
+  if (engineConfig?.logLevel) {
+    serviceWorkerMLCEngine.setLogLevel(engineConfig.logLevel);
+  }
   serviceWorkerMLCEngine.setInitProgressCallback(
     engineConfig?.initProgressCallback,
   );
@@ -234,7 +238,7 @@ export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
       "message",
       (event: MessageEvent) => {
         const msg = event.data;
-        console.debug(
+        log.trace(
           `MLC client message: [${msg.kind}] ${JSON.stringify(msg.content)}`,
         );
         try {
@@ -246,7 +250,7 @@ export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
         } catch (err: any) {
           // This is expected to throw if user has multiple windows open
           if (!err.message.startsWith("return from a unknown uuid")) {
-            console.error("CreateWebServiceWorkerMLCEngine.onmessage", err);
+            log.error("CreateWebServiceWorkerMLCEngine.onmessage", err);
           }
         }
       },
@@ -255,7 +259,7 @@ export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
     setInterval(() => {
       this.worker.postMessage({ kind: "keepAlive", uuid: crypto.randomUUID() });
       this.missedHeatbeat += 1;
-      console.debug("missedHeatbeat", this.missedHeatbeat);
+      log.trace("missedHeatbeat", this.missedHeatbeat);
     }, keepAliveMs);
   }
 

@@ -1,4 +1,5 @@
 import * as tvmjs from "tvmjs";
+import log from "loglevel";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
 import * as API from "./openai_api_protocols/apis";
 import {
@@ -10,6 +11,7 @@ import {
   postInitAndCheckGenerationConfigValues,
   Role,
   MLCEngineConfig,
+  DefaultLogLevel,
 } from "./config";
 import { LLMChatPipeline } from "./llm_chat";
 import {
@@ -30,6 +32,7 @@ import {
   MLCEngineInterface,
   GenerateProgressCallback,
   LogitProcessor,
+  LogLevel,
 } from "./types";
 import {
   Conversation,
@@ -61,6 +64,7 @@ export async function CreateMLCEngine(
   engineConfig?: MLCEngineConfig,
 ): Promise<MLCEngine> {
   const engine = new MLCEngine();
+  engine.setLogLevel(engineConfig?.logLevel || DefaultLogLevel);
   engine.setInitProgressCallback(engineConfig?.initProgressCallback);
   engine.setLogitProcessorRegistry(engineConfig?.logitProcessorRegistry);
   await engine.reload(modelId, engineConfig?.chatOpts, engineConfig?.appConfig);
@@ -76,7 +80,7 @@ export class MLCEngine implements MLCEngineInterface {
   public chat: API.Chat;
 
   private currentModelId?: string = undefined; // Model current loaded, undefined if nothing is loaded
-  private logger: (msg: string) => void = console.log;
+  private logger: (msg: string) => void = log.info;
   private logitProcessorRegistry?: Map<string, LogitProcessor>;
   private logitProcessor?: LogitProcessor;
   private pipeline?: LLMChatPipeline;
@@ -238,7 +242,7 @@ export class MLCEngine implements MLCEngineInterface {
     let deviceLostInReload = false;
     gpuDetectOutput.device.lost.then((info: any) => {
       if (this.deviceLostIsError) {
-        console.error(
+        log.error(
           `Device was lost during reload. This can happen due to insufficient memory or other GPU constraints. Detailed error: ${info}. Please try to reload WebLLM with a less resource-intensive model.`,
         );
         this.unload();
@@ -291,7 +295,7 @@ export class MLCEngine implements MLCEngineInterface {
     streamInterval = 1,
     genConfig?: GenerationConfig,
   ): Promise<string> {
-    console.log(
+    log.warn(
       "WARNING: `generate()` will soon be deprecated. " +
         "Please use `engine.chat.completions.create()` instead. " +
         "For multi-round chatting, see `examples/multi-round-chat` on how to use " +
@@ -579,7 +583,7 @@ export class MLCEngine implements MLCEngineInterface {
       gpuDetectOutput.device.limits.maxStorageBufferBindingSize;
     const defaultMaxStorageBufferBindingSize = 1 << 30; // 1GB
     if (maxStorageBufferBindingSize < defaultMaxStorageBufferBindingSize) {
-      console.log(
+      log.warn(
         `WARNING: the current maxStorageBufferBindingSize ` +
           `(${computeMB(maxStorageBufferBindingSize)}) ` +
           `may only work for a limited number of models, e.g.: \n` +
@@ -634,6 +638,15 @@ export class MLCEngine implements MLCEngineInterface {
    */
   async getMessage(): Promise<string> {
     return this.getPipeline().getMessage();
+  }
+
+  /**
+   * Set MLCEngine logging output level
+   *
+   * @param logLevel The new log level
+   */
+  setLogLevel(logLevel: LogLevel) {
+    log.setLevel(logLevel);
   }
 
   /**
@@ -792,7 +805,7 @@ export class MLCEngine implements MLCEngineInterface {
         this.resetChat();
         this.getPipeline().setConversation(newConv);
       } else {
-        console.log("Multiround chatting, reuse KVCache.");
+        log.info("Multiround chatting, reuse KVCache.");
       }
 
       // 2. Treat the last message as the usual input

@@ -1,6 +1,7 @@
 import ModelRecord from "@mlc-ai/web-llm";
-import appConfig from "./app-config";  // Modify this to inspect vram requirement for models of choice
+import appConfig from "./app-config"; // Modify this to inspect vram requirement for models of choice
 import * as tvmjs from "tvmjs";
+import log from "loglevel";
 
 function setLabel(id: string, text: string) {
   const label = document.getElementById(id);
@@ -14,16 +15,16 @@ interface AppConfig {
   model_list: Array<ModelRecord>;
 }
 
-let dtypeBytesMap = new Map<string, number>([
+const dtypeBytesMap = new Map<string, number>([
   ["uint32", 4],
   ["uint16", 2],
   ["float32", 4],
-  ["float16", 4]
+  ["float16", 4],
 ]);
 
 async function main() {
-  let config: AppConfig = appConfig;
-  let report: string = "";
+  const config: AppConfig = appConfig;
+  let report = "";
   for (let i = 0; i < config.model_list.length; ++i) {
     // 1. Read each model record
     const modelRecord: ModelRecord = config.model_list[i];
@@ -36,7 +37,7 @@ async function main() {
     const tvm = await tvmjs.instantiate(
       new Uint8Array(wasmSource),
       tvmjs.createPolyfillWASI(),
-      console.log
+      log.info,
     );
     const gpuDetectOutput = await tvmjs.detectGPUDevice();
     if (gpuDetectOutput == undefined) {
@@ -45,14 +46,17 @@ async function main() {
     tvm.initWebGPU(gpuDetectOutput.device);
     tvm.beginScope();
     const vm = tvm.detachFromCurrentScope(
-      tvm.createVirtualMachine(tvm.webgpu())
+      tvm.createVirtualMachine(tvm.webgpu()),
     );
     // 4. Get metadata from the vm
     let fgetMetadata: any;
     try {
       fgetMetadata = vm.getFunction("_metadata");
     } catch (err) {
-      console.error("The wasm needs to have function `_metadata` to inspect vram requirement.", err);
+      log.error(
+        "The wasm needs to have function `_metadata` to inspect vram requirement.",
+        err,
+      );
     }
     const ret_value = fgetMetadata();
     const metadataStr = tvm.detachFromCurrentScope(ret_value).toString();
@@ -65,33 +69,38 @@ async function main() {
         // Possible to have shape -1 signifying a dynamic shape -- we disregard them
         const dtypeBytes = dtypeBytesMap.get(param.dtype);
         if (dtypeBytes === undefined) {
-          throw Error("Cannot find size of " + param.dtype + ", add it to `dtypeBytesMap`.")
+          throw Error(
+            "Cannot find size of " +
+              param.dtype +
+              ", add it to `dtypeBytesMap`.",
+          );
         }
         const numParams = param.shape.reduce((a: number, b: number) => a * b);
         paramBytes += numParams * dtypeBytes;
       } else {
-        console.log(`${model_id}'s ${param.name} has dynamic shape; excluded from vRAM calculation.`)
+        log.info(
+          `${model_id}'s ${param.name} has dynamic shape; excluded from vRAM calculation.`,
+        );
       }
     });
     // 5.2. Get maximum bytes needed for temporary buffer across all functions
-    let maxTempFuncBytes: number = 0;
+    let maxTempFuncBytes = 0;
     Object.entries(metadata.memory_usage).forEach(([funcName, funcBytes]) => {
       if (typeof funcBytes !== "number") {
-        throw Error("`memory_usage` expects entry `funcName: funcBytes`.")
+        throw Error("`memory_usage` expects entry `funcName: funcBytes`.");
       }
       maxTempFuncBytes = Math.max(maxTempFuncBytes, funcBytes);
-    })
+    });
     // 5.3. Get kv cache bytes
     const kv_cache_bytes: number = metadata.kv_cache_bytes;
     // 5.4. Get total vRAM needed
     const totalBytes = paramBytes + maxTempFuncBytes + kv_cache_bytes;
     // 6. Report vRAM Requirement
-    report += (
+    report +=
       `totalBytes: ${(totalBytes / 1024 / 1024).toFixed(2)} MB\n` +
       `paramBytes: ${(paramBytes / 1024 / 1024).toFixed(2)} MB\n` +
       `maxTempFuncBytes: ${(maxTempFuncBytes / 1024 / 1024).toFixed(2)} MB\n` +
-      `kv_cache_bytes: ${(kv_cache_bytes / 1024 / 1024).toFixed(2)} MB\n\n`
-    );
+      `kv_cache_bytes: ${(kv_cache_bytes / 1024 / 1024).toFixed(2)} MB\n\n`;
     // 7. Dispose everything
     tvm.endScope();
     vm.dispose();
