@@ -3,16 +3,20 @@
 This page contains a curated list of examples, tutorials, blogs about WebLLM usecases.
 Please send a pull request if you find things that belongs to here.
 
-## Tutorial Examples
+## Example Projects
 
 Note that all examples below run in-browser and use WebGPU as a backend.
 
-#### Basic Chat Completion
+#### Project List
 - [get-started](get-started): minimum get started example with chat completion.
 - [get-started-web-worker](get-started-web-worker): same as get-started, but using web worker.
-- [multi-round-chat](multi-round-chat): while APIs are functional, we internally optimize so that multi round chat usage can reuse KV cache
-- [simple-chat](simple-chat): a mininum and complete chat bot app.
+- [simple-chat-js](simple-chat-js): a mininum and complete chat bot app in vanilla JavaScript.
+
+  [![Open on JSFiddle](https://img.shields.io/badge/open-JSFiddle-blue?logo=jsfiddle&logoColor=white)](https://jsfiddle.net/neetnestor/4nmgvsa2/)
+  [![Open on Codepen](https://img.shields.io/badge/open-codepen-black?logo=codepen)](https://codepen.io/neetnestor/pen/vYwgZaG)
+- [simple-chat-ts](simple-chat-ts): a mininum and complete chat bot app.
 - [next-simple-chat](next-simple-chat): a mininum and complete chat bot app with [Next.js](https://nextjs.org/).
+- [multi-round-chat](multi-round-chat): while APIs are functional, we internally optimize so that multi round chat usage can reuse KV cache
 
 #### Advanced OpenAI API Capabilities
 These examples demonstrate various capabilities via WebLLM's OpenAI-like API.

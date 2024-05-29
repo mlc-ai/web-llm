@@ -33,7 +33,9 @@ class ChatUI {
     // get the elements
     chatUI.uiChat = getElementAndCheck("chatui-chat");
     chatUI.uiChatInput = getElementAndCheck("chatui-input") as HTMLInputElement;
-    chatUI.uiChatInfoLabel = getElementAndCheck("chatui-info-label") as HTMLLabelElement;
+    chatUI.uiChatInfoLabel = getElementAndCheck(
+      "chatui-info-label",
+    ) as HTMLLabelElement;
     // register event handlers
     getElementAndCheck("chatui-reset-btn").onclick = () => {
       chatUI.onReset();
@@ -52,8 +54,8 @@ class ChatUI {
     // phone) can only handle small models and make all other models unselectable. Otherwise, the
     // browser may crash. See https://github.com/mlc-ai/web-llm/issues/209.
     // Also use GPU vendor to decide whether it is a mobile device (hence with limited resources).
-    const androidMaxStorageBufferBindingSize = 1 << 27;  // 128MB
-    const mobileVendors = new Set<string>(["qualcomm", "arm"])
+    const androidMaxStorageBufferBindingSize = 1 << 27; // 128MB
+    const mobileVendors = new Set<string>(["qualcomm", "arm"]);
     let restrictModels = false;
     let maxStorageBufferBindingSize: number;
     let gpuVendor: string;
@@ -67,24 +69,34 @@ class ChatUI {
       console.log(err.stack);
       return;
     }
-    if ((gpuVendor.length != 0 && mobileVendors.has(gpuVendor)) ||
-      (maxStorageBufferBindingSize <= androidMaxStorageBufferBindingSize)) {
-      chatUI.appendMessage("init", "Your device seems to have " +
-        "limited resources, so we restrict the selectable models.");
+    if (
+      (gpuVendor.length != 0 && mobileVendors.has(gpuVendor)) ||
+      maxStorageBufferBindingSize <= androidMaxStorageBufferBindingSize
+    ) {
+      chatUI.appendMessage(
+        "init",
+        "Your device seems to have " +
+          "limited resources, so we restrict the selectable models.",
+      );
       restrictModels = true;
     }
 
     // Populate modelSelector
-    const modelSelector = getElementAndCheck("chatui-select") as HTMLSelectElement;
+    const modelSelector = getElementAndCheck(
+      "chatui-select",
+    ) as HTMLSelectElement;
     for (let i = 0; i < chatUI.config.model_list.length; ++i) {
       const item = chatUI.config.model_list[i];
       const opt = document.createElement("option");
       opt.value = item.model_id;
       opt.innerHTML = item.model_id;
-      opt.selected = (i == 0);
+      opt.selected = i == 0;
       if (
-        (restrictModels && (item.low_resource_required === undefined || !item.low_resource_required)) ||
-        (item.buffer_size_required_bytes && maxStorageBufferBindingSize < item.buffer_size_required_bytes)
+        (restrictModels &&
+          (item.low_resource_required === undefined ||
+            !item.low_resource_required)) ||
+        (item.buffer_size_required_bytes &&
+          maxStorageBufferBindingSize < item.buffer_size_required_bytes)
       ) {
         // Either on a low-resource device and not a low-resource model
         // Or device's maxStorageBufferBindingSize does not satisfy the model's need (if specified)
@@ -92,7 +104,11 @@ class ChatUI {
         opt.disabled = !params.has("bypassRestrictions");
         opt.selected = false;
       }
-      if (!modelSelector.lastChild?.textContent?.startsWith(opt.value.split('-')[0])) {
+      if (
+        !modelSelector.lastChild?.textContent?.startsWith(
+          opt.value.split("-")[0],
+        )
+      ) {
         modelSelector.appendChild(document.createElement("hr"));
       }
       modelSelector.appendChild(opt);
@@ -105,7 +121,7 @@ class ChatUI {
     };
 
     return chatUI;
-  }
+  };
 
   /**
    * Push a task to the execution queue.
@@ -190,7 +206,8 @@ class ChatUI {
     `;
     this.uiChat.insertAdjacentHTML("beforeend", msg);
     // Recurse three times to get `msg-text`
-    const msgElement = this.uiChat.lastElementChild?.lastElementChild?.lastElementChild as HTMLElement;
+    const msgElement = this.uiChat.lastElementChild?.lastElementChild
+      ?.lastElementChild as HTMLElement;
     msgElement.insertAdjacentText("beforeend", text);
     this.uiChat.scrollTo(0, this.uiChat.scrollHeight);
   }
@@ -208,12 +225,12 @@ class ChatUI {
     const msgText = msg.getElementsByClassName("msg-text");
     if (msgText.length != 1) throw Error("Expect msg-text");
     if (msgText[0].innerHTML == text) return;
-    const list = text.split('\n').map((t) => {
-      const item = document.createElement('div');
+    const list = text.split("\n").map((t) => {
+      const item = document.createElement("div");
       item.textContent = t;
       return item;
     });
-    msgText[0].innerHTML = '';
+    msgText[0].innerHTML = "";
     list.forEach((item) => msgText[0].append(item));
     this.uiChat.scrollTo(0, this.uiChat.scrollHeight);
   }
@@ -239,7 +256,7 @@ class ChatUI {
     this.appendMessage("init", "");
     const initProgressCallback = (report) => {
       this.updateLastMessage("init", report.text);
-    }
+    };
     this.engine.setInitProgressCallback(initProgressCallback);
 
     try {
@@ -277,11 +294,14 @@ class ChatUI {
     this.uiChatInput.setAttribute("placeholder", "Generating...");
 
     this.appendMessage("left", "");
-    this.chatHistory.push({ "role": "user", "content": prompt });
+    this.chatHistory.push({ role: "user", content: prompt });
 
     try {
       let curMessage = "";
-      const completion = await this.engine.chat.completions.create({ stream: true, messages: this.chatHistory });
+      const completion = await this.engine.chat.completions.create({
+        stream: true,
+        messages: this.chatHistory,
+      });
       // TODO(Charlie): Processing of � requires changes
       for await (const chunk of completion) {
         const curDelta = chunk.choices[0].delta.content;
@@ -292,8 +312,8 @@ class ChatUI {
       }
       this.uiChatInfoLabel.innerHTML = await this.engine.runtimeStatsText();
       const finalMessage = await this.engine.getMessage();
-      this.updateLastMessage("left", finalMessage);  // TODO: Remove this after � issue is fixed
-      this.chatHistory.push({ "role": "assistant", "content": finalMessage });
+      this.updateLastMessage("left", finalMessage); // TODO: Remove this after � issue is fixed
+      this.chatHistory.push({ role: "assistant", content: finalMessage });
     } catch (err) {
       this.appendMessage("error", "Generate error, " + err.toString());
       console.log(err.stack);
@@ -309,10 +329,9 @@ let engine: webllm.MLCEngineInterface;
 
 // Here we do not use `CreateMLCEngine()` but instantiate an engine that is not loaded with model
 if (useWebWorker) {
-  engine = new webllm.WebWorkerMLCEngine(new Worker(
-    new URL('./worker.ts', import.meta.url),
-    { type: 'module' }
-  ));
+  engine = new webllm.WebWorkerMLCEngine(
+    new Worker(new URL("./worker.ts", import.meta.url), { type: "module" }),
+  );
 } else {
   engine = new webllm.MLCEngine();
 }

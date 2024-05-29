@@ -6,5 +6,13 @@ module.exports = {
     rules: {
         "@typescript-eslint/no-explicit-any": "off",
         "@typescript-eslint/no-empty-function": "off"
-    }
+    },
+    overrides: [
+        {
+          "files": ["examples/**/*.js"],
+          "rules": {
+            "no-undef": "off"
+          }
+        }
+    ]
 };
