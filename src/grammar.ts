@@ -107,14 +107,14 @@ export class GrammarFactory {
    * Creates a Grammar State Matcher from a specified BNFGrammar rule and a token table.
    *
    * @param grammar A BNFGrammar used to specify the rule for the state matcher.
-   * @param tokenTable A list of all tokens in the tokenizer in the order of their ids.
+   * @param tokenTable A list of all tokens in the tokenizer in the order of their ids, post processed.
    * @param maxRollbackSteps Max rollback steps to support. Currently not supported, has to be zero.
    * @returns A Grammar state matcher
    * @note Caller needs to handle disposal of returned object.
    */
   getGrammarStateMatcherFromTokenTable(
     grammar: BNFGrammar,
-    tokenTable: string[],
+    tokenTable: tvmjs.TVMObject,
     maxRollbackSteps = 0,
   ): GrammarStateMatcher {
     if (maxRollbackSteps !== 0) {

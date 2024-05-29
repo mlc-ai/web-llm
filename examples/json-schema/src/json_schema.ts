@@ -38,8 +38,8 @@ async function simpleStructuredTextExample() {
     setLabel("init-label", report.text);
   };
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
-    "Llama-2-7b-chat-hf-q4f16_1",
-    { initProgressCallback: initProgressCallback }
+    "Llama-3-8B-Instruct-q4f16_1",
+    { initProgressCallback: initProgressCallback },
   );
 
   const request: webllm.ChatCompletionRequest = {
@@ -105,8 +105,8 @@ async function harryPotterExample() {
   };
 
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
-    "Llama-2-7b-chat-hf-q4f16_1",
-    { initProgressCallback: initProgressCallback }
+    "Llama-3-8B-Instruct-q4f16_1",
+    { initProgressCallback: initProgressCallback },
   );
 
   const request: webllm.ChatCompletionRequest = {
@@ -138,7 +138,7 @@ async function functionCallingExample() {
       Type.Object({
         arguments: Type.Any(),
         name: Type.String(),
-      })
+      }),
     ),
   });
   type T = Static<typeof T>;
@@ -170,12 +170,12 @@ async function functionCallingExample() {
     setLabel("init-label", report.text);
   };
 
-  const selectedModel = "Hermes-2-Pro-Mistral-7B-q4f16_1";
+  const selectedModel = "Hermes-2-Pro-Llama-3-8B-q4f16_1";
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
     {
       initProgressCallback: initProgressCallback,
-    }
+    },
   );
 
   const request: webllm.ChatCompletionRequest = {
@@ -184,12 +184,12 @@ async function functionCallingExample() {
       {
         role: "system",
         content: `You are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags. You may call one or more functions to assist with the user query. Don't make assumptions about what values to plug into functions. Here are the available tools: <tools> ${JSON.stringify(
-          tools
+          tools,
         )} </tools>. Do not stop calling functions until the task has been accomplished or you've reached max iteration of 10.
       Calling multiple functions at once can overload the system and increase cost so call one function at a time please.
       If you plan to continue with analysis, always call another function.
       Return a valid json object (using double quotes) in the following schema: ${JSON.stringify(
-        schema
+        schema,
       )}.`,
       },
       {

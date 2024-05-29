@@ -27,6 +27,7 @@ export class LLMChatPipeline {
   private decoding: tvmjs.PackedFunc;
   private embed: tvmjs.PackedFunc;
   private fapplyBitmask: tvmjs.PackedFunc;
+  private fpostProcessTokenTable: tvmjs.PackedFunc;
   // Functions related to PagedKVCache
   private fclearKVCaches: tvmjs.PackedFunc;
   private fKVCacheAddSequence: tvmjs.PackedFunc;
@@ -86,11 +87,13 @@ export class LLMChatPipeline {
   // using JSON mode. We use this field to determine whether we re-initiate a GrammarStateMatcher
   // or simply reset the state during each round (i.e. during prefillStep).
   private schema?: string = undefined;
-  // A string list of tokens ordered by their token id. Once initialized, will not be reinitialized
-  // since `this.tokenizer` does not change throughout the lifetime of LLMChatPipeline.
-  private tokenTable?: string[] = undefined;
+  // A string list of tokens ordered by their token id, post-processed. Once initialized, will not
+  // be reinitialized since `this.tokenizer` does not change throughout the lifetime of LLMChatPipeline.
+  private tokenTable?: tvmjs.TVMObject = undefined;
   private bitmaskSize: number;
   private vocabSize: number;
+  // Method to post process the token for grammar; either "byte_level" or default "byte_fallback".
+  private token_postproc_method: string;
 
   constructor(
     tvm: tvmjs.Instance,
@@ -116,6 +119,22 @@ export class LLMChatPipeline {
     if (config.bos_token_id !== undefined) {
       this.bosTokenId = config.bos_token_id;
     }
+    // Set token_post_proc_method, currently mlc-chat-config.json are unstable, hence various
+    // fallback mechanisms
+    if (config.tokenizer_info !== undefined) {
+      this.token_postproc_method = config.tokenizer_info.token_postproc_method;
+    } else if (config.token_table_postproc_method !== undefined) {
+      this.token_postproc_method = config.token_table_postproc_method;
+    } else {
+      console.log(
+        "Cannot find `tokenizer_info` or `token_table_postproc_method` in `mlc-chat-config.json`, " +
+          "using default token_postproc_method `byte_fallback`.\n" +
+          "Models that should not use `byte_fallback` include: Llama3, Qwen1.5-1.8B, StableLM-zerphyr-1.6B.\n" +
+          "This field is only used for json mode.",
+      );
+      this.token_postproc_method = "byte_fallback";
+    }
+    console.log("token_postproc_method: ", this.token_postproc_method);
 
     this.device = this.tvm.webgpu();
 
@@ -133,6 +152,9 @@ export class LLMChatPipeline {
     );
     this.fapplyBitmask = this.tvm.detachFromCurrentScope(
       this.vm.getFunction("apply_bitmask_inplace"),
+    );
+    this.fpostProcessTokenTable = this.tvm.detachFromCurrentScope(
+      tvm.getGlobalFunc("mlc.PostProcessTokenTable"),
     );
 
     // 2. Get json stored in the vm's metadata function
@@ -429,7 +451,12 @@ export class LLMChatPipeline {
           this.grammarStateMatcher.dispose();
         }
         if (this.tokenTable === undefined) {
-          this.tokenTable = getTokenTableFromTokenizer(this.tokenizer);
+          const rawTokenTable = getTokenTableFromTokenizer(this.tokenizer);
+          // Post process entire table
+          this.tokenTable = this.fpostProcessTokenTable(
+            rawTokenTable,
+            this.token_postproc_method,
+          );
         }
         const grammar: BNFGrammar =
           curSchema === undefined
@@ -438,7 +465,7 @@ export class LLMChatPipeline {
         this.grammarStateMatcher = this.tvm.detachFromCurrentScope(
           this.grammarFactory.getGrammarStateMatcherFromTokenTable(
             grammar,
-            this.tokenTable,
+            this.tokenTable!,
           ),
         );
         this.schema = curSchema;
@@ -860,7 +887,10 @@ export class LLMChatPipeline {
     let prompts;
     // beginning of the conversation
     if (this.filledKVCacheLength === 0) {
-      if (this.conversation.config.system_prefix_token_ids !== undefined) {
+      if (
+        this.conversation.config.system_prefix_token_ids !== undefined &&
+        this.conversation.config.system_prefix_token_ids !== null
+      ) {
         tokens = [...this.conversation.config.system_prefix_token_ids];
       }
       prompts = this.conversation.getPromptArray();
