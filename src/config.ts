@@ -428,7 +428,7 @@ export const prebuiltAppConfig: AppConfig = {
     },
     {
       model: "https://huggingface.co/mlc-ai/Llama-2-13b-chat-hf-q4f16_1-MLC",
-      model_id: "Llama-2-13b-chat-hf-q4f16_1",
+      model_id: "Llama-2-13b-chat-hf-q4f16_1-MLC",
       model_lib:
         modelLibURLPrefix +
         modelVersion +
