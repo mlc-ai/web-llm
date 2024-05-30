@@ -1,4 +1,7 @@
-import { ExtensionServiceWorkerMLCEngineHandler, MLCEngine } from "@mlc-ai/web-llm";
+import {
+  ExtensionServiceWorkerMLCEngineHandler,
+  MLCEngine,
+} from "@mlc-ai/web-llm";
 
 // Hookup an engine to a service worker handler
 const engine = new MLCEngine();

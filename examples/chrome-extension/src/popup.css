@@ -7,229 +7,234 @@
 }
 
 html {
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial,
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    Segoe UI,
+    Helvetica,
+    Arial,
     sans-serif;
   color: #222;
 }
 
 body {
-    margin: 0;
-    padding: 0.5rem;
-    background-color: #778da9;
-    width: 320px;
-    font-size: small;
+  margin: 0;
+  padding: 0.5rem;
+  background-color: #778da9;
+  width: 320px;
+  font-size: small;
 }
 
 p {
-    margin: 0;
+  margin: 0;
 }
 
 /* LOADING BAR */
 #loadingContainer {
-    margin-bottom: 15px;
-    width: 300px;
-    height: 8px;
-  }
+  margin-bottom: 15px;
+  width: 300px;
+  height: 8px;
+}
 
 /* INPUT AREA */
 #query-input {
-    border: 1px solid #ccc;
-    border-radius: 4px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
 }
 
 .input-container {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
 }
 
 .input-container input {
-    width: 100%;
-    outline: none;
-    padding: 0.5rem;
-    margin-right: 0.5rem;
+  width: 100%;
+  outline: none;
+  padding: 0.5rem;
+  margin-right: 0.5rem;
 }
 
 /* SUBMIT BUTTON */
 .btn {
-    background-color: #1b263b;
-    color: white;
-    font-size: small;
-    cursor: pointer;
-    border-radius: 4px;
-    border: none;
-    padding: 0.5rem;
+  background-color: #1b263b;
+  color: white;
+  font-size: small;
+  cursor: pointer;
+  border-radius: 4px;
+  border: none;
+  padding: 0.5rem;
 }
 
 .btn:hover {
-    background-color: #d0d0d0;
+  background-color: #d0d0d0;
 }
 
 .btn:disabled {
-    background-color: #a7a7a7;
-    color: rgb(255, 255, 255);
-    cursor: default;
+  background-color: #a7a7a7;
+  color: rgb(255, 255, 255);
+  cursor: default;
 }
 
 .btn img {
-    width: 1rem;
-    height: 1rem;
+  width: 1rem;
+  height: 1rem;
 }
 
 /* LOADING */
 
 .stage {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: relative;
-    margin: 0 -5%;
-    overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  margin: 0 -5%;
+  overflow: hidden;
 }
 
 #loading-indicator {
-    display: none;
-    color: white;
-    margin-top: 0.5rem;
+  display: none;
+  color: white;
+  margin-top: 0.5rem;
 }
 
 .dot-flashing {
-    position: relative;
-    width: 10px;
-    height: 10px;
-    border-radius: 5px;
-    background-color: #1b263b;
-    color: #1b263b;
-    animation: dot-flashing 0.4s infinite linear alternate;
-    animation-delay: 0.2s;
+  position: relative;
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background-color: #1b263b;
+  color: #1b263b;
+  animation: dot-flashing 0.4s infinite linear alternate;
+  animation-delay: 0.2s;
 }
 
 .dot-flashing::before,
 .dot-flashing::after {
-    content: "";
-    display: inline-block;
-    position: absolute;
-    top: 0;
+  content: "";
+  display: inline-block;
+  position: absolute;
+  top: 0;
 }
 
 .dot-flashing::before {
-    left: -15px;
-    width: 10px;
-    height: 10px;
-    border-radius: 5px;
-    background-color: #1b263b;
-    color: #1b263b;
-    animation: dot-flashing 0.4s infinite alternate;
-    animation-delay: 0s;
+  left: -15px;
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background-color: #1b263b;
+  color: #1b263b;
+  animation: dot-flashing 0.4s infinite alternate;
+  animation-delay: 0s;
 }
 
 .dot-flashing::after {
-    left: 15px;
-    width: 10px;
-    height: 10px;
-    border-radius: 5px;
-    background-color: #1b263b;
-    color: #1b263b;
-    animation: dot-flashing 0.4s infinite alternate;
-    animation-delay: 0.4s;
+  left: 15px;
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background-color: #1b263b;
+  color: #1b263b;
+  animation: dot-flashing 0.4s infinite alternate;
+  animation-delay: 0.4s;
 }
 
 @keyframes dot-flashing {
-    0% {
-        background-color: #1b263b;
-    }
+  0% {
+    background-color: #1b263b;
+  }
 
-    50%,
-    100% {
-        background-color: #415a77;
-    }
+  50%,
+  100% {
+    background-color: #415a77;
+  }
 }
 
 /* ANSWERS */
 #queriesAnswersContainer {
-    display: block;
-    color: white;
-    margin-top: 0.5rem;
+  display: block;
+  color: white;
+  margin-top: 0.5rem;
 }
 
 #answer {
-    color: #333333;
+  color: #333333;
 }
 
 #answerWrapper {
-    display: none;
-    background-color: #ffd166;
-    border-radius: 8px;
-    padding: 0.5rem;
-    margin-top: 0.5rem;
+  display: none;
+  background-color: #ffd166;
+  border-radius: 8px;
+  padding: 0.5rem;
+  margin-top: 0.5rem;
 }
 
 .queriesAnswers {
-    border-radius: 8px;
-    background-color: #ffd166;;
-    padding: 0.5rem;
-    color: #333333;
+  border-radius: 8px;
+  background-color: #ffd166;
+  padding: 0.5rem;
+  color: #333333;
 }
 
 #lastQuery {
-    color: rgb(188, 188, 188);
+  color: rgb(188, 188, 188);
 }
 
 #lastAnswer {
-    color: white;
-    margin-top: 0.5rem;
+  color: white;
+  margin-top: 0.5rem;
 }
 
 #lastRequest {
-    padding: 0.5rem;
-    margin-top: 0.5rem;
-    background-color: #333333;
-    border-radius: 4px;
+  padding: 0.5rem;
+  margin-top: 0.5rem;
+  background-color: #333333;
+  border-radius: 4px;
 }
 
 /* ANSWER OPTIONS */
 .timeStamp {
-    color: #9a8c98;
+  color: #9a8c98;
 }
 
 .copyRow {
-    display: flex;
-    flex-direction: row;
-    align-items: end;
-    justify-content: space-between;
-    color: #a7a7a7;
-    margin-top: 0.5rem;
+  display: flex;
+  flex-direction: row;
+  align-items: end;
+  justify-content: space-between;
+  color: #a7a7a7;
+  margin-top: 0.5rem;
 }
 
 .copyText {
-    display: none;
-    color: #a7a7a7;
-    margin-right: 0.5rem;
+  display: none;
+  color: #a7a7a7;
+  margin-right: 0.5rem;
 }
 
 .copyButton {
-    color: #415a77;
-    background-color: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-    margin-left: 0.5rem;
+  color: #415a77;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 0.5rem;
 }
 
 .copyButton:hover {
-    color: #5e80a7;
-    background-color: transparent;
+  color: #5e80a7;
+  background-color: transparent;
 }
 
 .removeButton {
-    color: #415a77;
-    background-color: transparent;
-    border: none;
-    cursor: pointer;
-    padding: 0;
+  color: #415a77;
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
 }
 
 .removeButton:hover {
-    color: #5e80a7;
-    background-color: transparent;
+  color: #5e80a7;
+  background-color: transparent;
 }

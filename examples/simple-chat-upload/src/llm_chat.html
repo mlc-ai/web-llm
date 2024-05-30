@@ -1,26 +1,31 @@
-<link href="./llm_chat.css" rel="stylesheet" type="text/css"/>
+<link href="./llm_chat.css" rel="stylesheet" type="text/css" />
 
 <div class="chatui">
-   <div class="chatui-select-wrapper">
-    <select id="chatui-select">
-    </select>
-   </div>
-  <div class="chatui-chat" id="chatui-chat" height="100">
+  <div class="chatui-select-wrapper">
+    <select id="chatui-select"></select>
   </div>
+  <div class="chatui-chat" id="chatui-chat" height="100"></div>
 
   <body>
-    <input type="file" id="file-input" style="position: absolute; top: 10px; right: 20px;" multiple onchange="uploadFiles()">/>
-    </button>
+    <input
+      type="file"
+      id="file-input"
+      style="position: absolute; top: 10px; right: 20px"
+      multiple
+      onchange="uploadFiles()"
+    />/>
   </body>
   <div class="chatui-inputarea">
-    <input id="chatui-input" type="text" class="chatui-input"  placeholder="Enter your message...">
+    <input
+      id="chatui-input"
+      type="text"
+      class="chatui-input"
+      placeholder="Enter your message..."
+    />
     <button id="chatui-send-btn" class="chatui-send-btn"></button>
     <button id="chatui-reset-btn" class="chatui-reset-btn"></button>
   </div>
 </div>
-
-
-
 
 <div class="chatui-extra-control">
   <label id="chatui-info-label"></label>

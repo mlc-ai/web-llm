@@ -5,13 +5,15 @@ module.exports = {
     root: true,
     rules: {
         "@typescript-eslint/no-explicit-any": "off",
-        "@typescript-eslint/no-empty-function": "off"
+        "@typescript-eslint/no-empty-function": "off",
+        "@typescript-eslint/no-non-null-assertion": "off",
     },
     overrides: [
         {
-          "files": ["examples/**/*.js"],
+          "files": ["examples/**/*.js", "examples/**/*.ts"],
           "rules": {
-            "no-undef": "off"
+            "no-undef": "off",
+            "@typescript-eslint/no-unused-vars": "off"
           }
         }
     ]

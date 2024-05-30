@@ -101,12 +101,12 @@ s .chatui-header {
 }
 
 .error-msg .msg-bubble {
- border-bottom-left-radius: 0;
- color: #f15959;
+  border-bottom-left-radius: 0;
+  color: #f15959;
 }
 
 .init-msg .msg-bubble {
- border-bottom-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 
 .right-msg {
@@ -139,16 +139,16 @@ s .chatui-header {
 }
 
 .chatui-btn {
- margin-left: 10px;
- background: #579ffb;
- color: #fff;
- font-weight: bold;
- cursor: pointer;
- padding: 10px;
+  margin-left: 10px;
+  background: #579ffb;
+  color: #fff;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 10px;
 }
 
 .chatui-btn:hover {
- background: #577bfb;
+  background: #577bfb;
 }
 
 .chatui-chat {
