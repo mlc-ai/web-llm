@@ -23,9 +23,9 @@ async function main() {
   // const appConfig: webllm.AppConfig = {
   //   model_list: [
   //     {
-  //       "model_url": "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f32_1-MLC/resolve/main/",
+  //       "model": "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f32_1-MLC/resolve/main/",
   //       "model_id": "Llama-3-8B-Instruct-q4f32_1-MLC",
-  //       "model_lib_url": webllm.modelLibURLPrefix + webllm.modelVersion + "/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+  //       "model_lib": webllm.modelLibURLPrefix + webllm.modelVersion + "/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
   //     },
   //   ]
   // };

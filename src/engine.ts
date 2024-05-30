@@ -144,7 +144,7 @@ export class MLCEngine implements MLCEngineInterface {
       typeof document !== "undefined"
         ? document.URL
         : globalThis.location.origin;
-    let modelUrl = modelRecord.model_url;
+    let modelUrl = modelRecord.model;
     if (!modelUrl.startsWith("http")) {
       modelUrl = new URL(modelUrl, baseUrl).href;
     }
@@ -171,12 +171,12 @@ export class MLCEngine implements MLCEngineInterface {
       wasmCache = new tvmjs.ArtifactCache("webllm/wasm");
     }
 
-    const wasmUrl = modelRecord.model_lib_url;
+    const wasmUrl = modelRecord.model_lib;
     if (wasmUrl === undefined) {
       throw Error(
-        'Missing `model_lib_url` for the model with ID "' +
+        'Missing `model_lib` for the model with ID "' +
           modelRecord.model_id +
-          '". Please ensure that `model_lib_url` is provided in `model_list` for each model. This URL is essential for downloading the WASM library necessary to run the model.',
+          '". Please ensure that `model_lib` is provided in `model_list` for each model. This URL is essential for downloading the WASM library necessary to run the model.',
       );
     }
     const fetchWasmSource = async () => {

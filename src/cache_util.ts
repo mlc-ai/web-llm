@@ -8,7 +8,7 @@ function findModelRecord(modelId: string, appConfig?: AppConfig): ModelRecord {
   if (matchedItem !== undefined) {
     return matchedItem;
   }
-  throw Error("Cannot find model_url for " + modelId);
+  throw Error("Cannot find model record in appConfig for " + modelId);
 }
 
 export async function hasModelInCache(
@@ -19,7 +19,7 @@ export async function hasModelInCache(
     appConfig = prebuiltAppConfig;
   }
   const modelRecord = findModelRecord(modelId, appConfig);
-  const modelUrl = modelRecord.model_url;
+  const modelUrl = modelRecord.model;
   const cacheType = appConfig.useIndexedDBCache ? "indexeddb" : "cache";
   return tvmjs.hasNDArrayInCache(modelUrl, "webllm/model", cacheType);
 }
@@ -51,21 +51,17 @@ export async function deleteModelInCache(
   const modelRecord = findModelRecord(modelId, appConfig);
   let modelCache: tvmjs.ArtifactCacheTemplate;
   if (appConfig.useIndexedDBCache) {
-    tvmjs.deleteNDArrayCache(
-      modelRecord.model_url,
-      "webllm/model",
-      "indexeddb",
-    );
+    tvmjs.deleteNDArrayCache(modelRecord.model, "webllm/model", "indexeddb");
     modelCache = new tvmjs.ArtifactIndexedDBCache("webllm/model");
   } else {
-    tvmjs.deleteNDArrayCache(modelRecord.model_url, "webllm/model", "cache");
+    tvmjs.deleteNDArrayCache(modelRecord.model, "webllm/model", "cache");
     modelCache = new tvmjs.ArtifactCache("webllm/model");
   }
   await modelCache.deleteInCache(
-    new URL("tokenizer.model", modelRecord.model_url).href,
+    new URL("tokenizer.model", modelRecord.model).href,
   );
   await modelCache.deleteInCache(
-    new URL("tokenizer.json", modelRecord.model_url).href,
+    new URL("tokenizer.json", modelRecord.model).href,
   );
 }
 
@@ -84,7 +80,7 @@ export async function deleteChatConfigInCache(
   } else {
     configCache = new tvmjs.ArtifactCache("webllm/config");
   }
-  const configUrl = new URL("mlc-chat-config.json", modelRecord.model_url).href;
+  const configUrl = new URL("mlc-chat-config.json", modelRecord.model).href;
   await configCache.deleteInCache(configUrl);
 }
 
@@ -103,5 +99,5 @@ export async function deleteModelWasmInCache(
   } else {
     wasmCache = new tvmjs.ArtifactCache("webllm/wasm");
   }
-  await wasmCache.deleteInCache(modelRecord.model_lib_url);
+  await wasmCache.deleteInCache(modelRecord.model_lib);
 }
