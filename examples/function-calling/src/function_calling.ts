@@ -13,7 +13,7 @@ async function main() {
     model_list: [
       {
         model:
-          "https://huggingface.co/mlc-ai/gorilla-openfunctions-v2-q4f16_1-MLC/resolve/main/",
+          "https://huggingface.co/mlc-ai/gorilla-openfunctions-v2-q4f16_1-MLC",
         model_id: "gorilla-openfunctions-v2-q4f16_1",
         model_lib:
           "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/gorilla-openfunctions-v2/gorilla-openfunctions-v2-q4f16_1.wasm",

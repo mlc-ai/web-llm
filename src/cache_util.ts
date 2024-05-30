@@ -1,5 +1,6 @@
 import * as tvmjs from "tvmjs";
 import { AppConfig, ModelRecord, prebuiltAppConfig } from "./config";
+import { cleanModelUrl } from "./support";
 
 function findModelRecord(modelId: string, appConfig?: AppConfig): ModelRecord {
   const matchedItem = appConfig?.model_list.find(
@@ -19,7 +20,7 @@ export async function hasModelInCache(
     appConfig = prebuiltAppConfig;
   }
   const modelRecord = findModelRecord(modelId, appConfig);
-  const modelUrl = modelRecord.model;
+  const modelUrl = cleanModelUrl(modelRecord.model);
   const cacheType = appConfig.useIndexedDBCache ? "indexeddb" : "cache";
   return tvmjs.hasNDArrayInCache(modelUrl, "webllm/model", cacheType);
 }
@@ -49,20 +50,17 @@ export async function deleteModelInCache(
     appConfig = prebuiltAppConfig;
   }
   const modelRecord = findModelRecord(modelId, appConfig);
+  const modelUrl = cleanModelUrl(modelRecord.model);
   let modelCache: tvmjs.ArtifactCacheTemplate;
   if (appConfig.useIndexedDBCache) {
-    tvmjs.deleteNDArrayCache(modelRecord.model, "webllm/model", "indexeddb");
+    tvmjs.deleteNDArrayCache(modelUrl, "webllm/model", "indexeddb");
     modelCache = new tvmjs.ArtifactIndexedDBCache("webllm/model");
   } else {
-    tvmjs.deleteNDArrayCache(modelRecord.model, "webllm/model", "cache");
+    tvmjs.deleteNDArrayCache(modelUrl, "webllm/model", "cache");
     modelCache = new tvmjs.ArtifactCache("webllm/model");
   }
-  await modelCache.deleteInCache(
-    new URL("tokenizer.model", modelRecord.model).href,
-  );
-  await modelCache.deleteInCache(
-    new URL("tokenizer.json", modelRecord.model).href,
-  );
+  await modelCache.deleteInCache(new URL("tokenizer.model", modelUrl).href);
+  await modelCache.deleteInCache(new URL("tokenizer.json", modelUrl).href);
 }
 
 export async function deleteChatConfigInCache(
@@ -80,7 +78,8 @@ export async function deleteChatConfigInCache(
   } else {
     configCache = new tvmjs.ArtifactCache("webllm/config");
   }
-  const configUrl = new URL("mlc-chat-config.json", modelRecord.model).href;
+  const modelUrl = cleanModelUrl(modelRecord.model);
+  const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
   await configCache.deleteInCache(configUrl);
 }
 

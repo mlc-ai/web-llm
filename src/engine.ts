@@ -39,6 +39,7 @@ import {
   compareConversationObject,
   getConversation,
 } from "./conversation";
+import { cleanModelUrl } from "./support";
 
 const ERROR_WEBGPU_NOT_AVAILABLE = new Error(
   "WebGPU is not supported in your current environment, but it is necessary to run the WebLLM engine. " +
@@ -144,7 +145,7 @@ export class MLCEngine implements MLCEngineInterface {
       typeof document !== "undefined"
         ? document.URL
         : globalThis.location.origin;
-    let modelUrl = modelRecord.model;
+    let modelUrl = cleanModelUrl(modelRecord.model);
     if (!modelUrl.startsWith("http")) {
       modelUrl = new URL(modelUrl, baseUrl).href;
     }

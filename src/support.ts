@@ -63,3 +63,20 @@ export function getTokenTableFromTokenizer(tokenizer: Tokenizer): string[] {
   }
   return tokenTable;
 }
+
+/**
+ * Postprocess the suffix of ModelRecord.model to be "/resolve/main/".
+ * e.g. https://huggingface.co/mlc-ai/OpenHermes-2.5-Mistral-7B-q4f16_1-MLC/resolve/main/
+ * @return the href of the final URL.
+ */
+export function cleanModelUrl(modelUrl: string): string {
+  if (modelUrl.endsWith("resolve/main") || modelUrl.endsWith("resolve/main/")) {
+    throw Error(
+      "Expect ModelRecord.model to not include `resolve/main` suffix.",
+    );
+  }
+  // https://huggingface.co/USER/MODEL -> https://huggingface.co/USER/MODEL/
+  modelUrl += modelUrl.endsWith("/") ? "" : "/";
+  // https://huggingface.co/USER/MODEL/ -> https://huggingface.co/USER/MODEL/resolve/main/
+  return new URL("resolve/main/", modelUrl).href;
+}
