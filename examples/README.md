@@ -9,12 +9,15 @@ Note that all examples below run in-browser and use WebGPU as a backend.
 
 #### Project List
 - [get-started](get-started): minimum get started example with chat completion.
-- [get-started-web-worker](get-started-web-worker): same as get-started, but using web worker.
+
+  [![Open on JSFiddle](https://img.shields.io/badge/open-JSFiddle-blue?logo=jsfiddle&logoColor=white)](https://jsfiddle.net/neetnestor/yac9gbwf/)
+  [![Open on Codepen](https://img.shields.io/badge/open-codepen-gainsboro?logo=codepen)](https://codepen.io/neetnestor/pen/NWVdgey)
 - [simple-chat-js](simple-chat-js): a mininum and complete chat bot app in vanilla JavaScript.
 
   [![Open on JSFiddle](https://img.shields.io/badge/open-JSFiddle-blue?logo=jsfiddle&logoColor=white)](https://jsfiddle.net/neetnestor/4nmgvsa2/)
-  [![Open on Codepen](https://img.shields.io/badge/open-codepen-black?logo=codepen)](https://codepen.io/neetnestor/pen/vYwgZaG)
-- [simple-chat-ts](simple-chat-ts): a mininum and complete chat bot app.
+  [![Open on Codepen](https://img.shields.io/badge/open-codepen-gainsboro?logo=codepen)](https://codepen.io/neetnestor/pen/vYwgZaG)
+- [simple-chat-ts](simple-chat-ts): a mininum and complete chat bot app in TypeScript.
+- [get-started-web-worker](get-started-web-worker): same as get-started, but using web worker.
 - [next-simple-chat](next-simple-chat): a mininum and complete chat bot app with [Next.js](https://nextjs.org/).
 - [multi-round-chat](multi-round-chat): while APIs are functional, we internally optimize so that multi round chat usage can reuse KV cache
 

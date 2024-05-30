@@ -11,7 +11,7 @@ const messages = [
 const availableModels = webllm.prebuiltAppConfig.model_list.map(
   (m) => m.model_id,
 );
-let selectedModel = "TinyLlama-1.1B-Chat-v0.4-q4f32_1-1k";
+let selectedModel = "Llama-3-8B-Instruct-q4f32_1-1k";
 
 // Callback function for initializing progress
 function updateEngineInitProgressCallback(report) {
