@@ -13,10 +13,10 @@ async function main() {
     setLabel("init-label", report.text);
   };
   // Option 1: If we do not specify appConfig, we use `prebuiltAppConfig` defined in `config.ts`
-  const selectedModel = "Llama-3-8B-Instruct-q4f32_1";
+  const selectedModel = "Llama-3-8B-Instruct-q4f32_1-MLC";
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
-    { initProgressCallback: initProgressCallback }
+    { initProgressCallback: initProgressCallback },
   );
 
   // Option 2: Specify your own model other than the prebuilt ones
@@ -24,7 +24,7 @@ async function main() {
   //   model_list: [
   //     {
   //       "model_url": "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f32_1-MLC/resolve/main/",
-  //       "model_id": "Llama-3-8B-Instruct-q4f32_1",
+  //       "model_id": "Llama-3-8B-Instruct-q4f32_1-MLC",
   //       "model_lib_url": webllm.modelLibURLPrefix + webllm.modelVersion + "/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
   //     },
   //   ]
@@ -35,9 +35,7 @@ async function main() {
   // );
 
   const reply0 = await engine.chat.completions.create({
-    messages: [
-      { "role": "user", "content": "List three US states." },
-    ],
+    messages: [{ role: "user", content: "List three US states." }],
     // below configurations are all optional
     n: 3,
     temperature: 1.5,

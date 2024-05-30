@@ -587,12 +587,12 @@ export class MLCEngine implements MLCEngineInterface {
         `WARNING: the current maxStorageBufferBindingSize ` +
           `(${computeMB(maxStorageBufferBindingSize)}) ` +
           `may only work for a limited number of models, e.g.: \n` +
-          `- Llama-3-8B-Instruct-q4f16_1-1k \n` +
-          `- Llama-2-7b-chat-hf-q4f16_1-1k \n` +
-          `- RedPajama-INCITE-Chat-3B-v1-q4f16_1-1k \n` +
-          `- RedPajama-INCITE-Chat-3B-v1-q4f32_1-1k \n` +
-          `- TinyLlama-1.1B-Chat-v0.4-q4f16_1-1k \n` +
-          `- TinyLlama-1.1B-Chat-v0.4-q4f32_1-1k`,
+          `- Llama-3-8B-Instruct-q4f16_1-MLC-1k \n` +
+          `- Llama-2-7b-chat-hf-q4f16_1-MLC-1k \n` +
+          `- RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC-1k \n` +
+          `- RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC-1k \n` +
+          `- TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC-1k \n` +
+          `- TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC-1k`,
       );
     }
     return maxStorageBufferBindingSize;

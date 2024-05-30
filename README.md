@@ -52,7 +52,7 @@ async function main() {
     const label = document.getElementById("init-label");
     label.innerText = report.text;
   };
-  const selectedModel = "Llama-3-8B-Instruct-q4f32_1";
+  const selectedModel = "Llama-3-8B-Instruct-q4f32_1-MLC";
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
     /*engineConfig=*/ { initProgressCallback: initProgressCallback },
@@ -96,7 +96,7 @@ async function main() {
   const initProgressCallback = (report) => {
     console.log(report.text);
   };
-  const selectedModel = "TinyLlama-1.1B-Chat-v0.4-q4f16_1-1k";
+  const selectedModel = "TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC-1k";
   const engine = await webllm.CreateMLCEngine(selectedModel, {
     initProgressCallback: initProgressCallback,
   });

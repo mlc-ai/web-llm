@@ -17,27 +17,26 @@ async function mainNonStreaming() {
   const initProgressCallback = (report: webllm.InitProgressReport) => {
     setLabel("init-label", report.text);
   };
-  const selectedModel = "Llama-3-8B-Instruct-q4f32_1";
+  const selectedModel = "Llama-3-8B-Instruct-q4f32_1-MLC";
 
-  const engine: webllm.MLCEngineInterface = await webllm.CreateWebWorkerMLCEngine(
-    new Worker(
-      new URL('./worker.ts', import.meta.url),
-      { type: 'module' }
-    ),
-    selectedModel,
-    { initProgressCallback: initProgressCallback }
-  );
+  const engine: webllm.MLCEngineInterface =
+    await webllm.CreateWebWorkerMLCEngine(
+      new Worker(new URL("./worker.ts", import.meta.url), { type: "module" }),
+      selectedModel,
+      { initProgressCallback: initProgressCallback },
+    );
 
   const request: webllm.ChatCompletionRequest = {
     messages: [
       {
-        "role": "system",
-        "content": "You are a helpful, respectful and honest assistant. " +
-          "Be as happy as you can when speaking please. "
+        role: "system",
+        content:
+          "You are a helpful, respectful and honest assistant. " +
+          "Be as happy as you can when speaking please. ",
       },
-      { "role": "user", "content": "Provide me three US states." },
-      { "role": "assistant", "content": "California, New York, Pennsylvania." },
-      { "role": "user", "content": "Two more please!" },
+      { role: "user", content: "Provide me three US states." },
+      { role: "assistant", content: "California, New York, Pennsylvania." },
+      { role: "user", content: "Two more please!" },
     ],
     n: 3,
     temperature: 1.5,
@@ -57,28 +56,27 @@ async function mainStreaming() {
   const initProgressCallback = (report: webllm.InitProgressReport) => {
     setLabel("init-label", report.text);
   };
-  const selectedModel = "Llama-3-8B-Instruct-q4f32_1";
+  const selectedModel = "Llama-3-8B-Instruct-q4f32_1-MLC";
 
-  const engine: webllm.MLCEngineInterface = await webllm.CreateWebWorkerMLCEngine(
-    new Worker(
-      new URL('./worker.ts', import.meta.url),
-      { type: 'module' }
-    ),
-    selectedModel,
-    { initProgressCallback: initProgressCallback }
-  );
+  const engine: webllm.MLCEngineInterface =
+    await webllm.CreateWebWorkerMLCEngine(
+      new Worker(new URL("./worker.ts", import.meta.url), { type: "module" }),
+      selectedModel,
+      { initProgressCallback: initProgressCallback },
+    );
 
   const request: webllm.ChatCompletionRequest = {
     stream: true,
     messages: [
       {
-        "role": "system",
-        "content": "You are a helpful, respectful and honest assistant. " +
-          "Be as happy as you can when speaking please. "
+        role: "system",
+        content:
+          "You are a helpful, respectful and honest assistant. " +
+          "Be as happy as you can when speaking please. ",
       },
-      { "role": "user", "content": "Provide me three US states." },
-      { "role": "assistant", "content": "California, New York, Pennsylvania." },
-      { "role": "user", "content": "Two more please!" },
+      { role: "user", content: "Provide me three US states." },
+      { role: "assistant", content: "California, New York, Pennsylvania." },
+      { role: "user", content: "Two more please!" },
     ],
     temperature: 1.5,
     max_gen_len: 256,
@@ -95,7 +93,7 @@ async function mainStreaming() {
     setLabel("generate-label", message);
     // engine.interruptGenerate();  // works with interrupt as well
   }
-  console.log("Final message:\n", await engine.getMessage());  // the concatenated message
+  console.log("Final message:\n", await engine.getMessage()); // the concatenated message
   console.log(await engine.runtimeStatsText());
 }
 
