@@ -11,13 +11,13 @@ Note that all examples below run in-browser and use WebGPU as a backend.
 
 - [get-started](get-started): minimum get started example with chat completion.
 
-  [![Open on JSFiddle](https://img.shields.io/badge/open-JSFiddle-blue?logo=jsfiddle&logoColor=white)](https://jsfiddle.net/neetnestor/yac9gbwf/)
-  [![Open on Codepen](https://img.shields.io/badge/open-codepen-gainsboro?logo=codepen)](https://codepen.io/neetnestor/pen/NWVdgey)
+  [![Open in JSFiddle](https://img.shields.io/badge/open-JSFiddle-blue?logo=jsfiddle&logoColor=white)](https://jsfiddle.net/neetnestor/yac9gbwf/)
+  [![Open in Codepen](https://img.shields.io/badge/open-codepen-gainsboro?logo=codepen)](https://codepen.io/neetnestor/pen/NWVdgey)
 
 - [simple-chat-js](simple-chat-js): a mininum and complete chat bot app in vanilla JavaScript.
 
-  [![Open on JSFiddle](https://img.shields.io/badge/open-JSFiddle-blue?logo=jsfiddle&logoColor=white)](https://jsfiddle.net/neetnestor/4nmgvsa2/)
-  [![Open on Codepen](https://img.shields.io/badge/open-codepen-gainsboro?logo=codepen)](https://codepen.io/neetnestor/pen/vYwgZaG)
+  [![Open in JSFiddle](https://img.shields.io/badge/open-JSFiddle-blue?logo=jsfiddle&logoColor=white)](https://jsfiddle.net/neetnestor/4nmgvsa2/)
+  [![Open in Codepen](https://img.shields.io/badge/open-codepen-gainsboro?logo=codepen)](https://codepen.io/neetnestor/pen/vYwgZaG)
 
 - [simple-chat-ts](simple-chat-ts): a mininum and complete chat bot app in TypeScript.
 - [get-started-web-worker](get-started-web-worker): same as get-started, but using web worker.
