@@ -17,25 +17,25 @@ async function main() {
   const initProgressCallback = (report: webllm.InitProgressReport) => {
     setLabel("init-label", report.text);
   };
-  const selectedModel = "Llama-3-8B-Instruct-q4f32_1";
+  const selectedModel = "Llama-3-8B-Instruct-q4f32_1-MLC";
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
-    { initProgressCallback: initProgressCallback }
+    { initProgressCallback: initProgressCallback },
   );
-
 
   // Round 0
   const messages: webllm.ChatCompletionMessageParam[] = [
     {
-      "role": "system",
-      "content": "You are a helpful, respectful and honest assistant. " +
-        "Be as happy as you can when speaking please. "
+      role: "system",
+      content:
+        "You are a helpful, respectful and honest assistant. " +
+        "Be as happy as you can when speaking please. ",
     },
-    { "role": "user", "content": "Provide me three US states." },
+    { role: "user", content: "Provide me three US states." },
   ];
 
   const request0: webllm.ChatCompletionRequest = {
-    stream: false,  // can be streaming, same behavior
+    stream: false, // can be streaming, same behavior
     messages: messages,
   };
 
@@ -46,16 +46,16 @@ async function main() {
 
   // Round 1
   // Append generated response to messages
-  messages.push({ "role": "assistant", "content": replyMessage0 });
+  messages.push({ role: "assistant", content: replyMessage0 });
   // Append new user input
-  messages.push({ "role": "user", "content": "Two more please!" });
+  messages.push({ role: "user", content: "Two more please!" });
   // Below line would cause an internal reset (clear KV cache, etc.) since the history no longer
   // matches the new request
   // messages[0].content = "Another system prompt";
 
   const request1: webllm.ChatCompletionRequest = {
-    stream: false,  // can be streaming, same behavior
-    messages: messages
+    stream: false, // can be streaming, same behavior
+    messages: messages,
   };
 
   const reply1 = await engine.chat.completions.create(request1);
@@ -68,8 +68,11 @@ async function main() {
   const prefillTokens1 = reply1.usage?.prompt_tokens;
   console.log("Requset 0 prompt tokens: ", prefillTokens0);
   console.log("Requset 1 prompt tokens: ", prefillTokens1);
-  if (prefillTokens0 === undefined || prefillTokens1 === undefined ||
-    prefillTokens1 > prefillTokens0) {
+  if (
+    prefillTokens0 === undefined ||
+    prefillTokens1 === undefined ||
+    prefillTokens1 > prefillTokens0
+  ) {
     throw Error("Multi-round chat is not triggered as expected.");
   }
 

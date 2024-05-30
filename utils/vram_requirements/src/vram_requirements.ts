@@ -30,7 +30,7 @@ async function main() {
     const modelRecord: ModelRecord = config.model_list[i];
     const model_id = modelRecord.model_id;
     // 2. Load the wasm
-    const wasmUrl = modelRecord.model_lib_url;
+    const wasmUrl = modelRecord.model_lib;
     const wasmSource = await (await fetch(wasmUrl)).arrayBuffer();
     report += `${model_id}: \n`;
     // 3. Initialize tvmjs instance and virtual machine using the wasm

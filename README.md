@@ -52,7 +52,7 @@ async function main() {
     const label = document.getElementById("init-label");
     label.innerText = report.text;
   };
-  const selectedModel = "Llama-3-8B-Instruct-q4f32_1";
+  const selectedModel = "Llama-3-8B-Instruct-q4f32_1-MLC";
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
     /*engineConfig=*/ { initProgressCallback: initProgressCallback },
@@ -96,7 +96,7 @@ async function main() {
   const initProgressCallback = (report) => {
     console.log(report.text);
   };
-  const selectedModel = "TinyLlama-1.1B-Chat-v0.4-q4f16_1-1k";
+  const selectedModel = "TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC-1k";
   const engine = await webllm.CreateMLCEngine(selectedModel, {
     initProgressCallback: initProgressCallback,
   });
@@ -247,8 +247,8 @@ on how to add new model weights and libraries to WebLLM.
 
 Here, we go over the high-level idea. There are two elements of the WebLLM package that enables new models and weight variants.
 
-- `model_url`: Contains a URL to model artifacts, such as weights and meta-data.
-- `model_lib_url`: A URL to the web assembly library (i.e. wasm file) that contains the executables to accelerate the model computations.
+- `model`: Contains a URL to model artifacts, such as weights and meta-data.
+- `model_lib`: A URL to the web assembly library (i.e. wasm file) that contains the executables to accelerate the model computations.
 
 Both are customizable in the WebLLM.
 
@@ -257,9 +257,9 @@ async main() {
   const appConfig = {
     "model_list": [
       {
-        "model_url": "/url/to/my/llama",
+        "model": "/url/to/my/llama",
         "model_id": "MyLlama-3b-v1-q4f32_0"
-        "model_lib_url": "/url/to/myllama3b.wasm",
+        "model_lib": "/url/to/myllama3b.wasm",
       }
     ],
   };

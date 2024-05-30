@@ -1,4 +1,4 @@
-import { getTopProbs } from "../src/support";
+import { cleanModelUrl, getTopProbs } from "../src/support";
 
 describe("Check getTopLogprobs correctness", () => {
   test("Correctness test 1", () => {
@@ -24,5 +24,39 @@ describe("Check getTopLogprobs correctness", () => {
     ]);
     const topLogProbs = getTopProbs(0, logitsOnCPUArray);
     expect(topLogProbs).toEqual([]);
+  });
+});
+
+describe("Test clean model URL", () => {
+  test("Already have resolve/main, throw error", () => {
+    expect(() => {
+      const input = "https://huggingface.co/mlc-ai/model/resolve/main";
+      cleanModelUrl(input);
+    }).toThrow(
+      "Expect ModelRecord.model to not include `resolve/main` suffix.",
+    );
+  });
+
+  test("Already have resolve/main/, throw error", () => {
+    expect(() => {
+      const input = "https://huggingface.co/mlc-ai/model/resolve/main/";
+      cleanModelUrl(input);
+    }).toThrow(
+      "Expect ModelRecord.model to not include `resolve/main` suffix.",
+    );
+  });
+
+  test("Input does not have /", () => {
+    const input = "https://huggingface.co/mlc-ai/model";
+    const output = cleanModelUrl(input);
+    const expected = "https://huggingface.co/mlc-ai/model/resolve/main/";
+    expect(output).toEqual(expected);
+  });
+
+  test("Input has /", () => {
+    const input = "https://huggingface.co/mlc-ai/model/";
+    const output = cleanModelUrl(input);
+    const expected = "https://huggingface.co/mlc-ai/model/resolve/main/";
+    expect(output).toEqual(expected);
   });
 });

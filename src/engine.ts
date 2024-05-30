@@ -39,6 +39,7 @@ import {
   compareConversationObject,
   getConversation,
 } from "./conversation";
+import { cleanModelUrl } from "./support";
 
 const ERROR_WEBGPU_NOT_AVAILABLE = new Error(
   "WebGPU is not supported in your current environment, but it is necessary to run the WebLLM engine. " +
@@ -144,7 +145,7 @@ export class MLCEngine implements MLCEngineInterface {
       typeof document !== "undefined"
         ? document.URL
         : globalThis.location.origin;
-    let modelUrl = modelRecord.model_url;
+    let modelUrl = cleanModelUrl(modelRecord.model);
     if (!modelUrl.startsWith("http")) {
       modelUrl = new URL(modelUrl, baseUrl).href;
     }
@@ -171,12 +172,12 @@ export class MLCEngine implements MLCEngineInterface {
       wasmCache = new tvmjs.ArtifactCache("webllm/wasm");
     }
 
-    const wasmUrl = modelRecord.model_lib_url;
+    const wasmUrl = modelRecord.model_lib;
     if (wasmUrl === undefined) {
       throw Error(
-        'Missing `model_lib_url` for the model with ID "' +
+        'Missing `model_lib` for the model with ID "' +
           modelRecord.model_id +
-          '". Please ensure that `model_lib_url` is provided in `model_list` for each model. This URL is essential for downloading the WASM library necessary to run the model.',
+          '". Please ensure that `model_lib` is provided in `model_list` for each model. This URL is essential for downloading the WASM library necessary to run the model.',
       );
     }
     const fetchWasmSource = async () => {
@@ -587,12 +588,12 @@ export class MLCEngine implements MLCEngineInterface {
         `WARNING: the current maxStorageBufferBindingSize ` +
           `(${computeMB(maxStorageBufferBindingSize)}) ` +
           `may only work for a limited number of models, e.g.: \n` +
-          `- Llama-3-8B-Instruct-q4f16_1-1k \n` +
-          `- Llama-2-7b-chat-hf-q4f16_1-1k \n` +
-          `- RedPajama-INCITE-Chat-3B-v1-q4f16_1-1k \n` +
-          `- RedPajama-INCITE-Chat-3B-v1-q4f32_1-1k \n` +
-          `- TinyLlama-1.1B-Chat-v0.4-q4f16_1-1k \n` +
-          `- TinyLlama-1.1B-Chat-v0.4-q4f32_1-1k`,
+          `- Llama-3-8B-Instruct-q4f16_1-MLC-1k \n` +
+          `- Llama-2-7b-chat-hf-q4f16_1-MLC-1k \n` +
+          `- RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC-1k \n` +
+          `- RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC-1k \n` +
+          `- TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC-1k \n` +
+          `- TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC-1k`,
       );
     }
     return maxStorageBufferBindingSize;

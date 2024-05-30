@@ -236,9 +236,9 @@ export function postInitAndCheckGenerationConfigValues(
 
 /**
  * Information for a model.
- * @param model_url: the huggingface link to download the model weights.
+ * @param model: the huggingface link to download the model weights.
  * @param model_id: what we call the model.
- * @param model_lib_url: link to the model library (wasm file) the model uses.
+ * @param model_lib: link to the model library (wasm file) the model uses.
  * @param vram_required_MB: amount of vram in MB required to run the model (can use
  *    `utils/vram_requirements` to calculate).
  * @param low_resource_required: whether the model can run on limited devices (e.g. Android phone).
@@ -246,9 +246,9 @@ export function postInitAndCheckGenerationConfigValues(
  * @param required_features: feature needed to run this model (e.g. shader-f16).
  */
 export interface ModelRecord {
-  model_url: string;
+  model: string;
   model_id: string;
-  model_lib_url: string;
+  model_lib: string;
   vram_required_MB?: number;
   low_resource_required?: boolean;
   buffer_size_required_bytes?: number;
@@ -273,7 +273,7 @@ export interface AppConfig {
 
 /**
  * modelVersion: the prebuilt model libraries that the current npm is compatible with, affects the
- * `model_lib_url`s in `prebuiltAppConfig`.
+ * `model_lib`s in `prebuiltAppConfig`.
  *
  * @note The model version does not have to match the npm version, since not each npm update
  * requires an update of the model libraries.
@@ -293,10 +293,9 @@ export const prebuiltAppConfig: AppConfig = {
   model_list: [
     // Llama-3
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f32_1-MLC/resolve/main/",
-      model_id: "Llama-3-8B-Instruct-q4f32_1-1k",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f32_1-MLC",
+      model_id: "Llama-3-8B-Instruct-q4f32_1-MLC-1k",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3-8B-Instruct-q4f32_1-ctx1k_cs1k-webgpu.wasm",
@@ -304,10 +303,9 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: true,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f16_1-MLC/resolve/main/",
-      model_id: "Llama-3-8B-Instruct-q4f16_1-1k",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f16_1-MLC",
+      model_id: "Llama-3-8B-Instruct-q4f16_1-MLC-1k",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3-8B-Instruct-q4f16_1-ctx1k_cs1k-webgpu.wasm",
@@ -315,10 +313,9 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: true,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f32_1-MLC/resolve/main/",
-      model_id: "Llama-3-8B-Instruct-q4f32_1",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f32_1-MLC",
+      model_id: "Llama-3-8B-Instruct-q4f32_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
@@ -326,10 +323,9 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: false,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f16_1-MLC/resolve/main/",
-      model_id: "Llama-3-8B-Instruct-q4f16_1",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f16_1-MLC",
+      model_id: "Llama-3-8B-Instruct-q4f16_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
@@ -337,10 +333,9 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: false,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Llama-3-70B-Instruct-q3f16_1-MLC/resolve/main/",
-      model_id: "Llama-3-70B-Instruct-q3f16_1",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/Llama-3-70B-Instruct-q3f16_1-MLC",
+      model_id: "Llama-3-70B-Instruct-q3f16_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3-70B-Instruct-q3f16_1-ctx4k_cs1k-webgpu.wasm",
@@ -349,10 +344,9 @@ export const prebuiltAppConfig: AppConfig = {
     },
     // Phi3-mini-instruct
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC/resolve/main/",
-      model_id: "Phi-3-mini-4k-instruct-q4f16_1",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC",
+      model_id: "Phi-3-mini-4k-instruct-q4f16_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Phi-3-mini-4k-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
@@ -360,10 +354,9 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: false,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f32_1-MLC/resolve/main/",
-      model_id: "Phi-3-mini-4k-instruct-q4f32_1",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f32_1-MLC",
+      model_id: "Phi-3-mini-4k-instruct-q4f32_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Phi-3-mini-4k-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
@@ -371,10 +364,9 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: false,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC/resolve/main/",
-      model_id: "Phi-3-mini-4k-instruct-q4f16_1-1k",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC",
+      model_id: "Phi-3-mini-4k-instruct-q4f16_1-MLC-1k",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Phi-3-mini-4k-instruct-q4f16_1-ctx1k_cs1k-webgpu.wasm",
@@ -382,10 +374,9 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: true,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f32_1-MLC/resolve/main/",
-      model_id: "Phi-3-mini-4k-instruct-q4f32_1-1k",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f32_1-MLC",
+      model_id: "Phi-3-mini-4k-instruct-q4f32_1-MLC-1k",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Phi-3-mini-4k-instruct-q4f32_1-ctx1k_cs1k-webgpu.wasm",
@@ -394,10 +385,9 @@ export const prebuiltAppConfig: AppConfig = {
     },
     // Llama-2
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f32_1-MLC/resolve/main/",
-      model_id: "Llama-2-7b-chat-hf-q4f32_1-1k",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f32_1-MLC",
+      model_id: "Llama-2-7b-chat-hf-q4f32_1-MLC-1k",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Llama-2-7b-chat-hf-q4f32_1-ctx1k_cs1k-webgpu.wasm",
@@ -405,10 +395,9 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: false,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f16_1-MLC/resolve/main/",
-      model_id: "Llama-2-7b-chat-hf-q4f16_1-1k",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f16_1-MLC",
+      model_id: "Llama-2-7b-chat-hf-q4f16_1-MLC-1k",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Llama-2-7b-chat-hf-q4f16_1-ctx1k_cs1k-webgpu.wasm",
@@ -417,10 +406,9 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f32_1-MLC/resolve/main/",
-      model_id: "Llama-2-7b-chat-hf-q4f32_1",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f32_1-MLC",
+      model_id: "Llama-2-7b-chat-hf-q4f32_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Llama-2-7b-chat-hf-q4f32_1-ctx4k_cs1k-webgpu.wasm",
@@ -428,10 +416,9 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: false,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f16_1-MLC/resolve/main/",
-      model_id: "Llama-2-7b-chat-hf-q4f16_1",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f16_1-MLC",
+      model_id: "Llama-2-7b-chat-hf-q4f16_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Llama-2-7b-chat-hf-q4f16_1-ctx4k_cs1k-webgpu.wasm",
@@ -440,10 +427,9 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Llama-2-13b-chat-hf-q4f16_1-MLC/resolve/main/",
+      model: "https://huggingface.co/mlc-ai/Llama-2-13b-chat-hf-q4f16_1-MLC",
       model_id: "Llama-2-13b-chat-hf-q4f16_1",
-      model_lib_url:
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Llama-2-13b-chat-hf-q4f16_1-ctx4k_cs1k-webgpu.wasm",
@@ -453,10 +439,9 @@ export const prebuiltAppConfig: AppConfig = {
     },
     // Mistral variants
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/WizardMath-7B-V1.1-q4f16_1-MLC/resolve/main/",
-      model_id: "WizardMath-7B-V1.1-q4f16_1",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/WizardMath-7B-V1.1-q4f16_1-MLC",
+      model_id: "WizardMath-7B-V1.1-q4f16_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Mistral-7B-Instruct-v0.2-q4f16_1-sw4k_cs1k-webgpu.wasm",
@@ -465,10 +450,10 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Mistral-7B-Instruct-v0.2-q4f16_1-MLC/resolve/main/",
-      model_id: "Mistral-7B-Instruct-v0.2-q4f16_1",
-      model_lib_url:
+      model:
+        "https://huggingface.co/mlc-ai/Mistral-7B-Instruct-v0.2-q4f16_1-MLC",
+      model_id: "Mistral-7B-Instruct-v0.2-q4f16_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Mistral-7B-Instruct-v0.2-q4f16_1-sw4k_cs1k-webgpu.wasm",
@@ -477,10 +462,10 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/OpenHermes-2.5-Mistral-7B-q4f16_1-MLC/resolve/main/",
-      model_id: "OpenHermes-2.5-Mistral-7B-q4f16_1",
-      model_lib_url:
+      model:
+        "https://huggingface.co/mlc-ai/OpenHermes-2.5-Mistral-7B-q4f16_1-MLC",
+      model_id: "OpenHermes-2.5-Mistral-7B-q4f16_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Mistral-7B-Instruct-v0.2-q4f16_1-sw4k_cs1k-webgpu.wasm",
@@ -489,10 +474,10 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/NeuralHermes-2.5-Mistral-7B-q4f16_1-MLC/resolve/main/",
-      model_id: "NeuralHermes-2.5-Mistral-7B-q4f16_1",
-      model_lib_url:
+      model:
+        "https://huggingface.co/mlc-ai/NeuralHermes-2.5-Mistral-7B-q4f16_1-MLC",
+      model_id: "NeuralHermes-2.5-Mistral-7B-q4f16_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Mistral-7B-Instruct-v0.2-q4f16_1-sw4k_cs1k-webgpu.wasm",
@@ -502,10 +487,10 @@ export const prebuiltAppConfig: AppConfig = {
     },
     // Hermes-2 Pro
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC/resolve/main/",
-      model_id: "Hermes-2-Pro-Llama-3-8B-q4f16_1",
-      model_lib_url:
+      model:
+        "https://huggingface.co/mlc-ai/Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC",
+      model_id: "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
@@ -513,10 +498,10 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: false,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Hermes-2-Pro-Llama-3-8B-q4f32_1-MLC/resolve/main/",
-      model_id: "Hermes-2-Pro-Llama-3-8B-q4f32_1",
-      model_lib_url:
+      model:
+        "https://huggingface.co/mlc-ai/Hermes-2-Pro-Llama-3-8B-q4f32_1-MLC",
+      model_id: "Hermes-2-Pro-Llama-3-8B-q4f32_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
@@ -524,10 +509,10 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: false,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Hermes-2-Pro-Mistral-7B-q4f16_1-MLC/resolve/main/",
-      model_id: "Hermes-2-Pro-Mistral-7B-q4f16_1",
-      model_lib_url:
+      model:
+        "https://huggingface.co/mlc-ai/Hermes-2-Pro-Mistral-7B-q4f16_1-MLC",
+      model_id: "Hermes-2-Pro-Mistral-7B-q4f16_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Mistral-7B-Instruct-v0.2-q4f16_1-sw4k_cs1k-webgpu.wasm",
@@ -537,10 +522,9 @@ export const prebuiltAppConfig: AppConfig = {
     },
     // Gemma-2B
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC/resolve/main/",
-      model_id: "gemma-2b-it-q4f16_1",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC",
+      model_id: "gemma-2b-it-q4f16_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/gemma-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
@@ -550,10 +534,9 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/gemma-2b-it-q4f32_1-MLC/resolve/main/",
-      model_id: "gemma-2b-it-q4f32_1",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/gemma-2b-it-q4f32_1-MLC",
+      model_id: "gemma-2b-it-q4f32_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/gemma-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
@@ -562,10 +545,9 @@ export const prebuiltAppConfig: AppConfig = {
       buffer_size_required_bytes: 262144000,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC/resolve/main/",
-      model_id: "gemma-2b-it-q4f16_1-1k",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC",
+      model_id: "gemma-2b-it-q4f16_1-MLC-1k",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/gemma-2b-it-q4f16_1-ctx1k_cs1k-webgpu.wasm",
@@ -575,10 +557,9 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/gemma-2b-it-q4f32_1-MLC/resolve/main/",
-      model_id: "gemma-2b-it-q4f32_1-1k",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/gemma-2b-it-q4f32_1-MLC",
+      model_id: "gemma-2b-it-q4f32_1-MLC-1k",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/gemma-2b-it-q4f32_1-ctx1k_cs1k-webgpu.wasm",
@@ -588,10 +569,9 @@ export const prebuiltAppConfig: AppConfig = {
     },
     // Qwen-1.5-1.8B
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Qwen1.5-1.8B-Chat-q4f16_1-MLC/resolve/main/",
-      model_id: "Qwen1.5-1.8B-Chat-q4f16_1",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/Qwen1.5-1.8B-Chat-q4f16_1-MLC",
+      model_id: "Qwen1.5-1.8B-Chat-q4f16_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Qwen1.5-1.8B-Chat-q4f16_1-ctx4k_cs1k-webgpu.wasm",
@@ -599,10 +579,9 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: false,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Qwen1.5-1.8B-Chat-q4f32_1-MLC/resolve/main/",
-      model_id: "Qwen1.5-1.8B-Chat-q4f32_1",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/Qwen1.5-1.8B-Chat-q4f32_1-MLC",
+      model_id: "Qwen1.5-1.8B-Chat-q4f32_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Qwen1.5-1.8B-Chat-q4f32_1-ctx4k_cs1k-webgpu.wasm",
@@ -610,10 +589,9 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: false,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Qwen1.5-1.8B-Chat-q4f16_1-MLC/resolve/main/",
-      model_id: "Qwen1.5-1.8B-Chat-q4f16_1-1k",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/Qwen1.5-1.8B-Chat-q4f16_1-MLC",
+      model_id: "Qwen1.5-1.8B-Chat-q4f16_1-MLC-1k",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Qwen1.5-1.8B-Chat-q4f16_1-ctx1k_cs1k-webgpu.wasm",
@@ -621,10 +599,9 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: true,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/Qwen1.5-1.8B-Chat-q4f32_1-MLC/resolve/main/",
-      model_id: "Qwen1.5-1.8B-Chat-q4f32_1-1k",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/Qwen1.5-1.8B-Chat-q4f32_1-MLC",
+      model_id: "Qwen1.5-1.8B-Chat-q4f32_1-MLC-1k",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/Qwen1.5-1.8B-Chat-q4f32_1-ctx1k_cs1k-webgpu.wasm",
@@ -633,10 +610,9 @@ export const prebuiltAppConfig: AppConfig = {
     },
     // StableLM-zephyr-1.6B
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f16_1-MLC/resolve/main/",
-      model_id: "stablelm-2-zephyr-1_6b-q4f16_1",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f16_1-MLC",
+      model_id: "stablelm-2-zephyr-1_6b-q4f16_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/stablelm-2-zephyr-1_6b-q4f16_1-ctx4k_cs1k-webgpu.wasm",
@@ -644,10 +620,9 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: false,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f32_1-MLC/resolve/main/",
-      model_id: "stablelm-2-zephyr-1_6b-q4f32_1",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f32_1-MLC",
+      model_id: "stablelm-2-zephyr-1_6b-q4f32_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/stablelm-2-zephyr-1_6b-q4f32_1-ctx4k_cs1k-webgpu.wasm",
@@ -655,10 +630,9 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: false,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f16_1-MLC/resolve/main/",
-      model_id: "stablelm-2-zephyr-1_6b-q4f16_1-1k",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f16_1-MLC",
+      model_id: "stablelm-2-zephyr-1_6b-q4f16_1-MLC-1k",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/stablelm-2-zephyr-1_6b-q4f16_1-ctx1k_cs1k-webgpu.wasm",
@@ -666,10 +640,9 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: true,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f32_1-MLC/resolve/main/",
-      model_id: "stablelm-2-zephyr-1_6b-q4f32_1-1k",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f32_1-MLC",
+      model_id: "stablelm-2-zephyr-1_6b-q4f32_1-MLC-1k",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/stablelm-2-zephyr-1_6b-q4f32_1-ctx1k_cs1k-webgpu.wasm",
@@ -678,10 +651,10 @@ export const prebuiltAppConfig: AppConfig = {
     },
     // RedPajama
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC/resolve/main/",
-      model_id: "RedPajama-INCITE-Chat-3B-v1-q4f16_1",
-      model_lib_url:
+      model:
+        "https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC",
+      model_id: "RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/RedPajama-INCITE-Chat-3B-v1-q4f16_1-ctx2k_cs1k-webgpu.wasm",
@@ -690,10 +663,10 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC/resolve/main/",
-      model_id: "RedPajama-INCITE-Chat-3B-v1-q4f32_1",
-      model_lib_url:
+      model:
+        "https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC",
+      model_id: "RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/RedPajama-INCITE-Chat-3B-v1-q4f32_1-ctx2k_cs1k-webgpu.wasm",
@@ -701,10 +674,10 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: false,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC/resolve/main/",
-      model_id: "RedPajama-INCITE-Chat-3B-v1-q4f16_1-1k",
-      model_lib_url:
+      model:
+        "https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC",
+      model_id: "RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC-1k",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/RedPajama-INCITE-Chat-3B-v1-q4f16_1-ctx1k_cs1k-webgpu.wasm",
@@ -713,10 +686,10 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC/resolve/main/",
-      model_id: "RedPajama-INCITE-Chat-3B-v1-q4f32_1-1k",
-      model_lib_url:
+      model:
+        "https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC",
+      model_id: "RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC-1k",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/RedPajama-INCITE-Chat-3B-v1-q4f32_1-ctx1k_cs1k-webgpu.wasm",
@@ -725,10 +698,9 @@ export const prebuiltAppConfig: AppConfig = {
     },
     // Phi-2
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/phi-2-q4f16_1-MLC/resolve/main/",
-      model_id: "Phi2-q4f16_1",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/phi-2-q4f16_1-MLC",
+      model_id: "phi-2-q4f16_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/phi-2-q4f16_1-ctx2k_cs1k-webgpu.wasm",
@@ -737,10 +709,9 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/phi-2-q4f32_1-MLC/resolve/main/",
-      model_id: "Phi2-q4f32_1",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/phi-2-q4f32_1-MLC",
+      model_id: "phi-2-q4f32_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/phi-2-q4f32_1-ctx2k_cs1k-webgpu.wasm",
@@ -748,10 +719,9 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: false,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/phi-2-q4f16_1-MLC/resolve/main/",
-      model_id: "Phi2-q4f16_1-1k",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/phi-2-q4f16_1-MLC",
+      model_id: "phi-2-q4f16_1-MLC-1k",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/phi-2-q4f16_1-ctx1k_cs1k-webgpu.wasm",
@@ -760,10 +730,9 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/phi-2-q4f32_1-MLC/resolve/main/",
-      model_id: "Phi2-q4f32_1-1k",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/phi-2-q4f32_1-MLC",
+      model_id: "phi-2-q4f32_1-MLC-1k",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/phi-2-q4f32_1-ctx1k_cs1k-webgpu.wasm",
@@ -772,10 +741,9 @@ export const prebuiltAppConfig: AppConfig = {
     },
     // Phi-1.5
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/phi-1_5-q4f16_1-MLC/resolve/main/",
-      model_id: "Phi1.5-q4f16_1",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/phi-1_5-q4f16_1-MLC",
+      model_id: "phi-1_5-q4f16_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/phi-1_5-q4f16_1-ctx2k_cs1k-webgpu.wasm",
@@ -784,10 +752,9 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/phi-1_5-q4f32_1-MLC/resolve/main/",
-      model_id: "Phi1.5-q4f32_1",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/phi-1_5-q4f32_1-MLC",
+      model_id: "phi-1_5-q4f32_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/phi-1_5-q4f32_1-ctx2k_cs1k-webgpu.wasm",
@@ -795,10 +762,9 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: true,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/phi-1_5-q4f16_1-MLC/resolve/main/",
-      model_id: "Phi1.5-q4f16_1-1k",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/phi-1_5-q4f16_1-MLC",
+      model_id: "phi-1_5-q4f16_1-MLC-1k",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/phi-1_5-q4f16_1-ctx1k_cs1k-webgpu.wasm",
@@ -807,10 +773,9 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/phi-1_5-q4f32_1-MLC/resolve/main/",
-      model_id: "Phi1.5-q4f32_1-1k",
-      model_lib_url:
+      model: "https://huggingface.co/mlc-ai/phi-1_5-q4f32_1-MLC",
+      model_id: "phi-1_5-q4f32_1-MLC-1k",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/phi-1_5-q4f32_1-ctx1k_cs1k-webgpu.wasm",
@@ -819,10 +784,10 @@ export const prebuiltAppConfig: AppConfig = {
     },
     // TinyLlama
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC/resolve/main/",
-      model_id: "TinyLlama-1.1B-Chat-v0.4-q4f16_1",
-      model_lib_url:
+      model:
+        "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC",
+      model_id: "TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/TinyLlama-1.1B-Chat-v0.4-q4f16_1-ctx2k_cs1k-webgpu.wasm",
@@ -831,10 +796,10 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC/resolve/main/",
-      model_id: "TinyLlama-1.1B-Chat-v0.4-q4f32_1",
-      model_lib_url:
+      model:
+        "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC",
+      model_id: "TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/TinyLlama-1.1B-Chat-v0.4-q4f32_1-ctx2k_cs1k-webgpu.wasm",
@@ -842,10 +807,10 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: true,
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC/resolve/main/",
-      model_id: "TinyLlama-1.1B-Chat-v0.4-q4f16_1-1k",
-      model_lib_url:
+      model:
+        "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC",
+      model_id: "TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC-1k",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/TinyLlama-1.1B-Chat-v0.4-q4f16_1-ctx1k_cs1k-webgpu.wasm",
@@ -854,10 +819,10 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
     },
     {
-      model_url:
-        "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC/resolve/main/",
-      model_id: "TinyLlama-1.1B-Chat-v0.4-q4f32_1-1k",
-      model_lib_url:
+      model:
+        "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC",
+      model_id: "TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC-1k",
+      model_lib:
         modelLibURLPrefix +
         modelVersion +
         "/TinyLlama-1.1B-Chat-v0.4-q4f32_1-ctx1k_cs1k-webgpu.wasm",

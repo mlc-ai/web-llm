@@ -8,25 +8,25 @@ function setLabel(id: string, text: string) {
   label.innerText = text;
 }
 
-
 async function main() {
-
   const myAppConfig: webllm.AppConfig = {
     model_list: [
       {
-        "model_url": "https://huggingface.co/mlc-ai/gorilla-openfunctions-v2-q4f16_1-MLC/resolve/main/",
-        "model_id": "gorilla-openfunctions-v2-q4f16_1",
-        "model_lib_url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/gorilla-openfunctions-v2/gorilla-openfunctions-v2-q4f16_1.wasm",
+        model:
+          "https://huggingface.co/mlc-ai/gorilla-openfunctions-v2-q4f16_1-MLC",
+        model_id: "gorilla-openfunctions-v2-q4f16_1",
+        model_lib:
+          "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/gorilla-openfunctions-v2/gorilla-openfunctions-v2-q4f16_1.wasm",
       },
-    ]
-  }
+    ],
+  };
   const initProgressCallback = (report: webllm.InitProgressReport) => {
     setLabel("init-label", report.text);
   };
-  const selectedModel = "gorilla-openfunctions-v2-q4f16_1"
+  const selectedModel = "gorilla-openfunctions-v2-q4f16_1";
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
-    { appConfig: myAppConfig, initProgressCallback: initProgressCallback }
+    { appConfig: myAppConfig, initProgressCallback: initProgressCallback },
   );
 
   const tools: Array<webllm.ChatCompletionTool> = [
@@ -36,26 +36,30 @@ async function main() {
         name: "get_current_weather",
         description: "Get the current weather in a given location",
         parameters: {
-          "type": "object",
-          "properties": {
-            "location": {
-              "type": "string",
-              "description": "The city and state, e.g. San Francisco, CA",
+          type: "object",
+          properties: {
+            location: {
+              type: "string",
+              description: "The city and state, e.g. San Francisco, CA",
             },
-            "unit": { "type": "string", "enum": ["celsius", "fahrenheit"] },
+            unit: { type: "string", enum: ["celsius", "fahrenheit"] },
           },
-          "required": ["location"],
+          required: ["location"],
         },
       },
-    }
-  ]
+    },
+  ];
 
   const request: webllm.ChatCompletionRequest = {
     stream: false,
     messages: [
-      { "role": "user", "content": "What is the current weather in celsius in Pittsburgh and Tokyo?" },
+      {
+        role: "user",
+        content:
+          "What is the current weather in celsius in Pittsburgh and Tokyo?",
+      },
     ],
-    tool_choice: 'auto',
+    tool_choice: "auto",
     tools: tools,
   };
 
