@@ -6,9 +6,8 @@ demonstrate the utility cache functions such as deleting models, checking if mod
 
 For more information about the two caches, see: https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria#what_technologies_store_data_in_the_browser.
 
-To inspect the downloaded artifacts in your browser, open up developer console, go to application, 
+To inspect the downloaded artifacts in your browser, open up developer console, go to application,
 and you will find the artifacts under either `IndexedDB` or `Cache storage`.
-
 
 To run the exapmle, you can do the following steps under this folder
 

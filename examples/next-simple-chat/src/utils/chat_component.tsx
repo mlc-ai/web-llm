@@ -4,7 +4,7 @@ import ChatUI from "~/utils/chat_ui";
 
 const ChatComponent = () => {
   const [messages, setMessages] = useState<{ kind: string; text: string }[]>(
-    []
+    [],
   );
   const [prompt, setPrompt] = useState("");
   const [runtimeStats, setRuntimeStats] = useState("");
@@ -78,7 +78,11 @@ const ChatComponent = () => {
         <button
           className="chatui-btn"
           onClick={() => {
-            chat_ui.onReset(() => {setMessages([])}).catch((error) => console.log(error));
+            chat_ui
+              .onReset(() => {
+                setMessages([]);
+              })
+              .catch((error) => console.log(error));
           }}
         >
           Reset Chat

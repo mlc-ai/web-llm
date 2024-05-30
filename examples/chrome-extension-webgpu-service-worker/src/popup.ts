@@ -11,7 +11,6 @@ import {
   MLCEngineInterface,
   InitProgressReport,
 } from "@mlc-ai/web-llm";
-import { prebuiltAppConfig } from "@mlc-ai/web-llm";
 import { ProgressBar, Line } from "progressbar.js";
 
 /***************** UI elements *****************/

@@ -1,6 +1,5 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-
   <head>
     <title>Simple Chatbot</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,20 +8,14 @@
   </head>
 
   <body>
-    <p>
-      Step 1: Initialize WebLLM and Download Model
-    </p>
+    <p>Step 1: Initialize WebLLM and Download Model</p>
     <div class="download-container">
       <select id="model-selection"></select>
-      <button id="download">
-        Download
-      </button>
+      <button id="download">Download</button>
     </div>
     <p id="download-status" class="hidden"></p>
 
-    <p>
-      Step 2: Chat
-    </p>
+    <p>Step 2: Chat</p>
     <div class="chat-container">
       <div id="chat-box" class="chat-box"></div>
       <div id="chat-stats" class="chat-stats hidden"></div>
@@ -34,5 +27,4 @@
 
     <script src="./index.js" type="module"></script>
   </body>
-
 </html>

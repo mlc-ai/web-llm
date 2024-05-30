@@ -9,5 +9,5 @@ let handler: ServiceWorkerMLCEngineHandler;
 
 self.addEventListener("activate", function (event) {
   handler = new ServiceWorkerMLCEngineHandler(engine);
-  console.log("Web-LLM Service Worker Activated")
+  console.log("Web-LLM Service Worker Activated");
 });

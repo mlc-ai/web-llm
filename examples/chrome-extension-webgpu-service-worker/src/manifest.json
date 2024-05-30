@@ -26,9 +26,5 @@
     "service_worker": "background.ts",
     "type": "module"
   },
-  "permissions": [
-      "storage",
-      "tabs",
-      "webNavigation"
-  ]
+  "permissions": ["storage", "tabs", "webNavigation"]
 }

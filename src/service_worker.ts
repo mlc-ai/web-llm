@@ -2,7 +2,7 @@ import * as tvmjs from "tvmjs";
 import log from "loglevel";
 import { AppConfig, ChatOptions, MLCEngineConfig } from "./config";
 import { ReloadParams, WorkerRequest, WorkerResponse } from "./message";
-import { MLCEngineInterface, InitProgressReport, LogLevel } from "./types";
+import { MLCEngineInterface, InitProgressReport } from "./types";
 import {
   MLCEngineWorkerHandler,
   WebWorkerMLCEngine,

@@ -16,9 +16,5 @@
     "default_title": "MLCBot",
     "default_popup": "popup.html"
   },
-  "permissions": [
-      "storage",
-      "tabs",
-      "webNavigation"
-  ]
+  "permissions": ["storage", "tabs", "webNavigation"]
 }
