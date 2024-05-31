@@ -105,7 +105,7 @@ export interface MLCEngineConfig {
   appConfig?: AppConfig;
   initProgressCallback?: InitProgressCallback;
   logitProcessorRegistry?: Map<string, LogitProcessor>;
-  logLevel: LogLevel;
+  logLevel?: LogLevel;
 }
 
 /**
