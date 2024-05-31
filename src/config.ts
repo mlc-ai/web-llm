@@ -236,7 +236,11 @@ export function postInitAndCheckGenerationConfigValues(
 
 /**
  * Information for a model.
- * @param model: the huggingface link to download the model weights.
+ * @param model: the huggingface link to download the model weights, e.g.
+ *    - https://huggingface.co/mlc-ai/model
+ *    - https://huggingface.co/mlc-ai/model/
+ *    - https://huggingface.co/mlc-ai/model/resolve/main
+ *    - https://huggingface.co/mlc-ai/model/resolve/main/
  * @param model_id: what we call the model.
  * @param model_lib: link to the model library (wasm file) the model uses.
  * @param vram_required_MB: amount of vram in MB required to run the model (can use

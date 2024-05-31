@@ -28,33 +28,29 @@ describe("Check getTopLogprobs correctness", () => {
 });
 
 describe("Test clean model URL", () => {
-  test("Already have resolve/main, throw error", () => {
-    expect(() => {
-      const input = "https://huggingface.co/mlc-ai/model/resolve/main";
-      cleanModelUrl(input);
-    }).toThrow(
-      "Expect ModelRecord.model to not include `resolve/main` suffix.",
-    );
-  });
-
-  test("Already have resolve/main/, throw error", () => {
-    expect(() => {
-      const input = "https://huggingface.co/mlc-ai/model/resolve/main/";
-      cleanModelUrl(input);
-    }).toThrow(
-      "Expect ModelRecord.model to not include `resolve/main` suffix.",
-    );
-  });
-
-  test("Input does not have /", () => {
+  test("Input does not have branch or trailing /", () => {
     const input = "https://huggingface.co/mlc-ai/model";
     const output = cleanModelUrl(input);
     const expected = "https://huggingface.co/mlc-ai/model/resolve/main/";
     expect(output).toEqual(expected);
   });
 
-  test("Input has /", () => {
+  test("Input does not have branch but has trailing /", () => {
     const input = "https://huggingface.co/mlc-ai/model/";
+    const output = cleanModelUrl(input);
+    const expected = "https://huggingface.co/mlc-ai/model/resolve/main/";
+    expect(output).toEqual(expected);
+  });
+
+  test("Input has branch but does not have trailing /", () => {
+    const input = "https://huggingface.co/mlc-ai/model/resolve/main";
+    const output = cleanModelUrl(input);
+    const expected = "https://huggingface.co/mlc-ai/model/resolve/main/";
+    expect(output).toEqual(expected);
+  });
+
+  test("Input has branch and trailing /", () => {
+    const input = "https://huggingface.co/mlc-ai/model/resolve/main/";
     const output = cleanModelUrl(input);
     const expected = "https://huggingface.co/mlc-ai/model/resolve/main/";
     expect(output).toEqual(expected);
