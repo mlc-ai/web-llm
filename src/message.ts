@@ -1,5 +1,5 @@
 import { AppConfig, ChatOptions, GenerationConfig } from "./config";
-import { InitProgressReport } from "./types";
+import { InitProgressReport, LogLevel } from "./types";
 import {
   ChatCompletionRequestStreaming,
   ChatCompletionRequestNonStreaming,
@@ -27,7 +27,8 @@ type RequestKind =
   | "chatCompletionStreamNextChunk"
   | "customRequest"
   | "keepAlive"
-  | "heartbeat";
+  | "heartbeat"
+  | "setLogLevel";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 type ResponseKind =
@@ -78,6 +79,7 @@ export type MessageContent =
   | ChatCompletionStreamInitParams
   | CustomRequestParams
   | InitProgressReport
+  | LogLevel
   | string
   | null
   | number

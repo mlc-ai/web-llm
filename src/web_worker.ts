@@ -275,6 +275,13 @@ export class MLCEngineWorkerHandler {
         });
         return;
       }
+      case "setLogLevel": {
+        const logLevel = msg.content as LogLevel;
+        this.engine.setLogLevel(logLevel);
+        log.setLevel(logLevel);
+        onComplete?.(null);
+        return;
+      }
       case "customRequest": {
         onComplete?.(null);
         return;
@@ -575,6 +582,16 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
     return await this.getPromise<ChatCompletion>(msg);
   }
 
+  async setLogLevel(logLevel: LogLevel) {
+    log.setLevel(logLevel);
+    const msg: WorkerRequest = {
+      kind: "setLogLevel",
+      uuid: crypto.randomUUID(),
+      content: logLevel,
+    };
+    return await this.getPromise<ChatCompletion>(msg);
+  }
+
   onmessage(event: any) {
     let msg: WorkerResponse;
     if (event instanceof MessageEvent) {
@@ -625,9 +642,5 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
         );
       }
     }
-  }
-
-  setLogLevel(logLevel: LogLevel) {
-    log.setLevel(logLevel);
   }
 }
