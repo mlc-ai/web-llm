@@ -16,24 +16,23 @@ This project is our step to bring more diversity to the ecosystem. Specifically,
 
 Won’t it be even more amazing if we can simply open up a browser and directly bring AI natively to your browser tab? There is some level of readiness in the ecosystem. This project provides an affirmative answer to the question.
 
-## Instructions
+## Key Features
+- **In-Browser Inference**: WebLLM is a high-performance, in-browser language model inference engine that leverages WebGPU for hardware acceleration, enabling powerful LLM operations directly within web browsers without server-side processing.
 
-WebGPU just shipped in Chrome 113.
+- [**Full OpenAI API Compatibility**](https://github.com/mlc-ai/web-llm?tab=readme-ov-file#full-openai-compatibility): Seamlessly integrate your app with WebLLM using OpenAI API with functionalities such as JSON-mode, function-calling, streaming, and more.
 
-Select the model you want to try out. Enter your inputs, click “Send” – we are ready to go!
+- [**Extensive Model Support**](https://github.com/mlc-ai/web-llm?tab=readme-ov-file#built-in-models): WebLLM natively supports a range of models including Llama, Phi, Gemma, RedPajama, Mistral, Qwen(通义千问), and many others, making it versatile for various AI tasks.
 
-WebLLM Chat will first fetch model parameters into local cache. The download may take a few minutes, only for the first run.
+- [**Custom Model Integration**](https://github.com/mlc-ai/web-llm?tab=readme-ov-file#custom-models): Easily integrate and deploy custom models in MLC format, allowing you to adapt WebLLM to specific needs and scenarios, enhancing flexibility in model deployment.
 
-The subsequent refreshes and runs will be faster. We have tested it on Windows and Mac, you will need a GPU with about 6GB memory to run Llama-7B, Vicuna-7B, and about 3GB memory to run RedPajama-3B.
+- **Plug-and-Play Integration**: Easily integrate WebLLM into your projects using package managers like NPM and Yarn, or directly via CDN, complete with comprehensive [examples](https://github.com/mlc-ai/web-llm/tree/main/examples) and a modular design for connecting with UI components.
 
-Models with "-1k" suffix signify 1024 context length, lowering ~2-3GB VRAM requirement compared to their counterparts. Feel free to start trying with those.
+- **Streaming & Real-Time Interactions**: Supports streaming chat completions, allowing real-time output generation which enhances interactive applications like chatbots and virtual assistants.
 
-## Links
+- **Web Worker & Service Worker Support**: Optimize UI performance and manage the lifecycle of models efficiently by offloading computations to separate worker threads or service workers.
 
-- [WebLLM GitHub Repository](https://github.com/mlc-ai/web-llm)
-- [WebLLM Chat GitHub Repository](https://github.com/mlc-ai/web-llm-chat)
-- You might also be interested in [Web Stable Diffusion](https://websd.mlc.ai/).
+- **Chrome Extension Support**: Extend the functionality of web browsers through custom Chrome extensions using WebLLM, with examples available for building both basic and advanced extensions.
 
 ## Disclaimer
 
-This demo site is for research purposes only, subject to the model License of LLaMA, Vicuna and RedPajama. Please contact us if you find any potential violation.
+The [demo site](https://chat.webllm.ai) is for research purposes only, subject to the model License of LLaMA, Vicuna and RedPajama. Please contact us if you find any potential violation.
