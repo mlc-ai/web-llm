@@ -38,7 +38,7 @@ This project is a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-l
 
 - [**Full OpenAI API Compatibility**](#full-openai-compatibility): Seamlessly integrate your app with WebLLM using OpenAI API with functionalities such as JSON-mode, function-calling, streaming, and more.
 
-- [**Extensive Model Support**](#built-in-models): WebLLM natively supports a range of models including Llama, Phi, Gemma, RedPajama, Mistral, Qwen(通义千问), and many others, making it versatile for various AI tasks.
+- [**Extensive Model Support**](#built-in-models): WebLLM natively supports a range of models including Llama 3, Phi 3, Gemma, Mistral, Qwen(通义千问), and many others, making it versatile for various AI tasks.
 
 - [**Custom Model Integration**](#custom-models): Easily integrate and deploy custom models in MLC format, allowing you to adapt WebLLM to specific needs and scenarios, enhancing flexibility in model deployment.
 
@@ -54,15 +54,14 @@ This project is a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-l
 
 The following models are natively supported in WebLLM and their detailed configuration can be accessed from [`prebuiltAppConfig.model_list`](https://github.com/mlc-ai/web-llm/blob/main/src/config.ts#L293).
 
-- Llama 2 and Llama 3
-- Phi 1.5 and Phi 2
-- Gemma
-- RedPajama
+- Llama 3
+- Phi 3
 - Mistral
+- Gemma
+- Qwen (通义千问)
+- Hermes (finetuned variants of Llama 3 and Mistral)
+- RedPajama
 - Zephyr
-- Qwen 1.5
-- OpenHermes
-- NeuralHermes
 - TinyLlama
 
 If you need more models, [request a new model via opening an issue](https://github.com/mlc-ai/web-llm/issues/new/choose) or check [Custom Models](#custom-models) for how to compile and use your own models with WebLLM.
@@ -94,6 +93,15 @@ npm install @mlc-ai/web-llm
 yarn add @mlc-ai/web-llm
 # or pnpm
 pnpm install @mlc-ai/web-llm
+```
+
+Then import the module in your code.
+
+```typescript
+// Import everything
+import * as webllm from "@mlc-ai/web-llm";
+// Or only import what you need
+import { CreateMLCEngine } from "@mlc-ai/web-llm";
 ```
 
 #### CDN Delivery
@@ -135,7 +143,7 @@ const engine = new MLCEngine();
 engine.setInitProgressCallback(initProgressCallback);
 
 // This is an asynchrounous call and can take a long time to finish
-await engine.reload(selectedModel, chatConfig, appConfig);
+await engine.reload(selectedModel);
 ```
 
 ### Chat Completion
@@ -152,7 +160,6 @@ const messages = [
 
 const reply = await engine.chat.completions.create({
   messages,
-  temperature: 1,
 });
 console.log(reply.choices[0].message);
 console.log(await engine.runtimeStatsText());
