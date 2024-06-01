@@ -111,7 +111,7 @@ Most operations in WebLLM are invoked through the `MLCEngine` interface. You can
 (Note that loading models requires downloading and it can take a significant amount of time for the very first run without previous cache. You should properly handle this asynchronous call.)
 
 ```typescript
-import { CreateMLCEngine, MLCEngineInterface } from "@mlc-ai/web-llm";
+import { CreateMLCEngine } from "@mlc-ai/web-llm";
 
 // Callback function to update model loading progress
 const initProgressCallback = (initProgress) => {
@@ -119,7 +119,7 @@ const initProgressCallback = (initProgress) => {
 }
 const selectedModel = "Llama-3-8B-Instruct-q4f32_1-MLC";
 
-const engine: MLCEngineInterface = await CreateMLCEngine(
+const engine = await CreateMLCEngine(
   selectedModel,
   { initProgressCallback }, // engineConfig
 );
@@ -128,11 +128,11 @@ const engine: MLCEngineInterface = await CreateMLCEngine(
 Under the hood, this factory function does the following steps for first creating an engine instance (synchrounous) and then loading the model (asynchrounous). You can also do them separately in your application.
 
 ```typescript
-import { MLCEngine, MLCEngineInterface } from "@mlc-ai/web-llm";
+import { MLCEngine } from "@mlc-ai/web-llm";
 
 // This is a synchrounous call that returns immediately
-const engine: MLCEngineInterface = new MLCEngine();
-engine.setInitProgressCallback();
+const engine = new MLCEngine();
+engine.setInitProgressCallback(initProgressCallback);
 
 // This is an asynchrounous call and can take a long time to finish
 await engine.reload(selectedModel, chatConfig, appConfig);
@@ -168,6 +168,7 @@ const messages = [
   { role: "user", content: "Hello!" },
 ]
 
+// Chunks is an AsyncGenerator object
 const chunks = await engine.chat.completions.create({
   messages,
   temperature: 1,
@@ -213,21 +214,21 @@ implements the same `MLCEngineInterface`. The rest of the logic remains the same
 
 ```typescript
 // main.ts
-import { MLCEngineInterface, CreateWebWorkerMLCEngine } from "@mlc-ai/web-llm";
+import { CreateWebWorkerMLCEngine } from "@mlc-ai/web-llm";
 
 async function main() {
   // Use a WebWorkerMLCEngine instead of MLCEngine here
-  const engine: MLCEngineInterface =
-    await CreateWebWorkerMLCEngine(
-      new Worker(
-        new URL("./worker.ts", import.meta.url), 
-        {
-          type: "module",
-        }
-      ),
-      /*modelId=*/ selectedModel,
-      /*engineConfig=*/ { initProgressCallback: initProgressCallback },
-    );
+  const engine = await CreateWebWorkerMLCEngine(
+    new Worker(
+      new URL("./worker.ts", import.meta.url), 
+      {
+        type: "module",
+      }
+    ),
+    selectedModel,
+    { initProgressCallback }, // engineConfig
+  );
+
   // everything else remains the same
 }
 ```
@@ -248,11 +249,10 @@ that handles requests when the service worker is ready.
 // sw.ts
 import {
   ServiceWorkerMLCEngineHandler,
-  MLCEngineInterface,
   MLCEngine,
 } from "@mlc-ai/web-llm";
 
-const engine: MLCEngineInterface = new MLCEngine();
+const engine = new MLCEngine();
 let handler: ServiceWorkerMLCEngineHandler;
 
 self.addEventListener("activate", function (event) {
@@ -270,15 +270,15 @@ import { MLCEngineInterface, CreateServiceWorkerMLCEngine } from "@mlc-ai/web-ll
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register(
-    /*workerScriptURL=*/ new URL("sw.ts", import.meta.url),
+    new URL("sw.ts", import.meta.url),  // worker script
     { type: "module" },
   );
 }
 
 const engine: MLCEngineInterface =
   await CreateServiceWorkerMLCEngine(
-    /*modelId=*/ selectedModel,
-    /*engineConfig=*/ { initProgressCallback: initProgressCallback },
+    selectedModel,
+    { initProgressCallback }, // engineConfig
   );
 ```
 
@@ -336,7 +336,7 @@ async main() {
   // assuming that it is compatible to the model in myLlamaUrl.
   const engine = await CreateMLCEngine(
     "MyLlama-3b-v1-q4f32_0",
-    /*engineConfig=*/{ chatOpts: chatOpts, appConfig: appConfig }
+    { chatOpts, appConfig } // engineConfig
   );
 }
 ```
