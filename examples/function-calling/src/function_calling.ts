@@ -9,24 +9,13 @@ function setLabel(id: string, text: string) {
 }
 
 async function main() {
-  const myAppConfig: webllm.AppConfig = {
-    model_list: [
-      {
-        model:
-          "https://huggingface.co/mlc-ai/gorilla-openfunctions-v2-q4f16_1-MLC",
-        model_id: "gorilla-openfunctions-v2-q4f16_1",
-        model_lib:
-          "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/gorilla-openfunctions-v2/gorilla-openfunctions-v2-q4f16_1.wasm",
-      },
-    ],
-  };
   const initProgressCallback = (report: webllm.InitProgressReport) => {
     setLabel("init-label", report.text);
   };
-  const selectedModel = "gorilla-openfunctions-v2-q4f16_1";
+  const selectedModel = "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC";
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
-    { appConfig: myAppConfig, initProgressCallback: initProgressCallback },
+    { initProgressCallback: initProgressCallback },
   );
 
   const tools: Array<webllm.ChatCompletionTool> = [
@@ -51,7 +40,7 @@ async function main() {
   ];
 
   const request: webllm.ChatCompletionRequest = {
-    stream: false,
+    stream: true, // works with stream as well, where the last chunk returns tool_calls
     messages: [
       {
         role: "user",
@@ -63,8 +52,25 @@ async function main() {
     tools: tools,
   };
 
-  const reply0 = await engine.chat.completions.create(request);
-  console.log(reply0.choices[0].message.content);
+  if (!request.stream) {
+    const reply0 = await engine.chat.completions.create(request);
+    console.log(reply0.choices[0]);
+  } else {
+    // If streaming, the last chunk returns tool calls
+    const asyncChunkGenerator = await engine.chat.completions.create(request);
+    let message = "";
+    let lastChunk: webllm.ChatCompletionChunk | undefined;
+    for await (const chunk of asyncChunkGenerator) {
+      console.log(chunk);
+      if (chunk.choices[0].delta.content) {
+        // Last chunk has undefined content
+        message += chunk.choices[0].delta.content;
+      }
+      setLabel("generate-label", message);
+      lastChunk = chunk;
+    }
+    console.log(lastChunk!.choices[0].delta);
+  }
 
   console.log(await engine.runtimeStatsText());
 }

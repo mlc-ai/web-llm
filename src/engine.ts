@@ -25,6 +25,7 @@ import {
   ChatCompletionRequestBase,
   CompletionUsage,
   ChatCompletionUserMessageParam,
+  ChatCompletionMessageToolCall,
 } from "./openai_api_protocols/index";
 import * as ChatCompletionAPI from "./openai_api_protocols/index";
 import {
@@ -122,7 +123,7 @@ export class MLCEngine implements MLCEngineInterface {
     chatOpts?: ChatOptions,
     appConfig?: AppConfig,
   ): Promise<void> {
-    this.unload();
+    await this.unload();
 
     this.logitProcessor = this.logitProcessorRegistry?.get(modelId);
     const tstart = performance.now();
@@ -427,13 +428,36 @@ export class MLCEngine implements MLCEngineInterface {
       this.getPipeline().setSeed(Date.now());
     }
 
+    // If function calling, use the last chunk to return tool_calls
+    let finish_reason = this.getFinishReason()!;
+    const isFunctionCalling =
+      request.tools !== undefined && request.tools !== null;
+    let tool_calls:
+      | Array<ChatCompletionChunk.Choice.Delta.ToolCall>
+      | undefined;
+
+    if (this.getFinishReason()! == "stop" && isFunctionCalling) {
+      // If stopped due to length or abort, cannot output return tool_calls field
+      finish_reason = "tool_calls";
+      const outputMessage = await this.getMessage();
+      tool_calls = this.getToolCallFromOutputMessage(
+        outputMessage,
+        /*isStreaming=*/ true,
+      ) as Array<ChatCompletionChunk.Choice.Delta.ToolCall>;
+    }
+
     const lastChunk: ChatCompletionChunk = {
       id: id,
       choices: [
         {
-          delta: {},
+          delta: isFunctionCalling
+            ? {
+                role: "assistant",
+                tool_calls: tool_calls,
+              }
+            : {},
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          finish_reason: this.getFinishReason()!,
+          finish_reason: finish_reason,
           index: 0,
         },
       ],
@@ -470,7 +494,7 @@ export class MLCEngine implements MLCEngineInterface {
         "Model not loaded before calling chatCompletion(). Please ensure you have called `MLCEngine.reload(model)` to load the model before initiating chat operations, or initialize your engine using `CreateMLCEngine()` with a valid model configuration.",
       );
     }
-    ChatCompletionAPI.postInitAndCheckFields(request);
+    ChatCompletionAPI.postInitAndCheckFields(request, this.currentModelId);
     const genConfig: GenerationConfig = {
       frequency_penalty: request.frequency_penalty,
       presence_penalty: request.presence_penalty,
@@ -512,9 +536,24 @@ export class MLCEngine implements MLCEngineInterface {
           /*genConfig=*/ genConfig,
         );
       }
+      let finish_reason = this.getFinishReason()!;
+
+      // 3. Post processing for function calling
+      const isFunctionCalling =
+        request.tools !== undefined && request.tools !== null;
+      let tool_calls: Array<ChatCompletionMessageToolCall> | undefined;
+      if (this.getFinishReason()! == "stop" && isFunctionCalling) {
+        // If stopped due to length or abort, cannot output return tool_calls field
+        finish_reason = "tool_calls";
+        tool_calls = this.getToolCallFromOutputMessage(
+          outputMessage,
+          /*isStreaming=*/ false,
+        ) as Array<ChatCompletionMessageToolCall>;
+      }
+
       choices.push({
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        finish_reason: this.getFinishReason()!,
+        finish_reason: finish_reason,
         index: i,
         logprobs: request.logprobs
           ? ({
@@ -522,7 +561,8 @@ export class MLCEngine implements MLCEngineInterface {
             } as ChatCompletion.Choice.Logprobs)
           : null,
         message: {
-          content: outputMessage,
+          content: isFunctionCalling ? null : outputMessage,
+          tool_calls: isFunctionCalling ? tool_calls : undefined,
           role: "assistant",
         },
       });
@@ -668,9 +708,12 @@ export class MLCEngine implements MLCEngineInterface {
     );
 
     // 1. Populate function-calling-related fields
-    const functionCallUsage = this.getFunctionCallUsage(request);
-    conversation.function_string = functionCallUsage;
-    conversation.use_function_calling = functionCallUsage === "";
+    // TODO: either remove these or support gorilla-like function calling models.
+    // These commented code was used to support gorilla, but we could not use grammar to
+    // guarantee its output, nor make it conform to OpenAI's function calling output. Kept for now.
+    // const functionCallUsage = this.getFunctionCallUsage(request);
+    // conversation.function_string = functionCallUsage;
+    // conversation.use_function_calling = functionCallUsage !== "";
 
     // 2. Populate conversation.messages
     const input = request.messages;
@@ -769,6 +812,93 @@ export class MLCEngine implements MLCEngineInterface {
   }
 
   /**
+   * Given a string outputMessage, parse it as a JSON object and return an array of tool calls.
+   *
+   * Expect outputMessage to be a valid JSON string, and expect it to be an array of Function with
+   * fields `arguments` and `name`.
+   */
+  private getToolCallFromOutputMessage(
+    outputMessage: string,
+    isStreaming: boolean,
+  ):
+    | Array<ChatCompletionMessageToolCall>
+    | Array<ChatCompletionChunk.Choice.Delta.ToolCall> {
+    // 1. Parse outputMessage to JSON object
+    let toolCallsObject;
+    try {
+      toolCallsObject = JSON.parse(outputMessage);
+    } catch (err) {
+      throw new Error(
+        "Internal error: error encountered when parsing outputMessage for function " +
+          "calling. Got outputMessage: " +
+          outputMessage +
+          "\nGot error: " +
+          err,
+      );
+    }
+
+    // 2. Expect to be an array
+    if (!(toolCallsObject instanceof Array)) {
+      throw new Error(
+        "Internal error: expect output of function calling to be an array",
+      );
+    }
+
+    // 3. Parse each tool call and populate tool_calls
+    const numToolCalls = toolCallsObject.length;
+    const tool_calls = [];
+    for (let id = 0; id < numToolCalls; id++) {
+      const curToolCall = toolCallsObject[id];
+      if (
+        curToolCall.name === undefined ||
+        curToolCall.arguments === undefined
+      ) {
+        throw new Error(
+          "Expect generated tool call to have fields `name` and `arguments`, " +
+            "but got object: " +
+            curToolCall,
+        );
+      }
+      tool_calls.push({
+        name: curToolCall.name,
+        arguments: JSON.stringify(curToolCall.arguments),
+      });
+    }
+
+    // 4. Return based on whether it is streaming or not
+    if (isStreaming) {
+      const tool_calls_result: Array<ChatCompletionChunk.Choice.Delta.ToolCall> =
+        [];
+      for (let id = 0; id < numToolCalls; id++) {
+        const curToolCall = tool_calls[id];
+        tool_calls_result.push({
+          index: id,
+          function: {
+            name: curToolCall.name,
+            arguments: curToolCall.arguments,
+          },
+          type: "function",
+        });
+      }
+      return tool_calls_result;
+    } else {
+      const tool_calls_result: Array<ChatCompletionMessageToolCall> = [];
+      for (let id = 0; id < numToolCalls; id++) {
+        const curToolCall = tool_calls[id];
+        tool_calls_result.push({
+          id: id.toString(),
+          function: {
+            name: curToolCall.name,
+            arguments: curToolCall.arguments,
+          },
+          type: "function",
+        });
+      }
+      return tool_calls_result;
+    }
+  }
+
+  /**
    * Run a prefill step with a given input.
    *
    * If `input` is a chatCompletionRequest, we treat `input.messages[-1]` as the usual user input.
@@ -803,6 +933,10 @@ export class MLCEngine implements MLCEngineInterface {
       );
       if (!compareConversationObject(oldConv, newConv)) {
         // Not the same conversation, so not multiround chatting, reset everything (KV cache, etc.)
+        this.resetChat();
+        this.getPipeline().setConversation(newConv);
+      } else if (newConv.messages.length === 0) {
+        // Empty oldConv, and no chat history in newConv, so reset and setConversation
         this.resetChat();
         this.getPipeline().setConversation(newConv);
       } else {

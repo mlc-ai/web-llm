@@ -1,4 +1,4 @@
-### OpenAI API Demos - Function calling: WIP
+### OpenAI API Demos - Function calling
 
 Run `npm install` first, followed by `npm start`.
 

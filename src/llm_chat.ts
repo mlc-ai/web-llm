@@ -126,7 +126,7 @@ export class LLMChatPipeline {
     } else if (config.token_table_postproc_method !== undefined) {
       this.token_postproc_method = config.token_table_postproc_method;
     } else {
-      console.log(
+      log.warn(
         "Cannot find `tokenizer_info` or `token_table_postproc_method` in `mlc-chat-config.json`, " +
           "using default token_postproc_method `byte_fallback`.\n" +
           "Models that should not use `byte_fallback` include: Llama3, Qwen1.5-1.8B, StableLM-zerphyr-1.6B.\n" +
@@ -134,7 +134,7 @@ export class LLMChatPipeline {
       );
       this.token_postproc_method = "byte_fallback";
     }
-    console.log("token_postproc_method: ", this.token_postproc_method);
+    log.info("token_postproc_method: ", this.token_postproc_method);
 
     this.device = this.tvm.webgpu();
 
