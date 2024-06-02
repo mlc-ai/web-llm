@@ -560,11 +560,16 @@ export class MLCEngine implements MLCEngineInterface {
               content: this.getPipeline().getTokenLogprobArray(),
             } as ChatCompletion.Choice.Logprobs)
           : null,
-        message: {
-          content: isFunctionCalling ? null : outputMessage,
-          tool_calls: isFunctionCalling ? tool_calls : undefined,
-          role: "assistant",
-        },
+        message: isFunctionCalling
+          ? {
+              content: null,
+              tool_calls: tool_calls,
+              role: "assistant",
+            }
+          : {
+              content: outputMessage,
+              role: "assistant",
+            },
       });
       completion_tokens += this.getPipeline().getCurRoundDecodingTotalTokens();
       prompt_tokens += this.getPipeline().getCurRoundPrefillTotalTokens();
