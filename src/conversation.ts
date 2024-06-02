@@ -489,6 +489,11 @@ export function compareConversationObject(
   }
 
   // Then check message
+  if (convA.messages.length === 0 && convB.messages.length === 0) {
+    // both are empty
+    return true;
+  }
+
   const msgLen = convA.messages.length;
   const msgEntryLen = convA.messages[0].length;
   for (let i = 0; i < msgLen; i++) {

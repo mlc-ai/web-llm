@@ -713,7 +713,7 @@ export class MLCEngine implements MLCEngineInterface {
     // guarantee its output, nor make it conform to OpenAI's function calling output. Kept for now.
     // const functionCallUsage = this.getFunctionCallUsage(request);
     // conversation.function_string = functionCallUsage;
-    // conversation.use_function_calling = functionCallUsage === "";
+    // conversation.use_function_calling = functionCallUsage !== "";
 
     // 2. Populate conversation.messages
     const input = request.messages;
@@ -933,6 +933,10 @@ export class MLCEngine implements MLCEngineInterface {
       );
       if (!compareConversationObject(oldConv, newConv)) {
         // Not the same conversation, so not multiround chatting, reset everything (KV cache, etc.)
+        this.resetChat();
+        this.getPipeline().setConversation(newConv);
+      } else if (newConv.messages.length === 0) {
+        // Empty oldConv, and no chat history in newConv, so reset and setConversation
         this.resetChat();
         this.getPipeline().setConversation(newConv);
       } else {
