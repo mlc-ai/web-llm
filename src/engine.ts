@@ -434,9 +434,10 @@ export class MLCEngine implements MLCEngineInterface {
       request.tools !== undefined && request.tools !== null;
     let tool_calls:
       | Array<ChatCompletionChunk.Choice.Delta.ToolCall>
-      | undefined = [];
+      | undefined;
 
     if (this.getFinishReason()! == "stop" && isFunctionCalling) {
+      // If stopped due to length or abort, cannot output return tool_calls field
       finish_reason = "tool_calls";
       const outputMessage = await this.getMessage();
       tool_calls = this.getToolCallFromOutputMessage(
@@ -542,6 +543,7 @@ export class MLCEngine implements MLCEngineInterface {
         request.tools !== undefined && request.tools !== null;
       let tool_calls: Array<ChatCompletionMessageToolCall> | undefined;
       if (this.getFinishReason()! == "stop" && isFunctionCalling) {
+        // If stopped due to length or abort, cannot output return tool_calls field
         finish_reason = "tool_calls";
         tool_calls = this.getToolCallFromOutputMessage(
           outputMessage,

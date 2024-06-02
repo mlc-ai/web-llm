@@ -31,7 +31,7 @@ These examples demonstrate various capabilities via WebLLM's OpenAI-like API.
 - [streaming](streaming): return output as chunks in real-time in the form of an AsyncGenerator
 - [json-mode](json-mode): efficiently ensure output is in json format, see [OpenAI Reference](https://platform.openai.com/docs/guides/text-generation/chat-completions-api) for more.
 - [json-schema](json-schema): besides guaranteeing output to be in JSON, ensure output to adhere to a specific JSON schema specified the user
-- [function-calling](function-calling) (WIP): function calling with fields `tools` and `tool_choice`.
+- [function-calling](function-calling): function calling with fields `tools` and `tool_choice`.
 - [seed-to-reproduce](seed-to-reproduce): use seeding to ensure reproducible output with fields `seed`.
 
 #### Chrome Extension

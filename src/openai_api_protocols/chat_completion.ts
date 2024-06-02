@@ -180,9 +180,12 @@ export interface ChatCompletionRequestBase {
    * tool. Use this to provide a list of functions the model may generate JSON inputs
    * for.
    *
-   * The corresponding reply would populate the tool_calls field. If used with streaming,
-   * the last chunk would contain the tool_calls field, while the intermediate chunks would
+   * The corresponding reply would populate the `tool_calls` field. If used with streaming,
+   * the last chunk would contain the `tool_calls` field, while the intermediate chunks would
    * contain the raw string.
+   *
+   * If the generation terminates due to FinishReason other than "stop" (i.e. "length" or "abort"),
+   * then no `tool_calls` will be returned. User can still get the raw string output.
    */
   tools?: Array<ChatCompletionTool>;
 
@@ -326,7 +329,7 @@ export interface ChatCompletionChunk {
 export const ChatCompletionRequestUnsupportedFields: Array<string> = ["model"];
 
 /**
- * Post init and verify whether the input of the request is legit. Thus, this function can throw
+ * Post init and verify whether the input of the request is valid. Thus, this function can throw
  * error or in-place update request.
  * @param request User's input request.
  * @param currentModelId The current model loaded that will perform this request.
