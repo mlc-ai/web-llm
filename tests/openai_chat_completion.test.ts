@@ -1,7 +1,13 @@
 import {
   postInitAndCheckFields,
   ChatCompletionRequest,
+  ChatCompletionTool,
 } from "../src/openai_api_protocols/chat_completion";
+import {
+  hermes2FunctionCallingSystemPrompt,
+  officialHermes2FunctionCallSchemaArray,
+} from "../src/support";
+import { MessagePlaceholders } from "../src/config";
 import { describe, expect, test } from "@jest/globals";
 
 describe("Check chat completion unsupported requests", () => {
@@ -126,5 +132,132 @@ describe("Supported requests", () => {
       },
     };
     postInitAndCheckFields(request, "Llama-3-8B-Instruct-q4f32_1-MLC");
+  });
+});
+
+describe("Function calling", () => {
+  const tools: Array<ChatCompletionTool> = [
+    {
+      type: "function",
+      function: {
+        name: "get_current_weather",
+        description: "Get the current weather in a given location",
+        parameters: {
+          type: "object",
+          properties: {
+            location: {
+              type: "string",
+              description: "The city and state, e.g. San Francisco, CA",
+            },
+            unit: { type: "string", enum: ["celsius", "fahrenheit"] },
+          },
+          required: ["location"],
+        },
+      },
+    },
+  ];
+
+  test("Unsupported model", () => {
+    expect(() => {
+      const request: ChatCompletionRequest = {
+        tools: tools,
+        messages: [
+          {
+            role: "user",
+            content: "Get weather of Tokyo",
+          },
+        ],
+      };
+      postInitAndCheckFields(request, "Llama-3-8B-Instruct-q4f32_1-MLC");
+    }).toThrow(
+      "Llama-3-8B-Instruct-q4f32_1-MLC is not supported for ChatCompletionRequest.tools.",
+    );
+  });
+
+  test("Should not specify response format", () => {
+    expect(() => {
+      const request: ChatCompletionRequest = {
+        tools: tools,
+        messages: [
+          {
+            role: "user",
+            content: "Get weather of Tokyo",
+          },
+        ],
+        response_format: { type: "json_object" },
+      };
+      postInitAndCheckFields(request, "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC");
+    }).toThrow(
+      "When using Hermes-2-Pro function calling via ChatCompletionRequest.tools, " +
+        "cannot specify customized response_format. We will set it for you internally.",
+    );
+  });
+
+  test("Should not specify system prompt", () => {
+    expect(() => {
+      const request: ChatCompletionRequest = {
+        tools: tools,
+        messages: [
+          {
+            role: "system",
+            content: "Write a function.",
+          },
+          {
+            role: "user",
+            content: "Get weather of Tokyo",
+          },
+        ],
+      };
+      postInitAndCheckFields(request, "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC");
+    }).toThrow(
+      "When using Hermes-2-Pro function calling via ChatCompletionRequest.tools, cannot " +
+        "specify customized system prompt.",
+    );
+  });
+
+  test("Should not specify system prompt", () => {
+    expect(() => {
+      const request: ChatCompletionRequest = {
+        tools: tools,
+        messages: [
+          {
+            role: "system",
+            content: "Write a function.",
+          },
+          {
+            role: "user",
+            content: "Get weather of Tokyo",
+          },
+        ],
+      };
+      postInitAndCheckFields(request, "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC");
+    }).toThrow(
+      "When using Hermes-2-Pro function calling via ChatCompletionRequest.tools, cannot " +
+        "specify customized system prompt.",
+    );
+  });
+
+  test("Check system prompt and response format post init", () => {
+    const request: ChatCompletionRequest = {
+      tools: tools,
+      messages: [
+        {
+          role: "user",
+          content: "Get weather of Tokyo",
+        },
+      ],
+    };
+    postInitAndCheckFields(request, "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC");
+    expect(request.messages[0].role).toEqual("system");
+    expect(request.messages[0].content).toEqual(
+      hermes2FunctionCallingSystemPrompt.replace(
+        MessagePlaceholders.hermes_tools,
+        JSON.stringify(request.tools),
+      ),
+    );
+    expect(request.response_format!.type).toEqual("json_object");
+    expect(request.response_format!.schema).toEqual(
+      officialHermes2FunctionCallSchemaArray,
+    );
   });
 });

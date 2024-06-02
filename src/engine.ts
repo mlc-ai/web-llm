@@ -25,6 +25,7 @@ import {
   ChatCompletionRequestBase,
   CompletionUsage,
   ChatCompletionUserMessageParam,
+  ChatCompletionMessageToolCall,
 } from "./openai_api_protocols/index";
 import * as ChatCompletionAPI from "./openai_api_protocols/index";
 import {
@@ -427,13 +428,35 @@ export class MLCEngine implements MLCEngineInterface {
       this.getPipeline().setSeed(Date.now());
     }
 
+    // If function calling, use the last chunk to return tool_calls
+    let finish_reason = this.getFinishReason()!;
+    const isFunctionCalling =
+      request.tools !== undefined && request.tools !== null;
+    let tool_calls:
+      | Array<ChatCompletionChunk.Choice.Delta.ToolCall>
+      | undefined = [];
+
+    if (this.getFinishReason()! == "stop" && isFunctionCalling) {
+      finish_reason = "tool_calls";
+      const outputMessage = await this.getMessage();
+      tool_calls = this.getToolCallFromOutputMessage(
+        outputMessage,
+        /*isStreaming=*/ true,
+      ) as Array<ChatCompletionChunk.Choice.Delta.ToolCall>;
+    }
+
     const lastChunk: ChatCompletionChunk = {
       id: id,
       choices: [
         {
-          delta: {},
+          delta: isFunctionCalling
+            ? {
+                role: "assistant",
+                tool_calls: tool_calls,
+              }
+            : {},
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          finish_reason: this.getFinishReason()!,
+          finish_reason: finish_reason,
           index: 0,
         },
       ],
@@ -512,9 +535,23 @@ export class MLCEngine implements MLCEngineInterface {
           /*genConfig=*/ genConfig,
         );
       }
+      let finish_reason = this.getFinishReason()!;
+
+      // 3. Post processing for function calling
+      const isFunctionCalling =
+        request.tools !== undefined && request.tools !== null;
+      let tool_calls: Array<ChatCompletionMessageToolCall> | undefined;
+      if (this.getFinishReason()! == "stop" && isFunctionCalling) {
+        finish_reason = "tool_calls";
+        tool_calls = this.getToolCallFromOutputMessage(
+          outputMessage,
+          /*isStreaming=*/ false,
+        ) as Array<ChatCompletionMessageToolCall>;
+      }
+
       choices.push({
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        finish_reason: this.getFinishReason()!,
+        finish_reason: finish_reason,
         index: i,
         logprobs: request.logprobs
           ? ({
@@ -522,7 +559,8 @@ export class MLCEngine implements MLCEngineInterface {
             } as ChatCompletion.Choice.Logprobs)
           : null,
         message: {
-          content: outputMessage,
+          content: isFunctionCalling ? null : outputMessage,
+          tool_calls: isFunctionCalling ? tool_calls : undefined,
           role: "assistant",
         },
       });
@@ -769,6 +807,93 @@ export class MLCEngine implements MLCEngineInterface {
       function_list.push(f.function);
     }
     return JSON.stringify(function_list);
+  }
+
+  /**
+   * Given a string outputMessage, parse it as a JSON object and return an array of tool calls.
+   *
+   * Expect outputMessage to be a valid JSON string, and expect it to be an array of Function with
+   * fields `arguments` and `name`.
+   */
+  private getToolCallFromOutputMessage(
+    outputMessage: string,
+    isStreaming: boolean,
+  ):
+    | Array<ChatCompletionMessageToolCall>
+    | Array<ChatCompletionChunk.Choice.Delta.ToolCall> {
+    // 1. Parse outputMessage to JSON object
+    let toolCallsObject;
+    try {
+      toolCallsObject = JSON.parse(outputMessage);
+    } catch (err) {
+      throw new Error(
+        "Internal error: error encountered when parsing outputMessage for function " +
+          "calling. Got outputMessage: " +
+          outputMessage +
+          "\nGot error: " +
+          err,
+      );
+    }
+
+    // 2. Expect to be an array
+    if (!(toolCallsObject instanceof Array)) {
+      throw new Error(
+        "Internal error: expect output of function calling to be an array",
+      );
+    }
+
+    // 3. Parse each tool call and populate tool_calls
+    const numToolCalls = toolCallsObject.length;
+    const tool_calls = [];
+    for (let id = 0; id < numToolCalls; id++) {
+      const curToolCall = toolCallsObject[id];
+      if (
+        curToolCall.name === undefined ||
+        curToolCall.arguments === undefined
+      ) {
+        throw new Error(
+          "Expect generated tool call to have fields `name` and `arguments`, " +
+            "but got object: " +
+            curToolCall,
+        );
+      }
+      tool_calls.push({
+        name: curToolCall.name,
+        arguments: JSON.stringify(curToolCall.arguments),
+      });
+    }
+
+    // 4. Return based on whether it is streaming or not
+    if (isStreaming) {
+      const tool_calls_result: Array<ChatCompletionChunk.Choice.Delta.ToolCall> =
+        [];
+      for (let id = 0; id < numToolCalls; id++) {
+        const curToolCall = tool_calls[id];
+        tool_calls_result.push({
+          index: id,
+          function: {
+            name: curToolCall.name,
+            arguments: curToolCall.arguments,
+          },
+          type: "function",
+        });
+      }
+      return tool_calls_result;
+    } else {
+      const tool_calls_result: Array<ChatCompletionMessageToolCall> = [];
+      for (let id = 0; id < numToolCalls; id++) {
+        const curToolCall = tool_calls[id];
+        tool_calls_result.push({
+          id: id.toString(),
+          function: {
+            name: curToolCall.name,
+            arguments: curToolCall.arguments,
+          },
+          type: "function",
+        });
+      }
+      return tool_calls_result;
+    }
   }
 
   /**

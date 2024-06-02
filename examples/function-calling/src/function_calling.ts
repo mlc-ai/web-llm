@@ -40,7 +40,7 @@ async function main() {
   ];
 
   const request: webllm.ChatCompletionRequest = {
-    stream: false,
+    stream: true, // works with stream as well, where the last chunk returns tool_calls
     messages: [
       {
         role: "user",
@@ -52,8 +52,25 @@ async function main() {
     tools: tools,
   };
 
-  const reply0 = await engine.chat.completions.create(request);
-  console.log(reply0.choices[0].message.content);
+  if (!request.stream) {
+    const reply0 = await engine.chat.completions.create(request);
+    console.log(reply0.choices[0]);
+  } else {
+    // If streaming, the last chunk returns tool calls
+    const asyncChunkGenerator = await engine.chat.completions.create(request);
+    let message = "";
+    let lastChunk: webllm.ChatCompletionChunk | undefined;
+    for await (const chunk of asyncChunkGenerator) {
+      console.log(chunk);
+      if (chunk.choices[0].delta.content) {
+        // Last chunk has undefined content
+        message += chunk.choices[0].delta.content;
+      }
+      setLabel("generate-label", message);
+      lastChunk = chunk;
+    }
+    console.log(lastChunk!.choices[0].delta);
+  }
 
   console.log(await engine.runtimeStatsText());
 }
