@@ -170,7 +170,7 @@ async function functionCallingExample() {
     setLabel("init-label", report.text);
   };
 
-  const selectedModel = "Hermes-2-Pro-Llama-3-8B-q4f16_1";
+  const selectedModel = "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC";
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
     {

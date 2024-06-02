@@ -16,6 +16,11 @@
  */
 
 import { MLCEngineInterface } from "../types";
+import { functionCallingModelIds, MessagePlaceholders } from "../config";
+import {
+  officialHermes2FunctionCallSchemaArray,
+  hermes2FunctionCallingSystemPrompt,
+} from "../support";
 
 /* eslint-disable @typescript-eslint/no-namespace */
 
@@ -316,7 +321,16 @@ export interface ChatCompletionChunk {
 
 export const ChatCompletionRequestUnsupportedFields: Array<string> = ["model"];
 
-export function postInitAndCheckFields(request: ChatCompletionRequest): void {
+/**
+ * Post init and verify whether the input of the request is legit. Thus, this function can throw
+ * error or in-place update request.
+ * @param request User's input request.
+ * @param currentModelId The current model loaded that will perform this request.
+ */
+export function postInitAndCheckFields(
+  request: ChatCompletionRequest,
+  currentModelId: string,
+): void {
   // Generation-related checks and post inits are in `postInitAndCheckGenerationConfigValues()`
   // 1. Check unsupported fields in request
   const unsupported: Array<string> = [];
@@ -378,6 +392,58 @@ export function postInitAndCheckFields(request: ChatCompletionRequest): void {
       throw new Error(
         "JSON schema is only supported with `json_object` response format.",
       );
+    }
+  }
+
+  // 7. Function calling hardcoded handlings
+  if (request.tools !== undefined && request.tools !== null) {
+    // 7.1 Check if model supports function calling
+    if (!functionCallingModelIds.includes(currentModelId)) {
+      throw Error(
+        `${currentModelId} is not supported for ChatCompletionRequest.tools. Currently, models` +
+          `that support function calling are: ${functionCallingModelIds}`,
+      );
+    }
+
+    // 7.2 Hard coded support for Hermes2Pro following
+    // https://huggingface.co/NousResearch/Hermes-2-Pro-Llama-3-8B#prompt-format-for-function-calling
+    if (currentModelId.startsWith("Hermes-2-Pro-")) {
+      // 7.2.1 Update response format for Hermes2Pro function calling to use json schema
+      if (
+        request.response_format !== undefined &&
+        request.response_format !== null
+      ) {
+        throw new Error(
+          "When using Hermes-2-Pro function calling via ChatCompletionRequest.tools, " +
+            "cannot specify customized response_format. We will set it for you internally. Currently " +
+            "set to: " +
+            request.response_format,
+        );
+      }
+      request.response_format = {
+        type: "json_object",
+        schema: officialHermes2FunctionCallSchemaArray,
+      } as ResponseFormat;
+
+      // 7.2.2 Modify system prompt to provide tools usage
+      const hermes2SystemMessage = hermes2FunctionCallingSystemPrompt.replace(
+        MessagePlaceholders.hermes_tools,
+        JSON.stringify(request.tools),
+      );
+      // Make sure user did not provide system message already
+      for (let i = 0; i < request.messages.length; i++) {
+        const message: ChatCompletionMessageParam = request.messages[i];
+        if (message.role === "system") {
+          throw new Error(
+            "When using Hermes-2-Pro function calling via ChatCompletionRequest.tools, cannot specify customized system prompt.",
+          );
+        }
+      }
+      // Prepend a message for hardcoded system prompt
+      request.messages.unshift({
+        role: "system",
+        content: hermes2SystemMessage,
+      } as ChatCompletionSystemMessageParam);
     }
   }
 }

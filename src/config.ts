@@ -42,6 +42,7 @@ export enum MessagePlaceholders {
   assistant = "{assistant_message}",
   tool = "{tool_message}",
   function = "{function_string}",
+  hermes_tools = "{hermes_tools}",
 }
 
 /**
@@ -236,11 +237,11 @@ export function postInitAndCheckGenerationConfigValues(
 
 /**
  * Information for a model.
- * @param model: the huggingface link to download the model weights, e.g.
- *    - https://huggingface.co/mlc-ai/model
- *    - https://huggingface.co/mlc-ai/model/
- *    - https://huggingface.co/mlc-ai/model/resolve/main
- *    - https://huggingface.co/mlc-ai/model/resolve/main/
+ * @param model: the huggingface link to download the model weights, accepting four formats:
+ *    - https://huggingface.co/{USERNAME}/{MODEL}, which we automatically use the main branch
+ *    - https://huggingface.co/{USERNAME}/{MODEL}/, which we automatically use the main branch
+ *    - https://huggingface.co/{USERNAME}/{MODEL}/resolve/{BRANCH}
+ *    - https://huggingface.co/{USERNAME}/{MODEL}/resolve/{BRANCH}/
  * @param model_id: what we call the model.
  * @param model_lib: link to the model library (wasm file) the model uses.
  * @param vram_required_MB: amount of vram in MB required to run the model (can use
@@ -285,6 +286,15 @@ export interface AppConfig {
 export const modelVersion = "v0_2_39";
 export const modelLibURLPrefix =
   "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/";
+
+/**
+ * Models that support function calling (i.e. usage of `ChatCompletionRequest.tools`). More to come.
+ */
+export const functionCallingModelIds = [
+  "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC",
+  "Hermes-2-Pro-Llama-3-8B-q4f32_1-MLC",
+  "Hermes-2-Pro-Mistral-7B-q4f16_1-MLC",
+];
 
 /**
  * Default models and model library mapping to be used if unspecified.

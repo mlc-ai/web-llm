@@ -1,5 +1,6 @@
 /** Util methods. */
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
+import { MessagePlaceholders } from "./config";
 
 /**
  * Based on `p_prob` of size (vocabSize,) which becomes a distribution after calling
@@ -72,7 +73,32 @@ export function getTokenTableFromTokenizer(tokenizer: Tokenizer): string[] {
 export function cleanModelUrl(modelUrl: string): string {
   // https://huggingface.co/USER/MODEL -> https://huggingface.co/USER/MODEL/
   modelUrl += modelUrl.endsWith("/") ? "" : "/";
-  if (!modelUrl.match(/.+\/resolve\/.+\//)) modelUrl += "resolve/main/"
+  if (!modelUrl.match(/.+\/resolve\/.+\//)) modelUrl += "resolve/main/";
   // https://huggingface.co/USER/MODEL/ -> https://huggingface.co/USER/MODEL/resolve/main/
   return new URL(modelUrl).href;
 }
+
+// Constants for Hermes-2-Pro models function calling
+// Follows https://huggingface.co/NousResearch/Hermes-2-Pro-Llama-3-8B#prompt-format-for-function-calling
+
+/**
+ * Json schema used to prompt the model for function calling; directly copied from the official guide.
+ * This represents to a single function call.
+ */
+export const officialHermes2FunctionCallSchema = `{"properties": {"arguments": {"title": "Arguments", "type": "object"}, "name": {"title": "Name", "type": "string"}}, "required": ["arguments", "name"], "title": "FunctionCall", "type": "object"}`;
+
+/**
+ * A list of such function calls. Used to specify response format, since the output is expected to
+ * be a list of such function calls.
+ */
+export const officialHermes2FunctionCallSchemaArray = `{"type":"array","items":${officialHermes2FunctionCallSchema}}`;
+
+/**
+ * Full system prompt for Hermes-2-Pro function calling.
+ */
+export const hermes2FunctionCallingSystemPrompt = `You are a function calling AI model. You are 
+provided with function signatures within <tools></tools> XML tags. You may call one or more functions 
+to assist with the user query. Don't make assumptions about what values to plug into functions. Here 
+are the available tools: <tools> ${MessagePlaceholders.hermes_tools}  </tools>. 
+Use the following pydantic model json schema for each tool call you will make: 
+${officialHermes2FunctionCallSchema} For each function call return a json object.`;

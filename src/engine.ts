@@ -122,7 +122,7 @@ export class MLCEngine implements MLCEngineInterface {
     chatOpts?: ChatOptions,
     appConfig?: AppConfig,
   ): Promise<void> {
-    this.unload();
+    await this.unload();
 
     this.logitProcessor = this.logitProcessorRegistry?.get(modelId);
     const tstart = performance.now();
@@ -470,7 +470,7 @@ export class MLCEngine implements MLCEngineInterface {
         "Model not loaded before calling chatCompletion(). Please ensure you have called `MLCEngine.reload(model)` to load the model before initiating chat operations, or initialize your engine using `CreateMLCEngine()` with a valid model configuration.",
       );
     }
-    ChatCompletionAPI.postInitAndCheckFields(request);
+    ChatCompletionAPI.postInitAndCheckFields(request, this.currentModelId);
     const genConfig: GenerationConfig = {
       frequency_penalty: request.frequency_penalty,
       presence_penalty: request.presence_penalty,
@@ -668,9 +668,12 @@ export class MLCEngine implements MLCEngineInterface {
     );
 
     // 1. Populate function-calling-related fields
-    const functionCallUsage = this.getFunctionCallUsage(request);
-    conversation.function_string = functionCallUsage;
-    conversation.use_function_calling = functionCallUsage === "";
+    // TODO: either remove these or support gorilla-like function calling models.
+    // These commented code was used to support gorilla, but we could not use grammar to
+    // guarantee its output, nor make it conform to OpenAI's function calling output. Kept for now.
+    // const functionCallUsage = this.getFunctionCallUsage(request);
+    // conversation.function_string = functionCallUsage;
+    // conversation.use_function_calling = functionCallUsage === "";
 
     // 2. Populate conversation.messages
     const input = request.messages;
