@@ -334,7 +334,6 @@ async main() {
     "repetition_penalty": 1.01
   };
 
-  const chat = new ChatModule();
   // load a prebuilt model
   // with a chat option override and app config
   // under the hood, it will load the model from myLlamaUrl
