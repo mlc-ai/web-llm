@@ -548,7 +548,7 @@ export class MLCEngine implements MLCEngineInterface {
         tool_calls = this.getToolCallFromOutputMessage(
           outputMessage,
           /*isStreaming=*/ false,
-        ) as Array<ChatCompletionMessageToolCall>;
+        );
       }
 
       choices.push({
@@ -822,6 +822,14 @@ export class MLCEngine implements MLCEngineInterface {
    * Expect outputMessage to be a valid JSON string, and expect it to be an array of Function with
    * fields `arguments` and `name`.
    */
+  private getToolCallFromOutputMessage(
+    outputMessage: string,
+    isStreaming: false,
+  ): Array<ChatCompletionMessageToolCall>;
+  private getToolCallFromOutputMessage(
+    outputMessage: string,
+    isStreaming: true,
+  ): Array<ChatCompletionChunk.Choice.Delta.ToolCall>;
   private getToolCallFromOutputMessage(
     outputMessage: string,
     isStreaming: boolean,
