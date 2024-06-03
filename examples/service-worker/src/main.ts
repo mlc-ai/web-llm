@@ -65,7 +65,7 @@ async function mainNonStreaming() {
   console.log(reply0);
   setLabel("generate-label", reply0.choices[0].message.content || "");
 
-  console.log(await engine.runtimeStatsText());
+  console.log(reply0.usage);
 }
 
 /**
@@ -101,6 +101,7 @@ async function mainStreaming() {
 
   const asyncChunkGenerator = await engine.chat.completions.create(request);
   let message = "";
+  let lastChunk: webllm.ChatCompletionChunk | undefined = undefined;
   for await (const chunk of asyncChunkGenerator) {
     console.log(chunk);
     if (chunk.choices[0].delta.content) {
@@ -108,10 +109,11 @@ async function mainStreaming() {
       message += chunk.choices[0].delta.content;
     }
     setLabel("generate-label", message);
+    lastChunk = chunk;
     // engine.interruptGenerate();  // works with interrupt as well
   }
   console.log("Final message:\n", await engine.getMessage()); // the concatenated message
-  console.log(await engine.runtimeStatsText());
+  console.log(lastChunk!.usage);
 }
 
 registerServiceWorker();

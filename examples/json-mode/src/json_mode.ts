@@ -34,7 +34,7 @@ async function main() {
   const reply0 = await engine.chatCompletion(request);
   console.log(reply0);
   console.log("First reply's last choice:\n" + (await engine.getMessage()));
-  console.log(await engine.runtimeStatsText());
+  console.log(reply0.usage);
 }
 
 main();

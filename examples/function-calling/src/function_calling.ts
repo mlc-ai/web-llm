@@ -55,6 +55,7 @@ async function main() {
   if (!request.stream) {
     const reply0 = await engine.chat.completions.create(request);
     console.log(reply0.choices[0]);
+    console.log(reply0.usage);
   } else {
     // If streaming, the last chunk returns tool calls
     const asyncChunkGenerator = await engine.chat.completions.create(request);
@@ -70,9 +71,8 @@ async function main() {
       lastChunk = chunk;
     }
     console.log(lastChunk!.choices[0].delta);
+    console.log(lastChunk!.usage);
   }
-
-  console.log(await engine.runtimeStatsText());
 }
 
 main();

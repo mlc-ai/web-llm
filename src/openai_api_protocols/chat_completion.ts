@@ -324,6 +324,12 @@ export interface ChatCompletionChunk {
    * @note Not supported yet.
    */
   system_fingerprint?: string;
+
+  /**
+   * It contains a null value except for the last chunk which contains the token usage
+   * statistics for the entire request.
+   */
+  usage?: CompletionUsage;
 }
 
 export const ChatCompletionRequestUnsupportedFields: Array<string> = ["model"];
@@ -812,6 +818,16 @@ export interface CompletionUsage {
    * Total number of tokens used in the request (prompt + completion).
    */
   total_tokens: number;
+
+  /**
+   * Number of tokens per second for prefilling.
+   */
+  prefill_tokens_per_s: number;
+
+  /**
+   * Number of tokens per second for autoregressive decoding.
+   */
+  decode_tokens_per_s: number;
 }
 
 /**

@@ -162,7 +162,7 @@ const reply = await engine.chat.completions.create({
   messages,
 });
 console.log(reply.choices[0].message);
-console.log(await engine.runtimeStatsText());
+console.log(reply.usage);
 ```
 
 ### Streaming
@@ -183,14 +183,16 @@ const chunks = await engine.chat.completions.create({
 });
 
 let reply = "";
+let lastChunk: webllm.ChatCompletionChunk | undefined = undefined;
 for await (const chunk of chunks) {
   reply += chunk.choices[0].delta.content || "";
+  lastChunk = chunk;
   console.log(reply);
 }
 
 const fullReply = await engine.getMessage()
 console.log(fullReply);
-console.log(await engine.runtimeStatsText());
+console.log(lastChunk.usage);
 ```
 
 ## Advanced Usage

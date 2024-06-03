@@ -52,7 +52,7 @@ async function main() {
     top_logprobs: 2,
   });
   console.log(reply0);
-  console.log(await engine.runtimeStatsText());
+  console.log(reply0.usage);
 
   // To change model, either create a new engine via `CreateMLCEngine()`, or call `engine.reload(modelId)`
 }
