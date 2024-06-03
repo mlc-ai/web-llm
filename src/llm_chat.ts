@@ -44,7 +44,7 @@ export class LLMChatPipeline {
 
   // meta data
   private bosTokenId = 1;
-  private maxWindowLength = -1;
+  private contextWindowSize = -1;
   private slidingWindowSize = -1;
   private attentionSinkSize = -1;
   private prefillChunkSize = -1;
@@ -178,36 +178,39 @@ export class LLMChatPipeline {
     if (this.prefillChunkSize <= 0) {
       throw Error("Prefill chunk size needs to be positive.");
     }
-    // Only use one of slidingWindowSize and maxWindowLength
-    if (
-      metadata.hasOwnProperty("sliding_window_size") &&
-      metadata.sliding_window_size != -1
-    ) {
-      this.slidingWindowSize = metadata.sliding_window_size;
+
+    // 5. Consolidate KVCache settings: context window, sliding window, attention sink
+    this.slidingWindowSize = config.sliding_window_size;
+    this.contextWindowSize = config.context_window_size;
+    this.attentionSinkSize = config.attention_sink_size;
+    if (this.contextWindowSize !== -1 && this.slidingWindowSize !== -1) {
+      throw new Error(
+        "Only one of context_window_size and sliding_window_size can be positive. Got: " +
+          "context_window_size: " +
+          this.contextWindowSize +
+          ", sliding_window_size: " +
+          this.slidingWindowSize +
+          "\nConsider modifying ModelRecord.overrides to set one of them to -1.",
+      );
+    } else if (this.slidingWindowSize != -1) {
+      // Use sliding window and attention sink
       log.info("Using slidingWindowSize: ", this.slidingWindowSize);
-      // Parse attention sink size
-      if (
-        metadata.hasOwnProperty("attention_sink_size") &&
-        metadata.attention_sink_size >= 0
-      ) {
-        this.attentionSinkSize = metadata.attention_sink_size;
+      if (this.attentionSinkSize >= 0) {
         log.info("Using attentionSinkSize: ", this.attentionSinkSize);
       } else {
         throw Error(
           "Need to specify non-negative attention_sink_size if using sliding window. " +
-            "Consider re-compiling the model with the most recent mlc-llm. " +
+            "Consider modifying ModelRecord.overrides. " +
             "Use `attention_sink_size=0` for default sliding window.",
         );
       }
-    } else if (
-      metadata.hasOwnProperty("context_window_size") &&
-      metadata.context_window_size != -1
-    ) {
-      this.maxWindowLength = metadata.context_window_size;
-      log.info("Using maxWindowLength: ", this.maxWindowLength);
+    } else if (this.contextWindowSize != -1) {
+      // Use default kv cache without sliding window
+      log.info("Using contextWindowSize: ", this.contextWindowSize);
     } else {
       throw Error(
-        "Need to specify either sliding window size or max window size.",
+        "Need to specify either sliding_window_size or max_window_size.\n" +
+          "Consider modifying ModelRecord.overrides to set one of them to positive.",
       );
     }
 
@@ -241,7 +244,7 @@ export class LLMChatPipeline {
     const maxTotalSeqLen =
       this.slidingWindowSize != -1
         ? this.slidingWindowSize
-        : this.maxWindowLength;
+        : this.contextWindowSize;
     this.kvCache = this.tvm.detachFromCurrentScope(
       fcreateCache(
         this.tvm.makeShapeTuple([defaultMaxNumSequence]), // max_num_sequence
@@ -909,9 +912,9 @@ export class LLMChatPipeline {
       const encoded = this.tokenizer.encode(prompts[i]);
       ctxLength += encoded.length;
       if (
-        this.slidingWindowSize == -1 && // There is no maxWindowLength if we use sliding window
+        this.slidingWindowSize == -1 && // There is no contextWindowSize if we use sliding window
         this.filledKVCacheLength + ctxLength + mean_gen_len >=
-          this.maxWindowLength
+          this.contextWindowSize
       ) {
         needShiftWindow = true;
         break;
@@ -953,7 +956,7 @@ export class LLMChatPipeline {
       const encoded = this.tokenizer.encode(all_prompts[i]);
       ctxLength += encoded.length;
       if (
-        ctxLength >= shift_fill_factor * this.maxWindowLength &&
+        ctxLength >= shift_fill_factor * this.contextWindowSize &&
         i + 2 < all_prompts.length
       ) {
         break;
@@ -963,7 +966,7 @@ export class LLMChatPipeline {
     for (const ctx of context) {
       tokens.push(...ctx);
     }
-    if (tokens.length + mean_gen_len >= this.maxWindowLength) {
+    if (tokens.length + mean_gen_len >= this.contextWindowSize) {
       throw Error("Exceed max window length curr=" + tokens.length);
     }
     return tokens;

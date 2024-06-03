@@ -16,18 +16,33 @@ async function main() {
   const selectedModel = "Llama-3-8B-Instruct-q4f32_1-MLC";
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
-    { initProgressCallback: initProgressCallback },
+    {
+      initProgressCallback: initProgressCallback,
+      logLevel: "INFO", // specify the log level
+      // customize kv cache, use either context_window_size or sliding_window_size (with attention sink)
+      chatOpts: {
+        context_window_size: 2048,
+        // sliding_window_size: 1024,
+        // attention_sink_size: 4,
+      },
+    },
   );
 
   // Option 2: Specify your own model other than the prebuilt ones
   // const appConfig: webllm.AppConfig = {
   //   model_list: [
   //     {
-  //       "model": "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f32_1-MLC",
-  //       "model_id": "Llama-3-8B-Instruct-q4f32_1-MLC",
-  //       "model_lib": webllm.modelLibURLPrefix + webllm.modelVersion + "/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+  //       model: "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f32_1-MLC",
+  //       model_id: "Llama-3-8B-Instruct-q4f32_1-MLC",
+  //       model_lib:
+  //         webllm.modelLibURLPrefix +
+  //         webllm.modelVersion +
+  //         "/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+  //       overrides: {
+  //         context_window_size: 2048,
+  //       },
   //     },
-  //   ]
+  //   ],
   // };
   // const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
   //   selectedModel,

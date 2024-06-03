@@ -162,6 +162,7 @@ export class MLCEngine implements MLCEngineInterface {
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
     this.config = {
       ...(await configCache.fetchWithCache(configUrl, "json")),
+      ...modelRecord.overrides,
       ...chatOpts,
     } as ChatConfig;
 
