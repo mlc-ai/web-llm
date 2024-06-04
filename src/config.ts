@@ -347,6 +347,9 @@ export const prebuiltAppConfig: AppConfig = {
         "/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 6101.01,
       low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
     },
     {
       model: "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f16_1-MLC",
@@ -357,6 +360,9 @@ export const prebuiltAppConfig: AppConfig = {
         "/Llama-3-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 5001.0,
       low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
     },
     {
       model: "https://huggingface.co/mlc-ai/Llama-3-70B-Instruct-q3f16_1-MLC",
@@ -367,6 +373,9 @@ export const prebuiltAppConfig: AppConfig = {
         "/Llama-3-70B-Instruct-q3f16_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 31153.13,
       low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
     },
     // Phi3-mini-instruct
     {
@@ -378,6 +387,9 @@ export const prebuiltAppConfig: AppConfig = {
         "/Phi-3-mini-4k-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 3672.07,
       low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
     },
     {
       model: "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f32_1-MLC",
@@ -388,6 +400,9 @@ export const prebuiltAppConfig: AppConfig = {
         "/Phi-3-mini-4k-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 5483.12,
       low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
     },
     {
       model: "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC",
@@ -452,6 +467,9 @@ export const prebuiltAppConfig: AppConfig = {
         "/Llama-2-7b-chat-hf-q4f32_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 9109.03,
       low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
     },
     {
       model: "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f16_1-MLC",
@@ -463,6 +481,9 @@ export const prebuiltAppConfig: AppConfig = {
       vram_required_MB: 6749.02,
       low_resource_required: false,
       required_features: ["shader-f16"],
+      overrides: {
+        context_window_size: 4096,
+      },
     },
     {
       model: "https://huggingface.co/mlc-ai/Llama-2-13b-chat-hf-q4f16_1-MLC",
@@ -474,6 +495,9 @@ export const prebuiltAppConfig: AppConfig = {
       vram_required_MB: 11814.09,
       low_resource_required: false,
       required_features: ["shader-f16"],
+      overrides: {
+        context_window_size: 4096,
+      },
     },
     // Mistral variants
     {
@@ -486,6 +510,10 @@ export const prebuiltAppConfig: AppConfig = {
       vram_required_MB: 6079.02,
       low_resource_required: false,
       required_features: ["shader-f16"],
+      overrides: {
+        sliding_window_size: 4096,
+        attention_sink_size: 4,
+      },
     },
     {
       model:
@@ -498,6 +526,10 @@ export const prebuiltAppConfig: AppConfig = {
       vram_required_MB: 6079.02,
       low_resource_required: false,
       required_features: ["shader-f16"],
+      overrides: {
+        sliding_window_size: 4096,
+        attention_sink_size: 4,
+      },
     },
     {
       model:
@@ -510,6 +542,10 @@ export const prebuiltAppConfig: AppConfig = {
       vram_required_MB: 6079.02,
       low_resource_required: false,
       required_features: ["shader-f16"],
+      overrides: {
+        sliding_window_size: 4096,
+        attention_sink_size: 4,
+      },
     },
     {
       model:
@@ -522,6 +558,10 @@ export const prebuiltAppConfig: AppConfig = {
       vram_required_MB: 6079.02,
       low_resource_required: false,
       required_features: ["shader-f16"],
+      overrides: {
+        sliding_window_size: 4096,
+        attention_sink_size: 4,
+      },
     },
     // Hermes-2 Pro
     {
@@ -534,6 +574,9 @@ export const prebuiltAppConfig: AppConfig = {
         "/Llama-3-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 4976.13,
       low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
     },
     {
       model:
@@ -545,6 +588,9 @@ export const prebuiltAppConfig: AppConfig = {
         "/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 6051.27,
       low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
     },
     {
       model:
@@ -557,6 +603,10 @@ export const prebuiltAppConfig: AppConfig = {
       vram_required_MB: 4033.28,
       low_resource_required: false,
       required_features: ["shader-f16"],
+      overrides: {
+        sliding_window_size: 4096,
+        attention_sink_size: 4,
+      },
     },
     // Gemma-2B
     {
@@ -570,6 +620,9 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: false,
       buffer_size_required_bytes: 262144000,
       required_features: ["shader-f16"],
+      overrides: {
+        context_window_size: 4096,
+      },
     },
     {
       model: "https://huggingface.co/mlc-ai/gemma-2b-it-q4f32_1-MLC",
@@ -581,6 +634,9 @@ export const prebuiltAppConfig: AppConfig = {
       vram_required_MB: 1750.66,
       low_resource_required: false,
       buffer_size_required_bytes: 262144000,
+      overrides: {
+        context_window_size: 4096,
+      },
     },
     {
       model: "https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC",
@@ -621,6 +677,9 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen1.5-1.8B-Chat-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 2404.94,
       low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
     },
     {
       model: "https://huggingface.co/mlc-ai/Qwen1.5-1.8B-Chat-q4f32_1-MLC",
@@ -631,6 +690,9 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen1.5-1.8B-Chat-q4f32_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 3313.63,
       low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
     },
     {
       model: "https://huggingface.co/mlc-ai/Qwen1.5-1.8B-Chat-q4f16_1-MLC",
@@ -668,6 +730,9 @@ export const prebuiltAppConfig: AppConfig = {
         "/stablelm-2-zephyr-1_6b-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 2087.66,
       low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
     },
     {
       model: "https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f32_1-MLC",
@@ -678,6 +743,9 @@ export const prebuiltAppConfig: AppConfig = {
         "/stablelm-2-zephyr-1_6b-q4f32_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 2999.33,
       low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
     },
     {
       model: "https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f16_1-MLC",
@@ -717,6 +785,9 @@ export const prebuiltAppConfig: AppConfig = {
       vram_required_MB: 2972.09,
       low_resource_required: false,
       required_features: ["shader-f16"],
+      overrides: {
+        context_window_size: 2048,
+      },
     },
     {
       model:
@@ -728,6 +799,9 @@ export const prebuiltAppConfig: AppConfig = {
         "/RedPajama-INCITE-Chat-3B-v1-q4f32_1-ctx2k_cs1k-webgpu.wasm",
       vram_required_MB: 3928.09,
       low_resource_required: false,
+      overrides: {
+        context_window_size: 2048,
+      },
     },
     {
       model:
@@ -769,6 +843,9 @@ export const prebuiltAppConfig: AppConfig = {
       vram_required_MB: 3053.97,
       low_resource_required: false,
       required_features: ["shader-f16"],
+      overrides: {
+        context_window_size: 2048,
+      },
     },
     {
       model: "https://huggingface.co/mlc-ai/phi-2-q4f32_1-MLC",
@@ -779,6 +856,9 @@ export const prebuiltAppConfig: AppConfig = {
         "/phi-2-q4f32_1-ctx2k_cs1k-webgpu.wasm",
       vram_required_MB: 4032.48,
       low_resource_required: false,
+      overrides: {
+        context_window_size: 2048,
+      },
     },
     {
       model: "https://huggingface.co/mlc-ai/phi-2-q4f16_1-MLC",
@@ -818,6 +898,9 @@ export const prebuiltAppConfig: AppConfig = {
       vram_required_MB: 1210.09,
       low_resource_required: true,
       required_features: ["shader-f16"],
+      overrides: {
+        context_window_size: 2048,
+      },
     },
     {
       model: "https://huggingface.co/mlc-ai/phi-1_5-q4f32_1-MLC",
@@ -828,6 +911,9 @@ export const prebuiltAppConfig: AppConfig = {
         "/phi-1_5-q4f32_1-ctx2k_cs1k-webgpu.wasm",
       vram_required_MB: 1682.09,
       low_resource_required: true,
+      overrides: {
+        context_window_size: 2048,
+      },
     },
     {
       model: "https://huggingface.co/mlc-ai/phi-1_5-q4f16_1-MLC",
@@ -868,6 +954,9 @@ export const prebuiltAppConfig: AppConfig = {
       vram_required_MB: 697.24,
       low_resource_required: true,
       required_features: ["shader-f16"],
+      overrides: {
+        context_window_size: 2048,
+      },
     },
     {
       model:
@@ -879,6 +968,9 @@ export const prebuiltAppConfig: AppConfig = {
         "/TinyLlama-1.1B-Chat-v0.4-q4f32_1-ctx2k_cs1k-webgpu.wasm",
       vram_required_MB: 839.98,
       low_resource_required: true,
+      overrides: {
+        context_window_size: 2048,
+      },
     },
     {
       model:
