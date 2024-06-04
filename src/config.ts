@@ -501,15 +501,31 @@ export const prebuiltAppConfig: AppConfig = {
     },
     // Mistral variants
     {
-      model: "https://huggingface.co/mlc-ai/WizardMath-7B-V1.1-q4f16_1-MLC",
-      model_id: "WizardMath-7B-V1.1-q4f16_1-MLC",
+      model:
+        "https://huggingface.co/mlc-ai/Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
+      model_id: "Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Mistral-7B-Instruct-v0.2-q4f16_1-sw4k_cs1k-webgpu.wasm",
-      vram_required_MB: 6079.02,
+        "/Mistral-7B-Instruct-v0.3-q4f16_1-sw4k_cs1k-webgpu.wasm",
+      vram_required_MB: 4573.39,
       low_resource_required: false,
       required_features: ["shader-f16"],
+      overrides: {
+        sliding_window_size: 4096,
+        attention_sink_size: 4,
+      },
+    },
+    {
+      model:
+        "https://huggingface.co/mlc-ai/Mistral-7B-Instruct-v0.3-q4f32_1-MLC",
+      model_id: "Mistral-7B-Instruct-v0.3-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Mistral-7B-Instruct-v0.3-q4f32_1-sw4k_cs1k-webgpu.wasm",
+      vram_required_MB: 5619.27,
+      low_resource_required: false,
       overrides: {
         sliding_window_size: 4096,
         attention_sink_size: 4,
@@ -522,8 +538,8 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Mistral-7B-Instruct-v0.2-q4f16_1-sw4k_cs1k-webgpu.wasm",
-      vram_required_MB: 6079.02,
+        "/Mistral-7B-Instruct-v0.3-q4f16_1-sw4k_cs1k-webgpu.wasm",
+      vram_required_MB: 4573.39,
       low_resource_required: false,
       required_features: ["shader-f16"],
       overrides: {
@@ -538,8 +554,8 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Mistral-7B-Instruct-v0.2-q4f16_1-sw4k_cs1k-webgpu.wasm",
-      vram_required_MB: 6079.02,
+        "/Mistral-7B-Instruct-v0.3-q4f16_1-sw4k_cs1k-webgpu.wasm",
+      vram_required_MB: 4573.39,
       low_resource_required: false,
       required_features: ["shader-f16"],
       overrides: {
@@ -554,8 +570,23 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Mistral-7B-Instruct-v0.2-q4f16_1-sw4k_cs1k-webgpu.wasm",
-      vram_required_MB: 6079.02,
+        "/Mistral-7B-Instruct-v0.3-q4f16_1-sw4k_cs1k-webgpu.wasm",
+      vram_required_MB: 4573.39,
+      low_resource_required: false,
+      required_features: ["shader-f16"],
+      overrides: {
+        sliding_window_size: 4096,
+        attention_sink_size: 4,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/WizardMath-7B-V1.1-q4f16_1-MLC",
+      model_id: "WizardMath-7B-V1.1-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Mistral-7B-Instruct-v0.3-q4f16_1-sw4k_cs1k-webgpu.wasm",
+      vram_required_MB: 4573.39,
       low_resource_required: false,
       required_features: ["shader-f16"],
       overrides: {
@@ -942,7 +973,66 @@ export const prebuiltAppConfig: AppConfig = {
         context_window_size: 1024,
       },
     },
-    // TinyLlama
+    // TinyLlama v1.0
+    {
+      model:
+        "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC",
+      model_id: "TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/TinyLlama-1.1B-Chat-v1.0-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+      vram_required_MB: 697.24,
+      low_resource_required: true,
+      required_features: ["shader-f16"],
+      overrides: {
+        context_window_size: 2048,
+      },
+    },
+    {
+      model:
+        "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC",
+      model_id: "TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/TinyLlama-1.1B-Chat-v1.0-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+      vram_required_MB: 839.98,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 2048,
+      },
+    },
+    {
+      model:
+        "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC",
+      model_id: "TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC-1k",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/TinyLlama-1.1B-Chat-v1.0-q4f16_1-ctx1k_cs1k-webgpu.wasm",
+      vram_required_MB: 675.24,
+      low_resource_required: true,
+      required_features: ["shader-f16"],
+      overrides: {
+        context_window_size: 1024,
+      },
+    },
+    {
+      model:
+        "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC",
+      model_id: "TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC-1k",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/TinyLlama-1.1B-Chat-v1.0-q4f32_1-ctx1k_cs1k-webgpu.wasm",
+      vram_required_MB: 795.98,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 1024,
+      },
+    },
+    // TinyLlama v0.4
     {
       model:
         "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC",
