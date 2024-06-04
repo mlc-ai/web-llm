@@ -27,7 +27,7 @@ async function main() {
       },
     ],
     n: 2,
-    max_gen_len: 128,
+    max_tokens: 128,
     response_format: { type: "json_object" } as webllm.ResponseFormat,
   };
 

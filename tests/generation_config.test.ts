@@ -8,16 +8,16 @@ describe("Check generation config illegal values", () => {
   test("High-level unsupported fields", () => {
     expect(() => {
       const genConfig: GenerationConfig = {
-        max_gen_len: 0,
+        max_tokens: 0,
       };
       postInitAndCheckGenerationConfigValues(genConfig);
-    }).toThrow("`max_gen_len` should be greater than zero.");
+    }).toThrow("`max_tokens` should be greater than zero.");
   });
 
   test("logit_bias exceeds range", () => {
     expect(() => {
       const genConfig: GenerationConfig = {
-        max_gen_len: 10,
+        max_tokens: 10,
         logit_bias: {
           "1355": 155,
         },
@@ -29,7 +29,7 @@ describe("Check generation config illegal values", () => {
   test("logit_bias invalid key", () => {
     expect(() => {
       const genConfig: GenerationConfig = {
-        max_gen_len: 10,
+        max_tokens: 10,
         logit_bias: {
           thisRaisesError: 50,
         },
@@ -43,7 +43,7 @@ describe("Check generation config illegal values", () => {
       const genConfig: GenerationConfig = {
         logprobs: true,
         top_logprobs: 6,
-        max_gen_len: 10,
+        max_tokens: 10,
       };
       postInitAndCheckGenerationConfigValues(genConfig);
     }).toThrow("`top_logprobs` should be in range [0,5]");
@@ -53,7 +53,7 @@ describe("Check generation config illegal values", () => {
     expect(() => {
       const genConfig: GenerationConfig = {
         top_logprobs: 3,
-        max_gen_len: 10,
+        max_tokens: 10,
       };
       postInitAndCheckGenerationConfigValues(genConfig);
     }).toThrow("`logprobs` must be true if `top_logprobs` is set");
@@ -64,7 +64,7 @@ describe("Check generation config illegal values", () => {
       const genConfig: GenerationConfig = {
         logprobs: false,
         top_logprobs: 3,
-        max_gen_len: 10,
+        max_tokens: 10,
       };
       postInitAndCheckGenerationConfigValues(genConfig);
     }).toThrow("`logprobs` must be true if `top_logprobs` is set");

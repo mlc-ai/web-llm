@@ -541,14 +541,16 @@ export class LLMChatPipeline {
       throw Error("Cannot call process when it is stoppped");
     }
 
-    // Get max_gen_len and stopStrs, possibly overridden by genConfig for this round
-    let max_gen_len = this.config.max_gen_len;
-    if (genConfig !== undefined && genConfig.max_gen_len) {
-      max_gen_len = genConfig.max_gen_len;
+    // Get max_tokens from generationConfig (specified by user in completion request)
+    // If not specified, do not set a limit
+    let max_tokens = Infinity;
+    if (genConfig !== undefined && genConfig.max_tokens) {
+      max_tokens = genConfig.max_tokens;
     }
-    if (max_gen_len <= 0) {
-      throw new Error("`max_gen_len` should be greater than 0.");
+    if (max_tokens <= 0) {
+      throw new Error("`max_tokens` should be greater than 0.");
     }
+    // Get stopStrs, possibly overridden by genConfig for this round
     let stopStrs = this.stopStr;
     if (genConfig !== undefined && genConfig.stop) {
       stopStrs = stopStrs.concat(genConfig.stop);
@@ -585,11 +587,11 @@ export class LLMChatPipeline {
     }
     this.outputMessage = outputMessage;
 
-    // Stop condition 3: exceed max_gen_len
-    if (this.outputIds.length >= max_gen_len) {
+    // Stop condition 3: exceed max_tokens
+    if (this.outputIds.length >= max_tokens) {
       this.stopTriggered = true;
       this.finishReason = "length";
-      log.info("Generation stop due to exceeding max_gen_len.");
+      log.info("Generation stopped due to exceeding max_tokens.");
     }
 
     // Stop condition 4: exceed KVCache's context window size
@@ -599,7 +601,7 @@ export class LLMChatPipeline {
     ) {
       this.stopTriggered = true;
       this.finishReason = "length";
-      log.info("Generation stop due to exceeding context_window_size.");
+      log.info("Generation stopped due to exceeding context_window_size.");
     }
 
     // Finally, modify conversation history if stopped

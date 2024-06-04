@@ -54,7 +54,7 @@ async function main() {
     // below configurations are all optional
     n: 3,
     temperature: 1.5,
-    max_gen_len: 256,
+    max_tokens: 256,
     // 46510 and 7188 are "California", and 8421 and 51325 are "Texas" in Llama-3-8B-Instruct
     // So we would have a higher chance of seeing the latter two, but never the first in the answer
     logit_bias: {

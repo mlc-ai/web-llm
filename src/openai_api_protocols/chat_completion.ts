@@ -96,7 +96,7 @@ export interface ChatCompletionRequestBase {
    * The total length of input tokens and generated tokens is limited by the model's
    * context length.
    */
-  max_gen_len?: number | null;
+  max_tokens?: number | null;
 
   /**
    * Sequences where the API will stop generating further tokens.
@@ -200,7 +200,7 @@ export interface ChatCompletionRequestBase {
    * generate an unending stream of whitespace until the generation reaches the token
    * limit, resulting in a long-running and seemingly "stuck" request. Also note that
    * the message content may be partially cut off if `finish_reason="length"`, which
-   * indicates the generation exceeded `max_gen_len` or the conversation exceeded the
+   * indicates the generation exceeded `max_tokens` or the conversation exceeded the
    * max context length.
    */
   response_format?: ResponseFormat;
@@ -973,7 +973,7 @@ export namespace ChatCompletionChunk {
  * the model may generate an unending stream of whitespace until the generation reaches the token
  * limit, resulting in a long-running and seemingly "stuck" request. Also note that
  * the message content may be partially cut off if `finish_reason="length"`, which
- * indicates the generation exceeded `max_gen_len` or the conversation exceeded the
+ * indicates the generation exceeded `max_tokens` or the conversation exceeded the
  * max context length.
  */
 export interface ResponseFormat {

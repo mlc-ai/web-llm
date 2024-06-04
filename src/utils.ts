@@ -110,7 +110,6 @@ export function areChatOptionsEqual(
   if (!areObjectsEqual(options1.conv_config, options2.conv_config))
     return false;
   if (options1.conv_template !== options2.conv_template) return false;
-  if (options1.max_gen_len !== options2.max_gen_len) return false;
   if (options1.repetition_penalty !== options2.repetition_penalty) return false;
   if (options1.frequency_penalty !== options2.frequency_penalty) return false;
   if (options1.presence_penalty !== options2.presence_penalty) return false;

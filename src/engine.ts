@@ -499,7 +499,7 @@ export class MLCEngine implements MLCEngineInterface {
     const genConfig: GenerationConfig = {
       frequency_penalty: request.frequency_penalty,
       presence_penalty: request.presence_penalty,
-      max_gen_len: request.max_gen_len,
+      max_tokens: request.max_tokens,
       stop: request.stop,
       top_p: request.top_p,
       temperature: request.temperature,

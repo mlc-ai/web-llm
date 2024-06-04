@@ -52,7 +52,7 @@ async function simpleStructuredTextExample() {
           "boolean field named is_accepted, and a float field named num.",
       },
     ],
-    max_gen_len: 128,
+    max_tokens: 128,
     response_format: {
       type: "json_object",
       schema: schema2,
@@ -119,7 +119,7 @@ async function harryPotterExample() {
           "Name is a string of character name. House is one of Gryffindor, Hufflepuff, Ravenclaw, Slytherin. Blood status is one of Pure-blood, Half-blood, Muggle-born. Occupation is one of Student, Professor, Ministry of Magic, Other. Wand is an object with wood, core, and length. Alive is a boolean. Patronus is a string.",
       },
     ],
-    max_gen_len: 128,
+    max_tokens: 128,
     response_format: {
       type: "json_object",
       schema: schema,
