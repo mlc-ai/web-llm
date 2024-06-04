@@ -180,16 +180,20 @@ const chunks = await engine.chat.completions.create({
   messages,
   temperature: 1,
   stream: true, // <-- Enable streaming
+  stream_options: { include_usage: true },
 });
 
 let reply = "";
+let lastChunk: webllm.ChatCompletionChunk | undefined = undefined;
 for await (const chunk of chunks) {
   reply += chunk.choices[0]?.delta.content || "";
   console.log(reply);
+  lastChunk = chunk;
 }
 
 const fullReply = await engine.getMessage()
 console.log(fullReply);
+console.log(lastChunk!.usage);
 ```
 
 ## Advanced Usage
