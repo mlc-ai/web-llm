@@ -471,15 +471,28 @@ export class MLCEngine implements MLCEngineInterface {
       model: model,
       object: "chat.completion.chunk",
       created: created,
-      usage: {
-        completion_tokens: completion_tokens,
-        prompt_tokens: prompt_tokens,
-        total_tokens: completion_tokens + prompt_tokens,
-        prefill_tokens_per_s: prefill_tokens_per_s,
-        decode_tokens_per_s: decode_tokens_per_s,
-      } as CompletionUsage,
     };
     yield lastChunk;
+
+    if (request.stream_options?.include_usage) {
+      const usageChunk: ChatCompletionChunk = {
+        id: id,
+        choices: [],
+        usage: {
+          completion_tokens: completion_tokens,
+          prompt_tokens: prompt_tokens,
+          total_tokens: completion_tokens + prompt_tokens,
+          extra: {
+            prefill_tokens_per_s: prefill_tokens_per_s,
+            decode_tokens_per_s: decode_tokens_per_s,
+          },
+        } as CompletionUsage,
+        model: model,
+        object: "chat.completion.chunk",
+        created: created,
+      };
+      yield usageChunk;
+    }
   }
 
   /**
@@ -603,8 +616,10 @@ export class MLCEngine implements MLCEngineInterface {
         completion_tokens: completion_tokens,
         prompt_tokens: prompt_tokens,
         total_tokens: completion_tokens + prompt_tokens,
-        prefill_tokens_per_s: prompt_tokens / prefill_time,
-        decode_tokens_per_s: completion_tokens / decode_time,
+        extra: {
+          prefill_tokens_per_s: prompt_tokens / prefill_time,
+          decode_tokens_per_s: completion_tokens / decode_time,
+        },
       } as CompletionUsage,
     };
 

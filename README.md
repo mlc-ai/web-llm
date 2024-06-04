@@ -183,16 +183,13 @@ const chunks = await engine.chat.completions.create({
 });
 
 let reply = "";
-let lastChunk: webllm.ChatCompletionChunk | undefined = undefined;
 for await (const chunk of chunks) {
-  reply += chunk.choices[0].delta.content || "";
-  lastChunk = chunk;
+  reply += chunk.choices[0]?.delta.content || "";
   console.log(reply);
 }
 
 const fullReply = await engine.getMessage()
 console.log(fullReply);
-console.log(lastChunk.usage);
 ```
 
 ## Advanced Usage

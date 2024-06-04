@@ -23,6 +23,7 @@ async function main() {
 
   const request: webllm.ChatCompletionRequest = {
     stream: true,
+    stream_options: { include_usage: true },
     messages: [
       {
         role: "system",
@@ -40,19 +41,13 @@ async function main() {
   let lastChunk: webllm.ChatCompletionChunk | undefined = undefined;
   for await (const chunk of asyncChunkGenerator) {
     console.log(chunk);
-    if (chunk.choices[0].delta.content) {
-      // Last chunk has undefined content
-      message += chunk.choices[0].delta.content;
-    }
+    message += chunk.choices[0]?.delta?.content || "";
     setLabel("generate-label", message);
     lastChunk = chunk;
     // engine.interruptGenerate();  // works with interrupt as well
   }
   console.log("Final message:\n", await engine.getMessage()); // the concatenated message
-  if (lastChunk?.usage) {
-    // If streaming finished before ending, we would not have usage.
-    console.log(lastChunk.usage);
-  }
+  console.log(lastChunk!.usage);
 }
 
 main();
