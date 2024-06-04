@@ -469,7 +469,7 @@ export function postInitAndCheckFields(
   }
 
   // 8. Only set stream_options when streaming
-  if (request.stream_options !== undefined && request.tools !== null) {
+  if (request.stream_options !== undefined && request.stream_options !== null) {
     if (!request.stream) {
       throw new Error("Only specify stream_options when stream=True.");
     }

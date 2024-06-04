@@ -446,14 +446,6 @@ export class MLCEngine implements MLCEngineInterface {
       ) as Array<ChatCompletionChunk.Choice.Delta.ToolCall>;
     }
 
-    const completion_tokens =
-      this.getPipeline().getCurRoundDecodingTotalTokens();
-    const prompt_tokens = this.getPipeline().getCurRoundPrefillTotalTokens();
-    const prefill_tokens_per_s =
-      this.getPipeline().getCurRoundPrefillTokensPerSec();
-    const decode_tokens_per_s =
-      this.getPipeline().getCurRoundDecodingTokensPerSec();
-
     const lastChunk: ChatCompletionChunk = {
       id: id,
       choices: [
@@ -475,6 +467,13 @@ export class MLCEngine implements MLCEngineInterface {
     yield lastChunk;
 
     if (request.stream_options?.include_usage) {
+      const completion_tokens =
+        this.getPipeline().getCurRoundDecodingTotalTokens();
+      const prompt_tokens = this.getPipeline().getCurRoundPrefillTotalTokens();
+      const prefill_tokens_per_s =
+        this.getPipeline().getCurRoundPrefillTokensPerSec();
+      const decode_tokens_per_s =
+        this.getPipeline().getCurRoundDecodingTokensPerSec();
       const usageChunk: ChatCompletionChunk = {
         id: id,
         choices: [],
