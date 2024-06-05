@@ -457,7 +457,6 @@ export class MLCEngine implements MLCEngineInterface {
                 tool_calls: tool_calls,
               }
             : {},
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           finish_reason: finish_reason,
           index: 0,
         },
@@ -467,6 +466,33 @@ export class MLCEngine implements MLCEngineInterface {
       created: created,
     };
     yield lastChunk;
+
+    if (request.stream_options?.include_usage) {
+      const completion_tokens =
+        this.getPipeline().getCurRoundDecodingTotalTokens();
+      const prompt_tokens = this.getPipeline().getCurRoundPrefillTotalTokens();
+      const prefill_tokens_per_s =
+        this.getPipeline().getCurRoundPrefillTokensPerSec();
+      const decode_tokens_per_s =
+        this.getPipeline().getCurRoundDecodingTokensPerSec();
+      const usageChunk: ChatCompletionChunk = {
+        id: id,
+        choices: [],
+        usage: {
+          completion_tokens: completion_tokens,
+          prompt_tokens: prompt_tokens,
+          total_tokens: completion_tokens + prompt_tokens,
+          extra: {
+            prefill_tokens_per_s: prefill_tokens_per_s,
+            decode_tokens_per_s: decode_tokens_per_s,
+          },
+        } as CompletionUsage,
+        model: model,
+        object: "chat.completion.chunk",
+        created: created,
+      };
+      yield usageChunk;
+    }
   }
 
   /**
@@ -523,6 +549,8 @@ export class MLCEngine implements MLCEngineInterface {
     const choices: Array<ChatCompletion.Choice> = [];
     let completion_tokens = 0;
     let prompt_tokens = 0;
+    let prefill_time = 0;
+    let decode_time = 0;
     for (let i = 0; i < n; i++) {
       let outputMessage: string;
       if (this.interruptSignal) {
@@ -574,6 +602,8 @@ export class MLCEngine implements MLCEngineInterface {
       });
       completion_tokens += this.getPipeline().getCurRoundDecodingTotalTokens();
       prompt_tokens += this.getPipeline().getCurRoundPrefillTotalTokens();
+      prefill_time += this.getPipeline().getCurRoundPrefillTotalTime();
+      decode_time += this.getPipeline().getCurRoundDecodingTotalTime();
     }
 
     const response: ChatCompletion = {
@@ -586,6 +616,10 @@ export class MLCEngine implements MLCEngineInterface {
         completion_tokens: completion_tokens,
         prompt_tokens: prompt_tokens,
         total_tokens: completion_tokens + prompt_tokens,
+        extra: {
+          prefill_tokens_per_s: prompt_tokens / prefill_time,
+          decode_tokens_per_s: completion_tokens / decode_time,
+        },
       } as CompletionUsage,
     };
 

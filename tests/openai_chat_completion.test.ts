@@ -11,6 +11,27 @@ import { MessagePlaceholders } from "../src/config";
 import { describe, expect, test } from "@jest/globals";
 
 describe("Check chat completion unsupported requests", () => {
+  test("stream_options without stream specified", () => {
+    expect(() => {
+      const request: ChatCompletionRequest = {
+        messages: [{ role: "user", content: "Hello! " }],
+        stream_options: { include_usage: true },
+      };
+      postInitAndCheckFields(request, "Llama-3-8B-Instruct-q4f32_1-MLC");
+    }).toThrow("Only specify stream_options when stream=True.");
+  });
+
+  test("stream_options with stream=false", () => {
+    expect(() => {
+      const request: ChatCompletionRequest = {
+        stream: false,
+        messages: [{ role: "user", content: "Hello! " }],
+        stream_options: { include_usage: true },
+      };
+      postInitAndCheckFields(request, "Llama-3-8B-Instruct-q4f32_1-MLC");
+    }).toThrow("Only specify stream_options when stream=True.");
+  });
+
   test("High-level unsupported fields", () => {
     expect(() => {
       const request: ChatCompletionRequest = {

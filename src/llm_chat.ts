@@ -70,9 +70,11 @@ export class LLMChatPipeline {
   private decodingTotalTokens = 0;
   private prefillTotalTime = 0;
   private prefillTotalTokens = 0;
-  // same as `prefillTotalTokens` and `decodingTotalTokens`, but reset at every `prefillStep()`
+  // same stats as above, but reset at every `prefillStep()`
   private curRoundDecodingTotalTokens = 0;
   private curRoundPrefillTotalTokens = 0;
+  private curRoundDecodingTotalTime = 0;
+  private curRoundPrefillTotalTime = 0;
 
   // LogitProcessor
   private logitProcessor?: LogitProcessor = undefined;
@@ -360,6 +362,20 @@ export class LLMChatPipeline {
   }
 
   /**
+   * @returns the time spent on decode for a single request or a single choice in the request.
+   */
+  getCurRoundDecodingTotalTime(): number {
+    return this.curRoundDecodingTotalTime;
+  }
+
+  /**
+   * @returns the time spent on  for a single request or a single choice in the request.
+   */
+  getCurRoundPrefillTotalTime(): number {
+    return this.curRoundPrefillTotalTime;
+  }
+
+  /**
    * @returns Runtime stats information.
    */
   runtimeStatsText(): string {
@@ -367,6 +383,30 @@ export class LLMChatPipeline {
       `prefill: ${(this.prefillTotalTokens / this.prefillTotalTime).toFixed(4)} tokens/sec, ` +
       `decoding: ${(this.decodingTotalTokens / this.decodingTotalTime).toFixed(4)} tokens/sec`
     );
+  }
+
+  /**
+   * @returns Runtime stats information, starting from the last prefill performed.
+   */
+  curRoundRuntimeStatsText(): string {
+    return (
+      `prefill: ${this.getCurRoundPrefillTokensPerSec().toFixed(4)} tokens/sec, ` +
+      `decoding: ${this.getCurRoundDecodingTokensPerSec().toFixed(4)} tokens/sec`
+    );
+  }
+
+  /**
+   * @returns Prefill tokens per second, starting from the last prefill performed.
+   */
+  getCurRoundPrefillTokensPerSec(): number {
+    return this.curRoundPrefillTotalTokens / this.curRoundPrefillTotalTime;
+  }
+
+  /**
+   * @returns Prefill tokens per second, starting from the last prefill performed.
+   */
+  getCurRoundDecodingTokensPerSec(): number {
+    return this.curRoundDecodingTotalTokens / this.curRoundDecodingTotalTime;
   }
 
   /**
@@ -414,6 +454,8 @@ export class LLMChatPipeline {
     this.tokenLogprobArray = [];
     this.curRoundDecodingTotalTokens = 0;
     this.curRoundPrefillTotalTokens = 0;
+    this.curRoundPrefillTotalTime = 0;
+    this.curRoundDecodingTotalTime = 0;
     this.stopTriggered = false;
     const conversation = this.conversation;
 
@@ -484,6 +526,7 @@ export class LLMChatPipeline {
     this.prefillTotalTime += (tend - tstart) / 1e3;
     this.prefillTotalTokens += promptTokens.length;
     this.curRoundPrefillTotalTokens += promptTokens.length;
+    this.curRoundPrefillTotalTime += (tend - tstart) / 1e3;
 
     this.processNextToken(nextToken, genConfig);
   }
@@ -511,6 +554,7 @@ export class LLMChatPipeline {
     this.decodingTotalTime += (tend - tstart) / 1e3;
     this.decodingTotalTokens += 1;
     this.curRoundDecodingTotalTokens += 1;
+    this.curRoundDecodingTotalTime += (tend - tstart) / 1e3;
 
     this.processNextToken(nextToken, genConfig);
   }
@@ -994,10 +1038,12 @@ export class LLMChatPipeline {
       this.prefillTotalTime += (tend - tstart) / 1e3;
       this.prefillTotalTokens += inputIds.length;
       this.curRoundPrefillTotalTokens += inputIds.length;
+      this.curRoundPrefillTotalTime += (tend - tstart) / 1e3;
     } else {
       this.decodingTotalTime += (tend - tstart) / 1e3;
       this.decodingTotalTokens += 1;
       this.curRoundDecodingTotalTokens += 1;
+      this.curRoundDecodingTotalTime += (tend - tstart) / 1e3;
     }
     return nextToken;
   }

@@ -62,9 +62,14 @@ export interface ChatCompletionRequestBase {
   messages: Array<ChatCompletionMessageParam>;
 
   /**
-   * If set, partial message deltas will be sent.
+   * If set, partial message deltas will be sent. It will be terminated by an empty chunk.
    */
   stream?: boolean | null;
+
+  /**
+   * Options for streaming response. Only set this when you set `stream: true`.
+   */
+  stream_options?: ChatCompletionStreamOptions | null;
 
   /**
    * How many chat completion choices to generate for each input message.
@@ -218,7 +223,7 @@ export interface ChatCompletionRequestBase {
 export interface ChatCompletionRequestNonStreaming
   extends ChatCompletionRequestBase {
   /**
-   * If set, partial message deltas will be sent.
+   * If set, partial message deltas will be sent. It will be terminated by an empty chunk.
    */
   stream?: false | null;
 }
@@ -226,7 +231,7 @@ export interface ChatCompletionRequestNonStreaming
 export interface ChatCompletionRequestStreaming
   extends ChatCompletionRequestBase {
   /**
-   * If set, partial message deltas will be sent.
+   * If set, partial message deltas will be sent. It will be terminated by an empty chunk.
    */
   stream: true;
 }
@@ -295,8 +300,9 @@ export interface ChatCompletionChunk {
   id: string;
 
   /**
-   * A list of chat completion choices. Can be more than one if `n` is greater
-   * than 1.
+   * A list of chat completion choices. Can contain more than one elements if `n` is
+   * greater than 1. Can also be empty for the last chunk if you set
+   * `stream_options: {"include_usage": true}`.
    */
   choices: Array<ChatCompletionChunk.Choice>;
 
@@ -324,6 +330,14 @@ export interface ChatCompletionChunk {
    * @note Not supported yet.
    */
   system_fingerprint?: string;
+
+  /**
+   * An optional field that will only be present when you set
+   * `stream_options: {"include_usage": true}` in your request. When present, it
+   * contains a null value except for the last chunk which contains the token usage
+   * statistics for the entire request.
+   */
+  usage?: CompletionUsage;
 }
 
 export const ChatCompletionRequestUnsupportedFields: Array<string> = ["model"];
@@ -453,6 +467,13 @@ export function postInitAndCheckFields(
       } as ChatCompletionSystemMessageParam);
     }
   }
+
+  // 8. Only set stream_options when streaming
+  if (request.stream_options !== undefined && request.stream_options !== null) {
+    if (!request.stream) {
+      throw new Error("Only specify stream_options when stream=True.");
+    }
+  }
 }
 
 //////////////// BELOW ARE INTERFACES THAT SUPPORT THE ONES ABOVE ////////////////
@@ -548,6 +569,19 @@ export type ChatCompletionRole =
   | "assistant"
   | "tool"
   | "function";
+
+/**
+ * Options for streaming response. Only set this when you set `stream: true`.
+ */
+export interface ChatCompletionStreamOptions {
+  /**
+   * If set, an additional chunk will be streamed after the last empty chunk.
+   * The `usage` field on this chunk shows the token usage statistics for the entire
+   * request, and the `choices` field will always be an empty array. All other chunks
+   * will also include a `usage` field, but with a null value.
+   */
+  include_usage?: boolean;
+}
 
 export interface ChatCompletionSystemMessageParam {
   /**
@@ -812,6 +846,21 @@ export interface CompletionUsage {
    * Total number of tokens used in the request (prompt + completion).
    */
   total_tokens: number;
+
+  /**
+   * Fields specific to WebLLM, not present in OpenAI.
+   */
+  extra: {
+    /**
+     * Number of tokens per second for prefilling.
+     */
+    prefill_tokens_per_s: number;
+
+    /**
+     * Number of tokens per second for autoregressive decoding.
+     */
+    decode_tokens_per_s: number;
+  };
 }
 
 /**

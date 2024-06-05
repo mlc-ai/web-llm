@@ -38,6 +38,7 @@ async function main() {
   const reply0 = await engine.chat.completions.create(request);
   console.log(reply0);
   console.log("First reply's last choice:\n" + (await engine.getMessage()));
+  console.log(reply0.usage);
 
   const reply1 = await engine.chat.completions.create(request);
   console.log(reply1);
@@ -56,7 +57,7 @@ async function main() {
     }
   }
 
-  console.log(await engine.runtimeStatsText());
+  console.log(reply1.usage);
 }
 
 // Run one of the functions

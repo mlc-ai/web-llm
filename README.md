@@ -162,7 +162,7 @@ const reply = await engine.chat.completions.create({
   messages,
 });
 console.log(reply.choices[0].message);
-console.log(await engine.runtimeStatsText());
+console.log(reply.usage);
 ```
 
 ### Streaming
@@ -180,17 +180,20 @@ const chunks = await engine.chat.completions.create({
   messages,
   temperature: 1,
   stream: true, // <-- Enable streaming
+  stream_options: { include_usage: true },
 });
 
 let reply = "";
 for await (const chunk of chunks) {
-  reply += chunk.choices[0].delta.content || "";
+  reply += chunk.choices[0]?.delta.content || "";
   console.log(reply);
+  if (chunk.usage) {
+    console.log(chunk.usage); // only last chunk has usage
+  }
 }
 
-const fullReply = await engine.getMessage()
+const fullReply = await engine.getMessage();
 console.log(fullReply);
-console.log(await engine.runtimeStatsText());
 ```
 
 ## Advanced Usage

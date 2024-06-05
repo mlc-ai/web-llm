@@ -62,7 +62,7 @@ async function simpleStructuredTextExample() {
   const reply0 = await engine.chatCompletion(request);
   console.log(reply0);
   console.log("Output:\n" + (await engine.getMessage()));
-  console.log(await engine.runtimeStatsText());
+  console.log(reply0.usage);
 }
 
 // The json schema and prompt is taken from
@@ -129,7 +129,7 @@ async function harryPotterExample() {
   const reply = await engine.chatCompletion(request);
   console.log(reply);
   console.log("Output:\n" + (await engine.getMessage()));
-  console.log(await engine.runtimeStatsText());
+  console.log(reply.usage);
 }
 
 async function functionCallingExample() {
@@ -207,7 +207,7 @@ async function functionCallingExample() {
   const reply = await engine.chat.completions.create(request);
   console.log(reply.choices[0].message.content);
 
-  console.log(await engine.runtimeStatsText());
+  console.log(reply.usage);
 }
 
 async function main() {

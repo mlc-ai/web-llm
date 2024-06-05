@@ -43,6 +43,7 @@ async function main() {
   const replyMessage0 = await engine.getMessage();
   console.log(reply0);
   console.log(replyMessage0);
+  console.log(reply0.usage);
 
   // Round 1
   // Append generated response to messages
@@ -62,6 +63,7 @@ async function main() {
   const replyMessage1 = await engine.getMessage();
   console.log(reply1);
   console.log(replyMessage1);
+  console.log(reply1.usage);
 
   // If we used multiround chat, request1 should only prefill a small number of tokens
   const prefillTokens0 = reply0.usage?.prompt_tokens;
@@ -75,8 +77,6 @@ async function main() {
   ) {
     throw Error("Multi-round chat is not triggered as expected.");
   }
-
-  console.log(await engine.runtimeStatsText());
 }
 
 main();
