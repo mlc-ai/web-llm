@@ -99,9 +99,9 @@ export interface ChatCompletionRequestBase {
    * completion.
    *
    * The total length of input tokens and generated tokens is limited by the model's
-   * context length, **determined during MLC's compilation phase**.
+   * context length.
    */
-  max_gen_len?: number | null;
+  max_tokens?: number | null;
 
   /**
    * Sequences where the API will stop generating further tokens.
@@ -205,7 +205,7 @@ export interface ChatCompletionRequestBase {
    * generate an unending stream of whitespace until the generation reaches the token
    * limit, resulting in a long-running and seemingly "stuck" request. Also note that
    * the message content may be partially cut off if `finish_reason="length"`, which
-   * indicates the generation exceeded `max_gen_len` or the conversation exceeded the
+   * indicates the generation exceeded `max_tokens` or the conversation exceeded the
    * max context length.
    */
   response_format?: ResponseFormat;
@@ -866,8 +866,9 @@ export interface CompletionUsage {
 /**
  * The reason the model stopped generating tokens. This will be `stop` if the model
  * hit a natural stop point or a provided stop sequence, `length` if the maximum
- * number of tokens specified in the request was reached, `tool_calls` if the
- * model called a tool, or `abort` if user manually stops the generation.
+ * number of tokens specified in the request was reached or the context_window_size will
+ * be exceeded, `tool_calls` if the model called a tool, or `abort` if user manually stops the
+ * generation.
  */
 export type ChatCompletionFinishReason =
   | "stop"
@@ -1021,7 +1022,7 @@ export namespace ChatCompletionChunk {
  * the model may generate an unending stream of whitespace until the generation reaches the token
  * limit, resulting in a long-running and seemingly "stuck" request. Also note that
  * the message content may be partially cut off if `finish_reason="length"`, which
- * indicates the generation exceeded `max_gen_len` or the conversation exceeded the
+ * indicates the generation exceeded `max_tokens` or the conversation exceeded the
  * max context length.
  */
 export interface ResponseFormat {

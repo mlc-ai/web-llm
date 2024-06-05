@@ -89,7 +89,7 @@ describe("Check chat completion unsupported requests", () => {
     expect(() => {
       const request: ChatCompletionRequest = {
         messages: [{ role: "user", content: "Hello! " }],
-        max_gen_len: 10,
+        max_tokens: 10,
         seed: 42.2, // Note that Number.isInteger(42.0) is true
       };
       postInitAndCheckFields(request, "Llama-3-8B-Instruct-q4f32_1-MLC");
@@ -141,7 +141,7 @@ describe("Supported requests", () => {
       ],
       n: 3,
       temperature: 1.5,
-      max_gen_len: 25,
+      max_tokens: 25,
       frequency_penalty: 0.2,
       seed: 42,
       logprobs: true,

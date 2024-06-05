@@ -74,9 +74,6 @@ export interface ChatConfig {
   attention_sink_size: number;
   // Fields below can be swapped per-generation via `GenerationConfig`
   // Fields only used in MLC
-  mean_gen_len: number;
-  max_gen_len: number;
-  shift_fill_factor: number;
   repetition_penalty: number;
   tokenizer_info?: TokenizerInfo;
   token_table_postproc_method?: string; // TODO: backward compatibility, remove soon
@@ -123,14 +120,12 @@ export interface MLCEngineConfig {
  */
 export interface GenerationConfig {
   // Only used in MLC
-  mean_gen_len?: number;
-  shift_fill_factor?: number;
   repetition_penalty?: number;
   // Shared by MLC and OpenAI APIs
   top_p?: number | null;
   temperature?: number | null;
-  max_gen_len?: number | null;
   // Only in OpenAI APIs
+  max_tokens?: number | null;
   frequency_penalty?: number | null;
   presence_penalty?: number | null;
   stop?: string | null | Array<string>;
@@ -163,17 +158,8 @@ export function postInitAndCheckGenerationConfigValues(
   if (_hasValue(config.repetition_penalty) && config.repetition_penalty! <= 0) {
     throw new Error("Make sure `repetition_penalty` > 0.");
   }
-  if (_hasValue(config.max_gen_len) && config.max_gen_len! <= 0) {
-    throw new Error("`max_gen_len` should be greater than zero.");
-  }
-  if (_hasValue(config.mean_gen_len) && config.mean_gen_len! <= 0) {
-    throw new Error("`mean_gen_len` should be greater than zero.");
-  }
-  if (
-    (_hasValue(config.shift_fill_factor) && config.shift_fill_factor! <= 0) ||
-    config.shift_fill_factor! > 1
-  ) {
-    throw new Error("Make sure 0 < `shift_fill_factor` <= 1.");
+  if (_hasValue(config.max_tokens) && config.max_tokens! <= 0) {
+    throw new Error("`max_tokens` should be greater than zero.");
   }
   if ((_hasValue(config.top_p) && config.top_p! <= 0) || config.top_p! > 1) {
     throw new Error("Make sure 0 < `top_p` <= 1.");

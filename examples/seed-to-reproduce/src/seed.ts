@@ -31,7 +31,7 @@ async function main() {
     ],
     n: 3,
     temperature: 1.2, // high temperature gives much more random results
-    max_gen_len: 128, // To save time; enough to demonstrate the effect
+    max_tokens: 128, // To save time; enough to demonstrate the effect
     seed: 42,
   };
 

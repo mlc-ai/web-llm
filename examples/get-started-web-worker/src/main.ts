@@ -40,7 +40,7 @@ async function mainNonStreaming() {
     ],
     n: 3,
     temperature: 1.5,
-    max_gen_len: 256,
+    max_tokens: 256,
   };
 
   const reply0 = await engine.chat.completions.create(request);
@@ -80,7 +80,7 @@ async function mainStreaming() {
       { role: "user", content: "Two more please!" },
     ],
     temperature: 1.5,
-    max_gen_len: 256,
+    max_tokens: 256,
   };
 
   const asyncChunkGenerator = await engine.chat.completions.create(request);
