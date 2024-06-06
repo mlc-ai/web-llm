@@ -10,7 +10,7 @@
 **High-Performance In-Browser LLM Inference Engine.**
 
 
-[Get Started](#get-started) | [Examples](examples) | [Documentation](https://mlc.ai/mlc-llm/docs/deploy/javascript.html)
+[Get Started](#get-started) | [Examples](examples) | [Documentation](https://mlc.ai/mlc-llm/docs/deploy/webllm.html)
 
 </div>
 
@@ -24,7 +24,7 @@ including JSON-mode, function-calling, streaming, etc.
 
 We can bring a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration.
 
-You can use WebLLM as a base [npm package](https://www.npmjs.com/package/@mlc-ai/web-llm) and build your own web application on top of it by following the [documentation](https://mlc.ai/mlc-llm/docs/deploy/javascript.html) and checking out [Get Started](#get-started).
+You can use WebLLM as a base [npm package](https://www.npmjs.com/package/@mlc-ai/web-llm) and build your own web application on top of it by following the [documentation](https://mlc.ai/mlc-llm/docs/deploy/webllm.html) and checking out [Get Started](#get-started).
 This project is a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm), which enables universal deployment of LLM across hardware environments.
 
 <div align="center">
@@ -309,7 +309,7 @@ WebLLM is designed to be fully compatible with [OpenAI API](https://platform.ope
 
 WebLLM works as a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm) and it supports custom models in MLC format. 
 It reuses the model artifact and builds the flow of MLC LLM. To compile and use your own models with WebLLM, please check out
-[MLC LLM document](https://llm.mlc.ai/docs/deploy/javascript.html)
+[MLC LLM document](https://llm.mlc.ai/docs/deploy/webllm.html)
 on how to compile and deploy new model weights and libraries to WebLLM. 
 
 Here, we go over the high-level idea. There are two elements of the WebLLM package that enable new models and weight variants.
