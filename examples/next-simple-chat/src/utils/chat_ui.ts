@@ -1,6 +1,7 @@
 import {
   MLCEngineInterface,
   ChatCompletionMessageParam,
+  CompletionUsage,
 } from "@mlc-ai/web-llm";
 
 export default class ChatUI {
@@ -113,24 +114,33 @@ export default class ChatUI {
     try {
       this.chatHistory.push({ role: "user", content: prompt });
       let curMessage = "";
+      let usage: CompletionUsage | undefined = undefined;
       const completion = await this.engine.chat.completions.create({
         stream: true,
         messages: this.chatHistory,
+        stream_options: { include_usage: true },
       });
       for await (const chunk of completion) {
-        const curDelta = chunk.choices[0].delta.content;
+        const curDelta = chunk.choices[0]?.delta.content;
         if (curDelta) {
           curMessage += curDelta;
         }
         messageUpdate("left", curMessage, false);
+        if (chunk.usage) {
+          usage = chunk.usage;
+        }
       }
       const output = await this.engine.getMessage();
       this.chatHistory.push({ role: "assistant", content: output });
       messageUpdate("left", output, false);
-      this.engine
-        .runtimeStatsText()
-        .then((stats) => setRuntimeStats(stats))
-        .catch((error) => console.log(error));
+      if (usage) {
+        const runtimeStats =
+          `prompt_tokens: ${usage.prompt_tokens}, ` +
+          `completion_tokens: ${usage.completion_tokens}, ` +
+          `prefill: ${usage.extra.prefill_tokens_per_s.toFixed(4)} tokens/sec, ` +
+          `decoding: ${usage.extra.decode_tokens_per_s.toFixed(4)} tokens/sec`;
+        setRuntimeStats(runtimeStats);
+      }
     } catch (err: unknown) {
       messageUpdate(
         "error",
