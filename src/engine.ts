@@ -635,6 +635,12 @@ export class MLCEngine implements MLCEngineInterface {
   }
 
   async runtimeStatsText(): Promise<string> {
+    log.warn(
+      "WARNING: `runtimeStatsText()` will soon be deprecated. " +
+        "Please use `ChatCompletion.usage` for non-streaming requests, or " +
+        "`ChatCompletionChunk.usage` for streaming requests, enabled by `stream_options`. " +
+        "The only flow that expects to use `runtimeStatsText()` as of now is `forwardTokensAndSample()`.",
+    );
     return this.getPipeline().runtimeStatsText();
   }
 

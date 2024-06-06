@@ -36,19 +36,24 @@ async function initializeWebLLMEngine() {
 async function streamingGenerating(messages, onUpdate, onFinish, onError) {
   try {
     let curMessage = "";
+    let usage;
     const completion = await engine.chat.completions.create({
       stream: true,
       messages,
+      stream_options: { include_usage: true },
     });
     for await (const chunk of completion) {
-      const curDelta = chunk.choices[0].delta.content;
+      const curDelta = chunk.choices[0]?.delta.content;
       if (curDelta) {
         curMessage += curDelta;
+      }
+      if (chunk.usage) {
+        usage = chunk.usage;
       }
       onUpdate(curMessage);
     }
     const finalMessage = await engine.getMessage();
-    onFinish(finalMessage);
+    onFinish(finalMessage, usage);
   } catch (err) {
     onError(err);
   }
@@ -80,13 +85,16 @@ function onMessageSend() {
   };
   appendMessage(aiMessage);
 
-  const onFinishGenerating = (finalMessage) => {
+  const onFinishGenerating = (finalMessage, usage) => {
     updateLastMessage(finalMessage);
     document.getElementById("send").disabled = false;
-    engine.runtimeStatsText().then((statsText) => {
-      document.getElementById("chat-stats").classList.remove("hidden");
-      document.getElementById("chat-stats").textContent = statsText;
-    });
+    const usageText =
+      `prompt_tokens: ${usage.prompt_tokens}, ` +
+      `completion_tokens: ${usage.completion_tokens}, ` +
+      `prefill: ${usage.extra.prefill_tokens_per_s.toFixed(4)} tokens/sec, ` +
+      `decoding: ${usage.extra.decode_tokens_per_s.toFixed(4)} tokens/sec`;
+    document.getElementById("chat-stats").classList.remove("hidden");
+    document.getElementById("chat-stats").textContent = usageText;
   };
 
   streamingGenerating(
