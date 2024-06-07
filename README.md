@@ -52,7 +52,15 @@ This project is a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-l
 
 ## Built-in Models
 
-Check all available models on [MLC Models](https://mlc.ai/models). WebLLM supports a subset of the available models and the list of built-in modles can be accessed from [`prebuiltAppConfig.model_list`](https://github.com/mlc-ai/web-llm/blob/main/src/config.ts#L293).
+Check the complete list of available models on [MLC Models](https://mlc.ai/models). WebLLM supports a subset of these available models and the list can be accessed at [`prebuiltAppConfig.model_list`](https://github.com/mlc-ai/web-llm/blob/main/src/config.ts#L293).
+
+Here are the primary families of models currently supported:
+
+- **Llama**: Llama 3, Llama 2, Hermes-2-Pro-Llama-3
+- **Phi**: Phi 3, Phi 2, Phi 1.5
+- **Gemma**: Gemma-2B
+- **Mistral**: Mistral-7B, OpenHermes-2.5-Mistral-7B, Hermes-2-Pro-Mistral-7B, NeuralHermes-2.5-Mistral-7B, 
+- **Qwen (通义千问)**: Qwen 2 (coming soon), Qwen 1.5
 
 If you need more models, [request a new model via opening an issue](https://github.com/mlc-ai/web-llm/issues/new/choose) or check [Custom Models](#custom-models) for how to compile and use your own models with WebLLM.
 
