@@ -275,7 +275,7 @@ export interface AppConfig {
  * @note The model version does not have to match the npm version, since not each npm update
  * requires an update of the model libraries.
  */
-export const modelVersion = "v0_2_39";
+export const modelVersion = "v0_2_43";
 export const modelLibURLPrefix =
   "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/";
 
@@ -386,7 +386,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Mistral-7B-Instruct-v0.2-q4f16_1-sw4k_cs1k-webgpu.wasm",
+        "/Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 4033.28,
       low_resource_required: false,
       required_features: ["shader-f16"],
@@ -455,7 +455,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Mistral-7B-Instruct-v0.3-q4f16_1-sw4k_cs1k-webgpu.wasm",
+        "/Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 4573.39,
       low_resource_required: false,
       required_features: ["shader-f16"],
@@ -470,7 +470,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Mistral-7B-Instruct-v0.3-q4f32_1-sw4k_cs1k-webgpu.wasm",
+        "/Mistral-7B-Instruct-v0.3-q4f32_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 5619.27,
       low_resource_required: false,
       overrides: {
@@ -484,7 +484,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Mistral-7B-Instruct-v0.3-q4f16_1-sw4k_cs1k-webgpu.wasm",
+        "/Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 4573.39,
       low_resource_required: false,
       required_features: ["shader-f16"],
@@ -499,7 +499,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Mistral-7B-Instruct-v0.3-q4f16_1-sw4k_cs1k-webgpu.wasm",
+        "/Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 4573.39,
       low_resource_required: false,
       required_features: ["shader-f16"],
@@ -514,7 +514,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Mistral-7B-Instruct-v0.3-q4f16_1-sw4k_cs1k-webgpu.wasm",
+        "/Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 4573.39,
       low_resource_required: false,
       required_features: ["shader-f16"],
@@ -528,7 +528,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Mistral-7B-Instruct-v0.3-q4f16_1-sw4k_cs1k-webgpu.wasm",
+        "/Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 4573.39,
       low_resource_required: false,
       required_features: ["shader-f16"],
@@ -595,57 +595,83 @@ export const prebuiltAppConfig: AppConfig = {
         context_window_size: 1024,
       },
     },
-    // Qwen-1.5-1.8B
+    // Qwen-2
     {
-      model: "https://huggingface.co/mlc-ai/Qwen1.5-1.8B-Chat-q4f16_1-MLC",
-      model_id: "Qwen1.5-1.8B-Chat-q4f16_1-MLC",
+      model: "https://huggingface.co/mlc-ai/Qwen2-0.5B-Instruct-q0f16-MLC",
+      model_id: "Qwen2-0.5B-Instruct-q0f16-MLC",
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Qwen1.5-1.8B-Chat-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-      vram_required_MB: 2404.94,
-      low_resource_required: false,
+        "/Qwen2-0.5B-Instruct-q0f16-ctx4k_cs1k-webgpu.wasm",
+      low_resource_required: true,
+      vram_required_MB: 1624.12,
       overrides: {
         context_window_size: 4096,
       },
     },
     {
-      model: "https://huggingface.co/mlc-ai/Qwen1.5-1.8B-Chat-q4f32_1-MLC",
-      model_id: "Qwen1.5-1.8B-Chat-q4f32_1-MLC",
+      model: "https://huggingface.co/mlc-ai/Qwen2-0.5B-Instruct-q0f32-MLC",
+      model_id: "Qwen2-0.5B-Instruct-q0f32-MLC",
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Qwen1.5-1.8B-Chat-q4f32_1-ctx4k_cs1k-webgpu.wasm",
-      vram_required_MB: 3313.63,
-      low_resource_required: false,
+        "/Qwen2-0.5B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+      low_resource_required: true,
+      vram_required_MB: 2654.75,
       overrides: {
         context_window_size: 4096,
       },
     },
     {
-      model: "https://huggingface.co/mlc-ai/Qwen1.5-1.8B-Chat-q4f16_1-MLC",
-      model_id: "Qwen1.5-1.8B-Chat-q4f16_1-MLC-1k",
+      model: "https://huggingface.co/mlc-ai/Qwen2-1.5B-Instruct-q4f16_1-MLC",
+      model_id: "Qwen2-1.5B-Instruct-q4f16_1-MLC",
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Qwen1.5-1.8B-Chat-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-      vram_required_MB: 1828.94,
+        "/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       low_resource_required: true,
+      vram_required_MB: 1629.75,
       overrides: {
-        context_window_size: 1024,
+        context_window_size: 4096,
       },
     },
     {
-      model: "https://huggingface.co/mlc-ai/Qwen1.5-1.8B-Chat-q4f32_1-MLC",
-      model_id: "Qwen1.5-1.8B-Chat-q4f32_1-MLC-1k",
+      model: "https://huggingface.co/mlc-ai/Qwen2-1.5B-Instruct-q4f32_1-MLC",
+      model_id: "Qwen2-1.5B-Instruct-q4f32_1-MLC",
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Qwen1.5-1.8B-Chat-q4f32_1-ctx4k_cs1k-webgpu.wasm",
-      vram_required_MB: 2161.63,
+        "/Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
       low_resource_required: true,
+      vram_required_MB: 1888.97,
       overrides: {
-        context_window_size: 1024,
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Qwen2-7B-Instruct-q4f16_1-MLC",
+      model_id: "Qwen2-7B-Instruct-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      low_resource_required: false,
+      vram_required_MB: 5106.67,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Qwen2-7B-Instruct-q4f32_1-MLC",
+      model_id: "Qwen2-7B-Instruct-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Qwen2-7B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      low_resource_required: false,
+      vram_required_MB: 5900.09,
+      overrides: {
+        context_window_size: 4096,
       },
     },
     // StableLM-zephyr-1.6B
@@ -797,7 +823,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/TinyLlama-1.1B-Chat-v1.0-q4f16_1-ctx1k_cs1k-webgpu.wasm",
+        "/TinyLlama-1.1B-Chat-v1.0-q4f16_1-ctx2k_cs1k-webgpu.wasm",
       vram_required_MB: 675.24,
       low_resource_required: true,
       required_features: ["shader-f16"],
@@ -812,7 +838,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/TinyLlama-1.1B-Chat-v1.0-q4f32_1-ctx1k_cs1k-webgpu.wasm",
+        "/TinyLlama-1.1B-Chat-v1.0-q4f32_1-ctx2k_cs1k-webgpu.wasm",
       vram_required_MB: 795.98,
       low_resource_required: true,
       overrides: {
@@ -854,7 +880,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Llama-2-7b-chat-hf-q4f16_1-ct41k_cs1k-webgpu.wasm",
+        "/Llama-2-7b-chat-hf-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 4618.52,
       low_resource_required: false,
       required_features: ["shader-f16"],
@@ -1006,7 +1032,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/phi-1_5-q4f32_1-ctx12k_cs1k-webgpu.wasm",
+        "/phi-1_5-q4f32_1-ctx2k_cs1k-webgpu.wasm",
       vram_required_MB: 1682.09,
       low_resource_required: true,
       overrides: {

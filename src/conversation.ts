@@ -30,13 +30,10 @@ export class Conversation {
     if (this.override_system_message !== undefined) {
       system_message = this.override_system_message;
     }
-    let system_prompt = this.config.system_template.replace(
+    const system_prompt = this.config.system_template.replace(
       MessagePlaceholders.system,
       system_message,
     );
-    if (system_prompt) {
-      system_prompt += this.config.seps[0];
-    }
     const ret = addSystem ? [system_prompt] : [];
 
     // Process each message in this.messages
@@ -425,7 +422,7 @@ export function getConversation(
     });
   } else if (conv_template == "gorilla") {
     return new Conversation({
-      system_template: `${MessagePlaceholders.system}`,
+      system_template: `${MessagePlaceholders.system}\n`,
       system_message:
         "A chat between a curious user and an artificial intelligence assistant. " +
         "The assistant gives helpful, detailed, and polite answers to the user's questions.",

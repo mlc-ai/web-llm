@@ -156,7 +156,7 @@ export class LLMChatPipeline {
       this.vm.getFunction("apply_bitmask_inplace"),
     );
     this.fpostProcessTokenTable = this.tvm.detachFromCurrentScope(
-      tvm.getGlobalFunc("mlc.PostProcessTokenTable"),
+      tvm.getGlobalFunc("mlc.tokenizers.PostProcessTokenTable"),
     );
 
     // 2. Get json stored in the vm's metadata function
