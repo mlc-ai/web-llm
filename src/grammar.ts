@@ -29,27 +29,27 @@ export class GrammarFactory {
     tvm.beginScope();
     // Get global functions.
     this.fBNFGrammarGetGrammarOfJSON = tvm.detachFromCurrentScope(
-      tvm.getGlobalFunc("mlc.serve.BNFGrammarGetGrammarOfJSON"),
+      tvm.getGlobalFunc("mlc.grammar.BNFGrammarGetGrammarOfJSON"),
     );
     this.fBNFGrammarFromSchema = tvm.detachFromCurrentScope(
-      tvm.getGlobalFunc("mlc.serve.BNFGrammarFromSchema"),
+      tvm.getGlobalFunc("mlc.grammar.BNFGrammarFromSchema"),
     );
     this.fGrammarSMFromTokenTable = tvm.detachFromCurrentScope(
-      tvm.getGlobalFunc("mlc.serve.GrammarStateMatcherFromTokenTable"),
+      tvm.getGlobalFunc("mlc.grammar.GrammarStateMatcherFromTokenTable"),
     );
     this.fGrammarSMAcceptToken = tvm.detachFromCurrentScope(
-      tvm.getGlobalFunc("mlc.serve.GrammarStateMatcherAcceptToken"),
+      tvm.getGlobalFunc("mlc.grammar.GrammarStateMatcherAcceptToken"),
     );
     this.fGrammarSMFindNextTokenBitmaskAsNDArray = tvm.detachFromCurrentScope(
       tvm.getGlobalFunc(
-        "mlc.serve.GrammarStateMatcherFindNextTokenBitmaskAsNDArray",
+        "mlc.grammar.GrammarStateMatcherFindNextTokenBitmaskAsNDArray",
       ),
     );
     this.fGrammarSMIsTerminated = tvm.detachFromCurrentScope(
-      tvm.getGlobalFunc("mlc.serve.GrammarStateMatcherIsTerminated"),
+      tvm.getGlobalFunc("mlc.grammar.GrammarStateMatcherIsTerminated"),
     );
     this.fGrammarSMResetState = tvm.detachFromCurrentScope(
-      tvm.getGlobalFunc("mlc.serve.GrammarStateMatcherResetState"),
+      tvm.getGlobalFunc("mlc.grammar.GrammarStateMatcherResetState"),
     );
     tvm.endScope();
   }

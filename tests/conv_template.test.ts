@@ -109,7 +109,7 @@ describe("Test conversation template", () => {
     conversation.appendReplyHeader(Role.assistant);
     const prompt = conversation.getPromptArray().join("");
     expect(prompt).toEqual(
-      "[INST] <<SYS>>\nYou are a helpful, respectful and honest assistant.\n<</SYS>>\n\n test1 [/INST] test2 [INST] test3 [/INST] ",
+      "[INST] <<SYS>>\nYou are a helpful, respectful and honest assistant.\n<</SYS>>\n\ntest1 [/INST] test2 [INST] test3 [/INST] ",
     );
     console.log(prompt);
   });
