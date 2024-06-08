@@ -59,8 +59,8 @@ Here are the primary families of models currently supported:
 - **Llama**: Llama 3, Llama 2, Hermes-2-Pro-Llama-3
 - **Phi**: Phi 3, Phi 2, Phi 1.5
 - **Gemma**: Gemma-2B
-- **Mistral**: Mistral-7B, OpenHermes-2.5-Mistral-7B, Hermes-2-Pro-Mistral-7B, NeuralHermes-2.5-Mistral-7B, 
-- **Qwen (通义千问)**: Qwen 2 (coming soon), Qwen 1.5
+- **Mistral**: Mistral-7B-v0.3, Hermes-2-Pro-Mistral-7B, NeuralHermes-2.5-Mistral-7B, OpenHermes-2.5-Mistral-7B
+- **Qwen (通义千问)**: Qwen2 0.5B, 1.5B, 7B
 
 If you need more models, [request a new model via opening an issue](https://github.com/mlc-ai/web-llm/issues/new/choose) or check [Custom Models](#custom-models) for how to compile and use your own models with WebLLM.
 
