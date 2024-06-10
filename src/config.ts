@@ -392,6 +392,7 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
       overrides: {
         context_window_size: 4096,
+        sliding_window_size: -1,
       },
     },
     // Phi3-mini-instruct
@@ -461,6 +462,7 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
       overrides: {
         context_window_size: 4096,
+        sliding_window_size: -1,
       },
     },
     {
@@ -475,6 +477,7 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
+        sliding_window_size: -1,
       },
     },
     {
@@ -490,6 +493,7 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
       overrides: {
         context_window_size: 4096,
+        sliding_window_size: -1,
       },
     },
     {
@@ -505,6 +509,7 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
       overrides: {
         context_window_size: 4096,
+        sliding_window_size: -1,
       },
     },
     {
@@ -520,6 +525,7 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
       overrides: {
         context_window_size: 4096,
+        sliding_window_size: -1,
       },
     },
     {
@@ -534,6 +540,7 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
       overrides: {
         context_window_size: 4096,
+        sliding_window_size: -1,
       },
     },
     // Gemma-2B
