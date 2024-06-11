@@ -354,7 +354,8 @@ async main() {
   // assuming that it is compatible to the model in myLlamaUrl.
   const engine = await CreateMLCEngine(
     "MyLlama-3b-v1-q4f32_0",
-    { chatOpts, appConfig } // engineConfig
+    { appConfig }, // engineConfig
+    chatOpts,
   );
 }
 ```
