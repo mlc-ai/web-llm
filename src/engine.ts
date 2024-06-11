@@ -765,7 +765,7 @@ export class MLCEngine implements MLCEngineInterface {
     const input = request.messages;
     const lastId = input.length - 1;
     if (
-      input[lastId].role !== "user" ||
+      !["user", "tool"].includes(input[lastId].role) ||
       typeof input[lastId].content !== "string"
     ) {
       // TODO(Charlie): modify condition after we support multimodal inputs
@@ -795,6 +795,8 @@ export class MLCEngine implements MLCEngineInterface {
           message.content,
           message.name,
         );
+      } else if (message.role === "tool") {
+        conversation.appendMessage(Role.tool, message.content, message.name);
       } else {
         throw new Error("Unsupported role of message: " + message.role);
       }

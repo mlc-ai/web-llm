@@ -24,6 +24,7 @@ export interface ConvTemplateConfig {
 export enum Role {
   user = "user",
   assistant = "assistant",
+  tool = "tool",
 }
 
 export const DefaultLogLevel: LogLevel = "WARN";
