@@ -127,7 +127,7 @@ const selectedModel = "Llama-3-8B-Instruct-q4f32_1-MLC";
 
 const engine = await CreateMLCEngine(
   selectedModel,
-  { initProgressCallback }, // engineConfig
+  { initProgressCallback: initProgressCallback }, // engineConfig
 );
 ```
 
@@ -137,8 +137,9 @@ Under the hood, this factory function does the following steps for first creatin
 import { MLCEngine } from "@mlc-ai/web-llm";
 
 // This is a synchrounous call that returns immediately
-const engine = new MLCEngine();
-engine.setInitProgressCallback(initProgressCallback);
+const engine = new MLCEngine({
+  initProgressCallback: initProgressCallback
+});
 
 // This is an asynchrounous call and can take a long time to finish
 await engine.reload(selectedModel);

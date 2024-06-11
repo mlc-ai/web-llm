@@ -133,11 +133,7 @@ export class MLCEngineWorkerHandler {
       case "reload": {
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ReloadParams;
-          await this.engine.reload(
-            params.modelId,
-            params.chatOpts,
-            params.appConfig,
-          );
+          await this.engine.reload(params.modelId, params.chatOpts);
           onComplete?.(null);
           return null;
         });
@@ -323,16 +319,10 @@ export async function CreateWebWorkerMLCEngine(
   worker: any,
   modelId: string,
   engineConfig?: MLCEngineConfig,
+  chatOpts?: ChatOptions,
 ): Promise<WebWorkerMLCEngine> {
-  const webWorkerMLCEngine = new WebWorkerMLCEngine(worker);
-  webWorkerMLCEngine.setInitProgressCallback(
-    engineConfig?.initProgressCallback,
-  );
-  await webWorkerMLCEngine.reload(
-    modelId,
-    engineConfig?.chatOpts,
-    engineConfig?.appConfig,
-  );
+  const webWorkerMLCEngine = new WebWorkerMLCEngine(worker, engineConfig);
+  await webWorkerMLCEngine.reload(modelId, chatOpts);
   return webWorkerMLCEngine;
 }
 
@@ -357,12 +347,13 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
   >();
   private pendingPromise = new Map<string, (msg: WorkerResponse) => void>();
 
-  constructor(worker: ChatWorker) {
+  constructor(worker: ChatWorker, engineConfig?: MLCEngineConfig) {
     this.worker = worker;
     worker.onmessage = (event: any) => {
       this.onmessage.bind(this)(event);
     };
     this.chat = new API.Chat(this);
+    // TODO: ADD HANDLING OF engineConfig
   }
 
   setInitProgressCallback(initProgressCallback?: InitProgressCallback) {
@@ -371,6 +362,10 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
 
   getInitProgressCallback(): InitProgressCallback | undefined {
     return this.initProgressCallback;
+  }
+
+  setAppConfig(appConfig: AppConfig) {
+    // TODO: IMPLEMENT THIS, SEND MESSAGE
   }
 
   protected getPromise<T extends MessageContent>(
@@ -399,18 +394,13 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
     return promise;
   }
 
-  async reload(
-    modelId: string,
-    chatOpts?: ChatOptions,
-    appConfig?: AppConfig,
-  ): Promise<void> {
+  async reload(modelId: string, chatOpts?: ChatOptions): Promise<void> {
     const msg: WorkerRequest = {
       kind: "reload",
       uuid: crypto.randomUUID(),
       content: {
         modelId: modelId,
         chatOpts: chatOpts,
-        appConfig: appConfig,
       },
     };
     await this.getPromise<null>(msg);

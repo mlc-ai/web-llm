@@ -28,7 +28,8 @@ type RequestKind =
   | "customRequest"
   | "keepAlive"
   | "heartbeat"
-  | "setLogLevel";
+  | "setLogLevel"
+  | "setAppConfig";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 type ResponseKind =
@@ -40,7 +41,6 @@ type ResponseKind =
 export interface ReloadParams {
   modelId: string;
   chatOpts?: ChatOptions;
-  appConfig?: AppConfig;
 }
 export interface GenerateParams {
   input: string | ChatCompletionRequestNonStreaming;

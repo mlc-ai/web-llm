@@ -52,7 +52,7 @@ async function main() {
 
   // 3. We reload, and we should see this time it is much faster because the weights are cached.
   console.log("Reload model start");
-  await engine.reload(selectedModel, undefined, appConfig);
+  await engine.reload(selectedModel);
   console.log("Reload model end");
   reply = await engine.chat.completions.create(request);
   console.log(reply);
@@ -70,7 +70,7 @@ async function main() {
 
   // 5. If we reload, we should expect the model to start downloading again
   console.log("Reload model start");
-  await engine.reload(selectedModel, undefined, appConfig);
+  await engine.reload(selectedModel);
   console.log("Reload model end");
   reply = await engine.chat.completions.create(request);
   console.log(reply);

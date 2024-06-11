@@ -112,8 +112,7 @@ export class ServiceWorkerMLCEngineHandler extends MLCEngineWorkerHandler {
         // If the modelId, chatOpts, and appConfig are the same, immediately return
         if (
           this.modelId === params.modelId &&
-          areChatOptionsEqual(this.chatOpts, params.chatOpts) &&
-          areAppConfigsEqual(this.appConfig, params.appConfig)
+          areChatOptionsEqual(this.chatOpts, params.chatOpts)
         ) {
           log.info("Already loaded the model. Skip loading");
           const gpuDetectOutput = await tvmjs.detectGPUDevice();
@@ -136,18 +135,16 @@ export class ServiceWorkerMLCEngineHandler extends MLCEngineWorkerHandler {
         }
 
         this.initReuqestUuid = msg.uuid;
-        await this.engine.reload(
-          params.modelId,
-          params.chatOpts,
-          params.appConfig,
-        );
+        await this.engine.reload(params.modelId, params.chatOpts);
         this.modelId = params.modelId;
         this.chatOpts = params.chatOpts;
-        this.appConfig = params.appConfig;
         onComplete?.(null);
         return null;
       });
       return;
+    } else if (msg.kind === "setAppConfig") {
+      // TODO: ADD SPECIAL HANDLING HERE
+      // something to replace areAppConfigsEqual(this.appConfig, params.appConfig) for init
     }
     super.onmessage(msg, onComplete, onError);
   }
@@ -197,6 +194,8 @@ export class ServiceWorker implements ChatWorker {
 export async function CreateServiceWorkerMLCEngine(
   modelId: string,
   engineConfig?: MLCEngineConfig,
+  chatOpts?: ChatOptions,
+  // TODO: ADD KEEP_ALIVE HERE?
 ): Promise<ServiceWorkerMLCEngine> {
   if (!("serviceWorker" in navigator)) {
     throw new Error(
@@ -213,18 +212,8 @@ export async function CreateServiceWorkerMLCEngine(
         "Please refresh the page to retry initializing the service worker.",
     );
   }
-  const serviceWorkerMLCEngine = new ServiceWorkerMLCEngine();
-  if (engineConfig?.logLevel) {
-    serviceWorkerMLCEngine.setLogLevel(engineConfig.logLevel);
-  }
-  serviceWorkerMLCEngine.setInitProgressCallback(
-    engineConfig?.initProgressCallback,
-  );
-  await serviceWorkerMLCEngine.init(
-    modelId,
-    engineConfig?.chatOpts,
-    engineConfig?.appConfig,
-  );
+  const serviceWorkerMLCEngine = new ServiceWorkerMLCEngine(engineConfig);
+  await serviceWorkerMLCEngine.init(modelId, chatOpts);
   return serviceWorkerMLCEngine;
 }
 
@@ -234,7 +223,8 @@ export async function CreateServiceWorkerMLCEngine(
 export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
   missedHeatbeat = 0;
 
-  constructor(keepAliveMs = 10000) {
+  constructor(engineConfig?: MLCEngineConfig, keepAliveMs = 10000) {
+    // TODO: HANDLE engineConfig
     if (!("serviceWorker" in navigator)) {
       throw new Error("Service worker API is not available");
     }
@@ -271,24 +261,18 @@ export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
    *
    * @param modelId model_id of the model to load.
    * @param chatOpts Extra options to overide chat behavior.
-   * @param appConfig Override the app config in this load.
    * @returns A promise when reload finishes.
    * @note The difference between init and reload is that init
    * should be called only once when the engine is created, while reload
    * can be called multiple times to switch between models.
    */
-  async init(
-    modelId: string,
-    chatOpts?: ChatOptions,
-    appConfig?: AppConfig,
-  ): Promise<void> {
+  async init(modelId: string, chatOpts?: ChatOptions): Promise<void> {
     const msg: WorkerRequest = {
       kind: "init",
       uuid: crypto.randomUUID(),
       content: {
         modelId: modelId,
         chatOpts: chatOpts,
-        appConfig: appConfig,
       },
     };
     await this.getPromise<null>(msg);
