@@ -82,7 +82,7 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
       if (message.kind === "return" || message.kind === "throw") {
         this.clientRegistry.delete(message.uuid);
       } else {
-        // TODO: Delete clientRegistry after complete to avoid memory leak?
+        // TODO(nestor): Delete clientRegistry after complete to avoid memory leak?
       }
     }
   }
@@ -149,9 +149,6 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
 }
 
 /* Webapp Client */
-/**
- * PostMessageHandler wrapper for sending message from client to service worker
- */
 export class ServiceWorker implements ChatWorker {
   _onmessage: (event: MessageEvent) => void = () => {};
 

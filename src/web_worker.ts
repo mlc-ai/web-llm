@@ -34,10 +34,6 @@ import {
 } from "./message";
 import log from "loglevel";
 
-export interface PostMessageHandler {
-  postMessage: (message: any) => void;
-}
-
 /**
  * Worker handler that can be used in a WebWorker
  *
@@ -91,7 +87,7 @@ export class MLCEngineWorkerHandler {
         uuid: uuid,
         content: res,
       };
-      postMessage(msg);
+      this.postMessage(msg);
     } catch (err) {
       const errStr = (err as object).toString();
       const msg: WorkerResponse = {
@@ -99,7 +95,7 @@ export class MLCEngineWorkerHandler {
         uuid: uuid,
         content: errStr,
       };
-      postMessage(msg);
+      this.postMessage(msg);
     }
   }
 
@@ -136,7 +132,7 @@ export class MLCEngineWorkerHandler {
                 currentMessage: currentMessage,
               },
             };
-            postMessage(cbMessage);
+            this.postMessage(cbMessage);
           };
           const res = await this.engine.generate(
             params.input,

@@ -7,34 +7,8 @@ import {
   ChatWorker,
   MLCEngineWorkerHandler,
   WebWorkerMLCEngine,
-  PostMessageHandler,
 } from "./web_worker";
-import { areAppConfigsEqual, areChatOptionsEqual } from "./utils";
-
-/**
- * A post message handler that sends messages to a chrome.runtime.Port.
- */
-export class PortPostMessageHandler implements PostMessageHandler {
-  port: chrome.runtime.Port;
-  enabled = true;
-
-  constructor(port: chrome.runtime.Port) {
-    this.port = port;
-  }
-
-  /**
-   * Close the PortPostMessageHandler. This will prevent any further messages
-   */
-  close() {
-    this.enabled = false;
-  }
-
-  postMessage(event: any) {
-    if (this.enabled) {
-      this.port.postMessage(event);
-    }
-  }
-}
+import { areChatOptionsEqual } from "./utils";
 
 /**
  * Worker handler that can be used in a ServiceWorker.
@@ -56,28 +30,27 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
   modelId?: string;
   chatOpts?: ChatOptions;
   appConfig?: AppConfig;
-
-  private portPostMessageHandler: PortPostMessageHandler;
+  port: chrome.runtime.Port | null;
 
   constructor(engine: MLCEngineInterface, port: chrome.runtime.Port) {
     super(engine);
-    const handler = new PortPostMessageHandler(port);
-    this.portPostMessageHandler = handler;
-    port.onDisconnect.addListener(() => {
-      handler.close();
-    });
+    this.port = port;
+    port.onDisconnect.addListener(() => this.onPortDisconnect(port));
   }
 
   postMessage(msg: any) {
-    this.portPostMessageHandler.postMessage(msg);
+    this.port?.postMessage(msg);
   }
 
   setPort(port: chrome.runtime.Port) {
-    const handler = new PortPostMessageHandler(port);
-    this.portPostMessageHandler = handler;
-    port.onDisconnect.addListener(() => {
-      handler.close();
-    });
+    this.port = port;
+    port.onDisconnect.addListener(() => this.onPortDisconnect(port));
+  }
+
+  onPortDisconnect(port: chrome.runtime.Port) {
+    if (port === this.port) {
+      this.port = null;
+    }
   }
 
   onmessage(event: any): void {
@@ -119,9 +92,6 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
         return null;
       });
       return;
-    } else if (msg.kind === "setAppConfig") {
-      // TODO: ADD SPECIAL HANDLING HERE
-      // something to replace areAppConfigsEqual(this.appConfig, params.appConfig) for init
     }
     super.onmessage(event);
   }
