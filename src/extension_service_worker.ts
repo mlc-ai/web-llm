@@ -19,7 +19,7 @@ import { areChatOptionsEqual } from "./utils";
  * let handler;
  * chrome.runtime.onConnect.addListener(function (port) {
  *   if (handler === undefined) {
- *     handler = new ServiceWorkerMLCEngineHandler(engine, port);
+ *     handler = new MLCEngineServiceWorkerHandler(engine, port);
  *   } else {
  *     handler.setPort(port);
  *   }

@@ -23,7 +23,7 @@ type IServiceWorker = globalThis.ServiceWorker;
  * let handler;
  * chrome.runtime.onConnect.addListener(function (port) {
  *   if (handler === undefined) {
- *     handler = new ServiceWorkerMLCEngineHandler(engine, port);
+ *     handler = new MLCEngineServiceWorkerHandler(engine, port);
  *   } else {
  *     handler.setPort(port);
  *   }
@@ -44,7 +44,7 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
   constructor(engine: MLCEngineInterface) {
     if (!self || !("addEventListener" in self)) {
       throw new Error(
-        "ServiceWorkerMLCEngineHandler must be created in the service worker script.",
+        "MLCEngineServiceWorkerHandler must be created in the service worker script.",
       );
     }
     const customInitProgressCallback = engine.getInitProgressCallback();
