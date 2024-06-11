@@ -56,43 +56,28 @@ export class MLCEngineWorkerHandler {
     void,
     void
   >;
-  protected postMessageHandler?: PostMessageHandler;
 
   /**
    * @param engine A concrete implementation of MLCEngineInterface
-   * @param postMessageHandler Optionally, a handler to communicate with the content script.
-   *   This is only needed in ServiceWorker. In web worker, we can use `postMessage` from
-   *   DOM API directly.
    */
-  constructor(
-    engine: MLCEngineInterface,
-    postMessageHandler?: PostMessageHandler,
-    initProgressCallback?: (report: InitProgressReport) => void,
-  ) {
+  constructor(engine: MLCEngineInterface) {
     this.engine = engine;
-    this.postMessageHandler = postMessageHandler;
-    const defaultInitProgressCallback = (report: InitProgressReport) => {
+
+    const customInitProgressCallback = engine.getInitProgressCallback();
+    this.engine.setInitProgressCallback((report: InitProgressReport) => {
       const msg: WorkerResponse = {
         kind: "initProgressCallback",
         uuid: "",
         content: report,
       };
-      this.postMessageInternal(msg);
-    };
-    this.engine.setInitProgressCallback(
-      initProgressCallback || defaultInitProgressCallback,
-    );
+      this.postMessage(msg);
+      customInitProgressCallback?.(report);
+    });
   }
 
-  postMessageInternal(event: any) {
-    // Use the Worker API postMessage by default
-    this.postMessageHandler
-      ? this.postMessageHandler.postMessage(event)
-      : postMessage(event);
-  }
-
-  setPostMessageHandler(postMessageHandler: PostMessageHandler) {
-    this.postMessageHandler = postMessageHandler;
+  postMessage(msg: any) {
+    // Use Web Worker DOM Message API
+    postMessage(msg);
   }
 
   async handleTask<T extends MessageContent>(
@@ -106,7 +91,7 @@ export class MLCEngineWorkerHandler {
         uuid: uuid,
         content: res,
       };
-      this.postMessageInternal(msg);
+      postMessage(msg);
     } catch (err) {
       const errStr = (err as object).toString();
       const msg: WorkerResponse = {
@@ -114,7 +99,7 @@ export class MLCEngineWorkerHandler {
         uuid: uuid,
         content: errStr,
       };
-      this.postMessageInternal(msg);
+      postMessage(msg);
     }
   }
 
@@ -151,7 +136,7 @@ export class MLCEngineWorkerHandler {
                 currentMessage: currentMessage,
               },
             };
-            this.postMessageInternal(cbMessage);
+            postMessage(cbMessage);
           };
           const res = await this.engine.generate(
             params.input,
@@ -278,6 +263,12 @@ export class MLCEngineWorkerHandler {
         onComplete?.(null);
         return;
       }
+      case "setAppConfig": {
+        const appConfig = msg.content as AppConfig;
+        this.engine.setAppConfig(appConfig);
+        onComplete?.(null);
+        return;
+      }
       case "customRequest": {
         onComplete?.(null);
         return;
@@ -352,8 +343,23 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
     worker.onmessage = (event: any) => {
       this.onmessage.bind(this)(event);
     };
+
+    if (engineConfig?.appConfig) {
+      this.setAppConfig(engineConfig?.appConfig);
+    }
+    if (engineConfig?.logLevel) {
+      this.setLogLevel(engineConfig?.logLevel);
+    }
+    this.setInitProgressCallback(engineConfig?.initProgressCallback);
+    if (engineConfig?.logitProcessorRegistry) {
+      if (engineConfig?.logitProcessorRegistry) {
+        log.warn(
+          "Warning: The `logitProcessorRegistry` property in `engineConfig` will be ignored when using the WebWorkerMLCEngine constructor. To set `logitProcessorRegistry`, use the engine constructor within the worker script instead.",
+        );
+      }
+    }
+
     this.chat = new API.Chat(this);
-    // TODO: ADD HANDLING OF engineConfig
   }
 
   setInitProgressCallback(initProgressCallback?: InitProgressCallback) {
@@ -365,7 +371,22 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
   }
 
   setAppConfig(appConfig: AppConfig) {
-    // TODO: IMPLEMENT THIS, SEND MESSAGE
+    const msg: WorkerRequest = {
+      kind: "setAppConfig",
+      uuid: crypto.randomUUID(),
+      content: appConfig,
+    };
+    this.worker.postMessage(msg);
+  }
+
+  setLogLevel(logLevel: LogLevel) {
+    log.setLevel(logLevel);
+    const msg: WorkerRequest = {
+      kind: "setLogLevel",
+      uuid: crypto.randomUUID(),
+      content: logLevel,
+    };
+    this.worker.postMessage(msg);
   }
 
   protected getPromise<T extends MessageContent>(
@@ -568,16 +589,6 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
       content: {
         request: request,
       },
-    };
-    return await this.getPromise<ChatCompletion>(msg);
-  }
-
-  async setLogLevel(logLevel: LogLevel) {
-    log.setLevel(logLevel);
-    const msg: WorkerRequest = {
-      kind: "setLogLevel",
-      uuid: crypto.randomUUID(),
-      content: logLevel,
     };
     return await this.getPromise<ChatCompletion>(msg);
   }

@@ -240,7 +240,7 @@ class ChatUI {
     this.engine.setInitProgressCallback(initProgressCallback);
 
     try {
-      await this.engine.reload(this.selectedModel, undefined, this.config);
+      await this.engine.reload(this.selectedModel);
     } catch (err) {
       this.appendMessage("error", "Init error, " + err.toString());
       console.log(err.stack);
@@ -322,9 +322,10 @@ let engine: webllm.MLCEngineInterface;
 if (useWebWorker) {
   engine = new webllm.WebWorkerMLCEngine(
     new Worker(new URL("./worker.ts", import.meta.url), { type: "module" }),
+    { appConfig },
   );
 } else {
-  engine = new webllm.MLCEngine();
+  engine = new webllm.MLCEngine({ appConfig });
 }
 ChatUI.CreateAsync(engine);
 

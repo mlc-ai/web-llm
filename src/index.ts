@@ -36,13 +36,13 @@ export {
 export { WorkerRequest, WorkerResponse, CustomRequestParams } from "./message";
 
 export {
-  ServiceWorkerMLCEngineHandler,
+  MLCEngineServiceWorkerHandler,
   ServiceWorkerMLCEngine,
   CreateServiceWorkerMLCEngine,
 } from "./service_worker";
 
 export {
-  ServiceWorkerMLCEngineHandler as ExtensionServiceWorkerMLCEngineHandler,
+  MLCEngineServiceWorkerHandler as MLCEngineExtensionServiceWorkerHandler,
   ServiceWorkerMLCEngine as ExtensionServiceWorkerMLCEngine,
   CreateServiceWorkerMLCEngine as CreateExtensionServiceWorkerMLCEngine,
 } from "./extension_service_worker";
