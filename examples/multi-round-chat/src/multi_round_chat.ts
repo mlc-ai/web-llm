@@ -9,7 +9,7 @@ function setLabel(id: string, text: string) {
 }
 
 /**
- * We domnstrate multiround chatting. Though users are required to maintain chat history, internally
+ * We demonstrate multiround chatting. Though users are required to maintain chat history, internally
  * we compare provided `messages` with the internal chat history. If it matches, we will reuse KVs
  * and hence save computation -- essentially an implicit internal optimization.
  */

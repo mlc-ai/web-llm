@@ -57,6 +57,7 @@ const ERROR_WEBGPU_NOT_AVAILABLE = new Error(
  * @param modelId The model to load, needs to either be in `webllm.prebuiltAppConfig`, or in
  * `engineConfig.appConfig`.
  * @param engineConfig Optionally configures the engine, see `webllm.MLCEngineConfig`.
+ * @param chatOpts Extra options to override chat behavior specified in `mlc-chat-config.json`.
  * @returns An initialized `WebLLM.MLCEngine` with `modelId` loaded.
  * @throws Throws error when device lost (mostly due to OOM); users should re-call `CreateMLCEngine()`,
  *   potentially with a smaller model or smaller context window size.
@@ -64,12 +65,10 @@ const ERROR_WEBGPU_NOT_AVAILABLE = new Error(
 export async function CreateMLCEngine(
   modelId: string,
   engineConfig?: MLCEngineConfig,
+  chatOpts?: ChatOptions,
 ): Promise<MLCEngine> {
-  const engine = new MLCEngine();
-  engine.setLogLevel(engineConfig?.logLevel || DefaultLogLevel);
-  engine.setInitProgressCallback(engineConfig?.initProgressCallback);
-  engine.setLogitProcessorRegistry(engineConfig?.logitProcessorRegistry);
-  await engine.reload(modelId, engineConfig?.chatOpts, engineConfig?.appConfig);
+  const engine = new MLCEngine(engineConfig);
+  await engine.reload(modelId, chatOpts);
   return engine;
 }
 
@@ -90,9 +89,19 @@ export class MLCEngine implements MLCEngineInterface {
   private interruptSignal = false;
   private deviceLostIsError = true; // whether device.lost is due to actual error or model reload
   private config?: ChatConfig;
+  private appConfig: AppConfig;
 
-  constructor() {
+  constructor(engineConfig?: MLCEngineConfig) {
+    this.appConfig = engineConfig?.appConfig || prebuiltAppConfig;
+    this.setLogLevel(engineConfig?.logLevel || DefaultLogLevel);
+    this.setInitProgressCallback(engineConfig?.initProgressCallback);
+    this.setLogitProcessorRegistry(engineConfig?.logitProcessorRegistry);
+
     this.chat = new API.Chat(this);
+  }
+
+  setAppConfig(appConfig: AppConfig) {
+    this.appConfig = appConfig;
   }
 
   setInitProgressCallback(initProgressCallback?: InitProgressCallback) {
@@ -114,25 +123,17 @@ export class MLCEngine implements MLCEngineInterface {
    * @param modelId The model to load, needs to either be in `webllm.prebuiltAppConfig`, or in
    * `engineConfig.appConfig`.
    * @param chatOpts To optionally override the `mlc-chat-config.json` of `modelId`.
-   * @param appConfig Configure the app with the list of models and whether to use IndexedDB cache.
    * @throws Throws error when device lost (mostly due to OOM); users should re-call reload(),
    *   potentially with a smaller model or smaller context window size.
    */
-  async reload(
-    modelId: string,
-    chatOpts?: ChatOptions,
-    appConfig?: AppConfig,
-  ): Promise<void> {
+  async reload(modelId: string, chatOpts?: ChatOptions): Promise<void> {
     await this.unload();
 
     this.logitProcessor = this.logitProcessorRegistry?.get(modelId);
     const tstart = performance.now();
-    if (appConfig === undefined) {
-      appConfig = prebuiltAppConfig;
-    }
 
     const findModelRecord = () => {
-      const matchedItem = appConfig?.model_list.find(
+      const matchedItem = this.appConfig?.model_list.find(
         (item) => item.model_id == modelId,
       );
       if (matchedItem !== undefined) return matchedItem;
@@ -152,7 +153,7 @@ export class MLCEngine implements MLCEngineInterface {
     }
 
     let configCache: tvmjs.ArtifactCacheTemplate;
-    if (appConfig.useIndexedDBCache) {
+    if (this.appConfig.useIndexedDBCache) {
       configCache = new tvmjs.ArtifactIndexedDBCache("webllm/config");
     } else {
       configCache = new tvmjs.ArtifactCache("webllm/config");
@@ -168,7 +169,7 @@ export class MLCEngine implements MLCEngineInterface {
 
     // load tvm wasm
     let wasmCache: tvmjs.ArtifactCacheTemplate;
-    if (appConfig.useIndexedDBCache) {
+    if (this.appConfig.useIndexedDBCache) {
       wasmCache = new tvmjs.ArtifactIndexedDBCache("webllm/wasm");
     } else {
       wasmCache = new tvmjs.ArtifactCache("webllm/wasm");
@@ -257,9 +258,9 @@ export class MLCEngine implements MLCEngineInterface {
     const tokenizer = await this.asyncLoadTokenizer(
       modelUrl,
       this.config,
-      appConfig,
+      this.appConfig,
     );
-    const cacheType = appConfig.useIndexedDBCache ? "indexeddb" : "cache";
+    const cacheType = this.appConfig.useIndexedDBCache ? "indexeddb" : "cache";
     await tvm.fetchNDArrayCache(
       modelUrl,
       tvm.webgpu(),

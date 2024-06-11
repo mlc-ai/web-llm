@@ -19,12 +19,12 @@ async function main() {
     {
       initProgressCallback: initProgressCallback,
       logLevel: "INFO", // specify the log level
-      // customize kv cache, use either context_window_size or sliding_window_size (with attention sink)
-      chatOpts: {
-        context_window_size: 2048,
-        // sliding_window_size: 1024,
-        // attention_sink_size: 4,
-      },
+    },
+    // customize kv cache, use either context_window_size or sliding_window_size (with attention sink)
+    {
+      context_window_size: 2048,
+      // sliding_window_size: 1024,
+      // attention_sink_size: 4,
     },
   );
 
@@ -46,8 +46,15 @@ async function main() {
   // };
   // const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
   //   selectedModel,
-  //   { appConfig: appConfig, initProgressCallback: initProgressCallback }
+  //   { appConfig: appConfig, initProgressCallback: initProgressCallback },
   // );
+
+  // Option 3: Instantiate MLCEngine() and call reload() separately
+  // const engine: webllm.MLCEngineInterface = new webllm.MLCEngine({
+  //   appConfig: appConfig, // if do not specify, we use webllm.prebuiltAppConfig
+  //   initProgressCallback: initProgressCallback,
+  // });
+  // await engine.reload(selectedModel);
 
   const reply0 = await engine.chat.completions.create({
     messages: [{ role: "user", content: "List three US states." }],

@@ -127,7 +127,7 @@ const selectedModel = "Llama-3-8B-Instruct-q4f32_1-MLC";
 
 const engine = await CreateMLCEngine(
   selectedModel,
-  { initProgressCallback }, // engineConfig
+  { initProgressCallback: initProgressCallback }, // engineConfig
 );
 ```
 
@@ -137,8 +137,9 @@ Under the hood, this factory function does the following steps for first creatin
 import { MLCEngine } from "@mlc-ai/web-llm";
 
 // This is a synchrounous call that returns immediately
-const engine = new MLCEngine();
-engine.setInitProgressCallback(initProgressCallback);
+const engine = new MLCEngine({
+  initProgressCallback: initProgressCallback
+});
 
 // This is an asynchrounous call and can take a long time to finish
 await engine.reload(selectedModel);
@@ -196,14 +197,24 @@ console.log(fullReply);
 
 ## Advanced Usage
 
-### Using Web Worker
+### Using Workers
+
+You can put the heavy computation in a worker script to optimizing your application performance. To do so, you need to:
+
+1. Create an MLCEngine in the worker thread for the actual inference.
+2. Wrap the MLCEngine in the worker thread with a worker message handler to handle thread communications via messages under the hood.
+3. Create a Worker Engine in your main application as a proxy to sending operations to the MLCEngine in the worker thread via sending messages.
+
+For detailed implementation for different kinds of Workers, check the following sections.
+
+#### Dedicated Web Worker
 
 WebLLM comes with API support for WebWorker so you can hook
 the generation process into a separate worker thread so that
 the computing in the worker thread won't disrupt the UI.
 
 We will first create a worker script with a MLCEngine and
-hook it up to a handler that handles requests.
+hook it up to a worker message handler.
 
 ```typescript
 // worker.ts
@@ -217,7 +228,7 @@ self.onmessage = (msg: MessageEvent) => {
 };
 ```
 
-Then in the main logic, we create a `WebWorkerMLCEngine` that
+In the main logic, we create a `WebWorkerMLCEngine` that
 implements the same `MLCEngineInterface`. The rest of the logic remains the same.
 
 ```typescript
@@ -249,22 +260,22 @@ your application's offline experience.
 
 (Note, Service Worker's life cycle is managed by the browser and can be killed any time without notifying the webapp. `ServiceWorkerMLCEngine` will try to keep the service worker thread alive by periodically sending heartbeat events, but your application should also include proper error handling. Check `keepAliveMs` and `missedHeatbeat` in [`ServiceWorkerMLCEngine`](https://github.com/mlc-ai/web-llm/blob/main/src/service_worker.ts#L234) for more details.)
 
-We first create a service worker script with a MLCEngine and hook it up to a handler
+We first create a service worker script with a MLCEngine and hook it up to a worker message handler
 that handles requests when the service worker is ready.
 
 
 ```typescript
 // sw.ts
 import {
-  ServiceWorkerMLCEngineHandler,
+  MLCEngineServiceWorkerHandler,
   MLCEngine,
 } from "@mlc-ai/web-llm";
 
 const engine = new MLCEngine();
-let handler: ServiceWorkerMLCEngineHandler;
+let handler: MLCEngineServiceWorkerHandler;
 
 self.addEventListener("activate", function (event) {
-  handler = new ServiceWorkerMLCEngineHandler(engine);
+  handler = new MLCEngineServiceWorkerHandler(engine);
   console.log("Service Worker is ready");
 });
 ```

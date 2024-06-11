@@ -83,19 +83,19 @@ export interface MLCEngineInterface {
   getInitProgressCallback: () => InitProgressCallback | undefined;
 
   /**
+   * Setter for the engine's appConfig.
+   */
+  setAppConfig: (appConfig: AppConfig) => void;
+
+  /**
    * Reload the chat with a new model.
    *
    * @param modelId model_id of the model to load.
    * @param chatOpts Extra options to override chat behavior.
-   * @param appConfig Override the app config in this load.
    * @returns A promise when reload finishes.
    * @note This is an async function.
    */
-  reload: (
-    modelId: string,
-    chatOpts?: ChatOptions,
-    appConfig?: AppConfig,
-  ) => Promise<void>;
+  reload: (modelId: string, chatOpts?: ChatOptions) => Promise<void>;
 
   /**
    * Generate a response for a given input.

@@ -17,7 +17,6 @@ type RequestKind =
   | "interruptGenerate"
   | "unload"
   | "resetChat"
-  | "init"
   | "getMaxStorageBufferBindingSize"
   | "getGPUVendor"
   | "forwardTokensAndSample"
@@ -27,8 +26,8 @@ type RequestKind =
   | "chatCompletionStreamNextChunk"
   | "customRequest"
   | "keepAlive"
-  | "heartbeat"
-  | "setLogLevel";
+  | "setLogLevel"
+  | "setAppConfig";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 type ResponseKind =
@@ -40,7 +39,6 @@ type ResponseKind =
 export interface ReloadParams {
   modelId: string;
   chatOpts?: ChatOptions;
-  appConfig?: AppConfig;
 }
 export interface GenerateParams {
   input: string | ChatCompletionRequestNonStreaming;
@@ -85,6 +83,7 @@ export type MessageContent =
   | number
   | ChatCompletion
   | ChatCompletionChunk
+  | AppConfig
   | void;
 /**
  * The message used in exchange between worker
@@ -97,19 +96,24 @@ export type WorkerRequest = {
   content: MessageContent;
 };
 
-export type OneTimeWorkerResponse = {
+type HeartbeatWorkerResponse = {
+  kind: "heartbeat";
+  uuid: string;
+};
+
+type OneTimeWorkerResponse = {
   kind: "return" | "throw";
   uuid: string;
   content: MessageContent;
 };
 
-export type InitProgressWorkerResponse = {
+type InitProgressWorkerResponse = {
   kind: "initProgressCallback";
   uuid: string;
   content: InitProgressReport;
 };
 
-export type GenerateProgressWorkerResponse = {
+type GenerateProgressWorkerResponse = {
   kind: "generateProgressCallback";
   uuid: string;
   content: {
@@ -121,4 +125,5 @@ export type GenerateProgressWorkerResponse = {
 export type WorkerResponse =
   | OneTimeWorkerResponse
   | InitProgressWorkerResponse
-  | GenerateProgressWorkerResponse;
+  | GenerateProgressWorkerResponse
+  | HeartbeatWorkerResponse;

@@ -7,34 +7,8 @@ import {
   ChatWorker,
   MLCEngineWorkerHandler,
   WebWorkerMLCEngine,
-  PostMessageHandler,
 } from "./web_worker";
-import { areAppConfigsEqual, areChatOptionsEqual } from "./utils";
-
-/**
- * A post message handler that sends messages to a chrome.runtime.Port.
- */
-export class PortPostMessageHandler implements PostMessageHandler {
-  port: chrome.runtime.Port;
-  enabled = true;
-
-  constructor(port: chrome.runtime.Port) {
-    this.port = port;
-  }
-
-  /**
-   * Close the PortPostMessageHandler. This will prevent any further messages
-   */
-  close() {
-    this.enabled = false;
-  }
-
-  postMessage(event: any) {
-    if (this.enabled) {
-      this.port.postMessage(event);
-    }
-  }
-}
+import { areChatOptionsEqual } from "./utils";
 
 /**
  * Worker handler that can be used in a ServiceWorker.
@@ -52,26 +26,31 @@ export class PortPostMessageHandler implements PostMessageHandler {
  *   port.onMessage.addListener(handler.onmessage.bind(handler));
  * });
  */
-export class ServiceWorkerMLCEngineHandler extends MLCEngineWorkerHandler {
+export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
   modelId?: string;
   chatOpts?: ChatOptions;
   appConfig?: AppConfig;
+  port: chrome.runtime.Port | null;
 
   constructor(engine: MLCEngineInterface, port: chrome.runtime.Port) {
-    const portHandler = new PortPostMessageHandler(port);
-    super(engine, portHandler);
+    super(engine);
+    this.port = port;
+    port.onDisconnect.addListener(() => this.onPortDisconnect(port));
+  }
 
-    port.onDisconnect.addListener(() => {
-      portHandler.close();
-    });
+  postMessage(msg: any) {
+    this.port?.postMessage(msg);
   }
 
   setPort(port: chrome.runtime.Port) {
-    const portHandler = new PortPostMessageHandler(port);
-    this.setPostMessageHandler(portHandler);
-    port.onDisconnect.addListener(() => {
-      portHandler.close();
-    });
+    this.port = port;
+    port.onDisconnect.addListener(() => this.onPortDisconnect(port));
+  }
+
+  onPortDisconnect(port: chrome.runtime.Port) {
+    if (port === this.port) {
+      this.port = null;
+    }
   }
 
   onmessage(event: any): void {
@@ -80,14 +59,13 @@ export class ServiceWorkerMLCEngineHandler extends MLCEngineWorkerHandler {
     }
 
     const msg = event as WorkerRequest;
-    if (msg.kind === "init") {
+    if (msg.kind === "reload") {
       this.handleTask(msg.uuid, async () => {
         const params = msg.content as ReloadParams;
         // If the modelId, chatOpts, and appConfig are the same, immediately return
         if (
           this.modelId === params.modelId &&
-          areChatOptionsEqual(this.chatOpts, params.chatOpts) &&
-          areAppConfigsEqual(this.appConfig, params.appConfig)
+          areChatOptionsEqual(this.chatOpts, params.chatOpts)
         ) {
           log.info("Already loaded the model. Skip loading");
           const gpuDetectOutput = await tvmjs.detectGPUDevice();
@@ -108,14 +86,9 @@ export class ServiceWorkerMLCEngineHandler extends MLCEngineWorkerHandler {
           return null;
         }
 
-        await this.engine.reload(
-          params.modelId,
-          params.chatOpts,
-          params.appConfig,
-        );
+        await this.engine.reload(params.modelId, params.chatOpts);
         this.modelId = params.modelId;
         this.chatOpts = params.chatOpts;
-        this.appConfig = params.appConfig;
         return null;
       });
       return;
@@ -138,20 +111,14 @@ export class ServiceWorkerMLCEngineHandler extends MLCEngineWorkerHandler {
 export async function CreateServiceWorkerMLCEngine(
   modelId: string,
   engineConfig?: MLCEngineConfig,
+  chatOpts?: ChatOptions,
   keepAliveMs = 10000,
 ): Promise<ServiceWorkerMLCEngine> {
-  const serviceWorkerMLCEngine = new ServiceWorkerMLCEngine(keepAliveMs);
-  if (engineConfig?.logLevel) {
-    serviceWorkerMLCEngine.setLogLevel(engineConfig.logLevel);
-  }
-  serviceWorkerMLCEngine.setInitProgressCallback(
-    engineConfig?.initProgressCallback,
+  const serviceWorkerMLCEngine = new ServiceWorkerMLCEngine(
+    engineConfig,
+    keepAliveMs,
   );
-  await serviceWorkerMLCEngine.init(
-    modelId,
-    engineConfig?.chatOpts,
-    engineConfig?.appConfig,
-  );
+  await serviceWorkerMLCEngine.reload(modelId, chatOpts);
   return serviceWorkerMLCEngine;
 }
 
@@ -192,45 +159,15 @@ class PortAdapter implements ChatWorker {
 export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
   port: chrome.runtime.Port;
 
-  constructor(keepAliveMs = 10000) {
+  constructor(engineConfig?: MLCEngineConfig, keepAliveMs = 10000) {
     const port = chrome.runtime.connect({ name: "web_llm_service_worker" });
     const chatWorker = new PortAdapter(port);
-    super(chatWorker);
+    super(chatWorker, engineConfig);
     this.port = port;
+
+    // Keep alive through periodical heartbeat signals
     setInterval(() => {
-      this.keepAlive();
+      this.worker.postMessage({ kind: "keepAlive" });
     }, keepAliveMs);
-  }
-
-  keepAlive() {
-    this.worker.postMessage({ kind: "keepAlive" });
-  }
-
-  /**
-   * Initialize the chat with a model.
-   *
-   * @param modelId model_id of the model to load.
-   * @param chatOpts Extra options to overide chat behavior.
-   * @param appConfig Override the app config in this load.
-   * @returns A promise when reload finishes.
-   * @note The difference between init and reload is that init
-   * should be called only once when the engine is created, while reload
-   * can be called multiple times to switch between models.
-   */
-  async init(
-    modelId: string,
-    chatOpts?: ChatOptions,
-    appConfig?: AppConfig,
-  ): Promise<void> {
-    const msg: WorkerRequest = {
-      kind: "init",
-      uuid: crypto.randomUUID(),
-      content: {
-        modelId: modelId,
-        chatOpts: chatOpts,
-        appConfig: appConfig,
-      },
-    };
-    await this.getPromise<null>(msg);
   }
 }
