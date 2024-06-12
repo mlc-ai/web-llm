@@ -52,7 +52,7 @@ async function main() {
           type: "object",
           properties: {
             location: {
-              type: "location",
+              type: "string",
               description: "The city and state, e.g. San Francisco, CA",
             },
             unit: { type: "string", enum: ["celsius", "fahrenheit"] },
