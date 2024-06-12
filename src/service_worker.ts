@@ -184,6 +184,7 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
               "This may due to service worker is unexpectedly killed. " +
               "Handler calling reload in backend.",
           );
+          this.initRequestUuid = msg.uuid;
           await this.engine.reload(params.modelId, params.chatOpts);
         }
         const res = await this.engine.chatCompletion(params.request);
@@ -205,6 +206,7 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
               "This may due to service worker is unexpectedly killed. " +
               "Handler calling reload in backend.",
           );
+          this.initRequestUuid = msg.uuid;
           await this.engine.reload(params.modelId, params.chatOpts);
         }
         this.chatCompletionAsyncChunkGenerator =

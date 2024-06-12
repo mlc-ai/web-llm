@@ -577,7 +577,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
   ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
     if (this.modelId === undefined) {
       throw new Error(
-        "Frontend engine not loaded with a model, did you call `engine.reload()`?",
+        `${this.constructor.name} is not loaded with a model. Did you call \`engine.reload()\`?`,
       );
     }
 
