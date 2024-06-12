@@ -327,6 +327,14 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
   public worker: ChatWorker;
   public chat: API.Chat;
 
+  /**
+   * The modelId and chatOpts that the frontend expects the backend engine is currently loaded
+   * with. Needed for service worker. It is the backend and handler's job to match up with the
+   * expectation despite the service worker possibly being killed.
+   */
+  modelId?: string;
+  chatOpts?: ChatOptions;
+
   private initProgressCallback?: InitProgressCallback;
   private generateCallbackRegistry = new Map<
     string,
@@ -421,6 +429,8 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
       },
     };
     await this.getPromise<null>(msg);
+    this.modelId = modelId;
+    this.chatOpts = chatOpts;
   }
 
   async getMaxStorageBufferBindingSize(): Promise<number> {
@@ -496,6 +506,8 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
       content: null,
     };
     await this.getPromise<null>(msg);
+    this.modelId = undefined;
+    this.chatOpts = undefined;
   }
 
   async resetChat(keepStats = false): Promise<void> {
@@ -563,6 +575,12 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
   async chatCompletion(
     request: ChatCompletionRequest,
   ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
+    if (this.modelId === undefined) {
+      throw new Error(
+        `${this.constructor.name} is not loaded with a model. Did you call \`engine.reload()\`?`,
+      );
+    }
+
     if (request.stream) {
       // First let worker instantiate a generator
       const msg: WorkerRequest = {
@@ -570,6 +588,8 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
         uuid: crypto.randomUUID(),
         content: {
           request: request,
+          modelId: this.modelId,
+          chatOpts: this.chatOpts,
         },
       };
       await this.getPromise<null>(msg);
@@ -584,6 +604,8 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
       uuid: crypto.randomUUID(),
       content: {
         request: request,
+        modelId: this.modelId,
+        chatOpts: this.chatOpts,
       },
     };
     return await this.getPromise<ChatCompletion>(msg);

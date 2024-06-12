@@ -58,9 +58,19 @@ export interface ForwardTokensAndSampleParams {
 }
 export interface ChatCompletionNonStreamingParams {
   request: ChatCompletionRequestNonStreaming;
+  // The model and chatOpts that the frontend engine expects the backend to be loaded with.
+  // If not loaded due to service worker unexpectedly killed, handler will call reload().
+  // TODO(webllm-team): should add appConfig here as well.
+  modelId: string;
+  chatOpts: ChatOptions;
 }
 export interface ChatCompletionStreamInitParams {
   request: ChatCompletionRequestStreaming;
+  // The model and chatOpts that the frontend engine expects the backend to be loaded with.
+  // If not loaded due to service worker unexpectedly killed, handler will call reload().
+  // TODO(webllm-team): should add appConfig here as well.
+  modelId: string;
+  chatOpts: ChatOptions;
 }
 
 export interface CustomRequestParams {
