@@ -44,10 +44,10 @@ import { MLCEngine } from "./engine";
  * // setup a chat worker handler that routes
  * // requests to the chat
  * const engine = new MLCEngine();
- * cont handler = new MLCEngineWorkerHandler(engine);
+ * cont handler = new WebWorkerMLCEngineHandler(engine);
  * onmessage = handler.onmessage;
  */
-export class MLCEngineWorkerHandler {
+export class WebWorkerMLCEngineHandler {
   protected engine: MLCEngine;
   protected chatCompletionAsyncChunkGenerator?: AsyncGenerator<
     ChatCompletionChunk,

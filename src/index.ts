@@ -28,7 +28,7 @@ export {
 } from "./cache_util";
 
 export {
-  MLCEngineWorkerHandler,
+  WebWorkerMLCEngineHandler,
   WebWorkerMLCEngine,
   CreateWebWorkerMLCEngine,
 } from "./web_worker";
@@ -36,13 +36,13 @@ export {
 export { WorkerRequest, WorkerResponse, CustomRequestParams } from "./message";
 
 export {
-  MLCEngineServiceWorkerHandler,
+  ServiceWorkerMLCEngineHandler,
   ServiceWorkerMLCEngine,
   CreateServiceWorkerMLCEngine,
 } from "./service_worker";
 
 export {
-  MLCEngineServiceWorkerHandler as MLCEngineExtensionServiceWorkerHandler,
+  ServiceWorkerMLCEngineHandler as ExtensionServiceWorkerMLCEngineHandler,
   ServiceWorkerMLCEngine as ExtensionServiceWorkerMLCEngine,
   CreateServiceWorkerMLCEngine as CreateExtensionServiceWorkerMLCEngine,
 } from "./extension_service_worker";

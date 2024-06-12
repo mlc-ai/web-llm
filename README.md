@@ -215,10 +215,10 @@ We create a handler in the worker thread that communicates with the frontend whi
 
 ```typescript
 // worker.ts
-import { MLCEngineWorkerHandler } from "@mlc-ai/web-llm";
+import { WebWorkerMLCEngineHandler } from "@mlc-ai/web-llm";
 
 // A handler that resides in the worker thread
-const handler = new MLCEngineWorkerHandler();
+const handler = new WebWorkerMLCEngineHandler();
 self.onmessage = (msg: MessageEvent) => {
   handler.onmessage(msg);
 };
@@ -261,12 +261,12 @@ We create a handler in the worker thread that communicates with the frontend whi
 
 ```typescript
 // sw.ts
-import { MLCEngineServiceWorkerHandler } from "@mlc-ai/web-llm";
+import { ServiceWorkerMLCEngineHandler } from "@mlc-ai/web-llm";
 
-let handler: MLCEngineServiceWorkerHandler;
+let handler: ServiceWorkerMLCEngineHandler;
 
 self.addEventListener("activate", function (event) {
-  handler = new MLCEngineServiceWorkerHandler();
+  handler = new ServiceWorkerMLCEngineHandler();
   console.log("Service Worker is ready");
 });
 ```
