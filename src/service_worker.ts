@@ -1,6 +1,6 @@
 import * as tvmjs from "tvmjs";
 import log from "loglevel";
-import { AppConfig, ChatOptions, MLCEngineConfig } from "./config";
+import { ChatOptions, MLCEngineConfig } from "./config";
 import {
   ReloadParams,
   WorkerRequest,
@@ -179,11 +179,11 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
         // Check whether frontend expectation matches with backend (modelId and chatOpts)
         // If not (due to possibly killed service worker), we reload here.
         if (this.modelId !== params.modelId) {
-          log.info(
-            "Frontend expects model is loaded, but it is not in the backend. " +
-              "This may due to service worker is unexpectedly killed. " +
-              "Handler calling reload in backend.",
+          log.warn(
+            "ServiceWorkerMLCEngine expects model is loaded in MLCEngineServiceWorkerHandler, " +
+              "but it is not. This may due to service worker is unexpectedly killed. ",
           );
+          log.info("Reloading engine in MLCEngineServiceWorkerHandler.");
           this.initRequestUuid = msg.uuid;
           await this.engine.reload(params.modelId, params.chatOpts);
         }
@@ -201,11 +201,11 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
         // Check whether frontend expectation matches with backend (modelId and chatOpts)
         // If not (due to possibly killed service worker), we reload here.
         if (this.modelId !== params.modelId) {
-          log.info(
-            "Frontend expects model is loaded, but it is not in the backend. " +
-              "This may due to service worker is unexpectedly killed. " +
-              "Handler calling reload in backend.",
+          log.warn(
+            "ServiceWorkerMLCEngine expects model is loaded in MLCEngineServiceWorkerHandler, " +
+              "but it is not. This may due to service worker is unexpectedly killed. ",
           );
+          log.info("Reloading engine in MLCEngineServiceWorkerHandler.");
           this.initRequestUuid = msg.uuid;
           await this.engine.reload(params.modelId, params.chatOpts);
         }
