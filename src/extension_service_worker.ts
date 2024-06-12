@@ -1,7 +1,12 @@
 import * as tvmjs from "tvmjs";
 import log from "loglevel";
 import { AppConfig, ChatOptions, MLCEngineConfig } from "./config";
-import { ReloadParams, WorkerRequest } from "./message";
+import {
+  ReloadParams,
+  WorkerRequest,
+  ChatCompletionNonStreamingParams,
+  ChatCompletionStreamInitParams,
+} from "./message";
 import { MLCEngineInterface } from "./types";
 import {
   ChatWorker,
@@ -9,6 +14,7 @@ import {
   WebWorkerMLCEngine,
 } from "./web_worker";
 import { areChatOptionsEqual } from "./utils";
+import { ChatCompletionChunk } from "./openai_api_protocols/index";
 
 /**
  * Worker handler that can be used in a ServiceWorker.
@@ -27,9 +33,17 @@ import { areChatOptionsEqual } from "./utils";
  * });
  */
 export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
+  /**
+   * The modelId and chatOpts that the underlying engine (backend) is currently loaded with.
+   *
+   * TODO(webllm-team): This is always in-sync with `this.engine` unless device is lost due to
+   * unexpected reason. Therefore, we should get it from `this.engine` directly and make handler
+   * stateless. We should also perhaps make `engine` of type `MLCEngine` instead. Besides, consider
+   * if we should add appConfig, or use engine's API to find the corresponding model record rather
+   * than relying on just the modelId.
+   */
   modelId?: string;
   chatOpts?: ChatOptions;
-  appConfig?: AppConfig;
   port: chrome.runtime.Port | null;
 
   constructor(engine: MLCEngineInterface, port: chrome.runtime.Port) {
@@ -93,6 +107,64 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
       });
       return;
     }
+
+    // Unset modelId and chatOpts since backend unloads the model
+    if (msg.kind === "unload") {
+      this.handleTask(msg.uuid, async () => {
+        await this.engine.unload();
+        this.modelId = undefined;
+        this.chatOpts = undefined;
+        return null;
+      });
+      return;
+    }
+
+    if (msg.kind === "chatCompletionNonStreaming") {
+      // Directly return the ChatCompletion response
+      this.handleTask(msg.uuid, async () => {
+        const params = msg.content as ChatCompletionNonStreamingParams;
+        // Check whether frontend expectation matches with backend (modelId and chatOpts)
+        // If not (due to possibly killed service worker), we reload here.
+        if (this.modelId !== params.modelId) {
+          log.info(
+            "Frontend expects model is loaded, but it is not in the backend. " +
+              "This may due to service worker is unexpectedly killed. " +
+              "Handler calling reload in backend.",
+          );
+          await this.engine.reload(params.modelId, params.chatOpts);
+        }
+        const res = await this.engine.chatCompletion(params.request);
+        return res;
+      });
+      return;
+    }
+
+    if (msg.kind === "chatCompletionStreamInit") {
+      // One-time set up that instantiates the chunk generator in worker
+      this.handleTask(msg.uuid, async () => {
+        const params = msg.content as ChatCompletionStreamInitParams;
+        // Check whether frontend expectation matches with backend (modelId and chatOpts)
+        // If not (due to possibly killed service worker), we reload here.
+        if (this.modelId !== params.modelId) {
+          log.info(
+            "Frontend expects model is loaded, but it is not in the backend. " +
+              "This may due to service worker is unexpectedly killed. " +
+              "Handler calling reload in backend.",
+          );
+          await this.engine.reload(params.modelId, params.chatOpts);
+        }
+        this.chatCompletionAsyncChunkGenerator =
+          (await this.engine.chatCompletion(params.request)) as AsyncGenerator<
+            ChatCompletionChunk,
+            void,
+            void
+          >;
+        return null;
+      });
+      return;
+    }
+
+    // All rest of message handling are the same as MLCEngineWorkerHandler
     super.onmessage(event);
   }
 }
