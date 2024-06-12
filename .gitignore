@@ -325,3 +325,4 @@ lib
 .parcel-cache
 
 examples/tests
+**/.next
