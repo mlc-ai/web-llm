@@ -201,10 +201,8 @@ console.log(fullReply);
 
 You can put the heavy computation in a worker script to optimizing your application performance. To do so, you need to:
 
-1. Create an MLCEngine in the worker thread for the actual inference.
-2. Wrap the MLCEngine in the worker thread with a worker message handler to handle thread communications via messages under the hood.
-3. Create a Worker Engine in your main application as a proxy to sending operations to the MLCEngine in the worker thread via sending messages.
-
+1. Create a handler in the worker thread that communicates with the frontend while handling the requests.
+2. Create a Worker Engine in your main application, which under the hood sends message to the handler in worker thread.
 For detailed implementation for different kinds of Workers, check the following sections.
 
 #### Dedicated Web Worker
@@ -213,16 +211,14 @@ WebLLM comes with API support for WebWorker so you can hook
 the generation process into a separate worker thread so that
 the computing in the worker thread won't disrupt the UI.
 
-We will first create a worker script with a MLCEngine and
-hook it up to a worker message handler.
+We create a handler in the worker thread that communicates with the frontend while handling the requests.
 
 ```typescript
 // worker.ts
-import { MLCEngineWorkerHandler, MLCEngine } from "@mlc-ai/web-llm";
+import { WebWorkerMLCEngineHandler } from "@mlc-ai/web-llm";
 
-// Hookup an MLCEngine to a worker handler
-const engine = new MLCEngine();
-const handler = new MLCEngineWorkerHandler(engine);
+// A handler that resides in the worker thread
+const handler = new WebWorkerMLCEngineHandler();
 self.onmessage = (msg: MessageEvent) => {
   handler.onmessage(msg);
 };
@@ -260,22 +256,17 @@ your application's offline experience.
 
 (Note, Service Worker's life cycle is managed by the browser and can be killed any time without notifying the webapp. `ServiceWorkerMLCEngine` will try to keep the service worker thread alive by periodically sending heartbeat events, but your application should also include proper error handling. Check `keepAliveMs` and `missedHeatbeat` in [`ServiceWorkerMLCEngine`](https://github.com/mlc-ai/web-llm/blob/main/src/service_worker.ts#L234) for more details.)
 
-We first create a service worker script with a MLCEngine and hook it up to a worker message handler
-that handles requests when the service worker is ready.
+We create a handler in the worker thread that communicates with the frontend while handling the requests.
 
 
 ```typescript
 // sw.ts
-import {
-  MLCEngineServiceWorkerHandler,
-  MLCEngine,
-} from "@mlc-ai/web-llm";
+import { ServiceWorkerMLCEngineHandler } from "@mlc-ai/web-llm";
 
-const engine = new MLCEngine();
-let handler: MLCEngineServiceWorkerHandler;
+let handler: ServiceWorkerMLCEngineHandler;
 
 self.addEventListener("activate", function (event) {
-  handler = new MLCEngineServiceWorkerHandler(engine);
+  handler = new ServiceWorkerMLCEngineHandler();
   console.log("Service Worker is ready");
 });
 ```

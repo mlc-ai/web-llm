@@ -8,9 +8,9 @@ import {
   ChatCompletionNonStreamingParams,
   ChatCompletionStreamInitParams,
 } from "./message";
-import { MLCEngineInterface, InitProgressReport } from "./types";
+import { InitProgressReport } from "./types";
 import {
-  MLCEngineWorkerHandler,
+  WebWorkerMLCEngineHandler,
   WebWorkerMLCEngine,
   ChatWorker,
 } from "./web_worker";
@@ -30,14 +30,14 @@ type IServiceWorker = globalThis.ServiceWorker;
  * let handler;
  * chrome.runtime.onConnect.addListener(function (port) {
  *   if (handler === undefined) {
- *     handler = new MLCEngineServiceWorkerHandler(engine, port);
+ *     handler = new ServiceWorkerMLCEngineHandler(engine, port);
  *   } else {
  *     handler.setPort(port);
  *   }
  *   port.onMessage.addListener(handler.onmessage.bind(handler));
  * });
  */
-export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
+export class ServiceWorkerMLCEngineHandler extends WebWorkerMLCEngineHandler {
   /**
    * The modelId and chatOpts that the underlying engine (backend) is currently loaded with.
    *
@@ -56,14 +56,13 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
   >();
   private initRequestUuid?: string;
 
-  constructor(engine: MLCEngineInterface) {
+  constructor() {
     if (!self || !("addEventListener" in self)) {
       throw new Error(
-        "MLCEngineServiceWorkerHandler must be created in the service worker script.",
+        "ServiceWorkerMLCEngineHandler must be created in the service worker script.",
       );
     }
-    const customInitProgressCallback = engine.getInitProgressCallback();
-    super(engine);
+    super();
     const onmessage = this.onmessage.bind(this);
 
     this.engine.setInitProgressCallback((report: InitProgressReport) => {
@@ -73,7 +72,6 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
         content: report,
       };
       this.postMessage(msg);
-      customInitProgressCallback?.(report);
     });
 
     self.addEventListener("message", (event) => {
@@ -112,7 +110,7 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
       `ServiceWorker message: [${msg.kind}] ${JSON.stringify(msg.content)}`,
     );
 
-    // Special case message handling different from MLCEngineWorkerHandler
+    // Special case message handling different from WebWorkerMLCEngineHandler
     if (msg.kind === "keepAlive") {
       const reply: WorkerResponse = {
         kind: "heartbeat",
@@ -180,10 +178,10 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
         // If not (due to possibly killed service worker), we reload here.
         if (this.modelId !== params.modelId) {
           log.warn(
-            "ServiceWorkerMLCEngine expects model is loaded in MLCEngineServiceWorkerHandler, " +
+            "ServiceWorkerMLCEngine expects model is loaded in ServiceWorkerMLCEngineHandler, " +
               "but it is not. This may due to service worker is unexpectedly killed. ",
           );
-          log.info("Reloading engine in MLCEngineServiceWorkerHandler.");
+          log.info("Reloading engine in ServiceWorkerMLCEngineHandler.");
           this.initRequestUuid = msg.uuid;
           await this.engine.reload(params.modelId, params.chatOpts);
         }
@@ -202,10 +200,10 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
         // If not (due to possibly killed service worker), we reload here.
         if (this.modelId !== params.modelId) {
           log.warn(
-            "ServiceWorkerMLCEngine expects model is loaded in MLCEngineServiceWorkerHandler, " +
+            "ServiceWorkerMLCEngine expects model is loaded in ServiceWorkerMLCEngineHandler, " +
               "but it is not. This may due to service worker is unexpectedly killed. ",
           );
-          log.info("Reloading engine in MLCEngineServiceWorkerHandler.");
+          log.info("Reloading engine in ServiceWorkerMLCEngineHandler.");
           this.initRequestUuid = msg.uuid;
           await this.engine.reload(params.modelId, params.chatOpts);
         }
@@ -221,7 +219,7 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
       return;
     }
 
-    // All rest of message handling are the same as MLCEngineWorkerHandler
+    // All rest of message handling are the same as WebWorkerMLCEngineHandler
     super.onmessage(msg, onComplete, onError);
   }
 }

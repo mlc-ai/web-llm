@@ -1,8 +1,7 @@
 // Serve the engine workload through web worker
-import { MLCEngineWorkerHandler, MLCEngine } from "@mlc-ai/web-llm";
+import { WebWorkerMLCEngineHandler } from "@mlc-ai/web-llm";
 
-const engine = new MLCEngine();
-const handler = new MLCEngineWorkerHandler(engine);
+const handler = new WebWorkerMLCEngineHandler();
 self.onmessage = (msg: MessageEvent) => {
   handler.onmessage(msg);
 };

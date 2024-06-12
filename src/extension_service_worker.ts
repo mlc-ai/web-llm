@@ -10,7 +10,7 @@ import {
 import { MLCEngineInterface } from "./types";
 import {
   ChatWorker,
-  MLCEngineWorkerHandler,
+  WebWorkerMLCEngineHandler,
   WebWorkerMLCEngine,
 } from "./web_worker";
 import { areChatOptionsEqual } from "./utils";
@@ -25,14 +25,14 @@ import { ChatCompletionChunk } from "./openai_api_protocols/index";
  * let handler;
  * chrome.runtime.onConnect.addListener(function (port) {
  *   if (handler === undefined) {
- *     handler = new MLCEngineServiceWorkerHandler(engine, port);
+ *     handler = new ServiceWorkerMLCEngineHandler(engine, port);
  *   } else {
  *     handler.setPort(port);
  *   }
  *   port.onMessage.addListener(handler.onmessage.bind(handler));
  * });
  */
-export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
+export class ServiceWorkerMLCEngineHandler extends WebWorkerMLCEngineHandler {
   /**
    * The modelId and chatOpts that the underlying engine (backend) is currently loaded with.
    *
@@ -46,8 +46,8 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
   chatOpts?: ChatOptions;
   port: chrome.runtime.Port | null;
 
-  constructor(engine: MLCEngineInterface, port: chrome.runtime.Port) {
-    super(engine);
+  constructor(port: chrome.runtime.Port) {
+    super();
     this.port = port;
     port.onDisconnect.addListener(() => this.onPortDisconnect(port));
   }
@@ -127,10 +127,10 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
         // If not (due to possibly killed service worker), we reload here.
         if (this.modelId !== params.modelId) {
           log.warn(
-            "ServiceWorkerMLCEngine expects model is loaded in MLCEngineServiceWorkerHandler, " +
+            "ServiceWorkerMLCEngine expects model is loaded in ServiceWorkerMLCEngineHandler, " +
               "but it is not. This may due to service worker is unexpectedly killed. ",
           );
-          log.info("Reloading engine in MLCEngineServiceWorkerHandler.");
+          log.info("Reloading engine in ServiceWorkerMLCEngineHandler.");
           await this.engine.reload(params.modelId, params.chatOpts);
         }
         const res = await this.engine.chatCompletion(params.request);
@@ -147,10 +147,10 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
         // If not (due to possibly killed service worker), we reload here.
         if (this.modelId !== params.modelId) {
           log.warn(
-            "ServiceWorkerMLCEngine expects model is loaded in MLCEngineServiceWorkerHandler, " +
+            "ServiceWorkerMLCEngine expects model is loaded in ServiceWorkerMLCEngineHandler, " +
               "but it is not. This may due to service worker is unexpectedly killed. ",
           );
-          log.info("Reloading engine in MLCEngineServiceWorkerHandler.");
+          log.info("Reloading engine in ServiceWorkerMLCEngineHandler.");
           await this.engine.reload(params.modelId, params.chatOpts);
         }
         this.chatCompletionAsyncChunkGenerator =
@@ -164,7 +164,7 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
       return;
     }
 
-    // All rest of message handling are the same as MLCEngineWorkerHandler
+    // All rest of message handling are the same as WebWorkerMLCEngineHandler
     super.onmessage(event);
   }
 }
