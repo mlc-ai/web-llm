@@ -46,8 +46,8 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
   chatOpts?: ChatOptions;
   port: chrome.runtime.Port | null;
 
-  constructor(engine: MLCEngineInterface, port: chrome.runtime.Port) {
-    super(engine);
+  constructor(port: chrome.runtime.Port) {
+    super();
     this.port = port;
     port.onDisconnect.addListener(() => this.onPortDisconnect(port));
   }

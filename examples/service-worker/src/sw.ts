@@ -1,13 +1,8 @@
-import {
-  MLCEngineServiceWorkerHandler,
-  MLCEngineInterface,
-  MLCEngine,
-} from "@mlc-ai/web-llm";
+import { MLCEngineServiceWorkerHandler } from "@mlc-ai/web-llm";
 
-const engine: MLCEngineInterface = new MLCEngine();
 let handler: MLCEngineServiceWorkerHandler;
 
 self.addEventListener("activate", function (event) {
-  handler = new MLCEngineServiceWorkerHandler(engine);
+  handler = new MLCEngineServiceWorkerHandler();
   console.log("Web-LLM Service Worker Activated");
 });

@@ -10,6 +10,7 @@ import {
   InitProgressCallback,
   InitProgressReport,
   LogLevel,
+  LogitProcessor,
 } from "./types";
 import {
   ChatCompletionRequest,
@@ -33,6 +34,7 @@ import {
   WorkerRequest,
 } from "./message";
 import log from "loglevel";
+import { MLCEngine } from "./engine";
 
 /**
  * Worker handler that can be used in a WebWorker
@@ -46,7 +48,7 @@ import log from "loglevel";
  * onmessage = handler.onmessage;
  */
 export class MLCEngineWorkerHandler {
-  protected engine: MLCEngineInterface;
+  protected engine: MLCEngine;
   protected chatCompletionAsyncChunkGenerator?: AsyncGenerator<
     ChatCompletionChunk,
     void,
@@ -56,10 +58,8 @@ export class MLCEngineWorkerHandler {
   /**
    * @param engine A concrete implementation of MLCEngineInterface
    */
-  constructor(engine: MLCEngineInterface) {
-    this.engine = engine;
-
-    const customInitProgressCallback = engine.getInitProgressCallback();
+  constructor() {
+    this.engine = new MLCEngine();
     this.engine.setInitProgressCallback((report: InitProgressReport) => {
       const msg: WorkerResponse = {
         kind: "initProgressCallback",
@@ -67,13 +67,18 @@ export class MLCEngineWorkerHandler {
         content: report,
       };
       this.postMessage(msg);
-      customInitProgressCallback?.(report);
     });
   }
 
   postMessage(msg: any) {
     // Use Web Worker DOM Message API
     postMessage(msg);
+  }
+
+  setLogitProcessorRegistry(
+    logitProcessorRegistry?: Map<string, LogitProcessor>,
+  ) {
+    this.engine.setLogitProcessorRegistry(logitProcessorRegistry);
   }
 
   async handleTask<T extends MessageContent>(

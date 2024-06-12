@@ -8,7 +8,7 @@ import {
   ChatCompletionNonStreamingParams,
   ChatCompletionStreamInitParams,
 } from "./message";
-import { MLCEngineInterface, InitProgressReport } from "./types";
+import { InitProgressReport } from "./types";
 import {
   MLCEngineWorkerHandler,
   WebWorkerMLCEngine,
@@ -56,14 +56,13 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
   >();
   private initRequestUuid?: string;
 
-  constructor(engine: MLCEngineInterface) {
+  constructor() {
     if (!self || !("addEventListener" in self)) {
       throw new Error(
         "MLCEngineServiceWorkerHandler must be created in the service worker script.",
       );
     }
-    const customInitProgressCallback = engine.getInitProgressCallback();
-    super(engine);
+    super();
     const onmessage = this.onmessage.bind(this);
 
     this.engine.setInitProgressCallback((report: InitProgressReport) => {
@@ -73,7 +72,6 @@ export class MLCEngineServiceWorkerHandler extends MLCEngineWorkerHandler {
         content: report,
       };
       this.postMessage(msg);
-      customInitProgressCallback?.(report);
     });
 
     self.addEventListener("message", (event) => {
