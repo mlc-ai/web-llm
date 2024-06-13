@@ -769,7 +769,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/RedPajama-INCITE-Chat-3B-v1-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+        "/RedPajama-INCITE-Chat-3B-v1-q4f16_1-ctx2k_cs1k-webgpu.wasm",
       vram_required_MB: 2041.09,
       low_resource_required: true,
       required_features: ["shader-f16"],
@@ -784,7 +784,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/RedPajama-INCITE-Chat-3B-v1-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+        "/RedPajama-INCITE-Chat-3B-v1-q4f32_1-ctx2k_cs1k-webgpu.wasm",
       vram_required_MB: 2558.09,
       low_resource_required: true,
       overrides: {
