@@ -20,7 +20,7 @@ Everything runs inside the browser with no server support and is accelerated wit
 
 WebLLM is **fully compatible with [OpenAI API](https://platform.openai.com/docs/api-reference/chat).**
 That is, you can use the same OpenAI API on **any open source models** locally, with functionalities
-including JSON-mode, function-calling, streaming, etc.
+including streaming, JSON-mode, function-calling (WIP), etc.
 
 We can bring a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration.
 
@@ -36,7 +36,7 @@ This project is a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-l
 ## Key Features
 - **In-Browser Inference**: WebLLM is a high-performance, in-browser language model inference engine that leverages WebGPU for hardware acceleration, enabling powerful LLM operations directly within web browsers without server-side processing.
 
-- [**Full OpenAI API Compatibility**](#full-openai-compatibility): Seamlessly integrate your app with WebLLM using OpenAI API with functionalities such as JSON-mode, function-calling, streaming, and more.
+- [**Full OpenAI API Compatibility**](#full-openai-compatibility): Seamlessly integrate your app with WebLLM using OpenAI API with functionalities such as streaming, JSON-mode, logit-level control, seeding, and more.
 
 - [**Extensive Model Support**](#built-in-models): WebLLM natively supports a range of models including Llama 3, Phi 3, Gemma, Mistral, Qwen(通义千问), and many others, making it versatile for various AI tasks. For the complete supported model list, check [MLC Models](https://mlc.ai/models).
 
@@ -114,7 +114,7 @@ import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 
 Most operations in WebLLM are invoked through the `MLCEngine` interface. You can create an `MLCEngine` instance and loading the model by calling the `CreateMLCEngine()` factory function.
 
-(Note that loading models requires downloading and it can take a significant amount of time for the very first run without previous cache. You should properly handle this asynchronous call.)
+(Note that loading models requires downloading and it can take a significant amount of time for the very first run without caching previously. You should properly handle this asynchronous call.)
 
 ```typescript
 import { CreateMLCEngine } from "@mlc-ai/web-llm";
@@ -199,10 +199,11 @@ console.log(fullReply);
 
 ### Using Workers
 
-You can put the heavy computation in a worker script to optimizing your application performance. To do so, you need to:
+You can put the heavy computation in a worker script to optimize your application performance. To do so, you need to:
 
 1. Create a handler in the worker thread that communicates with the frontend while handling the requests.
-2. Create a Worker Engine in your main application, which under the hood sends message to the handler in worker thread.
+2. Create a Worker Engine in your main application, which under the hood sends messages to the handler in the worker thread.
+
 For detailed implementation for different kinds of Workers, check the following sections.
 
 #### Dedicated Web Worker
@@ -271,7 +272,7 @@ self.addEventListener("activate", function (event) {
 });
 ```
 
-Then in the main logic, we register the service worker and then create the engine using
+Then in the main logic, we register the service worker and create the engine using
 `CreateServiceWorkerMLCEngine` function. The rest of the logic remains the same.
 
 ```typescript
@@ -354,7 +355,7 @@ async main() {
 In many cases, we only want to supply the model weight variant, but
 not necessarily a new model (e.g. `NeuralHermes-Mistral` can reuse `Mistral`'s
 model library). For examples of how a model library can be shared by different model variants,
-see `prebuiltAppConfig`.
+see `webllm.prebuiltAppConfig`.
 
 ## Build WebLLM Package From Source
 
