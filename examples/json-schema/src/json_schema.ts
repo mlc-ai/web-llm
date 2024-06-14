@@ -42,6 +42,8 @@ async function simpleStructuredTextExample() {
     { initProgressCallback: initProgressCallback },
   );
 
+  // Note that you'd need to prompt the model to answer in JSON either in
+  // user's message or the system prompt
   const request: webllm.ChatCompletionRequest = {
     stream: false, // works with streaming, logprobs, top_logprobs as well
     messages: [
@@ -109,6 +111,8 @@ async function harryPotterExample() {
     { initProgressCallback: initProgressCallback },
   );
 
+  // Note that you'd need to prompt the model to answer in JSON either in
+  // user's message or the system prompt
   const request: webllm.ChatCompletionRequest = {
     stream: false,
     messages: [
