@@ -48,7 +48,7 @@ import { MLCEngine } from "./engine";
  * onmessage = handler.onmessage;
  */
 export class WebWorkerMLCEngineHandler {
-  protected engine: MLCEngine;
+  public engine: MLCEngine;
   protected chatCompletionAsyncChunkGenerator?: AsyncGenerator<
     ChatCompletionChunk,
     void,
