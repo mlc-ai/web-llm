@@ -16,6 +16,11 @@ import {
 import { areChatOptionsEqual } from "./utils";
 import { ChatCompletionChunk } from "./openai_api_protocols/index";
 
+export interface ExtensionMLCEngineConfig extends MLCEngineConfig {
+  extensionId?: string;
+  onDisconnect?: () => void;
+}
+
 /**
  * Worker handler that can be used in a ServiceWorker.
  *
@@ -182,7 +187,7 @@ export class ServiceWorkerMLCEngineHandler extends WebWorkerMLCEngineHandler {
  */
 export async function CreateServiceWorkerMLCEngine(
   modelId: string,
-  engineConfig?: MLCEngineConfig,
+  engineConfig?: ExtensionMLCEngineConfig,
   chatOpts?: ChatOptions,
   keepAliveMs = 10000,
 ): Promise<ServiceWorkerMLCEngine> {
@@ -230,16 +235,31 @@ class PortAdapter implements ChatWorker {
  */
 export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
   port: chrome.runtime.Port;
+  extensionId?: string;
 
-  constructor(engineConfig?: MLCEngineConfig, keepAliveMs = 10000) {
-    const port = chrome.runtime.connect({ name: "web_llm_service_worker" });
+  constructor(engineConfig?: ExtensionMLCEngineConfig, keepAliveMs = 10000) {
+    const extensionId = engineConfig?.extensionId;
+    const onDisconnect = engineConfig?.onDisconnect;
+    const port = extensionId
+      ? chrome.runtime.connect(extensionId, {
+          name: "web_llm_service_worker",
+        })
+      : chrome.runtime.connect({ name: "web_llm_service_worker" });
     const chatWorker = new PortAdapter(port);
     super(chatWorker, engineConfig);
     this.port = port;
+    this.extensionId = extensionId;
 
     // Keep alive through periodical heartbeat signals
-    setInterval(() => {
+    const keepAliveTimer = setInterval(() => {
       this.worker.postMessage({ kind: "keepAlive" });
     }, keepAliveMs);
+
+    port.onDisconnect.addListener(() => {
+      clearInterval(keepAliveTimer);
+      if (onDisconnect) {
+        onDisconnect();
+      }
+    });
   }
 }
