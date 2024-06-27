@@ -602,6 +602,19 @@ export const prebuiltAppConfig: AppConfig = {
     },
     // Qwen-2
     {
+      model: "https://huggingface.co/mlc-ai/Qwen2-0.5B-Instruct-q4f16_1-MLC",
+      model_id: "Qwen2-0.5B-Instruct-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Qwen2-0.5B-Instruct-q4f16_1-ctx4k_cs2k-webgpu.wasm",
+      low_resource_required: true,
+      vram_required_MB: 944.62,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
       model: "https://huggingface.co/mlc-ai/Qwen2-0.5B-Instruct-q0f16-MLC",
       model_id: "Qwen2-0.5B-Instruct-q0f16-MLC",
       model_lib:
