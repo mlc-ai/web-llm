@@ -2,6 +2,13 @@
 import log from "loglevel";
 import { ResponseFormat } from "./openai_api_protocols";
 import { LogitProcessor, InitProgressCallback, LogLevel } from "./types";
+import {
+  DependencyError,
+  InvalidNumberStringError,
+  MinValueError,
+  NonNegativeError,
+  RangeError,
+} from "./error";
 
 /**
  * Conversation template config
@@ -145,25 +152,25 @@ export function postInitAndCheckGenerationConfigValues(
     config.frequency_penalty &&
     (config.frequency_penalty < -2.0 || config.frequency_penalty > 2.0)
   ) {
-    throw new Error("`frequency_penalty` should be between -2.0 and 2.0.");
+    throw new RangeError("frequency_penalty", -2.0, 2.0);
   }
   if (
     config.presence_penalty &&
     (config.presence_penalty < -2.0 || config.presence_penalty > 2.0)
   ) {
-    throw new Error("`presence_penalty` should be between -2.0 and 2.0.");
+    throw new RangeError("presence_penalty", -2.0, 2.0);
   }
   if (_hasValue(config.repetition_penalty) && config.repetition_penalty! <= 0) {
-    throw new Error("Make sure `repetition_penalty` > 0.");
+    throw new MinValueError("repetition_penalty", 0);
   }
   if (_hasValue(config.max_tokens) && config.max_tokens! <= 0) {
-    throw new Error("`max_tokens` should be greater than zero.");
+    throw new MinValueError("max_tokens", 0);
   }
   if ((_hasValue(config.top_p) && config.top_p! <= 0) || config.top_p! > 1) {
-    throw new Error("Make sure 0 < `top_p` <= 1.");
+    throw new RangeError("top_p", 0, 1);
   }
   if (_hasValue(config.temperature) && config.temperature! < 0) {
-    throw new Error("Make sure `temperature` >= 0.");
+    throw new NonNegativeError("temperature");
   }
   // If only one of frequency or presence penatly is set, make the other one 0.0
   if (
@@ -187,18 +194,15 @@ export function postInitAndCheckGenerationConfigValues(
     for (const tokenID in config.logit_bias) {
       const bias = config.logit_bias[tokenID];
       if (bias > 100 || bias < -100) {
-        throw new Error(
-          "logit_bias should be in range [-100, 100]; got " +
-            bias +
-            "for tokenID " +
-            tokenID,
+        throw new RangeError(
+          "logit_bias",
+          -100,
+          100,
+          "Got " + bias + " for tokenID " + tokenID,
         );
       }
       if (isNaN(parseInt(tokenID))) {
-        throw new Error(
-          "Expect logit_bias's keys to be number represented in string; got " +
-            tokenID,
-        );
+        throw new InvalidNumberStringError("logit_bias's keys", tokenID);
       }
     }
   }
@@ -206,13 +210,11 @@ export function postInitAndCheckGenerationConfigValues(
   if (_hasValue(config.top_logprobs)) {
     // If top_logprobs is non-null, logprobs must be true
     if (!config.logprobs) {
-      throw new Error("`logprobs` must be true if `top_logprobs` is set.");
+      throw new DependencyError("top_logprobs", "logprobs", true);
     }
     // top_logprobs should be in range [0,5]
     if (config.top_logprobs! < 0 || config.top_logprobs! > 5) {
-      throw new Error(
-        "`top_logprobs` should be in range [0,5]; got " + config.top_logprobs,
-      );
+      throw new RangeError("top_logprobs", 0, 5, "Got " + config.top_logprobs);
     }
   }
   // If defined logprobs but not top_logprobs, simply make it 0

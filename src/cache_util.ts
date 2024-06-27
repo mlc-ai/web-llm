@@ -1,6 +1,7 @@
 import * as tvmjs from "tvmjs";
 import { AppConfig, ModelRecord, prebuiltAppConfig } from "./config";
 import { cleanModelUrl } from "./support";
+import { ModelNotFoundError } from "./error";
 
 function findModelRecord(modelId: string, appConfig?: AppConfig): ModelRecord {
   const matchedItem = appConfig?.model_list.find(
@@ -9,7 +10,7 @@ function findModelRecord(modelId: string, appConfig?: AppConfig): ModelRecord {
   if (matchedItem !== undefined) {
     return matchedItem;
   }
-  throw Error("Cannot find model record in appConfig for " + modelId);
+  throw new ModelNotFoundError(modelId);
 }
 
 export async function hasModelInCache(

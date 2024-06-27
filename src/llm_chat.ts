@@ -14,6 +14,14 @@ import {
   ResponseFormat,
 } from "./openai_api_protocols/index";
 import { BNFGrammar, GrammarFactory, GrammarStateMatcher } from "./grammar";
+import {
+  AttentionSinkSizeError,
+  ContextWindowSizeExceededError,
+  MinValueError,
+  RangeError,
+  WindowSizeConfigurationError,
+  WindowSizeSpecificationError,
+} from "./error";
 
 export class LLMChatPipeline {
   private config: ChatConfig;
@@ -178,7 +186,7 @@ export class LLMChatPipeline {
     this.prefillChunkSize = metadata.prefill_chunk_size;
     log.info("Using prefillChunkSize: ", this.prefillChunkSize);
     if (this.prefillChunkSize <= 0) {
-      throw Error("Prefill chunk size needs to be positive.");
+      throw new MinValueError("prefill_chunk_size", 0);
     }
 
     // 5. Consolidate KVCache settings: context window, sliding window, attention sink
@@ -186,13 +194,9 @@ export class LLMChatPipeline {
     this.contextWindowSize = config.context_window_size;
     this.attentionSinkSize = config.attention_sink_size;
     if (this.contextWindowSize !== -1 && this.slidingWindowSize !== -1) {
-      throw new Error(
-        "Only one of context_window_size and sliding_window_size can be positive. Got: " +
-          "context_window_size: " +
-          this.contextWindowSize +
-          ", sliding_window_size: " +
-          this.slidingWindowSize +
-          "\nConsider modifying ModelRecord.overrides to set one of them to -1.",
+      throw new WindowSizeConfigurationError(
+        this.contextWindowSize,
+        this.slidingWindowSize,
       );
     } else if (this.slidingWindowSize != -1) {
       // Use sliding window and attention sink
@@ -200,20 +204,13 @@ export class LLMChatPipeline {
       if (this.attentionSinkSize >= 0) {
         log.info("Using attentionSinkSize: ", this.attentionSinkSize);
       } else {
-        throw Error(
-          "Need to specify non-negative attention_sink_size if using sliding window. " +
-            "Consider modifying ModelRecord.overrides. " +
-            "Use `attention_sink_size=0` for default sliding window.",
-        );
+        throw new AttentionSinkSizeError();
       }
     } else if (this.contextWindowSize != -1) {
       // Use default kv cache without sliding window
       log.info("Using contextWindowSize: ", this.contextWindowSize);
     } else {
-      throw Error(
-        "Need to specify either sliding_window_size or max_window_size.\n" +
-          "Consider modifying ModelRecord.overrides to set one of them to positive.",
-      );
+      throw new WindowSizeSpecificationError();
     }
 
     // 5. Create cache
@@ -592,7 +589,7 @@ export class LLMChatPipeline {
       max_tokens = genConfig.max_tokens;
     }
     if (max_tokens <= 0) {
-      throw new Error("`max_tokens` should be greater than 0.");
+      throw new MinValueError("max_tokens", 0);
     }
     // Get stopStrs, possibly overridden by genConfig for this round
     let stopStrs = this.stopStr;
@@ -748,25 +745,25 @@ export class LLMChatPipeline {
     }
     // Check range validity
     if (top_p <= 0 || top_p > 1) {
-      throw new Error("Make sure 0 < `top_p` <= 1.");
+      throw new RangeError("top_p", 0, 1);
     }
     if (temperature < 0) {
-      throw new Error("Make sure `temperature` >= 0.");
+      throw new MinValueError("temperature", 0);
     }
     if (repetition_penalty <= 0) {
-      throw new Error("Make sure `repetition_penalty` > 0.");
+      throw new MinValueError("repetition_penalty", 0);
     }
     if (
       frequency_penalty &&
       (frequency_penalty < -2.0 || frequency_penalty > 2.0)
     ) {
-      throw new Error("`frequency_penalty` should be between -2.0 and 2.0.");
+      throw new RangeError("frequency_penalty", -2.0, 2.0);
     }
     if (
       presence_penalty &&
       (presence_penalty < -2.0 || presence_penalty > 2.0)
     ) {
-      throw new Error("`presence_penalty` should be between -2.0 and 2.0.");
+      throw new RangeError("presence_penalty", -2.0, 2.0);
     }
 
     // 0. Update logitsOnGPU with on-GPU grammar bitmasking
@@ -945,14 +942,9 @@ export class LLMChatPipeline {
       this.slidingWindowSize == -1 && // There is no limit on contextWindowSize for sliding window
       numPromptTokens + this.filledKVCacheLength > this.contextWindowSize
     ) {
-      throw new Error(
-        "Prompt tokens exceed context window size:" +
-          " number of prompt tokens: " +
-          numPromptTokens +
-          "; context window size: " +
-          this.contextWindowSize +
-          "\nConsider shortening the prompt, or increase `context_window_size`, or " +
-          "using sliding window via `sliding_window_size`.",
+      throw new ContextWindowSizeExceededError(
+        numPromptTokens,
+        this.contextWindowSize,
       );
     }
     return tokens;

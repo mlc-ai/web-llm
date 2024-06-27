@@ -15,6 +15,7 @@ import {
 } from "./web_worker";
 import { areChatOptionsEqual } from "./utils";
 import { ChatCompletionChunk } from "./openai_api_protocols/index";
+import { WebGPUNotFoundError } from "./error";
 
 export interface ExtensionMLCEngineConfig extends MLCEngineConfig {
   extensionId?: string;
@@ -89,7 +90,7 @@ export class ServiceWorkerMLCEngineHandler extends WebWorkerMLCEngineHandler {
           log.info("Already loaded the model. Skip loading");
           const gpuDetectOutput = await tvmjs.detectGPUDevice();
           if (gpuDetectOutput == undefined) {
-            throw Error("Cannot find WebGPU in the environment");
+            throw new WebGPUNotFoundError();
           }
           let gpuLabel = "WebGPU";
           if (gpuDetectOutput.adapterInfo.description.length != 0) {

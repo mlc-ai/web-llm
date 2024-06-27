@@ -21,6 +21,19 @@ import {
   officialHermes2FunctionCallSchemaArray,
   hermes2FunctionCallingSystemPrompt,
 } from "../support";
+import {
+  CustomResponseFormatError,
+  CustomSystemPromptError,
+  InvalidResponseFormatError,
+  InvalidStreamOptionsError,
+  MessageOrderError,
+  SeedTypeError,
+  StreamingCountError,
+  SystemMessageOrderError,
+  UnsupportedFieldsError,
+  UnsupportedModelIdError,
+  UserMessageContentError,
+} from "../error";
 
 /* eslint-disable @typescript-eslint/no-namespace */
 
@@ -361,10 +374,7 @@ export function postInitAndCheckFields(
     }
   });
   if (unsupported.length > 0) {
-    throw new Error(
-      "The following fields in ChatCompletionRequest are not yet supported: \n" +
-        unsupported,
-    );
+    throw new UnsupportedFieldsError(unsupported);
   }
 
   // 2. Check unsupported messages
@@ -373,15 +383,10 @@ export function postInitAndCheckFields(
       if (message.role === "user" && typeof message.content !== "string") {
         // ChatCompletionUserMessageParam
         // Remove this when we support image input
-        throw new Error(
-          "User message only supports string `content` for now, but received: " +
-            message.content,
-        );
+        throw new UserMessageContentError(message.content);
       }
       if (message.role === "system" && index !== 0) {
-        throw new Error(
-          "System prompt should always be the first one in `messages`.",
-        );
+        throw new SystemMessageOrderError();
       }
     },
   );
@@ -389,18 +394,18 @@ export function postInitAndCheckFields(
   // 3. Last message has to be from user
   const lastId = request.messages.length - 1;
   if (request.messages[lastId].role !== "user") {
-    throw new Error("Last message should be from `user`.");
+    throw new MessageOrderError("Last message should be from `user`.");
   }
 
   // 4. If streaming, n cannot be > 1, since we cannot manage multiple sequences at once
   if (request.stream && request.n && request.n > 1) {
-    throw new Error("When streaming, `n` cannot be > 1.");
+    throw new StreamingCountError();
   }
 
   // 5. Seed should be an integer
   if (request.seed !== undefined && request.seed !== null) {
     if (!Number.isInteger(request.seed)) {
-      throw new Error("`seed` should be an integer, but got " + request.seed);
+      throw new SeedTypeError(request.seed);
     }
   }
 
@@ -410,9 +415,7 @@ export function postInitAndCheckFields(
     request.response_format?.schema !== null
   ) {
     if (request.response_format?.type !== "json_object") {
-      throw new Error(
-        "JSON schema is only supported with `json_object` response format.",
-      );
+      throw new InvalidResponseFormatError();
     }
   }
 
@@ -420,9 +423,9 @@ export function postInitAndCheckFields(
   if (request.tools !== undefined && request.tools !== null) {
     // 7.1 Check if model supports function calling
     if (!functionCallingModelIds.includes(currentModelId)) {
-      throw Error(
-        `${currentModelId} is not supported for ChatCompletionRequest.tools. Currently, models` +
-          `that support function calling are: ${functionCallingModelIds}`,
+      throw new UnsupportedModelIdError(
+        currentModelId,
+        functionCallingModelIds,
       );
     }
 
@@ -434,12 +437,7 @@ export function postInitAndCheckFields(
         request.response_format !== undefined &&
         request.response_format !== null
       ) {
-        throw new Error(
-          "When using Hermes-2-Pro function calling via ChatCompletionRequest.tools, " +
-            "cannot specify customized response_format. We will set it for you internally. Currently " +
-            "set to: " +
-            request.response_format,
-        );
+        throw new CustomResponseFormatError(request.response_format);
       }
       request.response_format = {
         type: "json_object",
@@ -455,9 +453,7 @@ export function postInitAndCheckFields(
       for (let i = 0; i < request.messages.length; i++) {
         const message: ChatCompletionMessageParam = request.messages[i];
         if (message.role === "system") {
-          throw new Error(
-            "When using Hermes-2-Pro function calling via ChatCompletionRequest.tools, cannot specify customized system prompt.",
-          );
+          throw new CustomSystemPromptError();
         }
       }
       // Prepend a message for hardcoded system prompt
@@ -471,7 +467,7 @@ export function postInitAndCheckFields(
   // 8. Only set stream_options when streaming
   if (request.stream_options !== undefined && request.stream_options !== null) {
     if (!request.stream) {
-      throw new Error("Only specify stream_options when stream=True.");
+      throw new InvalidStreamOptionsError();
     }
   }
 }

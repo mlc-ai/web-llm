@@ -16,6 +16,11 @@ import {
 } from "./web_worker";
 import { areChatOptionsEqual } from "./utils";
 import { ChatCompletionChunk } from "./openai_api_protocols/index";
+import {
+  NoServiceWorkerAPIError,
+  NonWorkerEnvironmentError,
+  ServiceWorkerInitializationError,
+} from "./error";
 
 /* Service Worker Script */
 
@@ -58,9 +63,7 @@ export class ServiceWorkerMLCEngineHandler extends WebWorkerMLCEngineHandler {
 
   constructor() {
     if (!self || !("addEventListener" in self)) {
-      throw new Error(
-        "ServiceWorkerMLCEngineHandler must be created in the service worker script.",
-      );
+      throw new NonWorkerEnvironmentError("ServiceWorkerMLCEngineHandler");
     }
     super();
     const onmessage = this.onmessage.bind(this);
@@ -236,14 +239,14 @@ export class ServiceWorker implements ChatWorker {
     this._onmessage = handler;
 
     if (!("serviceWorker" in navigator)) {
-      throw new Error("Service worker API is not available");
+      throw new NoServiceWorkerAPIError();
     }
     (navigator.serviceWorker as ServiceWorkerContainer).onmessage = handler;
   }
 
   postMessage(message: WorkerRequest) {
     if (!("serviceWorker" in navigator)) {
-      throw new Error("Service worker API is not available");
+      throw new NoServiceWorkerAPIError();
     }
     const serviceWorker = (navigator.serviceWorker as ServiceWorkerContainer)
       .controller;
@@ -269,19 +272,13 @@ export async function CreateServiceWorkerMLCEngine(
   keepAliveMs = 10000,
 ): Promise<ServiceWorkerMLCEngine> {
   if (!("serviceWorker" in navigator)) {
-    throw new Error(
-      "Service worker API is not available in your browser. Please ensure that your browser supports service workers and that you are using a secure context (HTTPS). " +
-        "Check the browser compatibility and ensure that service workers are not disabled in your browser settings.",
-    );
+    throw new NoServiceWorkerAPIError();
   }
   const serviceWorkerAPI = navigator.serviceWorker as ServiceWorkerContainer;
   const registration = await serviceWorkerAPI.ready;
   const serviceWorker = registration.active || serviceWorkerAPI.controller;
   if (!serviceWorker) {
-    throw new Error(
-      "Service worker failed to initialize. This could be due to a failure in the service worker registration process or because the service worker is not active. " +
-        "Please refresh the page to retry initializing the service worker.",
-    );
+    throw new ServiceWorkerInitializationError();
   }
   const serviceWorkerMLCEngine = new ServiceWorkerMLCEngine(
     engineConfig,
@@ -299,7 +296,7 @@ export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
 
   constructor(engineConfig?: MLCEngineConfig, keepAliveMs = 10000) {
     if (!("serviceWorker" in navigator)) {
-      throw new Error("Service worker API is not available");
+      throw new NoServiceWorkerAPIError();
     }
     super(new ServiceWorker(), engineConfig);
 
