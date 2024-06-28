@@ -35,6 +35,10 @@ import {
 } from "./message";
 import log from "loglevel";
 import { MLCEngine } from "./engine";
+import {
+  UnknownMessageKindError,
+  WorkerEngineModelNotLoadedError,
+} from "./error";
 
 /**
  * Worker handler that can be used in a WebWorker
@@ -277,9 +281,7 @@ export class WebWorkerMLCEngineHandler {
       default: {
         if (msg.kind && msg.content) {
           onError?.();
-          throw Error(
-            "Unknown message kind, msg: [" + msg.kind + "] " + msg.content,
-          );
+          throw new UnknownMessageKindError(msg.kind, msg.content);
         } else {
           // Ignore irrelavent events
           onComplete?.(null);
@@ -581,9 +583,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
     request: ChatCompletionRequest,
   ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
     if (this.modelId === undefined) {
-      throw new Error(
-        `${this.constructor.name} is not loaded with a model. Did you call \`engine.reload()\`?`,
-      );
+      throw new WorkerEngineModelNotLoadedError(this.constructor.name);
     }
 
     if (request.stream) {
@@ -658,12 +658,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
       }
       default: {
         const unknownMsg = msg as any;
-        throw Error(
-          "Unknown message kind, msg=[" +
-            unknownMsg.kind +
-            "] " +
-            unknownMsg.content,
-        );
+        throw new UnknownMessageKindError(unknownMsg.kind, unknownMsg.content);
       }
     }
   }
