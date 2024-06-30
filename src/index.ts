@@ -7,6 +7,7 @@ export {
   prebuiltAppConfig,
   modelVersion,
   modelLibURLPrefix,
+  functionCallingModelIds,
 } from "./config";
 
 export {
