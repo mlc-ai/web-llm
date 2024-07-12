@@ -146,6 +146,7 @@ export class GrammarFactory {
       accepted = this.fGrammarSMAcceptToken(
         grammarStateMatcher,
         new tvmjs.Scalar(tokenID, "int32"),
+        /*verbose=*/ new tvmjs.Scalar(0, "int32"),
       );
     } catch (error) {
       throw Error(
@@ -160,12 +161,17 @@ export class GrammarFactory {
    * based on what tokens can/cannot be accepted by the current state of the grammar state matcher.
    *
    * @param grammarStateMatcher The grammar state matcher that will produce the bit mask.
+   * @param fullVocabSize The vocab size read from `config.json`, used to calculate size of bitmask.
    * @returns A bitmask in the form of an NDArray.
    */
   findNextTokenBitmask(
     grammarStateMatcher: GrammarStateMatcher,
+    fullVocabSize: number,
   ): tvmjs.TVMObject {
-    return this.fGrammarSMFindNextTokenBitmaskAsNDArray(grammarStateMatcher);
+    return this.fGrammarSMFindNextTokenBitmaskAsNDArray(
+      grammarStateMatcher,
+      new tvmjs.Scalar(fullVocabSize, "int32"),
+    );
   }
 
   /**
