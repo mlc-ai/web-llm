@@ -101,7 +101,9 @@ export class LLMChatPipeline {
   // be reinitialized since `this.tokenizer` does not change throughout the lifetime of LLMChatPipeline.
   private tokenTable?: tvmjs.TVMObject = undefined;
   private bitmaskSize: number;
-  private vocabSize: number;
+  // `vocab_size` read from `config.json`. Can be different from the size of the tokenTable for some
+  // models due to dummy padded tokens.
+  private fullVocabSize: number;
   // Method to post process the token for grammar; either "byte_level" or default "byte_fallback".
   private token_postproc_method: string;
 
@@ -117,8 +119,8 @@ export class LLMChatPipeline {
     this.config = config;
     this.logitProcessor = logitProcessor;
     this.grammarFactory = new GrammarFactory(tvm);
-    this.vocabSize = this.tokenizer.getVocabSize();
-    this.bitmaskSize = Math.ceil(this.vocabSize / 32);
+    this.fullVocabSize = this.config.vocab_size;
+    this.bitmaskSize = Math.ceil(this.fullVocabSize / 32);
 
     this.conversation = getConversation(
       config.conv_template,
@@ -775,6 +777,7 @@ export class LLMChatPipeline {
       // TODO(Charlie): Do we detach from current scope here for bitmask?
       const bitMaskOnCPU = this.grammarFactory.findNextTokenBitmask(
         this.grammarStateMatcher,
+        this.fullVocabSize,
       ) as unknown as tvmjs.NDArray;
       const bitMaskOnGPU = this.tvm
         .empty([1, this.bitmaskSize], "int32", this.device)
@@ -783,7 +786,7 @@ export class LLMChatPipeline {
         .empty([1], "int32", this.device)
         .copyFrom([0]);
       this.fapplyBitmask(
-        logitsOnGPU.view([1, this.vocabSize]),
+        logitsOnGPU.view([1, this.fullVocabSize]),
         seqIdsArray,
         bitMaskOnGPU,
       );

@@ -73,6 +73,9 @@ export interface TokenizerInfo {
 export interface ChatConfig {
   // First three fields affect the entire conversation, i.e. used in `ChatModule.reload()`
   tokenizer_files: Array<string>;
+  tokenizer_info?: TokenizerInfo;
+  token_table_postproc_method?: string; // TODO: backward compatibility, remove soon
+  vocab_size: number;
   conv_config?: Partial<ConvTemplateConfig>;
   conv_template: string | ConvTemplateConfig;
   // KVCache settings
@@ -82,8 +85,6 @@ export interface ChatConfig {
   // Fields below can be swapped per-generation via `GenerationConfig`
   // Fields only used in MLC
   repetition_penalty: number;
-  tokenizer_info?: TokenizerInfo;
-  token_table_postproc_method?: string; // TODO: backward compatibility, remove soon
   // Fields shared by MLC and OpenAI APIs
   frequency_penalty: number;
   presence_penalty: number;
@@ -275,7 +276,7 @@ export interface AppConfig {
  * @note The model version does not have to match the npm version, since not each npm update
  * requires an update of the model libraries.
  */
-export const modelVersion = "v0_2_43";
+export const modelVersion = "v0_2_48";
 export const modelLibURLPrefix =
   "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/";
 
@@ -609,7 +610,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Qwen2-0.5B-Instruct-q4f16_1-ctx4k_cs2k-webgpu.wasm",
+        "/Qwen2-0.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 944.62,
       overrides: {

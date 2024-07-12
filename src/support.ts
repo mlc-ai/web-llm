@@ -55,6 +55,9 @@ export function getTopProbs(
 /**
  * Get the token table in the form of a string list of tokens, ordered by their token id.
  * @param tokenizer A loaded tokenizer.
+ * @note The size of the table (i.e. tokenizer.getVocabSize()) may be smaller than the `vocab_size`
+ * in config.json (length of logits), see https://github.com/QwenLM/Qwen2/issues/147 and
+ * https://huggingface.co/microsoft/Phi-3-mini-4k-instruct/discussions/47.
  */
 export function getTokenTableFromTokenizer(tokenizer: Tokenizer): string[] {
   const tokenTable: string[] = [];
