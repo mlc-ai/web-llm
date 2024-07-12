@@ -11,7 +11,7 @@ describe("Check generation config illegal values", () => {
         max_tokens: 0,
       };
       postInitAndCheckGenerationConfigValues(genConfig);
-    }).toThrow("`max_tokens` should be greater than zero.");
+    }).toThrow("Make sure `max_tokens` > 0");
   });
 
   test("logit_bias exceeds range", () => {
@@ -23,7 +23,7 @@ describe("Check generation config illegal values", () => {
         },
       };
       postInitAndCheckGenerationConfigValues(genConfig);
-    }).toThrow("logit_bias should be in range [-100, 100];");
+    }).toThrow("Make sure -100 < logit_bias <= 100.");
   });
 
   test("logit_bias invalid key", () => {
@@ -35,7 +35,9 @@ describe("Check generation config illegal values", () => {
         },
       };
       postInitAndCheckGenerationConfigValues(genConfig);
-    }).toThrow("Expect logit_bias's keys to be number represented in string");
+    }).toThrow(
+      "Make sure logit_bias's keys to be number represented in string.",
+    );
   });
 
   test("top_logprobs out of range", () => {
@@ -46,7 +48,7 @@ describe("Check generation config illegal values", () => {
         max_tokens: 10,
       };
       postInitAndCheckGenerationConfigValues(genConfig);
-    }).toThrow("`top_logprobs` should be in range [0,5]");
+    }).toThrow("Make sure 0 < top_logprobs <= 5.");
   });
 
   test("top_logprobs set without setting logprobs", () => {
@@ -56,7 +58,7 @@ describe("Check generation config illegal values", () => {
         max_tokens: 10,
       };
       postInitAndCheckGenerationConfigValues(genConfig);
-    }).toThrow("`logprobs` must be true if `top_logprobs` is set");
+    }).toThrow("top_logprobs requires logprobs to be true");
   });
 
   test("top_logprobs set though logprobs is false", () => {
@@ -67,7 +69,7 @@ describe("Check generation config illegal values", () => {
         max_tokens: 10,
       };
       postInitAndCheckGenerationConfigValues(genConfig);
-    }).toThrow("`logprobs` must be true if `top_logprobs` is set");
+    }).toThrow("top_logprobs requires logprobs to be true");
   });
 });
 

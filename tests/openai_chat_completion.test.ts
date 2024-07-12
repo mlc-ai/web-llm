@@ -71,7 +71,9 @@ describe("Check chat completion unsupported requests", () => {
         ],
       };
       postInitAndCheckFields(request, "Llama-3-8B-Instruct-q4f32_1-MLC");
-    }).toThrow("System prompt should always be the first one in `messages`.");
+    }).toThrow(
+      "System prompt should always be the first message in `messages`.",
+    );
   });
 
   test("When streaming `n` needs to be 1", () => {
@@ -126,7 +128,9 @@ describe("Check chat completion unsupported requests", () => {
         ],
       };
       postInitAndCheckFields(request, "Llama-3-8B-Instruct-q4f32_1-MLC");
-    }).toThrow("User message only supports string `content` for now");
+    }).toThrow(
+      "User message only supports string content for now, but received:",
+    );
   });
 });
 
