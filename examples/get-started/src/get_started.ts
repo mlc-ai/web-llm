@@ -13,7 +13,7 @@ async function main() {
     setLabel("init-label", report.text);
   };
   // Option 1: If we do not specify appConfig, we use `prebuiltAppConfig` defined in `config.ts`
-  const selectedModel = "Llama-3-8B-Instruct-q4f32_1-MLC";
+  const selectedModel = "Llama-3.1-8B-Instruct-q4f32_1-MLC";
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
     {
@@ -32,12 +32,12 @@ async function main() {
   // const appConfig: webllm.AppConfig = {
   //   model_list: [
   //     {
-  //       model: "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f32_1-MLC",
-  //       model_id: "Llama-3-8B-Instruct-q4f32_1-MLC",
+  //       model: "https://huggingface.co/mlc-ai/Llama-3.1-8B-Instruct-q4f32_1-MLC",
+  //       model_id: "Llama-3.1-8B-Instruct-q4f32_1-MLC",
   //       model_lib:
   //         webllm.modelLibURLPrefix +
   //         webllm.modelVersion +
-  //         "/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+  //         "/Llama-3_1-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
   //       overrides: {
   //         context_window_size: 2048,
   //       },
@@ -62,7 +62,7 @@ async function main() {
     n: 3,
     temperature: 1.5,
     max_tokens: 256,
-    // 46510 and 7188 are "California", and 8421 and 51325 are "Texas" in Llama-3-8B-Instruct
+    // 46510 and 7188 are "California", and 8421 and 51325 are "Texas" in Llama-3.1-8B-Instruct
     // So we would have a higher chance of seeing the latter two, but never the first in the answer
     logit_bias: {
       "46510": -100,

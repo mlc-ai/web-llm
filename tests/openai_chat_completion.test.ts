@@ -17,7 +17,7 @@ describe("Check chat completion unsupported requests", () => {
         messages: [{ role: "user", content: "Hello! " }],
         stream_options: { include_usage: true },
       };
-      postInitAndCheckFields(request, "Llama-3-8B-Instruct-q4f32_1-MLC");
+      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
     }).toThrow("Only specify stream_options when stream=True.");
   });
 
@@ -28,7 +28,7 @@ describe("Check chat completion unsupported requests", () => {
         messages: [{ role: "user", content: "Hello! " }],
         stream_options: { include_usage: true },
       };
-      postInitAndCheckFields(request, "Llama-3-8B-Instruct-q4f32_1-MLC");
+      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
     }).toThrow("Only specify stream_options when stream=True.");
   });
 
@@ -41,7 +41,7 @@ describe("Check chat completion unsupported requests", () => {
           { role: "user", content: "Hello! " },
         ],
       };
-      postInitAndCheckFields(request, "Llama-3-8B-Instruct-q4f32_1-MLC");
+      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
     }).toThrow(
       "The following fields in ChatCompletionRequest are not yet supported",
     );
@@ -56,7 +56,7 @@ describe("Check chat completion unsupported requests", () => {
           { role: "assistant", content: "Hello! How may I help you today?" },
         ],
       };
-      postInitAndCheckFields(request, "Llama-3-8B-Instruct-q4f32_1-MLC");
+      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
     }).toThrow("Last message should be from `user`.");
   });
 
@@ -70,7 +70,7 @@ describe("Check chat completion unsupported requests", () => {
           { role: "system", content: "You are a helpful assistant." },
         ],
       };
-      postInitAndCheckFields(request, "Llama-3-8B-Instruct-q4f32_1-MLC");
+      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
     }).toThrow(
       "System prompt should always be the first message in `messages`.",
     );
@@ -83,7 +83,7 @@ describe("Check chat completion unsupported requests", () => {
         n: 2,
         messages: [{ role: "user", content: "Hello! " }],
       };
-      postInitAndCheckFields(request, "Llama-3-8B-Instruct-q4f32_1-MLC");
+      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
     }).toThrow("When streaming, `n` cannot be > 1.");
   });
 
@@ -94,7 +94,7 @@ describe("Check chat completion unsupported requests", () => {
         max_tokens: 10,
         seed: 42.2, // Note that Number.isInteger(42.0) is true
       };
-      postInitAndCheckFields(request, "Llama-3-8B-Instruct-q4f32_1-MLC");
+      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
     }).toThrow("`seed` should be an integer, but got");
   });
 
@@ -104,7 +104,7 @@ describe("Check chat completion unsupported requests", () => {
         messages: [{ role: "user", content: "Hello! " }],
         response_format: { schema: "some json schema" },
       };
-      postInitAndCheckFields(request, "Llama-3-8B-Instruct-q4f32_1-MLC");
+      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
     }).toThrow(
       "JSON schema is only supported with `json_object` response format.",
     );
@@ -127,7 +127,7 @@ describe("Check chat completion unsupported requests", () => {
           },
         ],
       };
-      postInitAndCheckFields(request, "Llama-3-8B-Instruct-q4f32_1-MLC");
+      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
     }).toThrow(
       "User message only supports string content for now, but received:",
     );
@@ -156,7 +156,7 @@ describe("Supported requests", () => {
         "7660": 5,
       },
     };
-    postInitAndCheckFields(request, "Llama-3-8B-Instruct-q4f32_1-MLC");
+    postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
   });
 });
 
@@ -193,9 +193,9 @@ describe("Function calling", () => {
           },
         ],
       };
-      postInitAndCheckFields(request, "Llama-3-8B-Instruct-q4f32_1-MLC");
+      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
     }).toThrow(
-      "Llama-3-8B-Instruct-q4f32_1-MLC is not supported for ChatCompletionRequest.tools.",
+      "Llama-3.1-8B-Instruct-q4f32_1-MLC is not supported for ChatCompletionRequest.tools.",
     );
   });
 

@@ -38,7 +38,7 @@ async function simpleStructuredTextExample() {
     setLabel("init-label", report.text);
   };
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
-    "Llama-3-8B-Instruct-q4f16_1-MLC",
+    "Llama-3.1-8B-Instruct-q4f16_1-MLC",
     { initProgressCallback: initProgressCallback },
   );
 
@@ -107,7 +107,7 @@ async function harryPotterExample() {
   };
 
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
-    "Llama-3-8B-Instruct-q4f16_1-MLC",
+    "Llama-3.1-8B-Instruct-q4f16_1-MLC",
     { initProgressCallback: initProgressCallback },
   );
 
