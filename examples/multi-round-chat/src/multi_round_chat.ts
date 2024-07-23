@@ -17,7 +17,7 @@ async function main() {
   const initProgressCallback = (report: webllm.InitProgressReport) => {
     setLabel("init-label", report.text);
   };
-  const selectedModel = "Llama-3-8B-Instruct-q4f32_1-MLC";
+  const selectedModel = "Llama-3.1-8B-Instruct-q4f32_1-MLC";
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
     { initProgressCallback: initProgressCallback },

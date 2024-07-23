@@ -70,7 +70,7 @@ export default class ChatUI {
     this.engine.setInitProgressCallback(initProgressCallback);
 
     try {
-      const selectedModel = "Llama-3-8B-Instruct-q4f32_1-MLC";
+      const selectedModel = "Llama-3.1-8B-Instruct-q4f32_1-MLC";
       // const selectedModel = "TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC-1k";
       await this.engine.reload(selectedModel);
     } catch (err: unknown) {
