@@ -708,63 +708,86 @@ export const prebuiltAppConfig: AppConfig = {
         context_window_size: 2048,
       },
     },
-    // Gemma-2B
+    // Gemma2
     {
-      model: "https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC",
-      model_id: "gemma-2b-it-q4f16_1-MLC",
+      model: "https://huggingface.co/mlc-ai/gemma-2-2b-it-q4f16_1-MLC",
+      model_id: "gemma-2-2b-it-q4f16_1-MLC",
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/gemma-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-      vram_required_MB: 1476.52,
+        "/gemma-2-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 1895.3,
       low_resource_required: false,
-      buffer_size_required_bytes: 262144000,
       required_features: ["shader-f16"],
       overrides: {
         context_window_size: 4096,
       },
     },
     {
-      model: "https://huggingface.co/mlc-ai/gemma-2b-it-q4f32_1-MLC",
-      model_id: "gemma-2b-it-q4f32_1-MLC",
+      model: "https://huggingface.co/mlc-ai/gemma-2-2b-it-q4f32_1-MLC",
+      model_id: "gemma-2-2b-it-q4f32_1-MLC",
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/gemma-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
-      vram_required_MB: 1750.66,
+        "/gemma-2-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 2508.75,
       low_resource_required: false,
-      buffer_size_required_bytes: 262144000,
       overrides: {
         context_window_size: 4096,
       },
     },
     {
-      model: "https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC",
-      model_id: "gemma-2b-it-q4f16_1-MLC-1k",
+      model: "https://huggingface.co/mlc-ai/gemma-2-2b-it-q4f16_1-MLC",
+      model_id: "gemma-2-2b-it-q4f16_1-MLC-1k",
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/gemma-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-      vram_required_MB: 1476.52,
+        "/gemma-2-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 1583.3,
       low_resource_required: true,
-      buffer_size_required_bytes: 262144000,
       required_features: ["shader-f16"],
       overrides: {
         context_window_size: 1024,
       },
     },
     {
-      model: "https://huggingface.co/mlc-ai/gemma-2b-it-q4f32_1-MLC",
-      model_id: "gemma-2b-it-q4f32_1-MLC-1k",
+      model: "https://huggingface.co/mlc-ai/gemma-2-2b-it-q4f32_1-MLC",
+      model_id: "gemma-2-2b-it-q4f32_1-MLC-1k",
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/gemma-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
-      vram_required_MB: 1750.66,
+        "/gemma-2-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 1884.75,
       low_resource_required: true,
-      buffer_size_required_bytes: 262144000,
       overrides: {
         context_window_size: 1024,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/gemma-2-9b-it-q4f16_1-MLC",
+      model_id: "gemma-2-9b-it-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/gemma-2-9b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 6422.01,
+      low_resource_required: false,
+      required_features: ["shader-f16"],
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/gemma-2-9b-it-q4f32_1-MLC",
+      model_id: "gemma-2-9b-it-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/gemma-2-9b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 8383.33,
+      low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
       },
     },
     // Qwen-2
@@ -1178,6 +1201,65 @@ export const prebuiltAppConfig: AppConfig = {
       required_features: ["shader-f16"],
       overrides: {
         context_window_size: 4096,
+      },
+    },
+    // Gemma-2B
+    {
+      model: "https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC",
+      model_id: "gemma-2b-it-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/gemma-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 1476.52,
+      low_resource_required: false,
+      buffer_size_required_bytes: 262144000,
+      required_features: ["shader-f16"],
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/gemma-2b-it-q4f32_1-MLC",
+      model_id: "gemma-2b-it-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/gemma-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 1750.66,
+      low_resource_required: false,
+      buffer_size_required_bytes: 262144000,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC",
+      model_id: "gemma-2b-it-q4f16_1-MLC-1k",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/gemma-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 1476.52,
+      low_resource_required: true,
+      buffer_size_required_bytes: 262144000,
+      required_features: ["shader-f16"],
+      overrides: {
+        context_window_size: 1024,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/gemma-2b-it-q4f32_1-MLC",
+      model_id: "gemma-2b-it-q4f32_1-MLC-1k",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/gemma-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 1750.66,
+      low_resource_required: true,
+      buffer_size_required_bytes: 262144000,
+      overrides: {
+        context_window_size: 1024,
       },
     },
     // Phi-2
