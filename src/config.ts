@@ -351,7 +351,35 @@ export const prebuiltAppConfig: AppConfig = {
         context_window_size: 4096,
       },
     },
-    // Hermes-2 Pro
+    // Hermes-2
+    {
+      model:
+        "https://huggingface.co/mlc-ai/Hermes-2-Theta-Llama-3-8B-q4f16_1-MLC",
+      model_id: "Hermes-2-Theta-Llama-3-8B-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Llama-3-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 4976.13,
+      low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model:
+        "https://huggingface.co/mlc-ai/Hermes-2-Theta-Llama-3-8B-q4f32_1-MLC",
+      model_id: "Hermes-2-Theta-Llama-3-8B-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 6051.27,
+      low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
     {
       model:
         "https://huggingface.co/mlc-ai/Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC",
