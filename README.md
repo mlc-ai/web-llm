@@ -385,13 +385,22 @@ gem install jekyll-remote-theme
    ./scripts/prep_deps.sh
    ```
 
-3. Buld WebLLM Package
+   In this step, if `$TVM_SOURCE_DIR` is not defined in the environment, we will execute the following line to build `tvmjs` dependency:
+   ```shell
+   git clone https://github.com/mlc-ai/relax 3rdparty/tvm-unity --recursive
+   ```
+
+   This clones the current HEAD of `mlc-ai/relax`. However, it may not always be the correct branch or commit to clone. To build a specific npm version from source, refer to the version bump PR, which states which branch (i.e. `mlc-ai/relax` or `apache/tvm`) and which commit the current WebLLM version depends on. For instance, version 0.2.52, according to its version bump PR https://github.com/mlc-ai/web-llm/pull/521, is built by checking out the following commit https://github.com/apache/tvm/commit/e6476847753c80e054719ac47bc2091c888418b6 in `apache/tvm`, rather than the HEAD of `mlc-ai/relax`.
+
+   Besides, `--recursive` is necessary and important. Otherwise, you may encounter errors like `fatal error: 'dlpack/dlpack.h' file not found`.
+
+4. Buld WebLLM Package
 
    ```shell
    npm run build
    ```
 
-4. Validate some of the sub-packages
+5. Validate some of the sub-packages
 
    You can then go to the subfolders in [examples](examples) to validate some of the sub-packages.
    We use Parcelv2 for bundling. Although Parcel is not very good at tracking parent directory
