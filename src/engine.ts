@@ -104,6 +104,7 @@ export class MLCEngine implements MLCEngineInterface {
   private initProgressCallback?: InitProgressCallback;
   private interruptSignal = false;
   private deviceLostIsError = true; // whether device.lost is due to actual error or model reload
+  private reloadController: AbortController | undefined;
   private config?: ChatConfig;
   private appConfig: AppConfig;
 
@@ -156,6 +157,8 @@ export class MLCEngine implements MLCEngineInterface {
       throw new ModelNotFoundError(modelId);
     };
 
+    this.reloadController = new AbortController();
+
     const modelRecord = findModelRecord();
     const baseUrl =
       typeof document !== "undefined"
@@ -176,7 +179,11 @@ export class MLCEngine implements MLCEngineInterface {
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
     this.config = {
-      ...(await configCache.fetchWithCache(configUrl, "json")),
+      ...(await configCache.fetchWithCache(
+        configUrl,
+        "json",
+        this.reloadController?.signal,
+      )),
       ...modelRecord.overrides,
       ...chatOpts,
     } as ChatConfig;
@@ -203,7 +210,11 @@ export class MLCEngine implements MLCEngineInterface {
         return (await fetch(new URL(wasmUrl, baseUrl).href)).arrayBuffer();
       } else {
         // use cache
-        return await wasmCache.fetchWithCache(wasmUrl, "arraybuffer");
+        return await wasmCache.fetchWithCache(
+          wasmUrl,
+          "arraybuffer",
+          this.reloadController?.signal,
+        );
       }
     };
     const wasmSource = await fetchWasmSource();
@@ -268,6 +279,7 @@ export class MLCEngine implements MLCEngineInterface {
       tvm.webgpu(),
       "webllm/model",
       cacheType,
+      this.reloadController?.signal,
     );
     this.pipeline = new LLMChatPipeline(
       tvm,
@@ -653,6 +665,10 @@ export class MLCEngine implements MLCEngineInterface {
     this.pipeline = undefined;
     this.currentModelId = undefined;
     this.deviceLostIsError = true;
+    if (this.reloadController) {
+      this.reloadController.abort("Engine.unload() is called.");
+      this.reloadController = undefined;
+    }
   }
 
   async getMaxStorageBufferBindingSize(): Promise<number> {
