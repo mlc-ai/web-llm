@@ -305,7 +305,7 @@ WebLLM is designed to be fully compatible with [OpenAI API](https://platform.ope
 - [streaming](examples/streaming): return output as chunks in real-time in the form of an AsyncGenerator
 - [json-mode](examples/json-mode): efficiently ensure output is in JSON format, see [OpenAI Reference](https://platform.openai.com/docs/guides/text-generation/chat-completions-api) for more.
 - [seed-to-reproduce](examples/seed-to-reproduce): use seeding to ensure a reproducible output with fields `seed`.
-- [function-calling](examples/function-calling) (WIP): function calling with fields `tools` and `tool_choice` (with preliminary support).
+- [function-calling](examples/function-calling) (WIP): function calling with fields `tools` and `tool_choice` (with preliminary support); or manual function calling without `tools` or `tool_choice` (keeps the most flexibility).
 
 ## Custom Models
 

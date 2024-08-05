@@ -24,7 +24,6 @@ import {
   ChatCompletionRequestStreaming,
   ChatCompletionRequestBase,
   CompletionUsage,
-  ChatCompletionUserMessageParam,
   ChatCompletionMessageToolCall,
 } from "./openai_api_protocols/index";
 import * as ChatCompletionAPI from "./openai_api_protocols/index";
@@ -764,12 +763,12 @@ export class MLCEngine implements MLCEngineInterface {
     const input = request.messages;
     const lastId = input.length - 1;
     if (
-      input[lastId].role !== "user" ||
+      (input[lastId].role !== "user" && input[lastId].role !== "tool") ||
       typeof input[lastId].content !== "string"
     ) {
       // TODO(Charlie): modify condition after we support multimodal inputs
       throw new MessageOrderError(
-        "The last message should be a string from the `user`.",
+        "The last message should be a string from the `user` or `tool`.",
       );
     }
     for (let i = 0; i < input.length - 1; i++) {
@@ -794,8 +793,11 @@ export class MLCEngine implements MLCEngineInterface {
           message.content,
           message.name,
         );
+      } else if (message.role === "tool") {
+        conversation.appendMessage(Role.tool, message.content);
       } else {
-        throw new UnsupportedRoleError(message.role);
+        // Use `["role"]` instead of `.role` to suppress "Property does not exist on type 'never'"
+        throw new UnsupportedRoleError(message["role"]);
       }
     }
     return conversation;
@@ -958,6 +960,7 @@ export class MLCEngine implements MLCEngineInterface {
     }
     let input_str: string;
     let input_role_str: string | undefined;
+    let lastMsgRole = Role.user;
     if (typeof input === "string") {
       input_str = input;
     } else {
@@ -982,11 +985,18 @@ export class MLCEngine implements MLCEngineInterface {
       // 2. Treat the last message as the usual input
       const last_msg = input.messages[
         input.messages.length - 1
-      ] as ChatCompletionUserMessageParam;
+      ] as ChatCompletionMessageParam;
       input_str = last_msg.content as string;
-      input_role_str = last_msg.name ? last_msg.name : undefined;
+      input_role_str =
+        last_msg.role === "user" && last_msg.name ? last_msg.name : undefined;
+      lastMsgRole = last_msg.role === "tool" ? Role.tool : Role.user;
     }
-    return this.getPipeline().prefillStep(input_str, input_role_str, genConfig);
+    return this.getPipeline().prefillStep(
+      input_str,
+      lastMsgRole,
+      input_role_str,
+      genConfig,
+    );
   }
 
   /**

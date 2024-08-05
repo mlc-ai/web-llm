@@ -391,10 +391,15 @@ export function postInitAndCheckFields(
     },
   );
 
-  // 3. Last message has to be from user
+  // 3. Last message has to be from user or tool
   const lastId = request.messages.length - 1;
-  if (request.messages[lastId].role !== "user") {
-    throw new MessageOrderError("Last message should be from `user`.");
+  if (
+    request.messages[lastId].role !== "user" &&
+    request.messages[lastId].role !== "tool"
+  ) {
+    throw new MessageOrderError(
+      "Last message should be from either `user` or `tool`.",
+    );
   }
 
   // 4. If streaming, n cannot be > 1, since we cannot manage multiple sequences at once

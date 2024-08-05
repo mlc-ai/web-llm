@@ -21,6 +21,7 @@ import {
   RangeError,
   WindowSizeConfigurationError,
   WindowSizeSpecificationError,
+  MessageOrderError,
 } from "./error";
 
 export class LLMChatPipeline {
@@ -439,9 +440,15 @@ export class LLMChatPipeline {
    */
   async prefillStep(
     inp: string,
+    msgRole: Role, // either user or tool
     inp_role_str?: string,
     genConfig?: GenerationConfig,
   ): Promise<void> {
+    if (msgRole !== Role.user && msgRole !== Role.tool) {
+      throw new MessageOrderError(
+        "The last message should be from `user` or `tool`.",
+      );
+    }
     if (this.resetStatsPerPrefill) {
       this.resetRuntimeStats();
     }
@@ -459,7 +466,7 @@ export class LLMChatPipeline {
     const conversation = this.conversation;
 
     // initialize
-    conversation.appendMessage(Role.user, inp, inp_role_str);
+    conversation.appendMessage(msgRole, inp, inp_role_str);
     conversation.appendReplyHeader(Role.assistant);
     const promptTokens = this.getInputTokens();
 

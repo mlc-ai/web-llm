@@ -1,3 +1,4 @@
+/* eslint-disable no-useless-escape */
 import {
   postInitAndCheckFields,
   ChatCompletionRequest,
@@ -47,7 +48,7 @@ describe("Check chat completion unsupported requests", () => {
     );
   });
 
-  test("Last message should be from user", () => {
+  test("Last message should be from user or tool", () => {
     expect(() => {
       const request: ChatCompletionRequest = {
         messages: [
@@ -57,7 +58,7 @@ describe("Check chat completion unsupported requests", () => {
         ],
       };
       postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
-    }).toThrow("Last message should be from `user`.");
+    }).toThrow("Last message should be from either `user` or `tool`.");
   });
 
   test("System prompt should always be the first one in `messages`", () => {
@@ -160,7 +161,32 @@ describe("Supported requests", () => {
   });
 });
 
-describe("Function calling", () => {
+describe("Manual function calling", () => {
+  test("Hermes2 style function calling", () => {
+    const system_prompt = `You are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags. You may call one or more functions to assist with the user query. Don't make assumptions about what values to plug into functions. Here are the available tools: <tools> {"type": "function", "function": {"name": "get_stock_fundamentals", "description": "get_stock_fundamentals(symbol: str) -> dict - Get fundamental data for a given stock symbol using yfinance API.\\n\\n    Args:\\n        symbol (str): The stock symbol.\\n\\n    Returns:\\n        dict: A dictionary containing fundamental data.\\n            Keys:\\n                - \'symbol\': The stock symbol.\\n                - \'company_name\': The long name of the company.\\n                - \'sector\': The sector to which the company belongs.\\n                - \'industry\': The industry to which the company belongs.\\n                - \'market_cap\': The market capitalization of the company.\\n                - \'pe_ratio\': The forward price-to-earnings ratio.\\n                - \'pb_ratio\': The price-to-book ratio.\\n                - \'dividend_yield\': The dividend yield.\\n                - \'eps\': The trailing earnings per share.\\n                - \'beta\': The beta value of the stock.\\n                - \'52_week_high\': The 52-week high price of the stock.\\n                - \'52_week_low\': The 52-week low price of the stock.", "parameters": {"type": "object", "properties": {"symbol": {"type": "string"}}, "required": ["symbol"]}}}  </tools> Use the following pydantic model json schema for each tool call you will make: {"properties": {"arguments": {"title": "Arguments", "type": "object"}, "name": {"title": "Name", "type": "string"}}, "required": ["arguments", "name"], "title": "FunctionCall", "type": "object"} For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows:\n<tool_call>\n{"arguments": <args-dict>, "name": <function-name>}\n</tool_call>`;
+    const request: ChatCompletionRequest = {
+      messages: [
+        { role: "system", content: system_prompt },
+        {
+          role: "user",
+          content: "Fetch the stock fundamentals data for Tesla (TSLA)",
+        },
+        {
+          role: "assistant",
+          content: `<tool_call>\n{"arguments": {"symbol": "TSLA"}, "name": "get_stock_fundamentals"}\n</tool_call>`,
+        },
+        {
+          role: "tool",
+          tool_call_id: "0",
+          content: `<tool_response>\n{"name": "get_stock_fundamentals", "content": {'symbol': 'TSLA', 'company_name': 'Tesla, Inc.', 'sector': 'Consumer Cyclical', 'industry': 'Auto Manufacturers', 'market_cap': 611384164352, 'pe_ratio': 49.604652, 'pb_ratio': 9.762013, 'dividend_yield': None, 'eps': 4.3, 'beta': 2.427, '52_week_high': 299.29, '52_week_low': 152.37}}\n</tool_response>`,
+        },
+      ],
+    };
+    postInitAndCheckFields(request, "Hermes-2-Theta-Llama-3-8B-q4f16_1-MLC");
+  });
+});
+
+describe("OpenAI API function calling", () => {
   const tools: Array<ChatCompletionTool> = [
     {
       type: "function",
