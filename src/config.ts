@@ -21,7 +21,6 @@ export interface ConvTemplateConfig {
   seps: Array<string>;
   role_content_sep?: string;
   role_empty_sep?: string;
-  offset: number;
   stop_str: Array<string>;
   system_prefix_token_ids?: Array<number>;
   stop_token_ids: Array<number>;
@@ -31,6 +30,7 @@ export interface ConvTemplateConfig {
 export enum Role {
   user = "user",
   assistant = "assistant",
+  tool = "tool",
 }
 
 export const DefaultLogLevel: LogLevel = "WARN";
@@ -77,7 +77,7 @@ export interface ChatConfig {
   token_table_postproc_method?: string; // TODO: backward compatibility, remove soon
   vocab_size: number;
   conv_config?: Partial<ConvTemplateConfig>;
-  conv_template: string | ConvTemplateConfig;
+  conv_template: ConvTemplateConfig;
   // KVCache settings
   context_window_size: number;
   sliding_window_size: number;
