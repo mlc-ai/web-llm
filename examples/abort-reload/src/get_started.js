@@ -1,4 +1,5 @@
 import * as webllm from "@mlc-ai/web-llm";
+import { error } from "loglevel";
 
 let engine;
 
@@ -25,5 +26,7 @@ async function main() {
 main();
 setTimeout(() => {
   console.log("calling unload");
-  engine.unload();
+  engine.unload().catch((err) => {
+    console.log(err);
+  });
 }, 5000);

@@ -145,7 +145,25 @@ export class MLCEngine implements MLCEngineInterface {
    */
   async reload(modelId: string, chatOpts?: ChatOptions): Promise<void> {
     await this.unload();
+    this.reloadController = new AbortController();
 
+    try {
+      await this.reloadInternal(modelId, chatOpts);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        log.warn("Reload() is aborted.", error.message);
+        return;
+      }
+      throw error;
+    } finally {
+      this.reloadController = undefined;
+    }
+  }
+
+  private async reloadInternal(
+    modelId: string,
+    chatOpts?: ChatOptions,
+  ): Promise<void> {
     this.logitProcessor = this.logitProcessorRegistry?.get(modelId);
     const tstart = performance.now();
 
@@ -156,8 +174,6 @@ export class MLCEngine implements MLCEngineInterface {
       if (matchedItem !== undefined) return matchedItem;
       throw new ModelNotFoundError(modelId);
     };
-
-    this.reloadController = new AbortController();
 
     const modelRecord = findModelRecord();
     const baseUrl =
@@ -209,7 +225,6 @@ export class MLCEngine implements MLCEngineInterface {
         // rely on the normal caching strategy
         return (await fetch(new URL(wasmUrl, baseUrl).href)).arrayBuffer();
       } else {
-        // use cache
         return await wasmCache.fetchWithCache(
           wasmUrl,
           "arraybuffer",
