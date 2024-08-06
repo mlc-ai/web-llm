@@ -1033,6 +1033,14 @@ export class LLMChatPipeline {
     } as ChatCompletionTokenLogprob;
   }
 
+  /**
+   * Synchronize the device.
+   */
+  async sync(): Promise<void> {
+    // Is it equivalent to this.tvm.sync()?
+    await this.device.sync();
+  }
+
   async evaluate() {
     // run a canonical evaluation of the flow
     this.resetKVCache();

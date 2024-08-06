@@ -275,7 +275,8 @@ export class MLCEngine implements MLCEngineInterface {
     gpuDetectOutput.device.lost.then((info: any) => {
       if (this.deviceLostIsError) {
         log.error(
-          `Device was lost during reload. This can happen due to insufficient memory or other GPU constraints. Detailed error: ${info}. Please try to reload WebLLM with a less resource-intensive model.`,
+          `Device was lost. This can happen due to insufficient memory or other GPU constraints. ` +
+            `Detailed error: ${info}. Please try to reload WebLLM with a less resource-intensive model.`,
         );
         this.unload();
         deviceLostInReload = true;
@@ -674,9 +675,16 @@ export class MLCEngine implements MLCEngineInterface {
     this.pipeline?.resetChat(keepStats);
   }
 
+  /**
+   * Unloads the currently loaded model and destroy the webgpu device. Waits
+   * until the webgpu device finishes all submitted work and destroys itself.
+   * @note This is an asynchronous function.
+   */
   async unload() {
     this.deviceLostIsError = false; // so that unload() does not trigger device.lost error
     this.pipeline?.dispose();
+    // Wait until device is actually destroyed so we can safely set deviceLostIsError back to true
+    await this.pipeline?.sync();
     this.pipeline = undefined;
     this.currentModelId = undefined;
     this.deviceLostIsError = true;
