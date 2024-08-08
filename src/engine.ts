@@ -103,6 +103,7 @@ export class MLCEngine implements MLCEngineInterface {
   private initProgressCallback?: InitProgressCallback;
   private interruptSignal = false;
   private deviceLostIsError = true; // whether device.lost is due to actual error or model reload
+  private reloadController: AbortController | undefined;
   private config?: ChatConfig;
   private appConfig: AppConfig;
 
@@ -143,7 +144,25 @@ export class MLCEngine implements MLCEngineInterface {
    */
   async reload(modelId: string, chatOpts?: ChatOptions): Promise<void> {
     await this.unload();
+    this.reloadController = new AbortController();
 
+    try {
+      await this.reloadInternal(modelId, chatOpts);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        log.warn("Reload() is aborted.", error.message);
+        return;
+      }
+      throw error;
+    } finally {
+      this.reloadController = undefined;
+    }
+  }
+
+  private async reloadInternal(
+    modelId: string,
+    chatOpts?: ChatOptions,
+  ): Promise<void> {
     this.logitProcessor = this.logitProcessorRegistry?.get(modelId);
     const tstart = performance.now();
 
@@ -175,7 +194,11 @@ export class MLCEngine implements MLCEngineInterface {
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
     this.config = {
-      ...(await configCache.fetchWithCache(configUrl, "json")),
+      ...(await configCache.fetchWithCache(
+        configUrl,
+        "json",
+        this.reloadController?.signal,
+      )),
       ...modelRecord.overrides,
       ...chatOpts,
     } as ChatConfig;
@@ -201,8 +224,11 @@ export class MLCEngine implements MLCEngineInterface {
         // rely on the normal caching strategy
         return (await fetch(new URL(wasmUrl, baseUrl).href)).arrayBuffer();
       } else {
-        // use cache
-        return await wasmCache.fetchWithCache(wasmUrl, "arraybuffer");
+        return await wasmCache.fetchWithCache(
+          wasmUrl,
+          "arraybuffer",
+          this.reloadController?.signal,
+        );
       }
     };
     const wasmSource = await fetchWasmSource();
@@ -248,7 +274,8 @@ export class MLCEngine implements MLCEngineInterface {
     gpuDetectOutput.device.lost.then((info: any) => {
       if (this.deviceLostIsError) {
         log.error(
-          `Device was lost during reload. This can happen due to insufficient memory or other GPU constraints. Detailed error: ${info}. Please try to reload WebLLM with a less resource-intensive model.`,
+          `Device was lost. This can happen due to insufficient memory or other GPU constraints. ` +
+            `Detailed error: ${info}. Please try to reload WebLLM with a less resource-intensive model.`,
         );
         this.unload();
         deviceLostInReload = true;
@@ -267,6 +294,7 @@ export class MLCEngine implements MLCEngineInterface {
       tvm.webgpu(),
       "webllm/model",
       cacheType,
+      this.reloadController?.signal,
     );
     this.pipeline = new LLMChatPipeline(
       tvm,
@@ -646,12 +674,23 @@ export class MLCEngine implements MLCEngineInterface {
     this.pipeline?.resetChat(keepStats);
   }
 
+  /**
+   * Unloads the currently loaded model and destroy the webgpu device. Waits
+   * until the webgpu device finishes all submitted work and destroys itself.
+   * @note This is an asynchronous function.
+   */
   async unload() {
     this.deviceLostIsError = false; // so that unload() does not trigger device.lost error
     this.pipeline?.dispose();
+    // Wait until device is actually destroyed so we can safely set deviceLostIsError back to true
+    await this.pipeline?.sync();
     this.pipeline = undefined;
     this.currentModelId = undefined;
     this.deviceLostIsError = true;
+    if (this.reloadController) {
+      this.reloadController.abort("Engine.unload() is called.");
+      this.reloadController = undefined;
+    }
   }
 
   async getMaxStorageBufferBindingSize(): Promise<number> {
