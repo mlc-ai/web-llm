@@ -42,7 +42,6 @@ import {
   LogLevel,
 } from "./types";
 import {
-  Conversation,
   compareConversationObject,
   getConversation,
   getConversationFromChatCompletionRequest,
@@ -51,24 +50,16 @@ import { cleanModelUrl } from "./support";
 import {
   ChatModuleNotInitializedError,
   ConfigurationNotInitializedError,
-  ContentTypeError,
   DeviceLostError,
   FeatureSupportError,
-  FunctionNotFoundError,
-  InvalidToolChoiceError,
-  MessageOrderError,
   MissingModelWasmError,
   ModelNotFoundError,
   ModelNotLoadedError,
   ShaderF16SupportError,
-  SystemMessageOrderError,
   ToolCallOutputInvalidTypeError,
   ToolCallOutputMissingFieldsError,
   ToolCallOutputParseError,
-  UnsupportedRoleError,
   UnsupportedTokenizerFilesError,
-  UnsupportedToolChoiceTypeError,
-  UnsupportedToolTypeError,
   WebGPUNotAvailableError,
 } from "./error";
 
