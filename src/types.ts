@@ -128,13 +128,18 @@ export interface MLCEngineInterface {
   ) => Promise<string>;
 
   /**
-   * OpenAI-style API. Generate a chat completion response for the given conversation and configuration.
+   * OpenAI-style API. Generate a chat completion response for the given conversation and
+   * configuration. Use `engine.chat.completions.create()` to invoke this API.
    *
-   * The API is completely functional in behavior. That is, a previous request would not affect
-   * the current request's result. Thus, for multi-round chatting, users are responsible for
+   * @param request A OpenAI-style ChatCompletion request.
+   *
+   * @note The API is completely functional in behavior. That is, a previous request would not
+   * affect the current request's result. Thus, for multi-round chatting, users are responsible for
    * maintaining the chat history. With that being said, as an implicit internal optimization, if we
-   * detect that the user is performing multiround chatting, we will preserve the KV cache and only
+   * detect that the user is performing multi-round chatting, we will preserve the KV cache and only
    * prefill the new tokens.
+   *
+   * @note For more, see https://platform.openai.com/docs/api-reference/chat
    */
   chatCompletion(
     request: ChatCompletionRequestNonStreaming,
@@ -149,6 +154,14 @@ export interface MLCEngineInterface {
     request: ChatCompletionRequest,
   ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion>;
 
+  /**
+   * OpenAI-style API. Completes a CompletionCreateParams, a text completion with no chat template.
+   * Use `engine.completions.create()` to invoke this API.
+   *
+   * @param request An OpenAI-style Completion request.
+   *
+   * @note For more, see https://platform.openai.com/docs/api-reference/completions
+   */
   completion(request: CompletionCreateParamsNonStreaming): Promise<Completion>;
   completion(
     request: CompletionCreateParamsStreaming,
