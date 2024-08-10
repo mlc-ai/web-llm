@@ -377,6 +377,12 @@ gem install jekyll-remote-theme
 `
       We can verify the successful installation by trying out `emcc` and `jekyll` in terminal, respectively.
 
+      Note: We recently found that using the latest `emcc` version may run into issues during runtime. Use `./emsdk install 3.1.56` instead of `./emsdk install latest` for now as a workaround. The error may look like
+      ```
+      Init error, LinkError: WebAssembly.instantiate(): Import #6 module="wasi_snapshot_preview1"
+      function="proc_exit": function import requires a callable
+      ```
+
 2. Setup necessary environment
 
    Prepare all the necessary dependencies for web build:
