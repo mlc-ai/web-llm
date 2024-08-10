@@ -718,8 +718,8 @@ export class LLMChatPipeline {
     let temperature: number = this.config.temperature;
     let top_p: number = this.config.top_p;
     let repetition_penalty: number = this.config.repetition_penalty;
-    let frequency_penalty: number | undefined = undefined;
-    let presence_penalty: number | undefined = undefined;
+    let frequency_penalty: number = this.config.frequency_penalty;
+    let presence_penalty: number = this.config.presence_penalty;
     let logit_bias: Record<string, number> | undefined = undefined;
     let logprobs: boolean | undefined = undefined;
     let top_logprobs: number | undefined = undefined;
