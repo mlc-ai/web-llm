@@ -6,7 +6,11 @@ import {
   ChatCompletionUserMessageParam,
 } from "../src/openai_api_protocols/chat_completion";
 import { MLCEngine } from "../src/engine";
-import { Conversation, compareConversationObject } from "../src/conversation";
+import {
+  Conversation,
+  compareConversationObject,
+  getConversationFromChatCompletionRequest,
+} from "../src/conversation";
 import { ChatConfig, Role } from "../src/config";
 
 const configStr =
@@ -51,7 +55,6 @@ describe("Test multi-round chatting", () => {
     // Setups
     const config_json = JSON.parse(configStr);
     const chatConfig = { ...config_json } as ChatConfig;
-    const engine = new MLCEngine();
 
     // Simulate request0
     const messages: ChatCompletionMessageParam[] = [
@@ -68,9 +71,10 @@ describe("Test multi-round chatting", () => {
     };
 
     // Simulate processing of request0, appending response to convA (done by LLMChatPipeline)
-    const conv0: Conversation = (
-      engine as any
-    ).getConversationFromChatCompletionRequest(request0, chatConfig);
+    const conv0: Conversation = getConversationFromChatCompletionRequest(
+      request0,
+      chatConfig,
+    );
     conv0.appendMessage(Role.user, "Provide me three US states.");
     const reply0 = "California, New York, Nevada.";
     conv0.appendMessage(Role.assistant, reply0); // simulated response
@@ -83,9 +87,10 @@ describe("Test multi-round chatting", () => {
     const request1: ChatCompletionRequest = {
       messages: newMessages,
     };
-    const conv1: Conversation = (
-      engine as any
-    ).getConversationFromChatCompletionRequest(request1, chatConfig);
+    const conv1: Conversation = getConversationFromChatCompletionRequest(
+      request1,
+      chatConfig,
+    );
 
     expect(compareConversationObject(conv0, conv1)).toBe(true);
   });
@@ -94,7 +99,6 @@ describe("Test multi-round chatting", () => {
     // Setups
     const config_json = JSON.parse(configStr);
     const chatConfig = { ...config_json } as ChatConfig;
-    const engine = new MLCEngine();
 
     // Simulate request0
     const messages: ChatCompletionMessageParam[] = [
@@ -111,9 +115,10 @@ describe("Test multi-round chatting", () => {
     };
 
     // Simulate processing of request0, appending response to convA (done by LLMChatPipeline)
-    const conv0: Conversation = (
-      engine as any
-    ).getConversationFromChatCompletionRequest(request0, chatConfig);
+    const conv0: Conversation = getConversationFromChatCompletionRequest(
+      request0,
+      chatConfig,
+    );
     conv0.appendMessage(Role.user, "Provide me three US states.");
     const reply0 = "California, New York, Nevada.";
     conv0.appendMessage(Role.assistant, reply0); // simulated response
@@ -131,9 +136,10 @@ describe("Test multi-round chatting", () => {
     const request1: ChatCompletionRequest = {
       messages: newMessages,
     };
-    const conv1: Conversation = (
-      engine as any
-    ).getConversationFromChatCompletionRequest(request1, chatConfig);
+    const conv1: Conversation = getConversationFromChatCompletionRequest(
+      request1,
+      chatConfig,
+    );
 
     expect(compareConversationObject(conv0, conv1)).toBe(false);
   });
@@ -142,7 +148,6 @@ describe("Test multi-round chatting", () => {
     // Setups
     const config_json = JSON.parse(configStr);
     const chatConfig = { ...config_json } as ChatConfig;
-    const engine = new MLCEngine();
 
     // Simulate request0
     const messages: ChatCompletionMessageParam[] = [
@@ -159,9 +164,10 @@ describe("Test multi-round chatting", () => {
     };
 
     // Simulate processing of request0, appending response to convA (done by LLMChatPipeline)
-    const conv0: Conversation = (
-      engine as any
-    ).getConversationFromChatCompletionRequest(request0, chatConfig);
+    const conv0: Conversation = getConversationFromChatCompletionRequest(
+      request0,
+      chatConfig,
+    );
     conv0.appendMessage(Role.user, "Provide me three US states.");
     const reply0 = "California, New York, Nevada.";
     conv0.appendMessage(Role.assistant, reply0); // simulated response
@@ -178,9 +184,10 @@ describe("Test multi-round chatting", () => {
     const request1: ChatCompletionRequest = {
       messages: newMessages,
     };
-    const conv1: Conversation = (
-      engine as any
-    ).getConversationFromChatCompletionRequest(request1, chatConfig);
+    const conv1: Conversation = getConversationFromChatCompletionRequest(
+      request1,
+      chatConfig,
+    );
 
     expect(compareConversationObject(conv0, conv1)).toBe(false);
   });
@@ -189,7 +196,6 @@ describe("Test multi-round chatting", () => {
     // Setups
     const config_json = JSON.parse(configStr);
     const chatConfig = { ...config_json } as ChatConfig;
-    const engine = new MLCEngine();
 
     // Simulate request0
     const messages: ChatCompletionMessageParam[] = [
@@ -206,9 +212,10 @@ describe("Test multi-round chatting", () => {
     };
 
     // Simulate processing of request0, appending response to convA (done by LLMChatPipeline)
-    const conv0: Conversation = (
-      engine as any
-    ).getConversationFromChatCompletionRequest(request0, chatConfig);
+    const conv0: Conversation = getConversationFromChatCompletionRequest(
+      request0,
+      chatConfig,
+    );
     conv0.appendMessage(Role.user, "Provide me three US states.");
     const reply0 = "California, New York, Nevada.";
     conv0.appendMessage(Role.assistant, reply0); // simulated response
@@ -225,9 +232,10 @@ describe("Test multi-round chatting", () => {
     const request1: ChatCompletionRequest = {
       messages: newMessages,
     };
-    const conv1: Conversation = (
-      engine as any
-    ).getConversationFromChatCompletionRequest(request1, chatConfig);
+    const conv1: Conversation = getConversationFromChatCompletionRequest(
+      request1,
+      chatConfig,
+    );
 
     expect(compareConversationObject(conv0, conv1)).toBe(false);
   });

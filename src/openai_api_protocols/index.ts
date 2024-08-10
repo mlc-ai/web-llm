@@ -16,6 +16,7 @@
  */
 
 export {
+  Chat,
   ChatCompletionRequestBase,
   ChatCompletionRequestNonStreaming,
   ChatCompletionRequestStreaming,
@@ -23,7 +24,7 @@ export {
   ChatCompletion,
   ChatCompletionChunk,
   ChatCompletionRequestUnsupportedFields,
-  postInitAndCheckFields,
+  postInitAndCheckFields as postInitAndCheckFieldsChatCompletion,
   ChatCompletionContentPart,
   ChatCompletionContentPartText,
   ChatCompletionContentPartImage,
@@ -46,3 +47,14 @@ export {
   ResponseFormat,
   ChatCompletionFinishReason,
 } from "./chat_completion";
+
+export {
+  Completions,
+  CompletionCreateParamsNonStreaming,
+  CompletionCreateParamsStreaming,
+  CompletionCreateParamsBase,
+  CompletionCreateParams,
+  Completion,
+  CompletionChoice,
+  postInitAndCheckFields as postInitAndCheckFieldsCompletion,
+} from "./completion";

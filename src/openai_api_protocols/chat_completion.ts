@@ -37,6 +37,16 @@ import {
 
 /* eslint-disable @typescript-eslint/no-namespace */
 
+export class Chat {
+  private engine: MLCEngineInterface;
+  completions: Completions;
+
+  constructor(engine: MLCEngineInterface) {
+    this.engine = engine;
+    this.completions = new Completions(this.engine);
+  }
+}
+
 export class Completions {
   private engine: MLCEngineInterface;
 
@@ -66,7 +76,7 @@ export class Completions {
  * API reference: https://platform.openai.com/docs/api-reference/chat/create
  * Followed: https://github.com/openai/openai-node/blob/master/src/resources/chat/completions.ts
  *
- * @note `model` is excluded. call `ChatModule.reload(model)` explicitly before calling this API.
+ * @note `model` is excluded. Instead, call `CreateMLCEngine(model)` or `engine.reload(model)` explicitly before calling this API.
  */
 export interface ChatCompletionRequestBase {
   /**
@@ -175,7 +185,7 @@ export interface ChatCompletionRequestBase {
    * repeated requests with the same `seed` and parameters should return the same result.
    *
    * @note Seeding is done on a request-level rather than choice-level. That is, if `n > 1`, you
-   * would still get different content for each `Chocie`. But if two requests with `n = 2` are
+   * would still get different content for each `Choice`. But if two requests with `n = 2` are
    * processed with the same seed, the two results should be the same (two choices are different).
    */
   seed?: number | null;
@@ -228,7 +238,7 @@ export interface ChatCompletionRequestBase {
   /**
    * Model to carry out this API.
    *
-   * @note Not supported. Instead call `CreateMLCEngine(model)` or `engine.reload(model)` instead.
+   * @note Not supported. Instead, call `CreateMLCEngine(model)` or `engine.reload(model)`.
    */
   model?: string | null;
 }
@@ -374,7 +384,7 @@ export function postInitAndCheckFields(
     }
   });
   if (unsupported.length > 0) {
-    throw new UnsupportedFieldsError(unsupported);
+    throw new UnsupportedFieldsError(unsupported, "ChatCompletionRequest");
   }
 
   // 2. Check unsupported messages

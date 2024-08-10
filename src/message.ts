@@ -5,6 +5,9 @@ import {
   ChatCompletionRequestNonStreaming,
   ChatCompletion,
   ChatCompletionChunk,
+  CompletionCreateParamsNonStreaming,
+  CompletionCreateParamsStreaming,
+  Completion,
 } from "./openai_api_protocols/index";
 
 /**
@@ -21,9 +24,11 @@ type RequestKind =
   | "getGPUVendor"
   | "forwardTokensAndSample"
   | "chatCompletionNonStreaming"
+  | "completionNonStreaming"
   | "getMessage"
   | "chatCompletionStreamInit"
-  | "chatCompletionStreamNextChunk"
+  | "completionStreamInit"
+  | "completionStreamNextChunk"
   | "customRequest"
   | "keepAlive"
   | "setLogLevel"
@@ -72,6 +77,22 @@ export interface ChatCompletionStreamInitParams {
   modelId: string;
   chatOpts: ChatOptions;
 }
+export interface CompletionNonStreamingParams {
+  request: CompletionCreateParamsNonStreaming;
+  // The model and chatOpts that the frontend engine expects the backend to be loaded with.
+  // If not loaded due to service worker unexpectedly killed, handler will call reload().
+  // TODO(webllm-team): should add appConfig here as well.
+  modelId: string;
+  chatOpts: ChatOptions;
+}
+export interface CompletionStreamInitParams {
+  request: CompletionCreateParamsStreaming;
+  // The model and chatOpts that the frontend engine expects the backend to be loaded with.
+  // If not loaded due to service worker unexpectedly killed, handler will call reload().
+  // TODO(webllm-team): should add appConfig here as well.
+  modelId: string;
+  chatOpts: ChatOptions;
+}
 
 export interface CustomRequestParams {
   requestName: string;
@@ -85,6 +106,8 @@ export type MessageContent =
   | ForwardTokensAndSampleParams
   | ChatCompletionNonStreamingParams
   | ChatCompletionStreamInitParams
+  | CompletionNonStreamingParams
+  | CompletionStreamInitParams
   | CustomRequestParams
   | InitProgressReport
   | LogLevel
@@ -93,6 +116,7 @@ export type MessageContent =
   | number
   | ChatCompletion
   | ChatCompletionChunk
+  | Completion
   | AppConfig
   | void;
 /**

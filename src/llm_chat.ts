@@ -22,6 +22,7 @@ import {
   WindowSizeConfigurationError,
   WindowSizeSpecificationError,
   MessageOrderError,
+  TextCompletionExpectsKVEmptyError,
 } from "./error";
 
 export class LLMChatPipeline {
@@ -466,8 +467,12 @@ export class LLMChatPipeline {
     const conversation = this.conversation;
 
     // initialize
-    conversation.appendMessage(msgRole, inp, inp_role_str);
-    conversation.appendReplyHeader(Role.assistant);
+    if (conversation.isTextCompletion) {
+      conversation.prompt = inp;
+    } else {
+      conversation.appendMessage(msgRole, inp, inp_role_str);
+      conversation.appendReplyHeader(Role.assistant);
+    }
     const promptTokens = this.getInputTokens();
 
     const tstart = performance.now();
@@ -574,7 +579,9 @@ export class LLMChatPipeline {
     }
     this.stopTriggered = true;
     this.finishReason = "abort";
-    this.conversation.finishReply(this.outputMessage);
+    if (!this.conversation.isTextCompletion) {
+      this.conversation.finishReply(this.outputMessage);
+    }
   }
 
   /**
@@ -656,7 +663,9 @@ export class LLMChatPipeline {
 
     // Finally, modify conversation history if stopped
     if (this.stopTriggered) {
-      this.conversation.finishReply(this.outputMessage);
+      if (!this.conversation.isTextCompletion) {
+        this.conversation.finishReply(this.outputMessage);
+      }
     }
   }
 
@@ -928,16 +937,25 @@ export class LLMChatPipeline {
     let tokens: Array<number> = [];
     let prompts: string[];
     // beginning of the conversation
-    if (this.filledKVCacheLength === 0) {
-      if (
-        this.conversation.config.system_prefix_token_ids !== undefined &&
-        this.conversation.config.system_prefix_token_ids !== null
-      ) {
-        tokens = [...this.conversation.config.system_prefix_token_ids];
+    if (this.conversation.isTextCompletion) {
+      // Non-conversation style
+      if (this.filledKVCacheLength !== 0) {
+        throw new TextCompletionExpectsKVEmptyError();
       }
-      prompts = this.conversation.getPromptArray();
+      prompts = this.conversation.getPromptArrayTextCompletion();
     } else {
-      prompts = this.conversation.getPrompArrayLastRound();
+      // Conversation style
+      if (this.filledKVCacheLength === 0) {
+        if (
+          this.conversation.config.system_prefix_token_ids !== undefined &&
+          this.conversation.config.system_prefix_token_ids !== null
+        ) {
+          tokens = [...this.conversation.config.system_prefix_token_ids];
+        }
+        prompts = this.conversation.getPromptArray();
+      } else {
+        prompts = this.conversation.getPromptArrayLastRound();
+      }
     }
 
     // Encode all prompts

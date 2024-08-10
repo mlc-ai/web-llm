@@ -5,7 +5,11 @@ import {
   ConvTemplateConfig,
   ChatConfig,
 } from "../src/config";
-import { getConversation } from "../src/conversation";
+import {
+  getConversation,
+  getConversationFromChatCompletionRequest,
+  getFunctionCallUsage,
+} from "../src/conversation";
 import { MLCEngine } from "../src/engine";
 import { ChatCompletionRequest } from "../src/openai_api_protocols/chat_completion";
 
@@ -89,8 +93,6 @@ describe("Test gorilla conversation template", () => {
 
 describe("Test gorilla MLCEngine", () => {
   test("Test getFunctionCallUsage none", () => {
-    const engine = new MLCEngine();
-
     const request: ChatCompletionRequest = {
       model: "gorilla-openfunctions-v1-q4f16_1_MLC",
       messages: [
@@ -126,7 +128,7 @@ describe("Test gorilla MLCEngine", () => {
       ],
     };
 
-    expect((engine as any).getFunctionCallUsage(request)).toEqual("");
+    expect(getFunctionCallUsage(request)).toEqual("");
   });
 
   test("Test getFunctionCallUsage auto", () => {
@@ -166,14 +168,12 @@ describe("Test gorilla MLCEngine", () => {
         },
       ],
     };
-    expect((engine as any).getFunctionCallUsage(request)).toEqual(
+    expect(getFunctionCallUsage(request)).toEqual(
       '[{"description":"A","name":"fn_A","parameters":{"foo":"bar"}},{"description":"B","name":"fn_B","parameters":{"foo":"bar"}},{"description":"C","name":"fn_C","parameters":{"foo":"bar"}}]',
     );
   });
 
   test("Test getFunctionCallUsage function", () => {
-    const engine = new MLCEngine();
-
     const request: ChatCompletionRequest = {
       model: "gorilla-openfunctions-v1-q4f16_1_MLC",
       messages: [
@@ -213,7 +213,7 @@ describe("Test gorilla MLCEngine", () => {
         },
       ],
     };
-    expect((engine as any).getFunctionCallUsage(request)).toEqual(
+    expect(getFunctionCallUsage(request)).toEqual(
       '[{"description":"B","name":"fn_B","parameters":{"foo":"bar"}}]',
     );
   });
@@ -263,7 +263,6 @@ describe("Test Hermes2 formatting", () => {
   // Follows https://github.com/NousResearch/Hermes-Function-Calling/blob/96ebfd7c903216b05e1eb7b155f7d5842b0fbce8/README.md#prompt-format
   test("Test formatting", () => {
     const system_prompt = `You are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags. You may call one or more functions to assist with the user query. Don't make assumptions about what values to plug into functions. Here are the available tools: <tools> {"type": "function", "function": {"name": "get_stock_fundamentals", "description": "get_stock_fundamentals(symbol: str) -> dict - Get fundamental data for a given stock symbol using yfinance API.\\n\\n    Args:\\n        symbol (str): The stock symbol.\\n\\n    Returns:\\n        dict: A dictionary containing fundamental data.\\n            Keys:\\n                - \'symbol\': The stock symbol.\\n                - \'company_name\': The long name of the company.\\n                - \'sector\': The sector to which the company belongs.\\n                - \'industry\': The industry to which the company belongs.\\n                - \'market_cap\': The market capitalization of the company.\\n                - \'pe_ratio\': The forward price-to-earnings ratio.\\n                - \'pb_ratio\': The price-to-book ratio.\\n                - \'dividend_yield\': The dividend yield.\\n                - \'eps\': The trailing earnings per share.\\n                - \'beta\': The beta value of the stock.\\n                - \'52_week_high\': The 52-week high price of the stock.\\n                - \'52_week_low\': The 52-week low price of the stock.", "parameters": {"type": "object", "properties": {"symbol": {"type": "string"}}, "required": ["symbol"]}}}  </tools> Use the following pydantic model json schema for each tool call you will make: {"properties": {"arguments": {"title": "Arguments", "type": "object"}, "name": {"title": "Name", "type": "string"}}, "required": ["arguments", "name"], "title": "FunctionCall", "type": "object"} For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows:\n<tool_call>\n{"arguments": <args-dict>, "name": <function-name>}\n</tool_call>`;
-    const engine = new MLCEngine();
     const request: ChatCompletionRequest = {
       messages: [
         { role: "system", content: system_prompt },
@@ -285,7 +284,7 @@ describe("Test Hermes2 formatting", () => {
       ],
     };
     // Since we treat last input as PrefillStep input, last message is not included in `conv`
-    const conv = (engine as any).getConversationFromChatCompletionRequest(
+    const conv = getConversationFromChatCompletionRequest(
       request,
       hermes2LlamaChatConfig,
     );
@@ -418,7 +417,6 @@ describe("Test Llama3.1 formatting", () => {
     - Put the entire function call reply on one line
     - Always add your sources when using search results to answer the user query
     You are a helpful Assistant.`;
-    const engine = new MLCEngine();
     const user1 = "Hey, what's the temperature in Paris right now?";
     const assistant1 = `<function>{"name": "get_current_temperature", "parameters": {"location": "Paris, France"}}</function>`;
     const tool1 = `{"output": 22.5}`;
@@ -443,7 +441,7 @@ describe("Test Llama3.1 formatting", () => {
       ],
     };
     // Since we treat last input as PrefillStep input, last message is not included in `conv`
-    const conv = (engine as any).getConversationFromChatCompletionRequest(
+    const conv = getConversationFromChatCompletionRequest(
       request,
       llama3_1ChatConfig,
     );

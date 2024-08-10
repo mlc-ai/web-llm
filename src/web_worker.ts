@@ -19,8 +19,13 @@ import {
   ChatCompletionRequestNonStreaming,
   ChatCompletion,
   ChatCompletionChunk,
+  Completion,
+  CompletionCreateParamsNonStreaming,
+  CompletionCreateParamsStreaming,
+  CompletionCreateParamsBase,
+  CompletionCreateParams,
 } from "./openai_api_protocols/index";
-import * as API from "./openai_api_protocols/apis";
+import * as API from "./openai_api_protocols/index";
 import {
   MessageContent,
   ReloadParams,
@@ -32,6 +37,8 @@ import {
   GenerateProgressCallbackParams,
   WorkerResponse,
   WorkerRequest,
+  CompletionNonStreamingParams,
+  CompletionStreamInitParams,
 } from "./message";
 import log from "loglevel";
 import { MLCEngine } from "./engine";
@@ -57,16 +64,16 @@ export class WebWorkerMLCEngineHandler {
    *
    * TODO(webllm-team): This is always in-sync with `this.engine` unless device is lost due to
    * unexpected reason. Therefore, we should get it from `this.engine` directly and make handler
-   * stateless. We should also perhaps make `engine` of type `MLCEngine` instead. Besides, consider
-   * if we should add appConfig, or use engine's API to find the corresponding model record rather
-   * than relying on just the modelId.
+   * stateless. Besides, consider if we should add appConfig, or use engine's API to find the
+   * corresponding model record rather than relying on just the modelId.
    */
   modelId?: string;
   chatOpts?: ChatOptions;
 
   public engine: MLCEngine;
-  protected chatCompletionAsyncChunkGenerator?: AsyncGenerator<
-    ChatCompletionChunk,
+  /** ChatCompletion and Completion share the same chunk generator. */
+  protected asyncGenerate?: AsyncGenerator<
+    ChatCompletionChunk | Completion,
     void,
     void
   >;
@@ -180,21 +187,12 @@ export class WebWorkerMLCEngineHandler {
         });
         return;
       }
+      // For engine.chat.completions()
       case "chatCompletionNonStreaming": {
         // Directly return the ChatCompletion response
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ChatCompletionNonStreamingParams;
-          // Check whether frontend expectation matches with backend (modelId and chatOpts)
-          // If not (due to possibly killed service worker), we reload here.
-          if (this.modelId !== params.modelId) {
-            log.warn(
-              "WebWorkerMLCEngine expects model is loaded in WebWorkerMLCEngineHandler, " +
-                "but it is not. This may due to web/service worker is unexpectedly killed. ",
-            );
-            log.info("Reloading engine in WebWorkerMLCEngineHandler.");
-            await this.engine.reload(params.modelId, params.chatOpts);
-          }
-
+          await this.reloadIfUnmatched(params.modelId, params.chatOpts);
           const res = await this.engine.chatCompletion(params.request);
           onComplete?.(res);
           return res;
@@ -205,35 +203,52 @@ export class WebWorkerMLCEngineHandler {
         // One-time set up that instantiates the chunk generator in worker
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ChatCompletionStreamInitParams;
-          // Check whether frontend expectation matches with backend (modelId and chatOpts)
-          // If not (due to possibly killed service worker), we reload here.
-          if (this.modelId !== params.modelId) {
-            log.warn(
-              "WebWorkerMLCEngine expects model is loaded in WebWorkerMLCEngineHandler, " +
-                "but it is not. This may due to web/service worker is unexpectedly killed. ",
-            );
-            log.info("Reloading engine in WebWorkerMLCEngineHandler.");
-            await this.engine.reload(params.modelId, params.chatOpts);
-          }
-          this.chatCompletionAsyncChunkGenerator =
-            (await this.engine.chatCompletion(
-              params.request,
-            )) as AsyncGenerator<ChatCompletionChunk, void, void>;
+          await this.reloadIfUnmatched(params.modelId, params.chatOpts);
+          this.asyncGenerate = (await this.engine.chatCompletion(
+            params.request,
+          )) as AsyncGenerator<ChatCompletionChunk, void, void>;
           onComplete?.(null);
           return null;
         });
         return;
       }
-      case "chatCompletionStreamNextChunk": {
+      // engine.completions()
+      case "completionNonStreaming": {
+        // Directly return the ChatCompletion response
+        this.handleTask(msg.uuid, async () => {
+          const params = msg.content as CompletionNonStreamingParams;
+          await this.reloadIfUnmatched(params.modelId, params.chatOpts);
+          const res = await this.engine.completion(params.request);
+          onComplete?.(res);
+          return res;
+        });
+        return;
+      }
+      case "completionStreamInit": {
+        // One-time set up that instantiates the chunk generator in worker
+        this.handleTask(msg.uuid, async () => {
+          const params = msg.content as CompletionStreamInitParams;
+          await this.reloadIfUnmatched(params.modelId, params.chatOpts);
+          this.asyncGenerate = (await this.engine.completion(
+            params.request,
+          )) as AsyncGenerator<Completion, void, void>;
+          onComplete?.(null);
+          return null;
+        });
+        return;
+      }
+      // Shared by engine.chat.completions() and engine.completions()
+      case "completionStreamNextChunk": {
+        // Note: ChatCompletion and Completion share the same chunk generator.
         // For any subsequent request, we return whatever `next()` yields
         this.handleTask(msg.uuid, async () => {
-          if (this.chatCompletionAsyncChunkGenerator === undefined) {
+          if (this.asyncGenerate === undefined) {
             throw Error(
               "Chunk generator in worker should be instantiated by now.",
             );
           }
           // Yield the next chunk
-          const { value } = await this.chatCompletionAsyncChunkGenerator.next();
+          const { value } = await this.asyncGenerate.next();
           onComplete?.(value);
           return value;
         });
@@ -327,6 +342,23 @@ export class WebWorkerMLCEngineHandler {
       }
     }
   }
+
+  /** Check whether frontend expectation matches with backend (modelId and chatOpts). If not (due
+   * to possibly killed service worker), we reload here.
+   */
+  async reloadIfUnmatched(
+    expectedModelId: string,
+    expectedChatOpts: ChatOptions,
+  ) {
+    if (this.modelId !== expectedModelId) {
+      log.warn(
+        "WebWorkerMLCEngine expects model is loaded in WebWorkerMLCEngineHandler, " +
+          "but it is not. This may due to web/service worker is unexpectedly killed.\n" +
+          "Reloading engine in WebWorkerMLCEngineHandler.",
+      );
+      await this.engine.reload(expectedModelId, expectedChatOpts);
+    }
+  }
 }
 
 export interface ChatWorker {
@@ -370,7 +402,10 @@ export async function CreateWebWorkerMLCEngine(
  */
 export class WebWorkerMLCEngine implements MLCEngineInterface {
   public worker: ChatWorker;
+  /** For chat.completions.create() */
   public chat: API.Chat;
+  /** For completions.create() */
+  public completions: API.Completions;
 
   /**
    * The modelId and chatOpts that the frontend expects the backend engine is currently loaded
@@ -409,6 +444,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
     }
 
     this.chat = new API.Chat(this);
+    this.completions = new API.Completions(this);
   }
 
   setInitProgressCallback(initProgressCallback?: InitProgressCallback) {
@@ -586,16 +622,18 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
    * decode one step, and we expect to receive a message of `ChatCompletionChunk` from
    * the worker which we yield. The last message is `void`, meaning the generator has nothing
    * to yield anymore.
+   *
+   * @note ChatCompletion and Completion share the same chunk generator.
    */
-  async *chatCompletionAsyncChunkGenerator(): AsyncGenerator<
-    ChatCompletionChunk,
+  async *asyncGenerate(): AsyncGenerator<
+    ChatCompletionChunk | Completion,
     void,
     void
   > {
     // Every time it gets called, sends message to worker, asking for the next chunk
     while (true) {
       const msg: WorkerRequest = {
-        kind: "chatCompletionStreamNextChunk",
+        kind: "completionStreamNextChunk",
         uuid: crypto.randomUUID(),
         content: null,
       };
@@ -638,7 +676,11 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
       await this.getPromise<null>(msg);
 
       // Then return an async chunk generator that resides on the client side
-      return this.chatCompletionAsyncChunkGenerator();
+      return this.asyncGenerate() as AsyncGenerator<
+        ChatCompletionChunk,
+        void,
+        void
+      >;
     }
 
     // Non streaming case is more straightforward
@@ -652,6 +694,51 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
       },
     };
     return await this.getPromise<ChatCompletion>(msg);
+  }
+
+  async completion(
+    request: CompletionCreateParamsNonStreaming,
+  ): Promise<Completion>;
+  async completion(
+    request: CompletionCreateParamsStreaming,
+  ): Promise<AsyncIterable<Completion>>;
+  async completion(
+    request: CompletionCreateParamsBase,
+  ): Promise<AsyncIterable<Completion> | Completion>;
+  async completion(
+    request: CompletionCreateParams,
+  ): Promise<AsyncIterable<Completion> | Completion> {
+    if (this.modelId === undefined) {
+      throw new WorkerEngineModelNotLoadedError(this.constructor.name);
+    }
+    if (request.stream) {
+      // First let worker instantiate a generator
+      const msg: WorkerRequest = {
+        kind: "completionStreamInit",
+        uuid: crypto.randomUUID(),
+        content: {
+          request: request,
+          modelId: this.modelId,
+          chatOpts: this.chatOpts,
+        },
+      };
+      await this.getPromise<null>(msg);
+
+      // Then return an async chunk generator that resides on the client side
+      return this.asyncGenerate() as AsyncGenerator<Completion, void, void>;
+    }
+
+    // Non streaming case is more straightforward
+    const msg: WorkerRequest = {
+      kind: "completionNonStreaming",
+      uuid: crypto.randomUUID(),
+      content: {
+        request: request,
+        modelId: this.modelId,
+        chatOpts: this.chatOpts,
+      },
+    };
+    return await this.getPromise<Completion>(msg);
   }
 
   onmessage(event: any) {

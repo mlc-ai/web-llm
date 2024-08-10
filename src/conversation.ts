@@ -1,4 +1,25 @@
-import { ConvTemplateConfig, MessagePlaceholders, Role } from "./config";
+import {
+  ChatConfig,
+  ConvTemplateConfig,
+  MessagePlaceholders,
+  Role,
+} from "./config";
+import {
+  ChatCompletionMessageParam,
+  ChatCompletionRequest,
+} from "./openai_api_protocols/index";
+import {
+  ContentTypeError,
+  FunctionNotFoundError,
+  InvalidToolChoiceError,
+  MessageOrderError,
+  SystemMessageOrderError,
+  TextCompletionConversationError,
+  TextCompletionConversationExpectsPrompt,
+  UnsupportedRoleError,
+  UnsupportedToolChoiceTypeError,
+  UnsupportedToolTypeError,
+} from "./error";
 
 /**
  * Helper to keep track of history conversations.
@@ -8,6 +29,11 @@ export class Conversation {
   public messages: Array<[Role, string, string | undefined]> = [];
   readonly config: ConvTemplateConfig;
 
+  /** Whether the Conversation object is for text completion with no conversation-style formatting */
+  public isTextCompletion: boolean;
+  /** Used when isTextCompletion is true */
+  public prompt: string | undefined;
+
   public function_string = "";
   public use_function_calling = false;
   public override_system_message?: string = undefined;
@@ -15,8 +41,9 @@ export class Conversation {
   // TODO(tvm-team) confirm and remove
   // private contextWindowStart = 0;
 
-  constructor(config: ConvTemplateConfig) {
+  constructor(config: ConvTemplateConfig, isTextCompletion = false) {
     this.config = config;
+    this.isTextCompletion = isTextCompletion;
   }
 
   private getPromptArrayInternal(addSystem: boolean, startPos: number) {
@@ -96,6 +123,9 @@ export class Conversation {
    * @returns The prompt array.
    */
   getPromptArray(): Array<string> {
+    if (this.isTextCompletion) {
+      throw new TextCompletionConversationError("getPromptArray");
+    }
     return this.getPromptArrayInternal(true, 0);
   }
 
@@ -107,11 +137,24 @@ export class Conversation {
    *
    * @returns The prompt array.
    */
-  getPrompArrayLastRound() {
+  getPromptArrayLastRound() {
+    if (this.isTextCompletion) {
+      throw new TextCompletionConversationError("getPromptyArrayLastRound");
+    }
     if (this.messages.length < 3) {
       throw Error("needs to call getPromptArray for the first message");
     }
     return this.getPromptArrayInternal(false, this.messages.length - 2);
+  }
+
+  /**
+   * Return prompt in an array for non-conversation text completion.
+   */
+  getPromptArrayTextCompletion(): Array<string> {
+    if (!this.isTextCompletion || this.prompt === undefined) {
+      throw new TextCompletionConversationExpectsPrompt();
+    }
+    return [this.prompt];
   }
 
   /**
@@ -123,6 +166,8 @@ export class Conversation {
     this.override_system_message = undefined;
     this.function_string = "";
     this.use_function_calling = false;
+    this.isTextCompletion = false;
+    this.prompt = undefined;
   }
 
   getStopStr(): string[] {
@@ -137,6 +182,9 @@ export class Conversation {
   }
 
   appendMessage(role: Role, message: string, role_name?: string) {
+    if (this.isTextCompletion) {
+      throw new TextCompletionConversationError("appendMessage");
+    }
     if (
       this.messages.length != 0 &&
       this.messages[this.messages.length - 1][2] == undefined
@@ -151,6 +199,9 @@ export class Conversation {
   }
 
   appendReplyHeader(role: Role) {
+    if (this.isTextCompletion) {
+      throw new TextCompletionConversationError("appendReplyHeader");
+    }
     if (!(role in this.config.roles)) {
       throw Error("Role is not supported: " + role);
     }
@@ -158,6 +209,9 @@ export class Conversation {
   }
 
   finishReply(message: string) {
+    if (this.isTextCompletion) {
+      throw new TextCompletionConversationError("finishReply");
+    }
     if (this.messages.length == 0) {
       throw Error("Message error should not be 0");
     }
@@ -171,9 +225,13 @@ export class Conversation {
 export function getConversation(
   conv_template: ConvTemplateConfig,
   conv_config?: Partial<ConvTemplateConfig>,
+  isTextCompletion = false,
 ): Conversation {
   // Update with conv_config
-  return new Conversation({ ...conv_template, ...conv_config });
+  return new Conversation(
+    { ...conv_template, ...conv_config },
+    isTextCompletion,
+  );
 }
 
 /**
@@ -194,7 +252,8 @@ export function compareConversationObject(
     convA.function_string !== convB.function_string ||
     convA.use_function_calling !== convB.use_function_calling ||
     convA.override_system_message !== convB.override_system_message ||
-    convA.messages.length !== convB.messages.length
+    convA.messages.length !== convB.messages.length ||
+    convA.isTextCompletion !== convB.isTextCompletion
   ) {
     return false;
   }
@@ -215,4 +274,118 @@ export function compareConversationObject(
     }
   }
   return true;
+}
+
+/**
+ * Get a new Conversation object based on the chat completion request.
+ *
+ * @param request The incoming ChatCompletionRequest
+ * @note `request.messages[-1]` is not included as it would be treated as a normal input to
+ * `prefill()`.
+ */
+export function getConversationFromChatCompletionRequest(
+  request: ChatCompletionRequest,
+  config: ChatConfig,
+): Conversation {
+  // 0. Instantiate a new Conversation object
+  const conversation = getConversation(
+    config.conv_template,
+    config.conv_config,
+  );
+
+  // 1. Populate function-calling-related fields
+  // TODO: either remove these or support gorilla-like function calling models.
+  // These commented code was used to support gorilla, but we could not use grammar to
+  // guarantee its output, nor make it conform to OpenAI's function calling output. Kept for now.
+  // const functionCallUsage = this.getFunctionCallUsage(request);
+  // conversation.function_string = functionCallUsage;
+  // conversation.use_function_calling = functionCallUsage !== "";
+
+  // 2. Populate conversation.messages
+  const input = request.messages;
+  const lastId = input.length - 1;
+  if (
+    (input[lastId].role !== "user" && input[lastId].role !== "tool") ||
+    typeof input[lastId].content !== "string"
+  ) {
+    // TODO(Charlie): modify condition after we support multimodal inputs
+    throw new MessageOrderError(
+      "The last message should be a string from the `user` or `tool`.",
+    );
+  }
+  for (let i = 0; i < input.length - 1; i++) {
+    const message: ChatCompletionMessageParam = input[i];
+    if (message.role === "system") {
+      if (i !== 0) {
+        throw new SystemMessageOrderError();
+      }
+      conversation.override_system_message = message.content;
+    } else if (message.role === "user") {
+      if (typeof message.content !== "string") {
+        // TODO(Charlie): modify condition after we support multimodal inputs
+        throw new ContentTypeError(message.role + "'s message");
+      }
+      conversation.appendMessage(Role.user, message.content, message.name);
+    } else if (message.role === "assistant") {
+      if (typeof message.content !== "string") {
+        throw new ContentTypeError(message.role + "'s message");
+      }
+      conversation.appendMessage(Role.assistant, message.content, message.name);
+    } else if (message.role === "tool") {
+      conversation.appendMessage(Role.tool, message.content);
+    } else {
+      // Use `["role"]` instead of `.role` to suppress "Property does not exist on type 'never'"
+      throw new UnsupportedRoleError(message["role"]);
+    }
+  }
+  return conversation;
+}
+
+/**
+ * Returns the function string based on the request.tools and request.tool_choice, raises erros if
+ * encounter invalid request.
+ *
+ * @param request The chatCompletionRequest we are about to prefill for.
+ * @returns The string used to set Conversatoin.function_string
+ */
+export function getFunctionCallUsage(request: ChatCompletionRequest): string {
+  if (
+    request.tools == undefined ||
+    (typeof request.tool_choice == "string" && request.tool_choice == "none")
+  ) {
+    return "";
+  }
+  if (
+    typeof request.tool_choice == "string" &&
+    request.tool_choice !== "auto"
+  ) {
+    throw new InvalidToolChoiceError(request.tool_choice);
+  }
+  if (
+    typeof request.tool_choice !== "string" &&
+    request.tool_choice?.type !== "function"
+  ) {
+    throw new UnsupportedToolChoiceTypeError();
+  }
+
+  const singleFunctionToCall =
+    typeof request.tool_choice !== "string" &&
+    request.tool_choice?.function?.name;
+  if (singleFunctionToCall) {
+    for (const f of request.tools) {
+      if (singleFunctionToCall == f.function.name) {
+        return JSON.stringify([f.function]);
+      }
+    }
+    throw new FunctionNotFoundError(singleFunctionToCall);
+  }
+
+  const function_list = [];
+  for (const f of request.tools) {
+    if (f.type !== "function") {
+      throw new UnsupportedToolTypeError();
+    }
+    function_list.push(f.function);
+  }
+  return JSON.stringify(function_list);
 }
