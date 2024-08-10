@@ -5,11 +5,16 @@ import {
   ConvTemplateConfig,
   ChatConfig,
 } from "../src/config";
-import { getConversation } from "../src/conversation";
+import {
+  getConversation,
+  getConversationFromChatCompletionRequest,
+  getFunctionCallUsage,
+} from "../src/conversation";
 import { MLCEngine } from "../src/engine";
 import { ChatCompletionRequest } from "../src/openai_api_protocols/chat_completion";
 
 import { describe, expect, test } from "@jest/globals";
+import { llama3_1ChatConfig } from "./constants";
 
 describe("Test gorilla conversation template", () => {
   const gorillaConv: ConvTemplateConfig = {
@@ -89,8 +94,6 @@ describe("Test gorilla conversation template", () => {
 
 describe("Test gorilla MLCEngine", () => {
   test("Test getFunctionCallUsage none", () => {
-    const engine = new MLCEngine();
-
     const request: ChatCompletionRequest = {
       model: "gorilla-openfunctions-v1-q4f16_1_MLC",
       messages: [
@@ -126,7 +129,7 @@ describe("Test gorilla MLCEngine", () => {
       ],
     };
 
-    expect((engine as any).getFunctionCallUsage(request)).toEqual("");
+    expect(getFunctionCallUsage(request)).toEqual("");
   });
 
   test("Test getFunctionCallUsage auto", () => {
@@ -166,14 +169,12 @@ describe("Test gorilla MLCEngine", () => {
         },
       ],
     };
-    expect((engine as any).getFunctionCallUsage(request)).toEqual(
+    expect(getFunctionCallUsage(request)).toEqual(
       '[{"description":"A","name":"fn_A","parameters":{"foo":"bar"}},{"description":"B","name":"fn_B","parameters":{"foo":"bar"}},{"description":"C","name":"fn_C","parameters":{"foo":"bar"}}]',
     );
   });
 
   test("Test getFunctionCallUsage function", () => {
-    const engine = new MLCEngine();
-
     const request: ChatCompletionRequest = {
       model: "gorilla-openfunctions-v1-q4f16_1_MLC",
       messages: [
@@ -213,7 +214,7 @@ describe("Test gorilla MLCEngine", () => {
         },
       ],
     };
-    expect((engine as any).getFunctionCallUsage(request)).toEqual(
+    expect(getFunctionCallUsage(request)).toEqual(
       '[{"description":"B","name":"fn_B","parameters":{"foo":"bar"}}]',
     );
   });
@@ -263,7 +264,6 @@ describe("Test Hermes2 formatting", () => {
   // Follows https://github.com/NousResearch/Hermes-Function-Calling/blob/96ebfd7c903216b05e1eb7b155f7d5842b0fbce8/README.md#prompt-format
   test("Test formatting", () => {
     const system_prompt = `You are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags. You may call one or more functions to assist with the user query. Don't make assumptions about what values to plug into functions. Here are the available tools: <tools> {"type": "function", "function": {"name": "get_stock_fundamentals", "description": "get_stock_fundamentals(symbol: str) -> dict - Get fundamental data for a given stock symbol using yfinance API.\\n\\n    Args:\\n        symbol (str): The stock symbol.\\n\\n    Returns:\\n        dict: A dictionary containing fundamental data.\\n            Keys:\\n                - \'symbol\': The stock symbol.\\n                - \'company_name\': The long name of the company.\\n                - \'sector\': The sector to which the company belongs.\\n                - \'industry\': The industry to which the company belongs.\\n                - \'market_cap\': The market capitalization of the company.\\n                - \'pe_ratio\': The forward price-to-earnings ratio.\\n                - \'pb_ratio\': The price-to-book ratio.\\n                - \'dividend_yield\': The dividend yield.\\n                - \'eps\': The trailing earnings per share.\\n                - \'beta\': The beta value of the stock.\\n                - \'52_week_high\': The 52-week high price of the stock.\\n                - \'52_week_low\': The 52-week low price of the stock.", "parameters": {"type": "object", "properties": {"symbol": {"type": "string"}}, "required": ["symbol"]}}}  </tools> Use the following pydantic model json schema for each tool call you will make: {"properties": {"arguments": {"title": "Arguments", "type": "object"}, "name": {"title": "Name", "type": "string"}}, "required": ["arguments", "name"], "title": "FunctionCall", "type": "object"} For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows:\n<tool_call>\n{"arguments": <args-dict>, "name": <function-name>}\n</tool_call>`;
-    const engine = new MLCEngine();
     const request: ChatCompletionRequest = {
       messages: [
         { role: "system", content: system_prompt },
@@ -285,7 +285,7 @@ describe("Test Hermes2 formatting", () => {
       ],
     };
     // Since we treat last input as PrefillStep input, last message is not included in `conv`
-    const conv = (engine as any).getConversationFromChatCompletionRequest(
+    const conv = getConversationFromChatCompletionRequest(
       request,
       hermes2LlamaChatConfig,
     );
@@ -307,47 +307,6 @@ describe("Test Hermes2 formatting", () => {
 });
 
 describe("Test Llama3.1 formatting", () => {
-  const llama3_1ChatConfig: ChatConfig = {
-    vocab_size: 128256,
-    context_window_size: 131072,
-    sliding_window_size: -1,
-    attention_sink_size: -1,
-    temperature: 0.6,
-    presence_penalty: 0.0,
-    frequency_penalty: 0.0,
-    repetition_penalty: 1.0,
-    top_p: 0.9,
-    tokenizer_files: ["tokenizer.json", "tokenizer_config.json"],
-    tokenizer_info: {
-      token_postproc_method: "byte_level",
-      prepend_space_in_encode: false,
-      strip_space_in_decode: false,
-    },
-    conv_template: {
-      system_template:
-        "<|start_header_id|>system<|end_header_id|>\n\n{system_message}<|eot_id|>",
-      system_message: "You are a helpful, respectful and honest assistant.",
-      system_prefix_token_ids: [128000],
-      add_role_after_system_message: true,
-      roles: {
-        user: "<|start_header_id|>user",
-        assistant: "<|start_header_id|>assistant",
-        tool: "<|start_header_id|>ipython",
-      },
-      role_templates: {
-        user: "{user_message}",
-        assistant: "{assistant_message}",
-        tool: "{tool_message}",
-      },
-      seps: ["<|eot_id|>"],
-      role_content_sep: "<|end_header_id|>\n\n",
-      role_empty_sep: "<|end_header_id|>\n\n",
-      stop_str: [],
-      stop_token_ids: [128001, 128008, 128009],
-    },
-    bos_token_id: 128000,
-  };
-
   // Follows https://github.com/NousResearch/Hermes-Function-Calling/blob/96ebfd7c903216b05e1eb7b155f7d5842b0fbce8/README.md#prompt-format
   test("Test formatting", () => {
     const system_prompt = `Cutting Knowledge Date: December 2023
@@ -418,7 +377,6 @@ describe("Test Llama3.1 formatting", () => {
     - Put the entire function call reply on one line
     - Always add your sources when using search results to answer the user query
     You are a helpful Assistant.`;
-    const engine = new MLCEngine();
     const user1 = "Hey, what's the temperature in Paris right now?";
     const assistant1 = `<function>{"name": "get_current_temperature", "parameters": {"location": "Paris, France"}}</function>`;
     const tool1 = `{"output": 22.5}`;
@@ -443,7 +401,7 @@ describe("Test Llama3.1 formatting", () => {
       ],
     };
     // Since we treat last input as PrefillStep input, last message is not included in `conv`
-    const conv = (engine as any).getConversationFromChatCompletionRequest(
+    const conv = getConversationFromChatCompletionRequest(
       request,
       llama3_1ChatConfig,
     );

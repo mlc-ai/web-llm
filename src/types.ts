@@ -6,8 +6,13 @@ import {
   ChatCompletionRequestNonStreaming,
   ChatCompletion,
   ChatCompletionChunk,
+  CompletionCreateParams,
+  Completion,
+  CompletionCreateParamsBase,
+  CompletionCreateParamsStreaming,
+  CompletionCreateParamsNonStreaming,
 } from "./openai_api_protocols/index";
-import * as API from "./openai_api_protocols/apis";
+import * as API from "./openai_api_protocols/index";
 
 /**
  * Report during intialization.
@@ -65,6 +70,11 @@ export interface MLCEngineInterface {
    * An object that exposes chat-related APIs.
    */
   chat: API.Chat;
+
+  /**
+   * An object that exposes text completion APIs.
+   */
+  completions: API.Completions;
 
   /**
    * Set an initialization progress callback function
@@ -138,6 +148,17 @@ export interface MLCEngineInterface {
   chatCompletion(
     request: ChatCompletionRequest,
   ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion>;
+
+  completion(request: CompletionCreateParamsNonStreaming): Promise<Completion>;
+  completion(
+    request: CompletionCreateParamsStreaming,
+  ): Promise<AsyncIterable<Completion>>;
+  completion(
+    request: CompletionCreateParamsBase,
+  ): Promise<AsyncIterable<Completion> | Completion>;
+  completion(
+    request: CompletionCreateParams,
+  ): Promise<AsyncIterable<Completion> | Completion>;
 
   /**
    * @returns A text summarizing the runtime stats.

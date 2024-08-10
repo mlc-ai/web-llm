@@ -194,9 +194,9 @@ export class FeatureSupportError extends Error {
 }
 
 export class UnsupportedFieldsError extends Error {
-  constructor(unsupportedFields: string[]) {
+  constructor(unsupportedFields: string[], targetClass: string) {
     super(
-      "The following fields in ChatCompletionRequest are not yet supported: \n" +
+      `The following fields in ${targetClass} are not yet supported: \n` +
         unsupportedFields.join(", "),
     );
     this.name = "UnsupportedFieldsError";
@@ -398,5 +398,28 @@ export class UnknownMessageKindError extends Error {
   constructor(msgKind: string, msgContent: any) {
     super(`Unknown message kind, msg: [${msgKind}] ${msgContent}`);
     this.name = "UnknownMessageKindError";
+  }
+}
+
+export class TextCompletionExpectsKVEmptyError extends Error {
+  constructor() {
+    super("Non-chat text completion API expects KVCache to be empty.");
+    this.name = "TextCompletionExpectsKVEmptyError";
+  }
+}
+
+export class TextCompletionConversationExpectsPrompt extends Error {
+  constructor() {
+    super(
+      "Non-chat text completion API expects isTextCompletion is true, and prompt is defined.",
+    );
+    this.name = "TextCompletionConversationExpectsPrompt";
+  }
+}
+
+export class TextCompletionConversationError extends Error {
+  constructor(funcName: string) {
+    super(`Non-chat text completion API cannot call ${funcName}.`);
+    this.name = "TextCompletionConversationError";
   }
 }
