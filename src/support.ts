@@ -1,6 +1,15 @@
 /** Util methods. */
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
 import { MessagePlaceholders } from "./config";
+import {
+  ChatCompletionChunk,
+  ChatCompletionMessageToolCall,
+} from "./openai_api_protocols/index";
+import {
+  ToolCallOutputInvalidTypeError,
+  ToolCallOutputMissingFieldsError,
+  ToolCallOutputParseError,
+} from "./error";
 
 /**
  * Based on `p_prob` of size (vocabSize,) which becomes a distribution after calling
@@ -105,3 +114,86 @@ to assist with the user query. Don't make assumptions about what values to plug 
 are the available tools: <tools> ${MessagePlaceholders.hermes_tools}  </tools>. 
 Use the following pydantic model json schema for each tool call you will make: 
 ${officialHermes2FunctionCallSchema} For each function call return a json object.`;
+
+/**
+ * Given a string outputMessage, parse it as a JSON object and return an array of tool calls.
+ *
+ * Expect outputMessage to be a valid JSON string, and expect it to be an array of Function with
+ * fields `arguments` and `name`.
+ */
+export function getToolCallFromOutputMessage(
+  outputMessage: string,
+  isStreaming: false,
+): Array<ChatCompletionMessageToolCall>;
+export function getToolCallFromOutputMessage(
+  outputMessage: string,
+  isStreaming: true,
+): Array<ChatCompletionChunk.Choice.Delta.ToolCall>;
+export function getToolCallFromOutputMessage(
+  outputMessage: string,
+  isStreaming: boolean,
+):
+  | Array<ChatCompletionMessageToolCall>
+  | Array<ChatCompletionChunk.Choice.Delta.ToolCall> {
+  // 1. Parse outputMessage to JSON object
+  let toolCallsObject;
+  try {
+    toolCallsObject = JSON.parse(outputMessage);
+  } catch (err) {
+    throw new ToolCallOutputParseError(outputMessage, err as Error);
+  }
+
+  // 2. Expect to be an array
+  if (!(toolCallsObject instanceof Array)) {
+    throw new ToolCallOutputInvalidTypeError("array");
+  }
+
+  // 3. Parse each tool call and populate tool_calls
+  const numToolCalls = toolCallsObject.length;
+  const tool_calls = [];
+  for (let id = 0; id < numToolCalls; id++) {
+    const curToolCall = toolCallsObject[id];
+    if (curToolCall.name === undefined || curToolCall.arguments === undefined) {
+      throw new ToolCallOutputMissingFieldsError(
+        ["name", "arguments"],
+        curToolCall,
+      );
+    }
+    tool_calls.push({
+      name: curToolCall.name,
+      arguments: JSON.stringify(curToolCall.arguments),
+    });
+  }
+
+  // 4. Return based on whether it is streaming or not
+  if (isStreaming) {
+    const tool_calls_result: Array<ChatCompletionChunk.Choice.Delta.ToolCall> =
+      [];
+    for (let id = 0; id < numToolCalls; id++) {
+      const curToolCall = tool_calls[id];
+      tool_calls_result.push({
+        index: id,
+        function: {
+          name: curToolCall.name,
+          arguments: curToolCall.arguments,
+        },
+        type: "function",
+      });
+    }
+    return tool_calls_result;
+  } else {
+    const tool_calls_result: Array<ChatCompletionMessageToolCall> = [];
+    for (let id = 0; id < numToolCalls; id++) {
+      const curToolCall = tool_calls[id];
+      tool_calls_result.push({
+        id: id.toString(),
+        function: {
+          name: curToolCall.name,
+          arguments: curToolCall.arguments,
+        },
+        type: "function",
+      });
+    }
+    return tool_calls_result;
+  }
+}

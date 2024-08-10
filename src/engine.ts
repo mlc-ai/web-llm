@@ -1,6 +1,5 @@
 import * as tvmjs from "tvmjs";
 import log from "loglevel";
-import { Tokenizer } from "@mlc-ai/web-tokenizers";
 import {
   ChatConfig,
   ChatOptions,
@@ -46,7 +45,7 @@ import {
   getConversation,
   getConversationFromChatCompletionRequest,
 } from "./conversation";
-import { cleanModelUrl } from "./support";
+import { cleanModelUrl, getToolCallFromOutputMessage } from "./support";
 import {
   ChatModuleNotInitializedError,
   ConfigurationNotInitializedError,
@@ -56,12 +55,9 @@ import {
   ModelNotFoundError,
   ModelNotLoadedError,
   ShaderF16SupportError,
-  ToolCallOutputInvalidTypeError,
-  ToolCallOutputMissingFieldsError,
-  ToolCallOutputParseError,
-  UnsupportedTokenizerFilesError,
   WebGPUNotAvailableError,
 } from "./error";
+import { asyncLoadTokenizer } from "./cache_util";
 
 /**
  * Creates `MLCEngine`, and loads `modelId` onto WebGPU.
@@ -89,7 +85,8 @@ export async function CreateMLCEngine(
 /**
  * The main interface of MLCEngine, which loads a model and performs tasks.
  *
- * You can either initialize one with `webllm.CreateMLCEngine(modelId)`, or `webllm.MLCEngine().reload(modelId)`.
+ * You can either initialize one with `webllm.CreateMLCEngine(modelId)`, or
+ * `webllm.MLCEngine().reload(modelId)`.
  */
 export class MLCEngine implements MLCEngineInterface {
   /** For chat.completions.create() */
@@ -119,6 +116,10 @@ export class MLCEngine implements MLCEngineInterface {
     this.completions = new API.Completions(this);
   }
 
+  //-----------------------
+  // 0. Setters and getters
+  //-----------------------
+
   setAppConfig(appConfig: AppConfig) {
     this.appConfig = appConfig;
   }
@@ -136,6 +137,10 @@ export class MLCEngine implements MLCEngineInterface {
   ) {
     this.logitProcessorRegistry = logitProcessorRegistry;
   }
+
+  //----------------------------------------
+  // 1. Model/pipeline loading and unloading
+  //----------------------------------------
 
   /**
    * Reload model `modelId`.
@@ -286,10 +291,11 @@ export class MLCEngine implements MLCEngineInterface {
     });
     tvm.initWebGPU(gpuDetectOutput.device);
 
-    const tokenizer = await this.asyncLoadTokenizer(
+    const tokenizer = await asyncLoadTokenizer(
       modelUrl,
       this.config,
       this.appConfig,
+      this.logger,
     );
     const cacheType = this.appConfig.useIndexedDBCache ? "indexeddb" : "cache";
     await tvm.fetchNDArrayCache(
@@ -323,20 +329,28 @@ export class MLCEngine implements MLCEngineInterface {
     }
   }
 
-  async generate(
-    input: string | ChatCompletionRequestNonStreaming,
-    progressCallback?: GenerateProgressCallback,
-    streamInterval = 1,
-    genConfig?: GenerationConfig,
-  ): Promise<string> {
-    log.warn(
-      "WARNING: `generate()` will soon be deprecated. " +
-        "Please use `engine.chat.completions.create()` instead. " +
-        "For multi-round chatting, see `examples/multi-round-chat` on how to use " +
-        "`engine.chat.completions.create()` to achieve the same effect.",
-    );
-    return this._generate(input, progressCallback, streamInterval, genConfig);
+  /**
+   * Unloads the currently loaded model and destroy the webgpu device. Waits
+   * until the webgpu device finishes all submitted work and destroys itself.
+   * @note This is an asynchronous function.
+   */
+  async unload() {
+    this.deviceLostIsError = false; // so that unload() does not trigger device.lost error
+    this.pipeline?.dispose();
+    // Wait until device is actually destroyed so we can safely set deviceLostIsError back to true
+    await this.pipeline?.sync();
+    this.pipeline = undefined;
+    this.currentModelId = undefined;
+    this.deviceLostIsError = true;
+    if (this.reloadController) {
+      this.reloadController.abort("Engine.unload() is called.");
+      this.reloadController = undefined;
+    }
   }
+
+  //---------------------------------------------------
+  // 2. Underlying auto-regressive generation functions
+  //---------------------------------------------------
 
   private async _generate(
     input:
@@ -369,7 +383,7 @@ export class MLCEngine implements MLCEngineInterface {
   }
 
   /**
-   * Similar to `generate()`; but instead of using callback, we use an async iterable.
+   * Similar to `_generate()`; but instead of using callback, we use an async iterable.
    * @param request Request for chat completion.
    * @param genConfig Generation config extraced from `request`.
    */
@@ -512,7 +526,7 @@ export class MLCEngine implements MLCEngineInterface {
       // If stopped due to length or abort, cannot output return tool_calls field
       finish_reason = "tool_calls";
       const outputMessage = await this.getMessage();
-      tool_calls = this.getToolCallFromOutputMessage(
+      tool_calls = getToolCallFromOutputMessage(
         outputMessage,
         /*isStreaming=*/ true,
       ) as Array<ChatCompletionChunk.Choice.Delta.ToolCall>;
@@ -597,6 +611,32 @@ export class MLCEngine implements MLCEngineInterface {
     }
   }
 
+  async interruptGenerate() {
+    this.interruptSignal = true;
+  }
+
+  //------------------------------
+  // 3. High-level generation APIs
+  //------------------------------
+
+  /**
+   * A legacy E2E generation API. Functionally equivalent to `chatCompletion()`.
+   */
+  async generate(
+    input: string | ChatCompletionRequestNonStreaming,
+    progressCallback?: GenerateProgressCallback,
+    streamInterval = 1,
+    genConfig?: GenerationConfig,
+  ): Promise<string> {
+    log.warn(
+      "WARNING: `generate()` will soon be deprecated. " +
+        "Please use `engine.chat.completions.create()` instead. " +
+        "For multi-round chatting, see `examples/multi-round-chat` on how to use " +
+        "`engine.chat.completions.create()` to achieve the same effect.",
+    );
+    return this._generate(input, progressCallback, streamInterval, genConfig);
+  }
+
   /**
    * Completes a single ChatCompletionRequest.
    *
@@ -635,7 +675,7 @@ export class MLCEngine implements MLCEngineInterface {
       response_format: request.response_format,
     };
 
-    // 1. If request is streaming, return an AsyncIterable (an iterable version of `generate()`)
+    // 1. If request is streaming, return an AsyncIterable (an iterable version of `_generate()`)
     if (request.stream) {
       return this.asyncGenerate(request, genConfig);
     }
@@ -644,7 +684,7 @@ export class MLCEngine implements MLCEngineInterface {
       this.getPipeline().setSeed(request.seed);
     }
 
-    // 2. If request is non-streaming, directly reuse `generate()`
+    // 2. If request is non-streaming, directly reuse `_generate()`
     const n = request.n ? request.n : 1;
     const choices: Array<ChatCompletion.Choice> = [];
     let completion_tokens = 0;
@@ -674,7 +714,7 @@ export class MLCEngine implements MLCEngineInterface {
       if (this.getFinishReason()! == "stop" && isFunctionCalling) {
         // If stopped due to length or abort, cannot output return tool_calls field
         finish_reason = "tool_calls";
-        tool_calls = this.getToolCallFromOutputMessage(
+        tool_calls = getToolCallFromOutputMessage(
           outputMessage,
           /*isStreaming=*/ false,
         );
@@ -767,7 +807,7 @@ export class MLCEngine implements MLCEngineInterface {
       top_logprobs: request.top_logprobs,
     };
 
-    // 1. If request is streaming, return an AsyncIterable (an iterable version of `generate()`)
+    // 1. If request is streaming, return an AsyncIterable (an iterable version of `_generate()`)
     if (request.stream) {
       return this.asyncGenerate(request, genConfig);
     }
@@ -776,7 +816,7 @@ export class MLCEngine implements MLCEngineInterface {
       this.getPipeline().setSeed(request.seed);
     }
 
-    // 2. If request is non-streaming, directly reuse `generate()`
+    // 2. If request is non-streaming, directly reuse `_generate()`
     const n = request.n ? request.n : 1;
     const choices: Array<CompletionChoice> = [];
     let completion_tokens = 0;
@@ -840,42 +880,9 @@ export class MLCEngine implements MLCEngineInterface {
     return response;
   }
 
-  async interruptGenerate() {
-    this.interruptSignal = true;
-  }
-
-  async runtimeStatsText(): Promise<string> {
-    log.warn(
-      "WARNING: `runtimeStatsText()` will soon be deprecated. " +
-        "Please use `ChatCompletion.usage` for non-streaming requests, or " +
-        "`ChatCompletionChunk.usage` for streaming requests, enabled by `stream_options`. " +
-        "The only flow that expects to use `runtimeStatsText()` as of now is `forwardTokensAndSample()`.",
-    );
-    return this.getPipeline().runtimeStatsText();
-  }
-
-  async resetChat(keepStats = false) {
-    this.pipeline?.resetChat(keepStats);
-  }
-
-  /**
-   * Unloads the currently loaded model and destroy the webgpu device. Waits
-   * until the webgpu device finishes all submitted work and destroys itself.
-   * @note This is an asynchronous function.
-   */
-  async unload() {
-    this.deviceLostIsError = false; // so that unload() does not trigger device.lost error
-    this.pipeline?.dispose();
-    // Wait until device is actually destroyed so we can safely set deviceLostIsError back to true
-    await this.pipeline?.sync();
-    this.pipeline = undefined;
-    this.currentModelId = undefined;
-    this.deviceLostIsError = true;
-    if (this.reloadController) {
-      this.reloadController.abort("Engine.unload() is called.");
-      this.reloadController = undefined;
-    }
-  }
+  //-----------------------------
+  // 4. WebGPU info-querying helpers
+  //-----------------------------
 
   async getMaxStorageBufferBindingSize(): Promise<number> {
     // First detect GPU
@@ -915,9 +922,16 @@ export class MLCEngine implements MLCEngineInterface {
     return gpuDetectOutput.adapterInfo.vendor;
   }
 
-  //--------------------------
-  // Lower level API
-  //--------------------------
+  //----------------------------------------------
+  // 5. Low-level APIs that interact with pipeline
+  //----------------------------------------------
+  private getPipeline(): LLMChatPipeline {
+    if (this.pipeline === undefined) {
+      throw new ChatModuleNotInitializedError();
+    }
+    return this.pipeline;
+  }
+
   async forwardTokensAndSample(
     inputIds: Array<number>,
     isPrefill: boolean,
@@ -957,90 +971,18 @@ export class MLCEngine implements MLCEngineInterface {
     log.setLevel(logLevel);
   }
 
-  /**
-   * Given a string outputMessage, parse it as a JSON object and return an array of tool calls.
-   *
-   * Expect outputMessage to be a valid JSON string, and expect it to be an array of Function with
-   * fields `arguments` and `name`.
-   */
-  private getToolCallFromOutputMessage(
-    outputMessage: string,
-    isStreaming: false,
-  ): Array<ChatCompletionMessageToolCall>;
-  private getToolCallFromOutputMessage(
-    outputMessage: string,
-    isStreaming: true,
-  ): Array<ChatCompletionChunk.Choice.Delta.ToolCall>;
-  private getToolCallFromOutputMessage(
-    outputMessage: string,
-    isStreaming: boolean,
-  ):
-    | Array<ChatCompletionMessageToolCall>
-    | Array<ChatCompletionChunk.Choice.Delta.ToolCall> {
-    // 1. Parse outputMessage to JSON object
-    let toolCallsObject;
-    try {
-      toolCallsObject = JSON.parse(outputMessage);
-    } catch (err) {
-      throw new ToolCallOutputParseError(outputMessage, err as Error);
-    }
+  async runtimeStatsText(): Promise<string> {
+    log.warn(
+      "WARNING: `runtimeStatsText()` will soon be deprecated. " +
+        "Please use `ChatCompletion.usage` for non-streaming requests, or " +
+        "`ChatCompletionChunk.usage` for streaming requests, enabled by `stream_options`. " +
+        "The only flow that expects to use `runtimeStatsText()` as of now is `forwardTokensAndSample()`.",
+    );
+    return this.getPipeline().runtimeStatsText();
+  }
 
-    // 2. Expect to be an array
-    if (!(toolCallsObject instanceof Array)) {
-      throw new ToolCallOutputInvalidTypeError("array");
-    }
-
-    // 3. Parse each tool call and populate tool_calls
-    const numToolCalls = toolCallsObject.length;
-    const tool_calls = [];
-    for (let id = 0; id < numToolCalls; id++) {
-      const curToolCall = toolCallsObject[id];
-      if (
-        curToolCall.name === undefined ||
-        curToolCall.arguments === undefined
-      ) {
-        throw new ToolCallOutputMissingFieldsError(
-          ["name", "arguments"],
-          curToolCall,
-        );
-      }
-      tool_calls.push({
-        name: curToolCall.name,
-        arguments: JSON.stringify(curToolCall.arguments),
-      });
-    }
-
-    // 4. Return based on whether it is streaming or not
-    if (isStreaming) {
-      const tool_calls_result: Array<ChatCompletionChunk.Choice.Delta.ToolCall> =
-        [];
-      for (let id = 0; id < numToolCalls; id++) {
-        const curToolCall = tool_calls[id];
-        tool_calls_result.push({
-          index: id,
-          function: {
-            name: curToolCall.name,
-            arguments: curToolCall.arguments,
-          },
-          type: "function",
-        });
-      }
-      return tool_calls_result;
-    } else {
-      const tool_calls_result: Array<ChatCompletionMessageToolCall> = [];
-      for (let id = 0; id < numToolCalls; id++) {
-        const curToolCall = tool_calls[id];
-        tool_calls_result.push({
-          id: id.toString(),
-          function: {
-            name: curToolCall.name,
-            arguments: curToolCall.arguments,
-          },
-          type: "function",
-        });
-      }
-      return tool_calls_result;
-    }
+  async resetChat(keepStats = false) {
+    this.pipeline?.resetChat(keepStats);
   }
 
   /**
@@ -1120,43 +1062,5 @@ export class MLCEngine implements MLCEngineInterface {
    */
   async decode(genConfig?: GenerationConfig) {
     return this.getPipeline().decodeStep(genConfig);
-  }
-
-  private getPipeline(): LLMChatPipeline {
-    if (this.pipeline === undefined) {
-      throw new ChatModuleNotInitializedError();
-    }
-    return this.pipeline;
-  }
-
-  private async asyncLoadTokenizer(
-    baseUrl: string,
-    config: ChatConfig,
-    appConfig: AppConfig,
-  ): Promise<Tokenizer> {
-    let modelCache: tvmjs.ArtifactCacheTemplate;
-    if (appConfig.useIndexedDBCache) {
-      modelCache = new tvmjs.ArtifactIndexedDBCache("webllm/model");
-    } else {
-      modelCache = new tvmjs.ArtifactCache("webllm/model");
-    }
-
-    if (config.tokenizer_files.includes("tokenizer.json")) {
-      const url = new URL("tokenizer.json", baseUrl).href;
-      const model = await modelCache.fetchWithCache(url, "arraybuffer");
-      return Tokenizer.fromJSON(model);
-    } else if (config.tokenizer_files.includes("tokenizer.model")) {
-      this.logger(
-        "Using `tokenizer.model` since we cannot locate `tokenizer.json`.\n" +
-          "It is recommended to use `tokenizer.json` to ensure all token mappings are included, " +
-          "since currently, files like `added_tokens.json`, `tokenizer_config.json` are ignored.\n" +
-          "Consider converting `tokenizer.model` to `tokenizer.json` by compiling the model " +
-          "with MLC again, or see if MLC's huggingface provides this file.",
-      );
-      const url = new URL("tokenizer.model", baseUrl).href;
-      const model = await modelCache.fetchWithCache(url, "arraybuffer");
-      return Tokenizer.fromSentencePiece(model);
-    }
-    throw new UnsupportedTokenizerFilesError(config.tokenizer_files);
   }
 }

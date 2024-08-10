@@ -1,7 +1,13 @@
 import * as tvmjs from "tvmjs";
-import { AppConfig, ModelRecord, prebuiltAppConfig } from "./config";
+import {
+  AppConfig,
+  ChatConfig,
+  ModelRecord,
+  prebuiltAppConfig,
+} from "./config";
 import { cleanModelUrl } from "./support";
-import { ModelNotFoundError } from "./error";
+import { ModelNotFoundError, UnsupportedTokenizerFilesError } from "./error";
+import { Tokenizer } from "@mlc-ai/web-tokenizers";
 
 function findModelRecord(modelId: string, appConfig?: AppConfig): ModelRecord {
   const matchedItem = appConfig?.model_list.find(
@@ -100,4 +106,44 @@ export async function deleteModelWasmInCache(
     wasmCache = new tvmjs.ArtifactCache("webllm/wasm");
   }
   await wasmCache.deleteInCache(modelRecord.model_lib);
+}
+
+/**
+ *
+ * @param baseUrl The link to which we can find tokenizer files, usually is a `ModelRecord.model`.
+ * @param config A ChatConfig, usually loaded from `mlc-chat-config.json` in `baseUrl`.
+ * @param appConfig An AppConfig, usually `webllm.prebuiltAppConfig` if not defined by user.
+ * @param logger Logging function, console.log by default.
+ * @returns
+ */
+export async function asyncLoadTokenizer(
+  baseUrl: string,
+  config: ChatConfig,
+  appConfig: AppConfig,
+  logger: (msg: string) => void = console.log,
+): Promise<Tokenizer> {
+  let modelCache: tvmjs.ArtifactCacheTemplate;
+  if (appConfig.useIndexedDBCache) {
+    modelCache = new tvmjs.ArtifactIndexedDBCache("webllm/model");
+  } else {
+    modelCache = new tvmjs.ArtifactCache("webllm/model");
+  }
+
+  if (config.tokenizer_files.includes("tokenizer.json")) {
+    const url = new URL("tokenizer.json", baseUrl).href;
+    const model = await modelCache.fetchWithCache(url, "arraybuffer");
+    return Tokenizer.fromJSON(model);
+  } else if (config.tokenizer_files.includes("tokenizer.model")) {
+    logger(
+      "Using `tokenizer.model` since we cannot locate `tokenizer.json`.\n" +
+        "It is recommended to use `tokenizer.json` to ensure all token mappings are included, " +
+        "since currently, files like `added_tokens.json`, `tokenizer_config.json` are ignored.\n" +
+        "Consider converting `tokenizer.model` to `tokenizer.json` by compiling the model " +
+        "with MLC again, or see if MLC's huggingface provides this file.",
+    );
+    const url = new URL("tokenizer.model", baseUrl).href;
+    const model = await modelCache.fetchWithCache(url, "arraybuffer");
+    return Tokenizer.fromSentencePiece(model);
+  }
+  throw new UnsupportedTokenizerFilesError(config.tokenizer_files);
 }
