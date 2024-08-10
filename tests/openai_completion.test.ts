@@ -1,10 +1,38 @@
+import { getConversation } from "../src/conversation";
+import {
+  TextCompletionConversationError,
+  TextCompletionConversationExpectsPrompt,
+} from "../src/error";
 import {
   CompletionCreateParams,
   postInitAndCheckFields,
 } from "../src/openai_api_protocols/completion";
+import { llama3_1ChatConfig } from "./constants";
 import { describe, expect, test } from "@jest/globals";
 
-describe("Check chat completion unsupported requests", () => {
+describe("Conversation object with text completion", () => {
+  test("Conversation checks ", () => {
+    const conv = getConversation(
+      llama3_1ChatConfig.conv_template,
+      llama3_1ChatConfig.conv_config,
+      /*isTextCompletion=*/ true,
+    );
+    expect(() => {
+      conv.getPromptArrayTextCompletion();
+    }).toThrow(new TextCompletionConversationExpectsPrompt());
+    expect(() => {
+      conv.getPromptArray();
+    }).toThrow(new TextCompletionConversationError("getPromptArray"));
+
+    conv.prompt = "Hi";
+    expect(conv.getPromptArrayTextCompletion()).toEqual(["Hi"]);
+
+    conv.reset();
+    expect(conv.prompt === undefined).toEqual(true);
+  });
+});
+
+describe("Check completion unsupported requests", () => {
   test("stream_options without stream specified", () => {
     expect(() => {
       const request: CompletionCreateParams = {
