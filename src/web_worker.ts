@@ -52,6 +52,18 @@ import {
  * onmessage = handler.onmessage;
  */
 export class WebWorkerMLCEngineHandler {
+  /**
+   * The modelId and chatOpts that the underlying engine (backend) is currently loaded with.
+   *
+   * TODO(webllm-team): This is always in-sync with `this.engine` unless device is lost due to
+   * unexpected reason. Therefore, we should get it from `this.engine` directly and make handler
+   * stateless. We should also perhaps make `engine` of type `MLCEngine` instead. Besides, consider
+   * if we should add appConfig, or use engine's API to find the corresponding model record rather
+   * than relying on just the modelId.
+   */
+  modelId?: string;
+  chatOpts?: ChatOptions;
+
   public engine: MLCEngine;
   protected chatCompletionAsyncChunkGenerator?: AsyncGenerator<
     ChatCompletionChunk,
@@ -124,6 +136,8 @@ export class WebWorkerMLCEngineHandler {
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ReloadParams;
           await this.engine.reload(params.modelId, params.chatOpts);
+          this.modelId = params.modelId;
+          this.chatOpts = params.chatOpts;
           onComplete?.(null);
           return null;
         });
@@ -170,6 +184,17 @@ export class WebWorkerMLCEngineHandler {
         // Directly return the ChatCompletion response
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ChatCompletionNonStreamingParams;
+          // Check whether frontend expectation matches with backend (modelId and chatOpts)
+          // If not (due to possibly killed service worker), we reload here.
+          if (this.modelId !== params.modelId) {
+            log.warn(
+              "WebWorkerMLCEngine expects model is loaded in WebWorkerMLCEngineHandler, " +
+                "but it is not. This may due to web/service worker is unexpectedly killed. ",
+            );
+            log.info("Reloading engine in WebWorkerMLCEngineHandler.");
+            await this.engine.reload(params.modelId, params.chatOpts);
+          }
+
           const res = await this.engine.chatCompletion(params.request);
           onComplete?.(res);
           return res;
@@ -180,6 +205,16 @@ export class WebWorkerMLCEngineHandler {
         // One-time set up that instantiates the chunk generator in worker
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ChatCompletionStreamInitParams;
+          // Check whether frontend expectation matches with backend (modelId and chatOpts)
+          // If not (due to possibly killed service worker), we reload here.
+          if (this.modelId !== params.modelId) {
+            log.warn(
+              "WebWorkerMLCEngine expects model is loaded in WebWorkerMLCEngineHandler, " +
+                "but it is not. This may due to web/service worker is unexpectedly killed. ",
+            );
+            log.info("Reloading engine in WebWorkerMLCEngineHandler.");
+            await this.engine.reload(params.modelId, params.chatOpts);
+          }
           this.chatCompletionAsyncChunkGenerator =
             (await this.engine.chatCompletion(
               params.request,
@@ -221,8 +256,11 @@ export class WebWorkerMLCEngineHandler {
         return;
       }
       case "unload": {
+        // Unset modelId and chatOpts since backend unloads the model
         this.handleTask(msg.uuid, async () => {
           await this.engine.unload();
+          this.modelId = undefined;
+          this.chatOpts = undefined;
           onComplete?.(null);
           return null;
         });
@@ -337,7 +375,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
   /**
    * The modelId and chatOpts that the frontend expects the backend engine is currently loaded
    * with. Needed for service worker. It is the backend and handler's job to match up with the
-   * expectation despite the service worker possibly being killed.
+   * expectation despite the web/service worker possibly being killed.
    */
   modelId?: string;
   chatOpts?: ChatOptions;
