@@ -14,6 +14,14 @@ import {
 } from "@mlc-ai/web-llm";
 import { ProgressBar, Line } from "progressbar.js";
 
+// modified setLabel to not throw error
+function setLabel(id: string, text: string) {
+  const label = document.getElementById(id);
+  if (label != null) {
+    label.innerText = text;
+  }
+}
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const queryInput = document.getElementById("query-input")!;
@@ -37,7 +45,7 @@ const progressBar: ProgressBar = new Line("#loadingContainer", {
 });
 
 const initProgressCallback = (report: InitProgressReport) => {
-  console.log(report.text, report.progress);
+  setLabel("init-label", report.text);
   progressBar.animate(report.progress, {
     duration: 50,
   });
@@ -47,7 +55,8 @@ const initProgressCallback = (report: InitProgressReport) => {
 };
 
 // const selectedModel = "TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC-1k";
-const selectedModel = "Mistral-7B-Instruct-v0.2-q4f16_1-MLC";
+// const selectedModel = "Mistral-7B-Instruct-v0.2-q4f16_1-MLC";
+const selectedModel = "Qwen2-0.5B-Instruct-q4f16_1-MLC";
 const engine: MLCEngineInterface = await CreateMLCEngine(selectedModel, {
   initProgressCallback: initProgressCallback,
 });
@@ -59,11 +68,13 @@ function enableInputs() {
   if (isLoadingParams) {
     sleep(500);
     (<HTMLButtonElement>submitButton).disabled = false;
-    const loadingBarContainer = document.getElementById("loadingContainer")!;
-    loadingBarContainer.remove();
-    queryInput.focus();
     isLoadingParams = false;
   }
+  const initLabel = document.getElementById("init-label");
+  initLabel?.remove();
+  const loadingBarContainer = document.getElementById("loadingContainer")!;
+  loadingBarContainer?.remove();
+  queryInput.focus();
 }
 
 // Disable submit button if input field is empty
