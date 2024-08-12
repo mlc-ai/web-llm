@@ -182,13 +182,17 @@ export interface CompletionCreateParamsBase {
    */
   top_p?: number | null;
 
-  //////////////// BELOW FIELDS NOT SUPPORTED YET ////////////////
   /**
-   * Model to carry out this API.
+   * ID of the model to use. This equals to `ModelRecord.model_id`, which needs to either be in
+   * `webllm.prebuiltAppConfig` or in `engineConfig.appConfig`.
    *
-   * @note Not supported. Instead call `CreateMLCEngine(model)` or `engine.reload(model)` instead.
+   * @note Call `CreateMLCEngine(model)` or `engine.reload(model)` ahead of time.
+   * @note If only one model is loaded in the engine, this field is optional. If multiple models
+   *   are loaded, this is required.
    */
   model?: string | null;
+
+  //////////////// BELOW FIELDS NOT SUPPORTED YET ////////////////
 
   /**
    * The suffix that comes after a completion of inserted text.
@@ -305,7 +309,6 @@ export interface CompletionChoice {
 //////////////////////////////// 3. POST INIT ////////////////////////////////
 
 export const CompletionCreateParamsUnsupportedFields: Array<string> = [
-  "model",
   "suffix",
   "user",
   "best_of",

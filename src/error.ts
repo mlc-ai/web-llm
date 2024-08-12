@@ -84,9 +84,11 @@ export class WebGPUNotFoundError extends Error {
 }
 
 export class ModelNotLoadedError extends Error {
-  constructor() {
+  constructor(requestName: string) {
     super(
-      "Model not loaded before calling chatCompletion(). Please ensure you have called `MLCEngine.reload(model)` to load the model before initiating chat operations, or initialize your engine using `CreateMLCEngine()` with a valid model configuration.",
+      `Model not loaded before trying to complete ${requestName}. Please ensure you have called ` +
+        `MLCEngine.reload(model) to load the model before initiating APIs, ` +
+        `or initialize your engine using CreateMLCEngine() with a valid model configuration.`,
     );
     this.name = "ModelNotLoadedError";
   }
@@ -477,5 +479,65 @@ export class EmbeddingInputEmptyError extends Error {
   constructor() {
     super("Embedding input cannot be empty string or empty token array.");
     this.name = "EmbeddingInputEmptyError";
+  }
+}
+
+export class ReloadArgumentSizeUnmatchedError extends Error {
+  constructor(numModelId: number, numChatOpts: number) {
+    super(
+      `Expect chatOpts, if specified, to match the size of modelId. However, got ` +
+        `${numModelId} modelId, but ${numChatOpts} chatOpts.`,
+    );
+    this.name = "ReloadArgumentSizeUnmatchedError";
+  }
+}
+
+export class UnclearModelToUseError extends Error {
+  constructor(loadedModels: string[], requestName: string) {
+    super(
+      `Multiple models are loaded in engine. Please specify the model in ${requestName}.\n` +
+        `Currently loaded models are:\n${loadedModels}`,
+    );
+    this.name = "UnclearModelToUseError";
+  }
+}
+
+export class SpecifiedModelNotFoundError extends Error {
+  constructor(
+    loadedModels: string[],
+    requestedModelId: string,
+    requestName: string,
+  ) {
+    super(
+      `Specified model ${requestedModelId} for ${requestName} is not found in loaded models. ` +
+        `Please check if the correct model is loaded/specified. ` +
+        `Currently loaded models are:\n${loadedModels}`,
+    );
+    this.name = "SpecifiedModelNotFoundError";
+  }
+}
+
+export class IncorrectPipelineLoadedError extends Error {
+  constructor(
+    selectedModelId: string,
+    expectedPipeline: string,
+    requestName: string,
+  ) {
+    super(
+      `${requestName} expects model be loaded with ${expectedPipeline}. However, ` +
+        `${selectedModelId} is not loaded with this pipeline.`,
+    );
+    this.name = "IncorrectPipelineLoadedError";
+  }
+}
+
+export class ReloadModelIdNotUniqueError extends Error {
+  constructor(modelId: string[]) {
+    super(
+      `Need to make models in modelId passed to reload() need to be unique. If you want to, ` +
+        `load copies of the same model, consider making copies of the ModelRecord with ` +
+        `different model_id. Received modelId: ${modelId}`,
+    );
+    this.name = "ReloadModelIdNotUniqueError";
   }
 }

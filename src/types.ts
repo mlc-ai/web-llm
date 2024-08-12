@@ -99,12 +99,20 @@ export interface MLCEngineInterface {
   /**
    * Reload the chat with a new model.
    *
-   * @param modelId model_id of the model to load.
-   * @param chatOpts Extra options to override chat behavior.
+   * @param modelId model_id of the model to load, either string or string[]. When multiple models
+   *   are provided, we load all models sequentially. Each modelId needs to either be in
+   *   `webllm.prebuiltAppConfig`, or in `engineConfig.appConfig`.
+   * @param chatOpts Extra options to optionally override the `mlc-chat-config.json` of `modelId`.
+   *   The size of which needs to match that of `modelId`; chatOpts[i] will be used for modelId[i].
    * @returns A promise when reload finishes.
+   * @throws Throws error when device lost (mostly due to OOM); users should re-call reload(),
+   *   potentially with a smaller model or smaller context window size.
    * @note This is an async function.
    */
-  reload: (modelId: string, chatOpts?: ChatOptions) => Promise<void>;
+  reload: (
+    modelId: string | string[],
+    chatOpts?: ChatOptions | ChatOptions[],
+  ) => Promise<void>;
 
   /**
    * OpenAI-style API. Generate a chat completion response for the given conversation and
@@ -164,9 +172,10 @@ export interface MLCEngineInterface {
 
   /**
    * @returns A text summarizing the runtime stats.
+   * @param modelId Only required when multiple models are loaded.
    * @note This is an async function
    */
-  runtimeStatsText: () => Promise<string>;
+  runtimeStatsText: (modelId?: string) => Promise<string>;
 
   /**
    * Interrupt the generate process if it is already running.
@@ -174,22 +183,25 @@ export interface MLCEngineInterface {
   interruptGenerate: () => void;
 
   /**
-   * Explicitly unload the current model and release the related resources.
+   * Explicitly unload the currently loaded model(s) and release the related resources. Waits until
+   * the webgpu device finishes all submitted work and destroys itself.
+   * @note This is an asynchronous function.
    */
   unload: () => Promise<void>;
 
   /**
    * Reset the current chat session by clear all memories.
    * @param keepStats: If True, do not reset the statistics.
+   * @param modelId Only required when multiple models are loaded.
    */
-  resetChat: (keepStats?: boolean) => Promise<void>;
+  resetChat: (keepStats?: boolean, modelId?: string) => Promise<void>;
 
   /**
    * Get the current generated response.
-   *
+   * @param modelId Only required when multiple models are loaded.
    * @returns The current output message.
    */
-  getMessage: () => Promise<string>;
+  getMessage: (modelId?: string) => Promise<string>;
 
   /**
    * Returns the device's maxStorageBufferBindingSize, can be used to guess whether the device
@@ -210,12 +222,14 @@ export interface MLCEngineInterface {
    *
    * @param inputIds The input tokens.
    * @param isPrefill True if prefill, false if decode; only used for statistics.
+   * @param modelId Only required when multiple models are loaded.
    * @returns Next token sampled.
    * @note This is an async function.
    */
   forwardTokensAndSample(
     inputIds: Array<number>,
     isPrefill: boolean,
+    modelId?: string,
   ): Promise<number>;
 
   /**

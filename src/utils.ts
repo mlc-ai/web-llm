@@ -1,7 +1,7 @@
 import { AppConfig, ChatOptions, ModelRecord } from "./config";
 
 // Helper function to compare two arrays
-function areArraysEqual(arr1?: Array<any>, arr2?: Array<any>): boolean {
+export function areArraysEqual(arr1?: Array<any>, arr2?: Array<any>): boolean {
   if (!arr1 && !arr2) return true;
   if (!arr1 || !arr2) return false;
   if (arr1.length !== arr2.length) return false;
@@ -119,4 +119,29 @@ export function areChatOptionsEqual(
 
   // If all checks passed, the options are equal
   return true;
+}
+
+export function areChatOptionsListEqual(
+  options1?: ChatOptions[],
+  options2?: ChatOptions[],
+): boolean {
+  if (options1 && options2) {
+    // Both defined, need to compare
+    if (options1.length !== options2.length) {
+      return false;
+    } else {
+      for (let i = 0; i < options1.length; i++) {
+        if (!areChatOptionsEqual(options1[i], options2[i])) {
+          return false;
+        }
+      }
+      return true;
+    }
+  } else if (!options1 && !options2) {
+    // Both undefined, equal
+    return true;
+  } else {
+    // One defined, other not
+    return false;
+  }
 }

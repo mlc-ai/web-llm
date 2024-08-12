@@ -118,18 +118,21 @@ export interface EmbeddingCreateParams {
   input: string | Array<string> | Array<number> | Array<Array<number>>;
 
   /**
+   * ID of the model to use. This equals to `ModelRecord.model_id`, which needs to either be in
+   * `webllm.prebuiltAppConfig` or in `engineConfig.appConfig`.
+   *
+   * @note Call `CreateMLCEngine(model)` or `engine.reload(model)` ahead of time.
+   * @note If only one model is loaded in the engine, this field is optional. If multiple models
+   *   are loaded, this is required.
+   */
+  model?: string | null;
+
+  /**
    * The format to return the embeddings in.
    *
    * @note Currently only support `float`.
    */
   encoding_format?: "float" | "base64";
-
-  /**
-   * ID of the model to use.
-   *
-   * @note Not supported. Instead, call `CreateMLCEngine(model)` or `engine.reload(model)`.
-   */
-  model?: string;
 
   // TODO: can support matryoshka embedding models in future, hence allow `dimensions` for those.
   /**
@@ -149,7 +152,6 @@ export interface EmbeddingCreateParams {
 }
 
 export const EmbeddingCreateParamsUnsupportedFields: Array<string> = [
-  "model",
   "dimensions",
   "user",
 ];

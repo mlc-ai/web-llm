@@ -18,7 +18,6 @@ import {
   ChatCompletionRequest,
   ChatCompletion,
   ChatCompletionChunk,
-  ChatCompletionFinishReason,
   ChatCompletionMessageParam,
   ChatCompletionRequestNonStreaming,
   ChatCompletionRequestStreaming,
@@ -51,18 +50,20 @@ import {
 import {
   cleanModelUrl,
   findModelRecord,
+  getModelIdToUse,
   getToolCallFromOutputMessage,
 } from "./support";
 import {
-  EngineNotLoadedError,
   ConfigurationNotInitializedError,
   DeviceLostError,
   EmbeddingUnsupportedModelError,
   FeatureSupportError,
   MissingModelWasmError,
-  ModelNotLoadedError,
   ShaderF16SupportError,
   WebGPUNotAvailableError,
+  ReloadArgumentSizeUnmatchedError,
+  IncorrectPipelineLoadedError,
+  ReloadModelIdNotUniqueError,
 } from "./error";
 import { asyncLoadTokenizer } from "./cache_util";
 import { EmbeddingPipeline } from "./embedding";
@@ -72,18 +73,20 @@ import { EmbeddingPipeline } from "./embedding";
  *
  * Equivalent to `new webllm.MLCEngine().reload(...)`.
  *
- * @param modelId The model to load, needs to either be in `webllm.prebuiltAppConfig`, or in
- * `engineConfig.appConfig`.
+ * @param modelId model_id of the model to load, either string or string[]. When multiple models
+ *   are provided, we load all models sequentially. Each modelId needs to either be in
+ *   `webllm.prebuiltAppConfig`, or in `engineCOnfig.appConfig`.
  * @param engineConfig Optionally configures the engine, see `webllm.MLCEngineConfig`.
- * @param chatOpts Extra options to override chat behavior specified in `mlc-chat-config.json`.
+ * @param chatOpts Extra options to optionally override the `mlc-chat-config.json` of `modelId`.
+ *   The size of which needs to match that of `modelId`; chatOpts[i] will be used for modelId[i].
  * @returns An initialized `WebLLM.MLCEngine` with `modelId` loaded.
  * @throws Throws error when device lost (mostly due to OOM); users should re-call `CreateMLCEngine()`,
  *   potentially with a smaller model or smaller context window size.
  */
 export async function CreateMLCEngine(
-  modelId: string,
+  modelId: string | string[],
   engineConfig?: MLCEngineConfig,
-  chatOpts?: ChatOptions,
+  chatOpts?: ChatOptions | ChatOptions[],
 ): Promise<MLCEngine> {
   const engine = new MLCEngine(engineConfig);
   await engine.reload(modelId, chatOpts);
@@ -104,20 +107,31 @@ export class MLCEngine implements MLCEngineInterface {
   /** For embeddings.create() */
   public embeddings: API.Embeddings;
 
-  private currentModelId?: string = undefined; // Model current loaded, undefined if nothing is loaded
+  /** Maps each loaded model's modelId to its pipeline */
+  private loadedModelIdToPipeline: Map<
+    string,
+    LLMChatPipeline | EmbeddingPipeline
+  >;
+  /** Maps each loaded model's modelId to its chatConfig */
+  private loadedModelIdToChatConfig: Map<string, ChatConfig>;
+  // private currentModelId?: string = undefined; // Model current loaded, undefined if nothing is loaded
   private logger: (msg: string) => void = log.info;
   private logitProcessorRegistry?: Map<string, LogitProcessor>;
-  private logitProcessor?: LogitProcessor;
-  private pipeline?: LLMChatPipeline;
-  private embeddingPipeline?: EmbeddingPipeline;
+  // private pipeline?: LLMChatPipeline;
+  // private embeddingPipeline?: EmbeddingPipeline;
   private initProgressCallback?: InitProgressCallback;
   private interruptSignal = false;
   private deviceLostIsError = true; // whether device.lost is due to actual error or model reload
   private reloadController: AbortController | undefined;
-  private config?: ChatConfig;
+  // private config?: ChatConfig;
   private appConfig: AppConfig;
 
   constructor(engineConfig?: MLCEngineConfig) {
+    this.loadedModelIdToPipeline = new Map<
+      string,
+      LLMChatPipeline | EmbeddingPipeline
+    >();
+    this.loadedModelIdToChatConfig = new Map<string, ChatConfig>();
     this.appConfig = engineConfig?.appConfig || prebuiltAppConfig;
     this.setLogLevel(engineConfig?.logLevel || DefaultLogLevel);
     this.setInitProgressCallback(engineConfig?.initProgressCallback);
@@ -150,32 +164,64 @@ export class MLCEngine implements MLCEngineInterface {
     this.logitProcessorRegistry = logitProcessorRegistry;
   }
 
+  /**
+   * Set MLCEngine logging output level
+   *
+   * @param logLevel The new log level
+   */
+  setLogLevel(logLevel: LogLevel) {
+    log.setLevel(logLevel);
+  }
+
   //----------------------------------------
   // 1. Model/pipeline loading and unloading
   //----------------------------------------
 
-  /**
-   * Reload model `modelId`.
-   * @param modelId The model to load, needs to either be in `webllm.prebuiltAppConfig`, or in
-   * `engineConfig.appConfig`.
-   * @param chatOpts To optionally override the `mlc-chat-config.json` of `modelId`.
-   * @throws Throws error when device lost (mostly due to OOM); users should re-call reload(),
-   *   potentially with a smaller model or smaller context window size.
-   */
-  async reload(modelId: string, chatOpts?: ChatOptions): Promise<void> {
+  async reload(
+    modelId: string | string[],
+    chatOpts?: ChatOptions | ChatOptions[],
+  ): Promise<void> {
+    // 0. Unload all loaded models
     await this.unload();
-    this.reloadController = new AbortController();
+    // 1. Convert inputs to arrays
+    if (!Array.isArray(modelId)) {
+      modelId = [modelId];
+    }
+    if (chatOpts !== undefined && !Array.isArray(chatOpts)) {
+      chatOpts = [chatOpts];
+    }
+    // 2. Check whether size matches
+    if (chatOpts !== undefined && modelId.length !== chatOpts.length) {
+      throw new ReloadArgumentSizeUnmatchedError(
+        modelId.length,
+        chatOpts.length,
+      );
+    }
+    // 3. Make sure each model in modelId is unique
+    if (new Set(modelId).size < modelId.length) {
+      throw new ReloadModelIdNotUniqueError(modelId);
+    }
+    // 4. Sequentially load each model
+    for (let i = 0; i < modelId.length; i++) {
+      this.reloadController = new AbortController();
+      this.reloadController = new AbortController();
 
-    try {
-      await this.reloadInternal(modelId, chatOpts);
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") {
-        log.warn("Reload() is aborted.", error.message);
-        return;
+      this.reloadController = new AbortController();
+
+      try {
+        await this.reloadInternal(
+          modelId[i],
+          chatOpts ? chatOpts[i] : undefined,
+        );
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          log.warn("Reload() is aborted.", error.message);
+          return;
+        }
+        throw error;
+      } finally {
+        this.reloadController = undefined;
       }
-      throw error;
-    } finally {
-      this.reloadController = undefined;
     }
   }
 
@@ -183,7 +229,7 @@ export class MLCEngine implements MLCEngineInterface {
     modelId: string,
     chatOpts?: ChatOptions,
   ): Promise<void> {
-    this.logitProcessor = this.logitProcessorRegistry?.get(modelId);
+    const logitProcessor = this.logitProcessorRegistry?.get(modelId);
     const tstart = performance.now();
 
     const modelRecord = findModelRecord(modelId, this.appConfig);
@@ -205,7 +251,7 @@ export class MLCEngine implements MLCEngineInterface {
 
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
-    this.config = {
+    const curModelConfig = {
       ...(await configCache.fetchWithCache(
         configUrl,
         "json",
@@ -214,6 +260,7 @@ export class MLCEngine implements MLCEngineInterface {
       ...modelRecord.overrides,
       ...chatOpts,
     } as ChatConfig;
+    this.loadedModelIdToChatConfig.set(modelId, curModelConfig);
 
     // load tvm wasm
     let wasmCache: tvmjs.ArtifactCacheTemplate;
@@ -297,7 +344,7 @@ export class MLCEngine implements MLCEngineInterface {
 
     const tokenizer = await asyncLoadTokenizer(
       modelUrl,
-      this.config,
+      curModelConfig,
       this.appConfig,
       this.logger,
     );
@@ -309,23 +356,26 @@ export class MLCEngine implements MLCEngineInterface {
       cacheType,
       this.reloadController?.signal,
     );
+
+    // Instantiate pipeline
+    // TODO: would be good to somehow check for error when LLMChatPipeline is loaded for an
+    // embedding model, and prompt user to use ModelRecord.model_type
+    let newPipeline: LLMChatPipeline | EmbeddingPipeline;
     if (modelRecord.model_type === ModelType.embedding) {
-      this.embeddingPipeline = new EmbeddingPipeline(
-        tvm,
-        tokenizer,
-        this.config,
-      );
+      newPipeline = new EmbeddingPipeline(tvm, tokenizer, curModelConfig);
     } else {
-      this.pipeline = new LLMChatPipeline(
+      newPipeline = new LLMChatPipeline(
         tvm,
         tokenizer,
-        this.config,
-        this.logitProcessor,
+        curModelConfig,
+        logitProcessor,
       );
     }
-    await this.pipeline?.asyncLoadWebGPUPipelines();
-    const tend = performance.now();
+    await newPipeline.asyncLoadWebGPUPipelines();
+    this.loadedModelIdToPipeline.set(modelId, newPipeline);
 
+    // Clean up
+    const tend = performance.now();
     if (this.initProgressCallback !== undefined) {
       const text = "Finish loading on " + gpuLabel;
       this.initProgressCallback({
@@ -334,28 +384,20 @@ export class MLCEngine implements MLCEngineInterface {
         text: text,
       });
     }
-    this.currentModelId = modelId;
-
     if (deviceLostInReload) {
       throw new DeviceLostError();
     }
   }
 
-  /**
-   * Unloads the currently loaded model and destroy the webgpu device. Waits
-   * until the webgpu device finishes all submitted work and destroys itself.
-   * @note This is an asynchronous function.
-   */
   async unload() {
     this.deviceLostIsError = false; // so that unload() does not trigger device.lost error
-    this.pipeline?.dispose();
-    this.embeddingPipeline?.dispose();
-    // Wait until device is actually destroyed so we can safely set deviceLostIsError back to true
-    await this.pipeline?.sync();
-    await this.embeddingPipeline?.sync();
-    this.pipeline = undefined;
-    this.embeddingPipeline = undefined;
-    this.currentModelId = undefined;
+    this.loadedModelIdToPipeline.forEach(async (pipeline, modelId) => {
+      pipeline.dispose();
+      // Wait until device is actually destroyed so we can safely set deviceLostIsError back to true
+      await pipeline.sync();
+    });
+    this.loadedModelIdToPipeline.clear();
+    this.loadedModelIdToChatConfig.clear();
     this.deviceLostIsError = true;
     if (this.reloadController) {
       this.reloadController.abort("Engine.unload() is called.");
@@ -369,44 +411,52 @@ export class MLCEngine implements MLCEngineInterface {
 
   private async _generate(
     input:
-      | string
       | ChatCompletionRequestNonStreaming
       | CompletionCreateParamsNonStreaming,
-    genConfig?: GenerationConfig,
+    pipeline: LLMChatPipeline,
+    chatConfig: ChatConfig,
+    genConfig: GenerationConfig,
   ): Promise<string> {
     this.interruptSignal = false;
     if (genConfig !== undefined) {
       postInitAndCheckGenerationConfigValues(genConfig);
     }
-    await this.prefill(input, genConfig);
+    await this.prefill(input, pipeline, chatConfig, genConfig);
 
     let counter = 1;
-    while (!this.stopped()) {
+    while (!pipeline.stopped()) {
       if (this.interruptSignal) {
-        this.getPipeline().triggerStop();
+        pipeline.triggerStop();
         break;
       }
       counter += 1;
-      await this.decode(genConfig);
+      await this.decode(pipeline, genConfig);
     }
-    return await this.getMessage();
+    return pipeline.getMessage();
   }
 
   /**
    * Similar to `_generate()`; but instead of using callback, we use an async iterable.
-   * @param request Request for chat completion.
-   * @param genConfig Generation config extraced from `request`.
    */
   asyncGenerate(
     request: ChatCompletionRequestStreaming,
+    model: string,
+    pipeline: LLMChatPipeline,
+    chatConfig: ChatConfig,
     genConfig: GenerationConfig,
   ): AsyncGenerator<ChatCompletionChunk, void, void>;
   asyncGenerate(
     request: CompletionCreateParamsStreaming,
+    model: string,
+    pipeline: LLMChatPipeline,
+    chatConfig: ChatConfig,
     genConfig: GenerationConfig,
   ): AsyncGenerator<Completion, void, void>;
   async *asyncGenerate(
     request: ChatCompletionRequestStreaming | CompletionCreateParamsStreaming,
+    model: string,
+    pipeline: LLMChatPipeline,
+    chatConfig: ChatConfig,
     genConfig: GenerationConfig,
   ): AsyncGenerator<ChatCompletionChunk | Completion, void, void> {
     // 0. Pre-processing
@@ -422,12 +472,11 @@ export class MLCEngine implements MLCEngineInterface {
     }
     postInitAndCheckGenerationConfigValues(genConfig);
     if (request.seed !== null && request.seed !== undefined) {
-      this.getPipeline().setSeed(request.seed);
+      pipeline.setSeed(request.seed);
     }
 
     // 1. Helper function that generates the chunk
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const model = this.currentModelId!;
     const created = Date.now();
     const id = crypto.randomUUID();
     this.interruptSignal = false;
@@ -446,13 +495,13 @@ export class MLCEngine implements MLCEngineInterface {
     }
 
     async function _getChunk(
-      thisModule: MLCEngine,
+      selectedPipeline: LLMChatPipeline,
     ): Promise<ChatCompletionChunk | Completion | undefined> {
       // Remove the replacement character (U+FFFD) from the response to handle emojis.
       // Each emoji is made up of multiples of 4 tokens; when truncated, it is displayed as �, so
       // we skip this delta until a full emoji is rendered
       // TODO(Charlie): This does not consider cases of � not being emoji, need to fix with Streamer
-      const curMessage = await thisModule.getMessage();
+      const curMessage = selectedPipeline.getMessage();
       const numTrailingReplacementChar =
         _countTrailingReplacementChar(curMessage);
       if (numTrailingReplacementChar % 4 !== 0) {
@@ -463,7 +512,7 @@ export class MLCEngine implements MLCEngineInterface {
       prevMessageLength = curMessage.length;
       const logprobs = request.logprobs
         ? ({
-            content: thisModule.getPipeline().getTokenLogprobArray().slice(-1), // always the last entry
+            content: selectedPipeline.getTokenLogprobArray().slice(-1), // always the last entry
           } as ChatCompletionChunk.Choice.Logprobs)
         : null;
       if (isChatCompletion) {
@@ -502,19 +551,19 @@ export class MLCEngine implements MLCEngineInterface {
     }
 
     // 2. Auto-regressive loop
-    await this.prefill(request, genConfig);
-    let curChunk = await _getChunk(this); // prefill produces a chunk
+    await this.prefill(request, pipeline, chatConfig, genConfig);
+    let curChunk = await _getChunk(pipeline); // prefill produces a chunk
     if (curChunk) {
       yield curChunk;
     }
 
-    while (!this.stopped()) {
+    while (!pipeline.stopped()) {
       if (this.interruptSignal) {
-        this.getPipeline().triggerStop();
+        pipeline.triggerStop();
         break;
       }
-      await this.decode(genConfig);
-      curChunk = await _getChunk(this);
+      await this.decode(pipeline, genConfig);
+      curChunk = await _getChunk(pipeline);
       if (curChunk) {
         yield curChunk;
       }
@@ -522,20 +571,20 @@ export class MLCEngine implements MLCEngineInterface {
 
     // Reset seed -- we do not want this seed to affect future requests
     if (request.seed !== null && request.seed !== undefined) {
-      this.getPipeline().setSeed(Date.now());
+      pipeline.setSeed(Date.now());
     }
 
     // 3. Last chunk empty marking the end
     // If function calling, use the last chunk to return tool_calls
-    let finish_reason = this.getFinishReason()!;
+    let finish_reason = pipeline.getFinishReason()!;
     let tool_calls:
       | Array<ChatCompletionChunk.Choice.Delta.ToolCall>
       | undefined;
 
-    if (this.getFinishReason()! == "stop" && isFunctionCalling) {
+    if (pipeline.getFinishReason() === "stop" && isFunctionCalling) {
       // If stopped due to length or abort, cannot output return tool_calls field
       finish_reason = "tool_calls";
-      const outputMessage = await this.getMessage();
+      const outputMessage = pipeline.getMessage();
       tool_calls = getToolCallFromOutputMessage(
         outputMessage,
         /*isStreaming=*/ true,
@@ -581,13 +630,10 @@ export class MLCEngine implements MLCEngineInterface {
 
     // 4. Usage chunk
     if (request.stream_options?.include_usage) {
-      const completion_tokens =
-        this.getPipeline().getCurRoundDecodingTotalTokens();
-      const prompt_tokens = this.getPipeline().getCurRoundPrefillTotalTokens();
-      const prefill_tokens_per_s =
-        this.getPipeline().getCurRoundPrefillTokensPerSec();
-      const decode_tokens_per_s =
-        this.getPipeline().getCurRoundDecodingTokensPerSec();
+      const completion_tokens = pipeline.getCurRoundDecodingTotalTokens();
+      const prompt_tokens = pipeline.getCurRoundPrefillTotalTokens();
+      const prefill_tokens_per_s = pipeline.getCurRoundPrefillTokensPerSec();
+      const decode_tokens_per_s = pipeline.getCurRoundDecodingTokensPerSec();
       const usage: CompletionUsage = {
         completion_tokens: completion_tokens,
         prompt_tokens: prompt_tokens,
@@ -649,11 +695,10 @@ export class MLCEngine implements MLCEngineInterface {
   async chatCompletion(
     request: ChatCompletionRequest,
   ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
-    // 0. Preprocess inputs
-    if (!this.currentModelId) {
-      throw new ModelNotLoadedError();
-    }
-    API.postInitAndCheckFieldsChatCompletion(request, this.currentModelId);
+    // 0. Check model loaded and preprocess inputs
+    const [selectedModelId, selectedPipeline, selectedChatConfig] =
+      this.getLLMStates("ChatCompletionRequest", request.model);
+    API.postInitAndCheckFieldsChatCompletion(request, selectedModelId);
     const genConfig: GenerationConfig = {
       frequency_penalty: request.frequency_penalty,
       presence_penalty: request.presence_penalty,
@@ -669,11 +714,17 @@ export class MLCEngine implements MLCEngineInterface {
 
     // 1. If request is streaming, return an AsyncIterable (an iterable version of `_generate()`)
     if (request.stream) {
-      return this.asyncGenerate(request, genConfig);
+      return this.asyncGenerate(
+        request,
+        selectedModelId,
+        selectedPipeline,
+        selectedChatConfig,
+        genConfig,
+      );
     }
 
     if (request.seed !== null && request.seed !== undefined) {
-      this.getPipeline().setSeed(request.seed);
+      selectedPipeline.setSeed(request.seed);
     }
 
     // 2. If request is non-streaming, directly reuse `_generate()`
@@ -687,18 +738,23 @@ export class MLCEngine implements MLCEngineInterface {
       let outputMessage: string;
       if (this.interruptSignal) {
         // A single interrupt signal should stop all choices' generations
-        this.getPipeline().triggerStop();
+        selectedPipeline.triggerStop();
         outputMessage = "";
       } else {
-        outputMessage = await this._generate(request, genConfig);
+        outputMessage = await this._generate(
+          request,
+          selectedPipeline,
+          selectedChatConfig,
+          genConfig,
+        );
       }
-      let finish_reason = this.getFinishReason()!;
+      let finish_reason = selectedPipeline.getFinishReason()!;
 
       // 3. Post processing for function calling
       const isFunctionCalling =
         request.tools !== undefined && request.tools !== null;
       let tool_calls: Array<ChatCompletionMessageToolCall> | undefined;
-      if (this.getFinishReason()! == "stop" && isFunctionCalling) {
+      if (selectedPipeline.getFinishReason() === "stop" && isFunctionCalling) {
         // If stopped due to length or abort, cannot output return tool_calls field
         finish_reason = "tool_calls";
         tool_calls = getToolCallFromOutputMessage(
@@ -713,7 +769,7 @@ export class MLCEngine implements MLCEngineInterface {
         index: i,
         logprobs: request.logprobs
           ? ({
-              content: this.getPipeline().getTokenLogprobArray(),
+              content: selectedPipeline.getTokenLogprobArray(),
             } as ChatCompletion.Choice.Logprobs)
           : null,
         message: isFunctionCalling
@@ -727,16 +783,16 @@ export class MLCEngine implements MLCEngineInterface {
               role: "assistant",
             },
       });
-      completion_tokens += this.getPipeline().getCurRoundDecodingTotalTokens();
-      prompt_tokens += this.getPipeline().getCurRoundPrefillTotalTokens();
-      prefill_time += this.getPipeline().getCurRoundPrefillTotalTime();
-      decode_time += this.getPipeline().getCurRoundDecodingTotalTime();
+      completion_tokens += selectedPipeline.getCurRoundDecodingTotalTokens();
+      prompt_tokens += selectedPipeline.getCurRoundPrefillTotalTokens();
+      prefill_time += selectedPipeline.getCurRoundPrefillTotalTime();
+      decode_time += selectedPipeline.getCurRoundDecodingTotalTime();
     }
 
     const response: ChatCompletion = {
       id: crypto.randomUUID(),
       choices: choices,
-      model: this.currentModelId,
+      model: selectedModelId,
       object: "chat.completion",
       created: Date.now(),
       usage: {
@@ -752,7 +808,7 @@ export class MLCEngine implements MLCEngineInterface {
 
     // Reset seed -- we do not want this seed to affect future requests
     if (request.seed !== null && request.seed !== undefined) {
-      this.getPipeline().setSeed(Date.now());
+      selectedPipeline.setSeed(Date.now());
     }
     return response;
   }
@@ -777,11 +833,10 @@ export class MLCEngine implements MLCEngineInterface {
   async completion(
     request: CompletionCreateParams,
   ): Promise<AsyncIterable<Completion> | Completion> {
-    // 0. Preprocess inputs
-    if (!this.currentModelId) {
-      throw new ModelNotLoadedError();
-    }
-    API.postInitAndCheckFieldsCompletion(request, this.currentModelId);
+    // 0. Check model loaded and preprocess inputs
+    const [selectedModelId, selectedPipeline, selectedChatConfig] =
+      this.getLLMStates("ChatCompletionRequest", request.model);
+    API.postInitAndCheckFieldsCompletion(request, selectedModelId);
     const genConfig: GenerationConfig = {
       frequency_penalty: request.frequency_penalty,
       presence_penalty: request.presence_penalty,
@@ -796,11 +851,17 @@ export class MLCEngine implements MLCEngineInterface {
 
     // 1. If request is streaming, return an AsyncIterable (an iterable version of `_generate()`)
     if (request.stream) {
-      return this.asyncGenerate(request, genConfig);
+      return this.asyncGenerate(
+        request,
+        selectedModelId,
+        selectedPipeline,
+        selectedChatConfig,
+        genConfig,
+      );
     }
 
     if (request.seed !== null && request.seed !== undefined) {
-      this.getPipeline().setSeed(request.seed);
+      selectedPipeline.setSeed(request.seed);
     }
 
     // 2. If request is non-streaming, directly reuse `_generate()`
@@ -814,12 +875,17 @@ export class MLCEngine implements MLCEngineInterface {
       let outputMessage: string;
       if (this.interruptSignal) {
         // A single interrupt signal should stop all choices' generations
-        this.getPipeline().triggerStop();
+        selectedPipeline.triggerStop();
         outputMessage = "";
       } else {
-        outputMessage = await this._generate(request, genConfig);
+        outputMessage = await this._generate(
+          request,
+          selectedPipeline,
+          selectedChatConfig,
+          genConfig,
+        );
       }
-      const finish_reason = this.getFinishReason()!;
+      const finish_reason = selectedPipeline.getFinishReason()!;
 
       choices.push({
         // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -827,21 +893,21 @@ export class MLCEngine implements MLCEngineInterface {
         index: i,
         logprobs: request.logprobs
           ? ({
-              content: this.getPipeline().getTokenLogprobArray(),
+              content: selectedPipeline.getTokenLogprobArray(),
             } as ChatCompletion.Choice.Logprobs)
           : null,
         text: request.echo ? request.prompt + outputMessage : outputMessage,
       });
-      completion_tokens += this.getPipeline().getCurRoundDecodingTotalTokens();
-      prompt_tokens += this.getPipeline().getCurRoundPrefillTotalTokens();
-      prefill_time += this.getPipeline().getCurRoundPrefillTotalTime();
-      decode_time += this.getPipeline().getCurRoundDecodingTotalTime();
+      completion_tokens += selectedPipeline.getCurRoundDecodingTotalTokens();
+      prompt_tokens += selectedPipeline.getCurRoundPrefillTotalTokens();
+      prefill_time += selectedPipeline.getCurRoundPrefillTotalTime();
+      decode_time += selectedPipeline.getCurRoundDecodingTotalTime();
     }
 
     const response: Completion = {
       id: crypto.randomUUID(),
       choices: choices,
-      model: this.currentModelId,
+      model: selectedModelId,
       object: "text_completion",
       created: Date.now(),
       usage: {
@@ -857,7 +923,7 @@ export class MLCEngine implements MLCEngineInterface {
 
     // Reset seed -- we do not want this seed to affect future requests
     if (request.seed !== null && request.seed !== undefined) {
-      this.getPipeline().setSeed(Date.now());
+      selectedPipeline.setSeed(Date.now());
     }
     return response;
   }
@@ -866,20 +932,34 @@ export class MLCEngine implements MLCEngineInterface {
     request: EmbeddingCreateParams,
   ): Promise<CreateEmbeddingResponse> {
     // 0. Preprocess inputs
-    if (!this.currentModelId) {
-      throw new ModelNotLoadedError();
+    const loadedModelIds: string[] = Array.from(
+      this.loadedModelIdToPipeline.keys(),
+    );
+    const selectedModelId: string = getModelIdToUse(
+      loadedModelIds,
+      request.model,
+      "EmbeddingCreateParams",
+    );
+    const selectedPipeline = this.loadedModelIdToPipeline.get(selectedModelId);
+    if (!(selectedPipeline instanceof EmbeddingPipeline)) {
+      throw new IncorrectPipelineLoadedError(
+        selectedModelId,
+        "EmbeddingPipeline",
+        "EmbeddingCreateParams",
+      );
     }
     if (
-      findModelRecord(this.currentModelId, this.appConfig).model_type !==
+      findModelRecord(selectedModelId, this.appConfig).model_type !==
       ModelType.embedding
     ) {
-      throw new EmbeddingUnsupportedModelError(this.currentModelId);
+      throw new EmbeddingUnsupportedModelError(selectedModelId);
     }
-    API.postInitAndCheckFieldsEmbedding(request, this.currentModelId);
+    API.postInitAndCheckFieldsEmbedding(request, selectedModelId);
 
     // 1. Call EmbeddingPipeline to get embeddings
-    const embedResult: Array<Array<number>> =
-      await this.getEmbeddingPipeline().embedStep(request.input);
+    const embedResult: Array<Array<number>> = await selectedPipeline.embedStep(
+      request.input,
+    );
 
     // 2. Prepare response
     const batchSize = embedResult.length;
@@ -894,15 +974,13 @@ export class MLCEngine implements MLCEngineInterface {
     }
     return {
       data: data,
-      model: this.currentModelId,
+      model: selectedModelId,
       object: "list",
       usage: {
-        prompt_tokens:
-          this.getEmbeddingPipeline().getCurRoundEmbedTotalTokens(),
-        total_tokens: this.getEmbeddingPipeline().getCurRoundEmbedTotalTokens(),
+        prompt_tokens: selectedPipeline.getCurRoundEmbedTotalTokens(),
+        total_tokens: selectedPipeline.getCurRoundEmbedTotalTokens(),
         extra: {
-          prefill_tokens_per_s:
-            this.getEmbeddingPipeline().getCurRoundEmbedTokensPerSec(),
+          prefill_tokens_per_s: selectedPipeline.getCurRoundEmbedTokensPerSec(),
         },
       },
     };
@@ -950,42 +1028,67 @@ export class MLCEngine implements MLCEngineInterface {
     return gpuDetectOutput.adapterInfo.vendor;
   }
 
-  //----------------------------------------------
+  //------------------------------------------------------------
   // 5. Low-level APIs that interact with pipeline
-  //----------------------------------------------
-  private getPipeline(): LLMChatPipeline {
-    if (this.pipeline === undefined) {
-      throw new EngineNotLoadedError();
-    }
-    return this.pipeline;
-  }
+  // Except getLLMStates, all others are not used in MLCEngine.
+  // Instead, MLCEngine directly calls pipeline.method().
+  //------------------------------------------------------------
 
-  private getEmbeddingPipeline(): EmbeddingPipeline {
-    if (this.embeddingPipeline === undefined) {
-      throw new EngineNotLoadedError();
+  /**
+   * Return the model, its LLMChatPipeline, and ChatConfig to use. Throws error when unclear which
+   * model to load.
+   * @param requestName The type of request or API to load the model for. Needed for error throwing.
+   * @param modelId Model the user specified to load via the request. Required when multiple
+   *   models are loaded
+   */
+  private getLLMStates(
+    requestName: string,
+    modelId?: string | null,
+  ): [string, LLMChatPipeline, ChatConfig] {
+    const loadedModelIds: string[] = Array.from(
+      this.loadedModelIdToPipeline.keys(),
+    );
+    const selectedModelId: string = getModelIdToUse(
+      loadedModelIds,
+      modelId,
+      requestName,
+    );
+    const selectedPipeline = this.loadedModelIdToPipeline.get(selectedModelId);
+    if (!(selectedPipeline instanceof LLMChatPipeline)) {
+      throw new IncorrectPipelineLoadedError(
+        selectedModelId,
+        "LLMChatPipeline",
+        requestName,
+      );
     }
-    return this.embeddingPipeline;
+    const selectedChatConfig =
+      this.loadedModelIdToChatConfig.get(selectedModelId);
+    if (selectedChatConfig === undefined) {
+      throw new Error(
+        `InternalError: chat config not registered for ${selectedModelId}.`,
+      );
+    }
+    return [selectedModelId, selectedPipeline, selectedChatConfig];
   }
 
   async forwardTokensAndSample(
     inputIds: Array<number>,
     isPrefill: boolean,
+    modelId?: string,
   ): Promise<number> {
-    return this.getPipeline().forwardTokensAndSample(inputIds, isPrefill);
+    const [, selectedPipeline] = this.getLLMStates(
+      "forwardTokensAndSample",
+      modelId,
+    );
+    return selectedPipeline.forwardTokensAndSample(inputIds, isPrefill);
   }
 
   /**
    * @returns Whether the generation stopped.
    */
-  stopped(): boolean {
-    return this.getPipeline().stopped();
-  }
-
-  /**
-   * @returns Finish reason; undefined if generation not started/stopped yet.
-   */
-  getFinishReason(): ChatCompletionFinishReason | undefined {
-    return this.getPipeline().getFinishReason();
+  stopped(modelId?: string): boolean {
+    const [, selectedPipeline] = this.getLLMStates("stopped", modelId);
+    return selectedPipeline.stopped();
   }
 
   /**
@@ -993,32 +1096,30 @@ export class MLCEngine implements MLCEngineInterface {
    *
    * @returns The current output message.
    */
-  async getMessage(): Promise<string> {
-    return this.getPipeline().getMessage();
+  async getMessage(modelId?: string): Promise<string> {
+    const [, selectedPipeline] = this.getLLMStates("getMessage", modelId);
+    return selectedPipeline.getMessage();
   }
 
-  /**
-   * Set MLCEngine logging output level
-   *
-   * @param logLevel The new log level
-   */
-  setLogLevel(logLevel: LogLevel) {
-    log.setLevel(logLevel);
-  }
-
-  async runtimeStatsText(): Promise<string> {
+  async runtimeStatsText(modelId?: string): Promise<string> {
     log.warn(
       "WARNING: `runtimeStatsText()` will soon be deprecated. " +
         "Please use `ChatCompletion.usage` for non-streaming requests, or " +
         "`ChatCompletionChunk.usage` for streaming requests, enabled by `stream_options`. " +
         "The only flow that expects to use `runtimeStatsText()` as of now is `forwardTokensAndSample()`.",
     );
-    return this.getPipeline().runtimeStatsText();
+    const [, selectedPipeline] = this.getLLMStates("runtimeStatsText", modelId);
+    return selectedPipeline.runtimeStatsText();
   }
 
-  async resetChat(keepStats = false) {
-    this.pipeline?.resetChat(keepStats);
+  async resetChat(keepStats = false, modelId?: string) {
+    const [, selectedPipeline] = this.getLLMStates("resetChat", modelId);
+    selectedPipeline.resetChat(keepStats);
   }
+
+  //-----------------------------------------------
+  // 6. Prefill and decode given an LLMChatPipeline
+  //-----------------------------------------------
 
   /**
    * Run a prefill step with a given input.
@@ -1031,36 +1132,40 @@ export class MLCEngine implements MLCEngineInterface {
    * performing multi-round chatting, so we do not reset, hence reusing KV cache. Otherwise, we
    * reset every thing, treating the request as something completely new.
    *
-   * @param input The input prompt, or `messages` in OpenAI-like APIs.
+   * @param input The OpenAI-style prompt to prefill.
+   * @param pipeline The loaded pipeline, hence model, to carry out this prefill.
+   * @param chatConfig The chat config to use for this model.
+   * @param genConfig Generation config.
    */
   async prefill(
-    input: string | ChatCompletionRequest | CompletionCreateParams,
-    genConfig?: GenerationConfig,
+    input: ChatCompletionRequest | CompletionCreateParams,
+    pipeline: LLMChatPipeline,
+    chatConfig: ChatConfig,
+    genConfig: GenerationConfig,
   ) {
-    if (this.config === undefined) {
+    // TODO: SPECIFY MODEL TO PERFORM PREFILL, HENCE RETRIEVE CONFIG
+    if (chatConfig === undefined) {
       throw new ConfigurationNotInitializedError();
     }
     let input_str: string;
     let input_role_str: string | undefined;
     let lastMsgRole = Role.user;
-    if (typeof input === "string") {
-      input_str = input;
-    } else if ("messages" in input) {
+    if ("messages" in input) {
       // For ChatCompletionRequest, we prepare input using `messages`
       // 1. Get new conversation based on request, determine if we are in multiround chatting
-      const oldConv = this.getPipeline().getConversationObject();
+      const oldConv = pipeline.getConversationObject();
       const newConv = getConversationFromChatCompletionRequest(
         input,
-        this.config,
+        chatConfig,
       );
       if (!compareConversationObject(oldConv, newConv)) {
         // Not the same conversation, so not multiround chatting, reset everything (KV cache, etc.)
-        this.resetChat();
-        this.getPipeline().setConversation(newConv);
+        pipeline.resetChat();
+        pipeline.setConversation(newConv);
       } else if (newConv.messages.length === 0) {
         // Empty oldConv, and no chat history in newConv, so reset and setConversation
-        this.resetChat();
-        this.getPipeline().setConversation(newConv);
+        pipeline.resetChat();
+        pipeline.setConversation(newConv);
       } else {
         log.info("Multiround chatting, reuse KVCache.");
       }
@@ -1076,15 +1181,15 @@ export class MLCEngine implements MLCEngineInterface {
     } else {
       // For CompletionCreateParams, the input is just the prompt
       input_str = input.prompt;
-      this.resetChat();
+      pipeline.resetChat();
       const newConv = getConversation(
-        this.config.conv_template,
-        this.config.conv_config,
+        chatConfig.conv_template,
+        chatConfig.conv_config,
         true,
       );
-      this.getPipeline().setConversation(newConv);
+      pipeline.setConversation(newConv);
     }
-    return this.getPipeline().prefillStep(
+    return pipeline.prefillStep(
       input_str,
       lastMsgRole,
       input_role_str,
@@ -1095,7 +1200,7 @@ export class MLCEngine implements MLCEngineInterface {
   /**
    * Run a decode step to decode the next token.
    */
-  async decode(genConfig?: GenerationConfig) {
-    return this.getPipeline().decodeStep(genConfig);
+  async decode(pipeline: LLMChatPipeline, genConfig?: GenerationConfig) {
+    return pipeline.decodeStep(genConfig);
   }
 }

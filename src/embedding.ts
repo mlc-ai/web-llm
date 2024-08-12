@@ -265,6 +265,10 @@ export class EmbeddingPipeline {
     await this.device.sync();
   }
 
+  async asyncLoadWebGPUPipelines() {
+    await this.tvm.asyncLoadWebGPUPipelines(this.vm.getInternalModule());
+  }
+
   // Performance APIs below
 
   /**
