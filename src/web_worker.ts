@@ -24,6 +24,8 @@ import {
   CompletionCreateParamsStreaming,
   CompletionCreateParamsBase,
   CompletionCreateParams,
+  CreateEmbeddingResponse,
+  EmbeddingCreateParams,
 } from "./openai_api_protocols/index";
 import * as API from "./openai_api_protocols/index";
 import {
@@ -38,6 +40,7 @@ import {
   WorkerResponse,
   WorkerRequest,
   CompletionNonStreamingParams,
+  EmbeddingParams,
   CompletionStreamInitParams,
 } from "./message";
 import log from "loglevel";
@@ -187,7 +190,7 @@ export class WebWorkerMLCEngineHandler {
         });
         return;
       }
-      // For engine.chat.completions()
+      // For engine.chat.completions.create()
       case "chatCompletionNonStreaming": {
         // Directly return the ChatCompletion response
         this.handleTask(msg.uuid, async () => {
@@ -212,7 +215,7 @@ export class WebWorkerMLCEngineHandler {
         });
         return;
       }
-      // engine.completions()
+      // For engine.completions.create()
       case "completionNonStreaming": {
         // Directly return the ChatCompletion response
         this.handleTask(msg.uuid, async () => {
@@ -237,7 +240,7 @@ export class WebWorkerMLCEngineHandler {
         });
         return;
       }
-      // Shared by engine.chat.completions() and engine.completions()
+      // Shared by engine.chat.completions.create() and engine.completions.create()
       case "completionStreamNextChunk": {
         // Note: ChatCompletion and Completion share the same chunk generator.
         // For any subsequent request, we return whatever `next()` yields
@@ -251,6 +254,18 @@ export class WebWorkerMLCEngineHandler {
           const { value } = await this.asyncGenerate.next();
           onComplete?.(value);
           return value;
+        });
+        return;
+      }
+      // For engine.embeddings.create()
+      case "embedding": {
+        // Directly return the Embeddings response
+        this.handleTask(msg.uuid, async () => {
+          const params = msg.content as EmbeddingParams;
+          await this.reloadIfUnmatched(params.modelId, params.chatOpts);
+          const res = await this.engine.embedding(params.request);
+          onComplete?.(res);
+          return res;
         });
         return;
       }
@@ -406,6 +421,8 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
   public chat: API.Chat;
   /** For completions.create() */
   public completions: API.Completions;
+  /** For embeddings.create() */
+  public embeddings: API.Embeddings;
 
   /**
    * The modelId and chatOpts that the frontend expects the backend engine is currently loaded
@@ -445,6 +462,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
 
     this.chat = new API.Chat(this);
     this.completions = new API.Completions(this);
+    this.embeddings = new API.Embeddings(this);
   }
 
   setInitProgressCallback(initProgressCallback?: InitProgressCallback) {
@@ -739,6 +757,24 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
       },
     };
     return await this.getPromise<Completion>(msg);
+  }
+
+  async embedding(
+    request: EmbeddingCreateParams,
+  ): Promise<CreateEmbeddingResponse> {
+    if (this.modelId === undefined) {
+      throw new WorkerEngineModelNotLoadedError(this.constructor.name);
+    }
+    const msg: WorkerRequest = {
+      kind: "embedding",
+      uuid: crypto.randomUUID(),
+      content: {
+        request: request,
+        modelId: this.modelId,
+        chatOpts: this.chatOpts,
+      },
+    };
+    return await this.getPromise<CreateEmbeddingResponse>(msg);
   }
 
   onmessage(event: any) {

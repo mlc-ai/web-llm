@@ -1,11 +1,12 @@
 /** Util methods. */
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
-import { MessagePlaceholders } from "./config";
+import { AppConfig, MessagePlaceholders } from "./config";
 import {
   ChatCompletionChunk,
   ChatCompletionMessageToolCall,
 } from "./openai_api_protocols/index";
 import {
+  ModelNotFoundError,
   ToolCallOutputInvalidTypeError,
   ToolCallOutputMissingFieldsError,
   ToolCallOutputParseError,
@@ -196,4 +197,12 @@ export function getToolCallFromOutputMessage(
     }
     return tool_calls_result;
   }
+}
+
+export function findModelRecord(modelId: string, appConfig: AppConfig) {
+  const matchedItem = appConfig.model_list.find(
+    (item) => item.model_id == modelId,
+  );
+  if (matchedItem !== undefined) return matchedItem;
+  throw new ModelNotFoundError(modelId);
 }
