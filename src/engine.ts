@@ -40,7 +40,6 @@ import * as API from "./openai_api_protocols/index";
 import {
   InitProgressCallback,
   MLCEngineInterface,
-  GenerateProgressCallback,
   LogitProcessor,
   LogLevel,
 } from "./types";
@@ -373,8 +372,6 @@ export class MLCEngine implements MLCEngineInterface {
       | string
       | ChatCompletionRequestNonStreaming
       | CompletionCreateParamsNonStreaming,
-    progressCallback?: GenerateProgressCallback,
-    streamInterval = 1,
     genConfig?: GenerationConfig,
   ): Promise<string> {
     this.interruptSignal = false;
@@ -391,9 +388,6 @@ export class MLCEngine implements MLCEngineInterface {
       }
       counter += 1;
       await this.decode(genConfig);
-      if (counter % streamInterval == 0 && progressCallback !== undefined) {
-        progressCallback(counter, await this.getMessage());
-      }
     }
     return await this.getMessage();
   }
@@ -636,24 +630,6 @@ export class MLCEngine implements MLCEngineInterface {
   //------------------------------
 
   /**
-   * A legacy E2E generation API. Functionally equivalent to `chatCompletion()`.
-   */
-  async generate(
-    input: string | ChatCompletionRequestNonStreaming,
-    progressCallback?: GenerateProgressCallback,
-    streamInterval = 1,
-    genConfig?: GenerationConfig,
-  ): Promise<string> {
-    log.warn(
-      "WARNING: `generate()` will soon be deprecated. " +
-        "Please use `engine.chat.completions.create()` instead. " +
-        "For multi-round chatting, see `examples/multi-round-chat` on how to use " +
-        "`engine.chat.completions.create()` to achieve the same effect.",
-    );
-    return this._generate(input, progressCallback, streamInterval, genConfig);
-  }
-
-  /**
    * Completes a single ChatCompletionRequest.
    *
    * @param request A OpenAI-style ChatCompletion request.
@@ -714,12 +690,7 @@ export class MLCEngine implements MLCEngineInterface {
         this.getPipeline().triggerStop();
         outputMessage = "";
       } else {
-        outputMessage = await this._generate(
-          request,
-          /*progressCallback=*/ undefined,
-          /*streamInterval=*/ 1,
-          /*genConfig=*/ genConfig,
-        );
+        outputMessage = await this._generate(request, genConfig);
       }
       let finish_reason = this.getFinishReason()!;
 
@@ -846,12 +817,7 @@ export class MLCEngine implements MLCEngineInterface {
         this.getPipeline().triggerStop();
         outputMessage = "";
       } else {
-        outputMessage = await this._generate(
-          request,
-          /*progressCallback=*/ undefined,
-          /*streamInterval=*/ 1,
-          /*genConfig=*/ genConfig,
-        );
+        outputMessage = await this._generate(request, genConfig);
       }
       const finish_reason = this.getFinishReason()!;
 

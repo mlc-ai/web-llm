@@ -1,4 +1,4 @@
-import { AppConfig, ChatOptions, GenerationConfig } from "./config";
+import { AppConfig, ChatOptions } from "./config";
 import {
   ChatCompletionRequest,
   ChatCompletionRequestBase,
@@ -29,14 +29,6 @@ export interface InitProgressReport {
  * Callbacks used to report initialization process.
  */
 export type InitProgressCallback = (report: InitProgressReport) => void;
-
-/**
- * Callbacks used to report initialization process.
- */
-export type GenerateProgressCallback = (
-  step: number,
-  currentMessage: string,
-) => void;
 
 /**
  * A stateful logitProcessor used to post-process logits after forwarding the input and before
@@ -113,26 +105,6 @@ export interface MLCEngineInterface {
    * @note This is an async function.
    */
   reload: (modelId: string, chatOpts?: ChatOptions) => Promise<void>;
-
-  /**
-   * Generate a response for a given input.
-   *
-   * @param input The input prompt or a non-streaming ChatCompletionRequest.
-   * @param progressCallback Callback that is being called to stream intermediate results.
-   * @param streamInterval callback interval to call progresscallback
-   * @param genConfig Configuration for this single generation that overrides pre-existing configs.
-   * @returns The final result.
-   *
-   * @note This will be deprecated soon. Please use `engine.chat.completions.create()` instead.
-   * For multi-round chatting, see `examples/multi-round-chat` on how to use
-   * `engine.chat.completions.create()` to achieve the same effect.
-   */
-  generate: (
-    input: string | ChatCompletionRequestNonStreaming,
-    progressCallback?: GenerateProgressCallback,
-    streamInterval?: number,
-    genConfig?: GenerationConfig,
-  ) => Promise<string>;
 
   /**
    * OpenAI-style API. Generate a chat completion response for the given conversation and
