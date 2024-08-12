@@ -5,7 +5,6 @@ import {
   ChatCompletionRequest,
   ChatCompletionUserMessageParam,
 } from "../src/openai_api_protocols/chat_completion";
-import { MLCEngine } from "../src/engine";
 import {
   Conversation,
   compareConversationObject,

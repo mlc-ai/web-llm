@@ -8,6 +8,8 @@ import {
   CompletionCreateParamsNonStreaming,
   CompletionCreateParamsStreaming,
   Completion,
+  EmbeddingCreateParams,
+  CreateEmbeddingResponse,
 } from "./openai_api_protocols/index";
 
 /**
@@ -25,6 +27,7 @@ type RequestKind =
   | "forwardTokensAndSample"
   | "chatCompletionNonStreaming"
   | "completionNonStreaming"
+  | "embedding"
   | "getMessage"
   | "chatCompletionStreamInit"
   | "completionStreamInit"
@@ -93,6 +96,14 @@ export interface CompletionStreamInitParams {
   modelId: string;
   chatOpts: ChatOptions;
 }
+export interface EmbeddingParams {
+  request: EmbeddingCreateParams;
+  // The model and chatOpts that the frontend engine expects the backend to be loaded with.
+  // If not loaded due to service worker unexpectedly killed, handler will call reload().
+  // TODO(webllm-team): should add appConfig here as well.
+  modelId: string;
+  chatOpts: ChatOptions;
+}
 
 export interface CustomRequestParams {
   requestName: string;
@@ -108,6 +119,7 @@ export type MessageContent =
   | ChatCompletionStreamInitParams
   | CompletionNonStreamingParams
   | CompletionStreamInitParams
+  | EmbeddingParams
   | CustomRequestParams
   | InitProgressReport
   | LogLevel
@@ -116,6 +128,7 @@ export type MessageContent =
   | number
   | ChatCompletion
   | ChatCompletionChunk
+  | CreateEmbeddingResponse
   | Completion
   | AppConfig
   | void;

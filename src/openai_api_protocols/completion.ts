@@ -319,6 +319,7 @@ export const CompletionCreateParamsUnsupportedFields: Array<string> = [
  */
 export function postInitAndCheckFields(
   request: CompletionCreateParams,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   currentModelId: string,
 ): void {
   // 1. Check unsupported fields in request

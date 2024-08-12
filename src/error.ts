@@ -254,12 +254,12 @@ export class UnsupportedToolTypeError extends Error {
     this.name = "UnsupportedToolTypeError";
   }
 }
-export class ChatModuleNotInitializedError extends Error {
+export class EngineNotLoadedError extends Error {
   constructor() {
     super(
-      "Chat module not yet initialized. Ensure you initialize the chat module by calling `chat.reload()` first.",
+      "Engine not yet loaded with model. Ensure you initialize the chat module by calling `engine.reload()` first.",
     );
-    this.name = "ChatModuleNotInitializedError";
+    this.name = "EngineNotLoadedError";
   }
 }
 export class UnsupportedTokenizerFilesError extends Error {
@@ -421,5 +421,61 @@ export class TextCompletionConversationError extends Error {
   constructor(funcName: string) {
     super(`Non-chat text completion API cannot call ${funcName}.`);
     this.name = "TextCompletionConversationError";
+  }
+}
+
+export class EmbeddingUnsupportedEncodingFormatError extends Error {
+  constructor() {
+    super("Embedding in base64 format is currently not supported.");
+    this.name = "EmbeddingUnsupportedEncodingFormatError";
+  }
+}
+
+export class EmbeddingUnsupportedModelError extends Error {
+  constructor(currentModel: string) {
+    super(
+      `Trying to run embeddings.create() with ${currentModel}, which does not have ` +
+        `ModelRecord.model_type === ModelType.embedding in the model record. ` +
+        `Either make sure an embedding model is loaded, or specify the model type in ModelRecord.`,
+    );
+    this.name = "EmbeddingUnsupportedModelError";
+  }
+}
+
+export class EmbeddingSlidingWindowError extends Error {
+  constructor(sliding_window_size: number) {
+    super(
+      `Embedding should not use sliding window. However, ` +
+        `sliding_window_size=${sliding_window_size} is specified in the chat config.`,
+    );
+    this.name = "EmbeddingSlidingWindowError";
+  }
+}
+
+export class EmbeddingChunkingUnsupportedError extends Error {
+  constructor(contextWindowSize: number, prefillChunkSize: number) {
+    super(
+      `Embedding currently does not support chunking. Make sure ` +
+        `contextWindowSize === prefillChunkSize. Got contextWindowSize=${contextWindowSize}, ` +
+        `prefillChunkSize=${prefillChunkSize} instead.`,
+    );
+    this.name = "EmbeddingChunkingUnsupportedError";
+  }
+}
+
+export class EmbeddingExceedContextWindowSizeError extends Error {
+  constructor(contextWindowSize: number, receivedSize: number) {
+    super(
+      `The embedding model you are using only supports up to ${contextWindowSize} context size.` +
+        `However, an input in the batch has size ${receivedSize}.`,
+    );
+    this.name = "EmbeddingExceedContextWindowSizeError";
+  }
+}
+
+export class EmbeddingInputEmptyError extends Error {
+  constructor() {
+    super("Embedding input cannot be empty string or empty token array.");
+    this.name = "EmbeddingInputEmptyError";
   }
 }

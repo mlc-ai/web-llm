@@ -58,3 +58,11 @@ export {
   CompletionChoice,
   postInitAndCheckFields as postInitAndCheckFieldsCompletion,
 } from "./completion";
+
+export {
+  Embeddings,
+  Embedding,
+  EmbeddingCreateParams,
+  CreateEmbeddingResponse,
+  postInitAndCheckFields as postInitAndCheckFieldsEmbedding,
+} from "./embedding";

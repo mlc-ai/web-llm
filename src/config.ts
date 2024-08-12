@@ -68,10 +68,10 @@ export interface TokenizerInfo {
  * Only these fields affect the conversation in runtime.
  * i.e. The third part in https://llm.mlc.ai/docs/get_started/mlc_chat_config.html.
  *
- * This is initialized in `ChatModule.reload()` with the model's `mlc-chat-config.json`.
+ * This is initialized in `MLCEngine.reload()` with the model's `mlc-chat-config.json`.
  */
 export interface ChatConfig {
-  // First three fields affect the entire conversation, i.e. used in `ChatModule.reload()`
+  // First three fields affect the entire conversation, i.e. used in `MLCEngine.reload()`
   tokenizer_files: Array<string>;
   tokenizer_info?: TokenizerInfo;
   token_table_postproc_method?: string; // TODO: backward compatibility, remove soon
@@ -122,7 +122,7 @@ export interface MLCEngineConfig {
  * We also support additional fields not present in `mlc-chat-config.json` due to OpenAI-like APIs.
  *
  * Note that all values are optional. If unspecified, we use whatever values in `ChatConfig`
- * initialized during `ChatModule.reload()`.
+ * initialized during `MLCEngine.reload()`.
  */
 export interface GenerationConfig {
   // Only used in MLC
@@ -226,6 +226,11 @@ export function postInitAndCheckGenerationConfigValues(
   }
 }
 
+export enum ModelType {
+  "LLM",
+  "embedding",
+}
+
 /**
  * Information for a model.
  * @param model: the huggingface link to download the model weights, accepting four formats:
@@ -241,6 +246,7 @@ export function postInitAndCheckGenerationConfigValues(
  * @param low_resource_required: whether the model can run on limited devices (e.g. Android phone).
  * @param buffer_size_required_bytes: required `maxStorageBufferBindingSize`, different for each device.
  * @param required_features: feature needed to run this model (e.g. shader-f16).
+ * @param model_type: the intended usecase for the model, if unspecified, default to LLM.
  */
 export interface ModelRecord {
   model: string;
@@ -251,6 +257,7 @@ export interface ModelRecord {
   low_resource_required?: boolean;
   buffer_size_required_bytes?: number;
   required_features?: Array<string>;
+  model_type?: ModelType;
 }
 
 /**
@@ -1513,6 +1520,48 @@ export const prebuiltAppConfig: AppConfig = {
       overrides: {
         context_window_size: 1024,
       },
+    },
+    // Embedding models
+    // -b means max_batch_size this model allows. The smaller it is, the less memory the model consumes.
+    {
+      model: "https://huggingface.co/mlc-ai/snowflake-arctic-embed-m-q0f32-MLC",
+      model_id: "snowflake-arctic-embed-m-q0f32-MLC-b32",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/snowflake-arctic-embed-m-q0f32-ctx512_cs512_batch32-webgpu.wasm",
+      vram_required_MB: 1407.51,
+      model_type: ModelType.embedding,
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/snowflake-arctic-embed-m-q0f32-MLC",
+      model_id: "snowflake-arctic-embed-m-q0f32-MLC-b4",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/snowflake-arctic-embed-m-q0f32-ctx512_cs512_batch4-webgpu.wasm",
+      vram_required_MB: 539.4,
+      model_type: ModelType.embedding,
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/snowflake-arctic-embed-s-q0f32-MLC",
+      model_id: "snowflake-arctic-embed-s-q0f32-MLC-b32",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/snowflake-arctic-embed-s-q0f32-ctx512_cs512_batch32-webgpu.wasm",
+      vram_required_MB: 1022.82,
+      model_type: ModelType.embedding,
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/snowflake-arctic-embed-s-q0f32-MLC",
+      model_id: "snowflake-arctic-embed-s-q0f32-MLC-b4",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/snowflake-arctic-embed-s-q0f32-ctx512_cs512_batch4-webgpu.wasm",
+      vram_required_MB: 238.71,
+      model_type: ModelType.embedding,
     },
   ],
 };

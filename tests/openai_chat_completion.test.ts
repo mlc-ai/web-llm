@@ -136,7 +136,7 @@ describe("Check chat completion unsupported requests", () => {
 });
 
 describe("Supported requests", () => {
-  test("Supproted chat completion request", () => {
+  test("Supported chat completion request", () => {
     const request: ChatCompletionRequest = {
       messages: [
         { role: "system", content: "You are a helpful assistant." },
