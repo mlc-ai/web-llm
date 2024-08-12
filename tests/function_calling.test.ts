@@ -10,7 +10,6 @@ import {
   getConversationFromChatCompletionRequest,
   getFunctionCallUsage,
 } from "../src/conversation";
-import { MLCEngine } from "../src/engine";
 import { ChatCompletionRequest } from "../src/openai_api_protocols/chat_completion";
 
 import { describe, expect, test } from "@jest/globals";
@@ -133,8 +132,6 @@ describe("Test gorilla MLCEngine", () => {
   });
 
   test("Test getFunctionCallUsage auto", () => {
-    const engine = new MLCEngine();
-
     const request: ChatCompletionRequest = {
       model: "gorilla-openfunctions-v1-q4f16_1_MLC",
       messages: [
