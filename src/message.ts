@@ -17,7 +17,6 @@ import {
  */
 type RequestKind =
   | "reload"
-  | "generate"
   | "runtimeStatsText"
   | "interruptGenerate"
   | "unload"
@@ -38,27 +37,14 @@ type RequestKind =
   | "setAppConfig";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-type ResponseKind =
-  | "return"
-  | "throw"
-  | "initProgressCallback"
-  | "generateProgressCallback";
+type ResponseKind = "return" | "throw" | "initProgressCallback";
 
 export interface ReloadParams {
   modelId: string;
   chatOpts?: ChatOptions;
 }
-export interface GenerateParams {
-  input: string | ChatCompletionRequestNonStreaming;
-  streamInterval?: number;
-  genConfig?: GenerationConfig;
-}
 export interface ResetChatParams {
   keepStats: boolean;
-}
-export interface GenerateProgressCallbackParams {
-  step: number;
-  currentMessage: string;
 }
 export interface ForwardTokensAndSampleParams {
   inputIds: Array<number>;
@@ -110,9 +96,7 @@ export interface CustomRequestParams {
   requestMessage: string;
 }
 export type MessageContent =
-  | GenerateProgressCallbackParams
   | ReloadParams
-  | GenerateParams
   | ResetChatParams
   | ForwardTokensAndSampleParams
   | ChatCompletionNonStreamingParams
@@ -160,17 +144,7 @@ type InitProgressWorkerResponse = {
   content: InitProgressReport;
 };
 
-type GenerateProgressWorkerResponse = {
-  kind: "generateProgressCallback";
-  uuid: string;
-  content: {
-    step: number;
-    currentMessage: string;
-  };
-};
-
 export type WorkerResponse =
   | OneTimeWorkerResponse
   | InitProgressWorkerResponse
-  | GenerateProgressWorkerResponse
   | HeartbeatWorkerResponse;

@@ -1,12 +1,6 @@
-import {
-  AppConfig,
-  ChatOptions,
-  MLCEngineConfig,
-  GenerationConfig,
-} from "./config";
+import { AppConfig, ChatOptions, MLCEngineConfig } from "./config";
 import {
   MLCEngineInterface,
-  GenerateProgressCallback,
   InitProgressCallback,
   InitProgressReport,
   LogLevel,
@@ -31,12 +25,10 @@ import * as API from "./openai_api_protocols/index";
 import {
   MessageContent,
   ReloadParams,
-  GenerateParams,
   ForwardTokensAndSampleParams,
   ChatCompletionNonStreamingParams,
   ChatCompletionStreamInitParams,
   ResetChatParams,
-  GenerateProgressCallbackParams,
   WorkerResponse,
   WorkerRequest,
   CompletionNonStreamingParams,
@@ -150,31 +142,6 @@ export class WebWorkerMLCEngineHandler {
           this.chatOpts = params.chatOpts;
           onComplete?.(null);
           return null;
-        });
-        return;
-      }
-      case "generate": {
-        this.handleTask(msg.uuid, async () => {
-          const params = msg.content as GenerateParams;
-          const progressCallback = (step: number, currentMessage: string) => {
-            const cbMessage: WorkerResponse = {
-              kind: "generateProgressCallback",
-              uuid: msg.uuid,
-              content: {
-                step: step,
-                currentMessage: currentMessage,
-              },
-            };
-            this.postMessage(cbMessage);
-          };
-          const res = await this.engine.generate(
-            params.input,
-            progressCallback,
-            params.streamInterval,
-            params.genConfig,
-          );
-          onComplete?.(res);
-          return res;
         });
         return;
       }
@@ -433,10 +400,6 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
   chatOpts?: ChatOptions;
 
   private initProgressCallback?: InitProgressCallback;
-  private generateCallbackRegistry = new Map<
-    string,
-    GenerateProgressCallback
-  >();
   private pendingPromise = new Map<string, (msg: WorkerResponse) => void>();
 
   constructor(worker: ChatWorker, engineConfig?: MLCEngineConfig) {
@@ -556,27 +519,6 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
       uuid: crypto.randomUUID(),
       content: null,
     };
-    return await this.getPromise<string>(msg);
-  }
-
-  async generate(
-    input: string | ChatCompletionRequestNonStreaming,
-    progressCallback?: GenerateProgressCallback,
-    streamInterval?: number,
-    genConfig?: GenerationConfig,
-  ): Promise<string> {
-    const msg: WorkerRequest = {
-      kind: "generate",
-      uuid: crypto.randomUUID(),
-      content: {
-        input: input,
-        streamInterval: streamInterval,
-        genConfig: genConfig,
-      },
-    };
-    if (progressCallback !== undefined) {
-      this.generateCallbackRegistry.set(msg.uuid, progressCallback);
-    }
     return await this.getPromise<string>(msg);
   }
 
@@ -788,14 +730,6 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
       case "initProgressCallback": {
         if (this.initProgressCallback !== undefined) {
           this.initProgressCallback(msg.content as InitProgressReport);
-        }
-        return;
-      }
-      case "generateProgressCallback": {
-        const params = msg.content as GenerateProgressCallbackParams;
-        const cb = this.generateCallbackRegistry.get(msg.uuid);
-        if (cb !== undefined) {
-          cb(params.step, params.currentMessage);
         }
         return;
       }
