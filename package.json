@@ -1,6 +1,6 @@
 {
   "name": "@mlc-ai/web-llm",
-  "version": "0.2.56",
+  "version": "0.2.57",
   "description": "Hardware accelerated language model chats on browsers",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -27,7 +27,7 @@
   "license": "Apache-2.0",
   "homepage": "https://github.com/mlc-ai/web-llm",
   "devDependencies": {
-    "@mlc-ai/web-tokenizers": "^0.1.4",
+    "@mlc-ai/web-tokenizers": "^0.1.5",
     "@next/eslint-plugin-next": "^14.2.3",
     "@rollup/plugin-commonjs": "^20.0.0",
     "@rollup/plugin-node-resolve": "^13.0.4",
