@@ -34,6 +34,8 @@ import {
   CompletionNonStreamingParams,
   EmbeddingParams,
   CompletionStreamInitParams,
+  GetMessageParams,
+  RuntimeStatsTextParams,
 } from "./message";
 import log from "loglevel";
 import { MLCEngine } from "./engine";
@@ -41,6 +43,7 @@ import {
   UnknownMessageKindError,
   WorkerEngineModelNotLoadedError,
 } from "./error";
+import { areArraysEqual } from "./utils";
 
 /**
  * Worker handler that can be used in a WebWorker
@@ -56,14 +59,15 @@ import {
 export class WebWorkerMLCEngineHandler {
   /**
    * The modelId and chatOpts that the underlying engine (backend) is currently loaded with.
+   * An engine can be loaded with multiple models, so modelId and chatOpts are lists.
    *
    * TODO(webllm-team): This is always in-sync with `this.engine` unless device is lost due to
    * unexpected reason. Therefore, we should get it from `this.engine` directly and make handler
    * stateless. Besides, consider if we should add appConfig, or use engine's API to find the
    * corresponding model record rather than relying on just the modelId.
    */
-  modelId?: string;
-  chatOpts?: ChatOptions;
+  modelId?: string[];
+  chatOpts?: ChatOptions[];
 
   public engine: MLCEngine;
   /** ChatCompletion and Completion share the same chunk generator. */
@@ -151,6 +155,7 @@ export class WebWorkerMLCEngineHandler {
           const res = await this.engine.forwardTokensAndSample(
             params.inputIds,
             params.isPrefill,
+            params.modelId,
           );
           onComplete?.(res);
           return res;
@@ -238,7 +243,8 @@ export class WebWorkerMLCEngineHandler {
       }
       case "runtimeStatsText": {
         this.handleTask(msg.uuid, async () => {
-          const res = await this.engine.runtimeStatsText();
+          const params = msg.content as RuntimeStatsTextParams;
+          const res = await this.engine.runtimeStatsText(params.modelId);
           onComplete?.(res);
           return res;
         });
@@ -266,7 +272,7 @@ export class WebWorkerMLCEngineHandler {
       case "resetChat": {
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ResetChatParams;
-          await this.engine.resetChat(params.keepStats);
+          await this.engine.resetChat(params.keepStats, params.modelId);
           onComplete?.(null);
           return null;
         });
@@ -290,7 +296,8 @@ export class WebWorkerMLCEngineHandler {
       }
       case "getMessage": {
         this.handleTask(msg.uuid, async () => {
-          const res = await this.engine.getMessage();
+          const params = msg.content as GetMessageParams;
+          const res = await this.engine.getMessage(params.modelId);
           onComplete?.(res);
           return res;
         });
@@ -329,10 +336,11 @@ export class WebWorkerMLCEngineHandler {
    * to possibly killed service worker), we reload here.
    */
   async reloadIfUnmatched(
-    expectedModelId: string,
-    expectedChatOpts: ChatOptions,
+    expectedModelId: string[],
+    expectedChatOpts?: ChatOptions[],
   ) {
-    if (this.modelId !== expectedModelId) {
+    // TODO: should we also check expectedChatOpts here?
+    if (!areArraysEqual(this.modelId, expectedModelId)) {
       log.warn(
         "WebWorkerMLCEngine expects model is loaded in WebWorkerMLCEngineHandler, " +
           "but it is not. This may due to web/service worker is unexpectedly killed.\n" +
@@ -353,19 +361,22 @@ export interface ChatWorker {
  *
  * Equivalent to `new webllm.WebWorkerMLCEngine(worker).reload(...)`.
  *
- * @param worker The worker that holds the actual MLCEngine, intialized with `new Worker()`.
- * @param modelId The model to load, needs to either be in `webllm.prebuiltAppConfig`, or in
- * `engineConfig.appConfig`.
+ * @param worker The worker that holds the actual MLCEngine, initialized with `new Worker()`.
+ * @param modelId model_id of the model to load, either string or string[]. When multiple models
+ *   are provided, we load all models sequentially. Each modelId needs to either be in
+ *   `webllm.prebuiltAppConfig`, or in `engineCOnfig.appConfig`.
  * @param engineConfig Optionally configures the engine, see `webllm.MLCEngineConfig` for more.
+ * @param chatOpts Extra options to optionally override the `mlc-chat-config.json` of `modelId`.
+ *   The size of which needs to match that of `modelId`; chatOpts[i] will be used for modelId[i].
  * @returns An initialized `WebLLM.WebWorkerMLCEngine` with `modelId` loaded.
  *
  * @note engineConfig.logitProcessorRegistry is ignored for `CreateWebWorkMLCEngine()`.
  */
 export async function CreateWebWorkerMLCEngine(
   worker: any,
-  modelId: string,
+  modelId: string | string[],
   engineConfig?: MLCEngineConfig,
-  chatOpts?: ChatOptions,
+  chatOpts?: ChatOptions | ChatOptions[],
 ): Promise<WebWorkerMLCEngine> {
   const webWorkerMLCEngine = new WebWorkerMLCEngine(worker, engineConfig);
   await webWorkerMLCEngine.reload(modelId, chatOpts);
@@ -395,9 +406,10 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
    * The modelId and chatOpts that the frontend expects the backend engine is currently loaded
    * with. Needed for service worker. It is the backend and handler's job to match up with the
    * expectation despite the web/service worker possibly being killed.
+   * Since an engine can load multiple models, both modelId and chatOpts are lists.
    */
-  modelId?: string;
-  chatOpts?: ChatOptions;
+  modelId?: string[];
+  chatOpts?: ChatOptions[];
 
   private initProgressCallback?: InitProgressCallback;
   private pendingPromise = new Map<string, (msg: WorkerResponse) => void>();
@@ -481,7 +493,18 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
     return promise;
   }
 
-  async reload(modelId: string, chatOpts?: ChatOptions): Promise<void> {
+  async reload(
+    modelId: string | string[],
+    chatOpts?: ChatOptions | ChatOptions[],
+  ): Promise<void> {
+    // Always convert modelId and chatOpts to lists internally for ease of manipulation
+    if (!Array.isArray(modelId)) {
+      modelId = [modelId];
+    }
+    if (chatOpts !== undefined && !Array.isArray(chatOpts)) {
+      chatOpts = [chatOpts];
+    }
+
     const msg: WorkerRequest = {
       kind: "reload",
       uuid: crypto.randomUUID(),
@@ -513,20 +536,24 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
     return await this.getPromise<string>(msg);
   }
 
-  async getMessage(): Promise<string> {
+  async getMessage(modelId?: string): Promise<string> {
     const msg: WorkerRequest = {
       kind: "getMessage",
       uuid: crypto.randomUUID(),
-      content: null,
+      content: {
+        modelId: modelId,
+      },
     };
     return await this.getPromise<string>(msg);
   }
 
-  async runtimeStatsText(): Promise<string> {
+  async runtimeStatsText(modelId?: string): Promise<string> {
     const msg: WorkerRequest = {
       kind: "runtimeStatsText",
       uuid: crypto.randomUUID(),
-      content: null,
+      content: {
+        modelId: modelId,
+      },
     };
     return await this.getPromise<string>(msg);
   }
@@ -551,12 +578,13 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
     this.chatOpts = undefined;
   }
 
-  async resetChat(keepStats = false): Promise<void> {
+  async resetChat(keepStats = false, modelId?: string): Promise<void> {
     const msg: WorkerRequest = {
       kind: "resetChat",
       uuid: crypto.randomUUID(),
       content: {
         keepStats: keepStats,
+        modelId: modelId,
       },
     };
     await this.getPromise<null>(msg);
@@ -565,6 +593,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
   async forwardTokensAndSample(
     inputIds: Array<number>,
     isPrefill: boolean,
+    modelId?: string,
   ): Promise<number> {
     const msg: WorkerRequest = {
       kind: "forwardTokensAndSample",
@@ -572,6 +601,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
       content: {
         inputIds: inputIds,
         isPrefill: isPrefill,
+        modelId: modelId,
       },
     };
     return await this.getPromise<number>(msg);

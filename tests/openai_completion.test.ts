@@ -57,16 +57,6 @@ describe("Check completion unsupported requests", () => {
   test("High-level unsupported fields", () => {
     expect(() => {
       const request: CompletionCreateParams = {
-        model: "phi-2-q4f32_1-MLC", // this raises error
-        prompt: "Hello, ",
-      };
-      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
-    }).toThrow(
-      "The following fields in CompletionCreateParams are not yet supported",
-    );
-
-    expect(() => {
-      const request: CompletionCreateParams = {
         prompt: "Hello, ",
         suffix: "this is suffix", // this raises error
       };

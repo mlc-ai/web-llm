@@ -7,7 +7,7 @@ import {
   WebWorkerMLCEngineHandler,
   WebWorkerMLCEngine,
 } from "./web_worker";
-import { areChatOptionsEqual } from "./utils";
+import { areArraysEqual, areChatOptionsListEqual } from "./utils";
 import { WebGPUNotFoundError } from "./error";
 
 export interface ExtensionMLCEngineConfig extends MLCEngineConfig {
@@ -66,8 +66,8 @@ export class ServiceWorkerMLCEngineHandler extends WebWorkerMLCEngineHandler {
         const params = msg.content as ReloadParams;
         // If the modelId, chatOpts, and appConfig are the same, immediately return
         if (
-          this.modelId === params.modelId &&
-          areChatOptionsEqual(this.chatOpts, params.chatOpts)
+          areArraysEqual(this.modelId, params.modelId) &&
+          areChatOptionsListEqual(this.chatOpts, params.chatOpts)
         ) {
           log.info("Already loaded the model. Skip loading");
           const gpuDetectOutput = await tvmjs.detectGPUDevice();
@@ -104,18 +104,21 @@ export class ServiceWorkerMLCEngineHandler extends WebWorkerMLCEngineHandler {
 /**
  * Create a ServiceWorkerMLCEngine.
  *
- * @param modelId The model to load, needs to either be in `webllm.prebuiltAppConfig`, or in
- * `engineConfig.appConfig`.
+ * @param modelId model_id of the model to load, either string or string[]. When multiple models
+ *   are provided, we load all models sequentially. Each modelId needs to either be in
+ *   `webllm.prebuiltAppConfig`, or in `engineCOnfig.appConfig`.
  * @param engineConfig Optionally configures the engine, see `webllm.MLCEngineConfig` for more.
+ * @param chatOpts Extra options to optionally override the `mlc-chat-config.json` of `modelId`.
+ *   The size of which needs to match that of `modelId`; chatOpts[i] will be used for modelId[i].
  * @param keepAliveMs The interval to send keep alive messages to the service worker.
  * See [Service worker lifecycle](https://developer.chrome.com/docs/extensions/develop/concepts/service-workers/lifecycle#idle-shutdown)
  * The default is 10s.
  * @returns An initialized `WebLLM.ServiceWorkerMLCEngine` with `modelId` loaded.
  */
 export async function CreateServiceWorkerMLCEngine(
-  modelId: string,
+  modelId: string | string[],
   engineConfig?: ExtensionMLCEngineConfig,
-  chatOpts?: ChatOptions,
+  chatOpts?: ChatOptions | ChatOptions[],
   keepAliveMs = 10000,
 ): Promise<ServiceWorkerMLCEngine> {
   const serviceWorkerMLCEngine = new ServiceWorkerMLCEngine(

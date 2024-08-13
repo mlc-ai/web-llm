@@ -1,15 +1,18 @@
 /** Util methods. */
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
-import { AppConfig, MessagePlaceholders } from "./config";
+import { AppConfig, MessagePlaceholders, ModelRecord } from "./config";
 import {
   ChatCompletionChunk,
   ChatCompletionMessageToolCall,
 } from "./openai_api_protocols/index";
 import {
   ModelNotFoundError,
+  ModelNotLoadedError,
+  SpecifiedModelNotFoundError,
   ToolCallOutputInvalidTypeError,
   ToolCallOutputMissingFieldsError,
   ToolCallOutputParseError,
+  UnclearModelToUseError,
 } from "./error";
 
 /**
@@ -199,10 +202,52 @@ export function getToolCallFromOutputMessage(
   }
 }
 
-export function findModelRecord(modelId: string, appConfig: AppConfig) {
+export function findModelRecord(
+  modelId: string,
+  appConfig: AppConfig,
+): ModelRecord {
   const matchedItem = appConfig.model_list.find(
     (item) => item.model_id == modelId,
   );
   if (matchedItem !== undefined) return matchedItem;
   throw new ModelNotFoundError(modelId);
+}
+
+/**
+ * Return the model to use given the loaded modelIds and requestModel. Throws error when unclear
+ * which model to load.
+ * @param loadedModelIds Models currently loaded in the engine.
+ * @param requestModel Model the user specified to load via the request. Required when multiple
+ *   models are loaded
+ * @param requestName The type of request or API to load the model for. Needed for error throwing.
+ */
+export function getModelIdToUse(
+  loadedModelIds: string[],
+  requestModel: string | undefined | null,
+  requestName: string,
+): string {
+  let selectedModelId: string;
+  if (loadedModelIds.length === 0) {
+    throw new ModelNotLoadedError(requestName);
+  }
+  if (requestModel) {
+    // If specified model
+    if (loadedModelIds.indexOf(requestModel) === -1) {
+      throw new SpecifiedModelNotFoundError(
+        loadedModelIds,
+        requestModel,
+        requestName,
+      );
+    } else {
+      selectedModelId = requestModel;
+    }
+  } else {
+    // If not specified
+    if (loadedModelIds.length > 1) {
+      throw new UnclearModelToUseError(loadedModelIds, requestName);
+    } else {
+      selectedModelId = loadedModelIds[0];
+    }
+  }
+  return selectedModelId;
 }

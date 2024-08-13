@@ -1,4 +1,4 @@
-import { AppConfig, ChatOptions, GenerationConfig } from "./config";
+import { AppConfig, ChatOptions } from "./config";
 import { InitProgressReport, LogLevel } from "./types";
 import {
   ChatCompletionRequestStreaming,
@@ -40,55 +40,55 @@ type RequestKind =
 type ResponseKind = "return" | "throw" | "initProgressCallback";
 
 export interface ReloadParams {
-  modelId: string;
-  chatOpts?: ChatOptions;
+  modelId: string[];
+  chatOpts?: ChatOptions[];
 }
 export interface ResetChatParams {
   keepStats: boolean;
+  modelId?: string;
+}
+export interface GetMessageParams {
+  modelId?: string;
+}
+export interface RuntimeStatsTextParams {
+  modelId?: string;
 }
 export interface ForwardTokensAndSampleParams {
   inputIds: Array<number>;
   isPrefill: boolean;
+  modelId?: string;
 }
+
+// Notes on the following Params with modelId and chatOpts:
+// These fields are the model and chatOpts that the frontend engine expects the backend
+// to be loaded with. If not loaded due to web/service worker unexpectedly killed,
+// handler will call reload(). An engine can load multiple models, hence both are list.
+// TODO(webllm-team): should add appConfig here as well if rigorous.
+// Fore more, see https://github.com/mlc-ai/web-llm/pull/471
 export interface ChatCompletionNonStreamingParams {
   request: ChatCompletionRequestNonStreaming;
-  // The model and chatOpts that the frontend engine expects the backend to be loaded with.
-  // If not loaded due to service worker unexpectedly killed, handler will call reload().
-  // TODO(webllm-team): should add appConfig here as well.
-  modelId: string;
-  chatOpts: ChatOptions;
+  modelId: string[];
+  chatOpts?: ChatOptions[];
 }
 export interface ChatCompletionStreamInitParams {
   request: ChatCompletionRequestStreaming;
-  // The model and chatOpts that the frontend engine expects the backend to be loaded with.
-  // If not loaded due to service worker unexpectedly killed, handler will call reload().
-  // TODO(webllm-team): should add appConfig here as well.
-  modelId: string;
-  chatOpts: ChatOptions;
+  modelId: string[];
+  chatOpts?: ChatOptions[];
 }
 export interface CompletionNonStreamingParams {
   request: CompletionCreateParamsNonStreaming;
-  // The model and chatOpts that the frontend engine expects the backend to be loaded with.
-  // If not loaded due to service worker unexpectedly killed, handler will call reload().
-  // TODO(webllm-team): should add appConfig here as well.
-  modelId: string;
-  chatOpts: ChatOptions;
+  modelId: string[];
+  chatOpts?: ChatOptions[];
 }
 export interface CompletionStreamInitParams {
   request: CompletionCreateParamsStreaming;
-  // The model and chatOpts that the frontend engine expects the backend to be loaded with.
-  // If not loaded due to service worker unexpectedly killed, handler will call reload().
-  // TODO(webllm-team): should add appConfig here as well.
-  modelId: string;
-  chatOpts: ChatOptions;
+  modelId: string[];
+  chatOpts?: ChatOptions[];
 }
 export interface EmbeddingParams {
   request: EmbeddingCreateParams;
-  // The model and chatOpts that the frontend engine expects the backend to be loaded with.
-  // If not loaded due to service worker unexpectedly killed, handler will call reload().
-  // TODO(webllm-team): should add appConfig here as well.
-  modelId: string;
-  chatOpts: ChatOptions;
+  modelId: string[];
+  chatOpts?: ChatOptions[];
 }
 
 export interface CustomRequestParams {
@@ -98,6 +98,8 @@ export interface CustomRequestParams {
 export type MessageContent =
   | ReloadParams
   | ResetChatParams
+  | GetMessageParams
+  | RuntimeStatsTextParams
   | ForwardTokensAndSampleParams
   | ChatCompletionNonStreamingParams
   | ChatCompletionStreamInitParams

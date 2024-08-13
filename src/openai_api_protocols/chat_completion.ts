@@ -233,12 +233,13 @@ export interface ChatCompletionRequestBase {
    */
   response_format?: ResponseFormat;
 
-  //////////////// BELOW FIELDS NOT SUPPORTED YET ////////////////
-
   /**
-   * Model to carry out this API.
+   * ID of the model to use. This equals to `ModelRecord.model_id`, which needs to either be in
+   * `webllm.prebuiltAppConfig` or in `engineConfig.appConfig`.
    *
-   * @note Not supported. Instead, call `CreateMLCEngine(model)` or `engine.reload(model)`.
+   * @note Call `CreateMLCEngine(model)` or `engine.reload(model)` ahead of time.
+   * @note If only one model is loaded in the engine, this field is optional. If multiple models
+   *   are loaded, this is required.
    */
   model?: string | null;
 }
@@ -363,7 +364,7 @@ export interface ChatCompletionChunk {
   usage?: CompletionUsage;
 }
 
-export const ChatCompletionRequestUnsupportedFields: Array<string> = ["model"];
+export const ChatCompletionRequestUnsupportedFields: Array<string> = []; // all supported as of now
 
 /**
  * Post init and verify whether the input of the request is valid. Thus, this function can throw
