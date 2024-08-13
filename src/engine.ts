@@ -64,6 +64,8 @@ import {
   ReloadArgumentSizeUnmatchedError,
   IncorrectPipelineLoadedError,
   ReloadModelIdNotUniqueError,
+  SpecifiedModelNotFoundError,
+  ModelNotLoadedError,
 } from "./error";
 import { asyncLoadTokenizer } from "./cache_util";
 import { EmbeddingPipeline } from "./embedding";
@@ -384,12 +386,14 @@ export class MLCEngine implements MLCEngineInterface {
 
   async unload() {
     this.deviceLostIsError = false; // so that unload() does not trigger device.lost error
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    this.loadedModelIdToPipeline.forEach(async (pipeline, modelId) => {
+    // TODO: can optimize by calling dispose() to all pipelines in parallel. However, need to wait
+    // for all sync() to finish before proceeding (e.g. naive forEach does not work)
+    for (const entry of Array.from(this.loadedModelIdToPipeline.entries())) {
+      const pipeline = entry[1];
       pipeline.dispose();
       // Wait until device is actually destroyed so we can safely set deviceLostIsError back to true
       await pipeline.sync();
-    });
+    }
     this.loadedModelIdToPipeline.clear();
     this.loadedModelIdToChatConfig.clear();
     this.deviceLostIsError = true;
@@ -1104,8 +1108,23 @@ export class MLCEngine implements MLCEngineInterface {
   }
 
   async resetChat(keepStats = false, modelId?: string) {
-    const [, selectedPipeline] = this.getLLMStates("resetChat", modelId);
-    selectedPipeline.resetChat(keepStats);
+    try {
+      const [, selectedPipeline] = this.getLLMStates("resetChat", modelId);
+      selectedPipeline.resetChat(keepStats);
+    } catch (error) {
+      if (
+        error instanceof ModelNotLoadedError ||
+        error instanceof SpecifiedModelNotFoundError
+      ) {
+        // Only allow calling resetChat before pipeline instantiated.
+        log.debug(
+          "Caught an expected error in resetChat, treating it as no-op. Error: ",
+          error,
+        );
+      } else {
+        throw error;
+      }
+    }
   }
 
   //-----------------------------------------------

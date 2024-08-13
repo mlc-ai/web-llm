@@ -156,9 +156,12 @@ describe("Test getModelIdToUse", () => {
     expect(async () => {
       await engine.getMessage();
     }).rejects.toThrow(new ModelNotLoadedError("getMessage"));
+
+    // resetChat should not throw error because it is allowed to resetChat before pipeline
+    // established, as a no-op
     expect(async () => {
       await engine.resetChat();
-    }).rejects.toThrow(new ModelNotLoadedError("resetChat"));
+    }).not.toThrow(new ModelNotLoadedError("resetChat"));
   });
 
   test("E2E test with MLCEngine with two models without specifying a model", () => {
@@ -223,9 +226,12 @@ describe("Test getModelIdToUse", () => {
         "runtimeStatsText",
       ),
     );
+
+    // resetChat should not throw error because it is allowed to resetChat before pipeline
+    // established, as a no-op
     expect(async () => {
       await engine.resetChat(false, requestedModelId);
-    }).rejects.toThrow(
+    }).not.toThrow(
       new SpecifiedModelNotFoundError(
         loadedModelIds,
         requestedModelId,
