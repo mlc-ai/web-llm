@@ -33,21 +33,6 @@ describe("Check chat completion unsupported requests", () => {
     }).toThrow("Only specify stream_options when stream=True.");
   });
 
-  test("High-level unsupported fields", () => {
-    expect(() => {
-      const request: ChatCompletionRequest = {
-        model: "phi-2-q4f32_1-MLC", // this raises error
-        messages: [
-          { role: "system", content: "You are a helpful assistant." },
-          { role: "user", content: "Hello! " },
-        ],
-      };
-      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
-    }).toThrow(
-      "The following fields in ChatCompletionRequest are not yet supported",
-    );
-  });
-
   test("Last message should be from user or tool", () => {
     expect(() => {
       const request: ChatCompletionRequest = {

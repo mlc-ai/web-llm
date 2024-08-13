@@ -98,17 +98,6 @@ describe("Check embeddings unsupported requests", () => {
     }).toThrow(new EmbeddingUnsupportedEncodingFormatError());
   });
 
-  test("model", () => {
-    expect(() => {
-      const request: EmbeddingCreateParams = {
-        input: ["Hello", "Hi"],
-        encoding_format: "float",
-        model: "snowflake-arctic-embed-m-q0f32-MLC",
-      };
-      postInitAndCheckFields(request, "snowflake-arctic-embed-m-q0f32-MLC");
-    }).toThrow("The following fields in");
-  });
-
   test("user", () => {
     expect(() => {
       const request: EmbeddingCreateParams = {

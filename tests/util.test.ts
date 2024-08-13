@@ -79,7 +79,7 @@ describe("Test getModelIdToUse", () => {
   });
 
   test("No model loaded", () => {
-    const loadedModelIds = [];
+    const loadedModelIds: string[] = [];
     const requestModel = "d";
     const requestName = "ChatCompletionRequest";
     expect(() => {

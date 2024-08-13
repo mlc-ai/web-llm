@@ -232,7 +232,7 @@ export function getModelIdToUse(
   }
   if (requestModel) {
     // If specified model
-    if (!(requestModel in loadedModelIds)) {
+    if (loadedModelIds.indexOf(requestModel) === -1) {
       throw new SpecifiedModelNotFoundError(
         loadedModelIds,
         requestModel,
