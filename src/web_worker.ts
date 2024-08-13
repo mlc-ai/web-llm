@@ -36,6 +36,7 @@ import {
   CompletionStreamInitParams,
   GetMessageParams,
   RuntimeStatsTextParams,
+  CompletionStreamNextChunkParams,
 } from "./message";
 import log from "loglevel";
 import { MLCEngine } from "./engine";
@@ -44,6 +45,7 @@ import {
   WorkerEngineModelNotLoadedError,
 } from "./error";
 import { areArraysEqual } from "./utils";
+import { getModelIdToUse } from "./support";
 
 /**
  * Worker handler that can be used in a WebWorker
@@ -70,11 +72,10 @@ export class WebWorkerMLCEngineHandler {
   chatOpts?: ChatOptions[];
 
   public engine: MLCEngine;
-  /** ChatCompletion and Completion share the same chunk generator. */
-  protected asyncGenerate?: AsyncGenerator<
-    ChatCompletionChunk | Completion,
-    void,
-    void
+  /** ChatCompletion and Completion share the same chunk generator. Each loaded model has its own. */
+  protected loadedModelIdToAsyncGenerator: Map<
+    string,
+    AsyncGenerator<ChatCompletionChunk | Completion, void, void>
   >;
 
   /**
@@ -82,6 +83,10 @@ export class WebWorkerMLCEngineHandler {
    */
   constructor() {
     this.engine = new MLCEngine();
+    this.loadedModelIdToAsyncGenerator = new Map<
+      string,
+      AsyncGenerator<ChatCompletionChunk | Completion, void, void>
+    >();
     this.engine.setInitProgressCallback((report: InitProgressReport) => {
       const msg: WorkerResponse = {
         kind: "initProgressCallback",
@@ -178,10 +183,16 @@ export class WebWorkerMLCEngineHandler {
         // One-time set up that instantiates the chunk generator in worker
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as ChatCompletionStreamInitParams;
+          // Also ensures params.selectedModelId will match what this.engine selects
           await this.reloadIfUnmatched(params.modelId, params.chatOpts);
-          this.asyncGenerate = (await this.engine.chatCompletion(
+          // Register new async generator for this new request of the model
+          const curGenerator = (await this.engine.chatCompletion(
             params.request,
           )) as AsyncGenerator<ChatCompletionChunk, void, void>;
+          this.loadedModelIdToAsyncGenerator.set(
+            params.selectedModelId,
+            curGenerator,
+          );
           onComplete?.(null);
           return null;
         });
@@ -203,10 +214,16 @@ export class WebWorkerMLCEngineHandler {
         // One-time set up that instantiates the chunk generator in worker
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as CompletionStreamInitParams;
+          // Also ensures params.selectedModelId will match what this.engine selects
           await this.reloadIfUnmatched(params.modelId, params.chatOpts);
-          this.asyncGenerate = (await this.engine.completion(
+          // Register new async generator for this new request of the model
+          const curGenerator = (await this.engine.completion(
             params.request,
           )) as AsyncGenerator<Completion, void, void>;
+          this.loadedModelIdToAsyncGenerator.set(
+            params.selectedModelId,
+            curGenerator,
+          );
           onComplete?.(null);
           return null;
         });
@@ -217,13 +234,17 @@ export class WebWorkerMLCEngineHandler {
         // Note: ChatCompletion and Completion share the same chunk generator.
         // For any subsequent request, we return whatever `next()` yields
         this.handleTask(msg.uuid, async () => {
-          if (this.asyncGenerate === undefined) {
+          const params = msg.content as CompletionStreamNextChunkParams;
+          const curGenerator = this.loadedModelIdToAsyncGenerator.get(
+            params.selectedModelId,
+          );
+          if (curGenerator === undefined) {
             throw Error(
-              "Chunk generator in worker should be instantiated by now.",
+              "InternalError: Chunk generator in worker should be instantiated by now.",
             );
           }
           // Yield the next chunk
-          const { value } = await this.asyncGenerate.next();
+          const { value } = await curGenerator.next();
           onComplete?.(value);
           return value;
         });
@@ -264,6 +285,10 @@ export class WebWorkerMLCEngineHandler {
           await this.engine.unload();
           this.modelId = undefined;
           this.chatOpts = undefined;
+          // This may not be cleaned properly when one asyncGenerator finishes.
+          // We only clear at unload(), which may not be called upon reload().
+          // However, service_worker may skip reload(). Will leave as is for now.
+          this.loadedModelIdToAsyncGenerator.clear();
           onComplete?.(null);
           return null;
         });
@@ -334,6 +359,7 @@ export class WebWorkerMLCEngineHandler {
 
   /** Check whether frontend expectation matches with backend (modelId and chatOpts). If not (due
    * to possibly killed service worker), we reload here.
+   * For more, see https://github.com/mlc-ai/web-llm/pull/533
    */
   async reloadIfUnmatched(
     expectedModelId: string[],
@@ -613,19 +639,22 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
    * the worker which we yield. The last message is `void`, meaning the generator has nothing
    * to yield anymore.
    *
+   * @param selectedModelId: The model of whose async generator to call next() to get next chunk.
+   *   Needed because an engine can load multiple models.
+   *
    * @note ChatCompletion and Completion share the same chunk generator.
    */
-  async *asyncGenerate(): AsyncGenerator<
-    ChatCompletionChunk | Completion,
-    void,
-    void
-  > {
+  async *asyncGenerate(
+    selectedModelId: string,
+  ): AsyncGenerator<ChatCompletionChunk | Completion, void, void> {
     // Every time it gets called, sends message to worker, asking for the next chunk
     while (true) {
       const msg: WorkerRequest = {
         kind: "completionStreamNextChunk",
         uuid: crypto.randomUUID(),
-        content: null,
+        content: {
+          selectedModelId: selectedModelId,
+        } as CompletionStreamNextChunkParams,
       };
       const ret = await this.getPromise<ChatCompletionChunk>(msg);
       // If the worker's generator reached the end, it would return a `void`
@@ -651,6 +680,14 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
     if (this.modelId === undefined) {
       throw new WorkerEngineModelNotLoadedError(this.constructor.name);
     }
+    // Needed for the streaming case. Consolidate model id to specify
+    // which model's asyncGenerator to instantiate or call next() on.
+    // Since handler can maintain multiple generators concurrently
+    const selectedModelId = getModelIdToUse(
+      this.modelId ? this.modelId : [],
+      request.model,
+      "ChatCompletionRequest",
+    );
 
     if (request.stream) {
       // First let worker instantiate a generator
@@ -659,6 +696,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
         uuid: crypto.randomUUID(),
         content: {
           request: request,
+          selectedModelId: selectedModelId,
           modelId: this.modelId,
           chatOpts: this.chatOpts,
         },
@@ -666,7 +704,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
       await this.getPromise<null>(msg);
 
       // Then return an async chunk generator that resides on the client side
-      return this.asyncGenerate() as AsyncGenerator<
+      return this.asyncGenerate(selectedModelId) as AsyncGenerator<
         ChatCompletionChunk,
         void,
         void
@@ -701,6 +739,15 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
     if (this.modelId === undefined) {
       throw new WorkerEngineModelNotLoadedError(this.constructor.name);
     }
+    // Needed for the streaming case. Consolidate model id to specify
+    // which model's asyncGenerator to instantiate or call next() on.
+    // Since handler can maintain multiple generators concurrently
+    const selectedModelId = getModelIdToUse(
+      this.modelId ? this.modelId : [],
+      request.model,
+      "CompletionCreateParams",
+    );
+
     if (request.stream) {
       // First let worker instantiate a generator
       const msg: WorkerRequest = {
@@ -708,6 +755,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
         uuid: crypto.randomUUID(),
         content: {
           request: request,
+          selectedModelId: selectedModelId,
           modelId: this.modelId,
           chatOpts: this.chatOpts,
         },
@@ -715,7 +763,11 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
       await this.getPromise<null>(msg);
 
       // Then return an async chunk generator that resides on the client side
-      return this.asyncGenerate() as AsyncGenerator<Completion, void, void>;
+      return this.asyncGenerate(selectedModelId) as AsyncGenerator<
+        Completion,
+        void,
+        void
+      >;
     }
 
     // Non streaming case is more straightforward

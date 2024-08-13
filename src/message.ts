@@ -65,6 +65,11 @@ export interface ForwardTokensAndSampleParams {
 // handler will call reload(). An engine can load multiple models, hence both are list.
 // TODO(webllm-team): should add appConfig here as well if rigorous.
 // Fore more, see https://github.com/mlc-ai/web-llm/pull/471
+
+// Note on the messages with selectedModelId:
+// This is the modelId this request uses. It is needed to identify which async generator
+// to instantiate / use, since an engine can load multiple models, thus the handler
+// needs to maintain multiple generators.
 export interface ChatCompletionNonStreamingParams {
   request: ChatCompletionRequestNonStreaming;
   modelId: string[];
@@ -72,6 +77,7 @@ export interface ChatCompletionNonStreamingParams {
 }
 export interface ChatCompletionStreamInitParams {
   request: ChatCompletionRequestStreaming;
+  selectedModelId: string;
   modelId: string[];
   chatOpts?: ChatOptions[];
 }
@@ -82,6 +88,7 @@ export interface CompletionNonStreamingParams {
 }
 export interface CompletionStreamInitParams {
   request: CompletionCreateParamsStreaming;
+  selectedModelId: string;
   modelId: string[];
   chatOpts?: ChatOptions[];
 }
@@ -89,6 +96,9 @@ export interface EmbeddingParams {
   request: EmbeddingCreateParams;
   modelId: string[];
   chatOpts?: ChatOptions[];
+}
+export interface CompletionStreamNextChunkParams {
+  selectedModelId: string;
 }
 
 export interface CustomRequestParams {
@@ -106,6 +116,7 @@ export type MessageContent =
   | CompletionNonStreamingParams
   | CompletionStreamInitParams
   | EmbeddingParams
+  | CompletionStreamNextChunkParams
   | CustomRequestParams
   | InitProgressReport
   | LogLevel
