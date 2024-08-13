@@ -114,16 +114,12 @@ export class MLCEngine implements MLCEngineInterface {
   >;
   /** Maps each loaded model's modelId to its chatConfig */
   private loadedModelIdToChatConfig: Map<string, ChatConfig>;
-  // private currentModelId?: string = undefined; // Model current loaded, undefined if nothing is loaded
   private logger: (msg: string) => void = log.info;
   private logitProcessorRegistry?: Map<string, LogitProcessor>;
-  // private pipeline?: LLMChatPipeline;
-  // private embeddingPipeline?: EmbeddingPipeline;
   private initProgressCallback?: InitProgressCallback;
   private interruptSignal = false;
   private deviceLostIsError = true; // whether device.lost is due to actual error or model reload
   private reloadController: AbortController | undefined;
-  // private config?: ChatConfig;
   private appConfig: AppConfig;
 
   constructor(engineConfig?: MLCEngineConfig) {
@@ -202,26 +198,23 @@ export class MLCEngine implements MLCEngineInterface {
       throw new ReloadModelIdNotUniqueError(modelId);
     }
     // 4. Sequentially load each model
-    for (let i = 0; i < modelId.length; i++) {
-      this.reloadController = new AbortController();
-      this.reloadController = new AbortController();
-
-      this.reloadController = new AbortController();
-
-      try {
+    // Single abort should stop all to-be-loaded models
+    this.reloadController = new AbortController();
+    try {
+      for (let i = 0; i < modelId.length; i++) {
         await this.reloadInternal(
           modelId[i],
           chatOpts ? chatOpts[i] : undefined,
         );
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
-          log.warn("Reload() is aborted.", error.message);
-          return;
-        }
-        throw error;
-      } finally {
-        this.reloadController = undefined;
       }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        log.warn("Reload() is aborted.", error.message);
+        return;
+      }
+      throw error;
+    } finally {
+      this.reloadController = undefined;
     }
   }
 
@@ -391,6 +384,7 @@ export class MLCEngine implements MLCEngineInterface {
 
   async unload() {
     this.deviceLostIsError = false; // so that unload() does not trigger device.lost error
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     this.loadedModelIdToPipeline.forEach(async (pipeline, modelId) => {
       pipeline.dispose();
       // Wait until device is actually destroyed so we can safely set deviceLostIsError back to true
@@ -1028,11 +1022,10 @@ export class MLCEngine implements MLCEngineInterface {
     return gpuDetectOutput.adapterInfo.vendor;
   }
 
-  //------------------------------------------------------------
-  // 5. Low-level APIs that interact with pipeline
-  // Except getLLMStates, all others are not used in MLCEngine.
-  // Instead, MLCEngine directly calls pipeline.method().
-  //------------------------------------------------------------
+  //---------------------------------------------------------------
+  // 5. Helper for querying currently loaded model/pipeline/config.
+  // Needed due to possibly multiple loaded models.
+  //---------------------------------------------------------------
 
   /**
    * Return the model, its LLMChatPipeline, and ChatConfig to use. Throws error when unclear which
@@ -1045,6 +1038,8 @@ export class MLCEngine implements MLCEngineInterface {
     requestName: string,
     modelId?: string | null,
   ): [string, LLMChatPipeline, ChatConfig] {
+    // TODO(webllm-team): when more modalities/pipelines are supported, make this method
+    // generic for different pipelines. e.g. currently embedding() does not use this method
     const loadedModelIds: string[] = Array.from(
       this.loadedModelIdToPipeline.keys(),
     );
@@ -1071,6 +1066,10 @@ export class MLCEngine implements MLCEngineInterface {
     return [selectedModelId, selectedPipeline, selectedChatConfig];
   }
 
+  //--------------------------------------------------------------------
+  // 6. External low-level APIs that directly interacts with a pipeline.
+  //--------------------------------------------------------------------
+
   async forwardTokensAndSample(
     inputIds: Array<number>,
     isPrefill: boolean,
@@ -1081,14 +1080,6 @@ export class MLCEngine implements MLCEngineInterface {
       modelId,
     );
     return selectedPipeline.forwardTokensAndSample(inputIds, isPrefill);
-  }
-
-  /**
-   * @returns Whether the generation stopped.
-   */
-  stopped(modelId?: string): boolean {
-    const [, selectedPipeline] = this.getLLMStates("stopped", modelId);
-    return selectedPipeline.stopped();
   }
 
   /**
@@ -1118,7 +1109,7 @@ export class MLCEngine implements MLCEngineInterface {
   }
 
   //-----------------------------------------------
-  // 6. Prefill and decode given an LLMChatPipeline
+  // 7. Prefill and decode given an LLMChatPipeline
   //-----------------------------------------------
 
   /**

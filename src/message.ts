@@ -1,4 +1,4 @@
-import { AppConfig, ChatOptions, GenerationConfig } from "./config";
+import { AppConfig, ChatOptions } from "./config";
 import { InitProgressReport, LogLevel } from "./types";
 import {
   ChatCompletionRequestStreaming,
@@ -68,27 +68,27 @@ export interface ForwardTokensAndSampleParams {
 export interface ChatCompletionNonStreamingParams {
   request: ChatCompletionRequestNonStreaming;
   modelId: string[];
-  chatOpts: ChatOptions[];
+  chatOpts?: ChatOptions[];
 }
 export interface ChatCompletionStreamInitParams {
   request: ChatCompletionRequestStreaming;
   modelId: string[];
-  chatOpts: ChatOptions[];
+  chatOpts?: ChatOptions[];
 }
 export interface CompletionNonStreamingParams {
   request: CompletionCreateParamsNonStreaming;
   modelId: string[];
-  chatOpts: ChatOptions[];
+  chatOpts?: ChatOptions[];
 }
 export interface CompletionStreamInitParams {
   request: CompletionCreateParamsStreaming;
   modelId: string[];
-  chatOpts: ChatOptions[];
+  chatOpts?: ChatOptions[];
 }
 export interface EmbeddingParams {
   request: EmbeddingCreateParams;
   modelId: string[];
-  chatOpts: ChatOptions[];
+  chatOpts?: ChatOptions[];
 }
 
 export interface CustomRequestParams {
@@ -99,6 +99,7 @@ export type MessageContent =
   | ReloadParams
   | ResetChatParams
   | GetMessageParams
+  | RuntimeStatsTextParams
   | ForwardTokensAndSampleParams
   | ChatCompletionNonStreamingParams
   | ChatCompletionStreamInitParams

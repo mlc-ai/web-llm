@@ -8,11 +8,7 @@ import {
   WebWorkerMLCEngine,
   ChatWorker,
 } from "./web_worker";
-import {
-  areArraysEqual,
-  areChatOptionsEqual,
-  areChatOptionsListEqual,
-} from "./utils";
+import { areArraysEqual, areChatOptionsListEqual } from "./utils";
 import {
   NoServiceWorkerAPIError,
   NonWorkerEnvironmentError,

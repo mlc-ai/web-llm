@@ -117,7 +117,7 @@ export class ServiceWorkerMLCEngineHandler extends WebWorkerMLCEngineHandler {
  */
 export async function CreateServiceWorkerMLCEngine(
   modelId: string | string[],
-  engineConfig?: MLCEngineConfig,
+  engineConfig?: ExtensionMLCEngineConfig,
   chatOpts?: ChatOptions | ChatOptions[],
   keepAliveMs = 10000,
 ): Promise<ServiceWorkerMLCEngine> {

@@ -337,8 +337,9 @@ export class WebWorkerMLCEngineHandler {
    */
   async reloadIfUnmatched(
     expectedModelId: string[],
-    expectedChatOpts: ChatOptions[],
+    expectedChatOpts?: ChatOptions[],
   ) {
+    // TODO: should we also check expectedChatOpts here?
     if (!areArraysEqual(this.modelId, expectedModelId)) {
       log.warn(
         "WebWorkerMLCEngine expects model is loaded in WebWorkerMLCEngineHandler, " +

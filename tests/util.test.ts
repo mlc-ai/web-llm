@@ -1,9 +1,12 @@
+import { ChatOptions } from "../src/config";
 import {
   ModelNotLoadedError,
   SpecifiedModelNotFoundError,
   UnclearModelToUseError,
 } from "../src/error";
 import { cleanModelUrl, getModelIdToUse, getTopProbs } from "../src/support";
+import { areChatOptionsListEqual } from "../src/utils";
+import { MLCEngine } from "../src/engine";
 
 describe("Check getTopLogprobs correctness", () => {
   test("Correctness test 1", () => {
@@ -139,5 +142,168 @@ describe("Test getModelIdToUse", () => {
       requestName,
     );
     expect(selectedModelId).toEqual("c");
+  });
+
+  // Cannot test MLCEngine.getLLMStates E2E because `instanceof LLMChatPipeline` would not pass
+  // with dummy pipeline variables
+  test("E2E test with MLCEngine not loading a model for APIs", () => {
+    const engine = new MLCEngine();
+    expect(async () => {
+      await engine.chatCompletion({
+        messages: [{ role: "user", content: "hi" }],
+      });
+    }).rejects.toThrow(new ModelNotLoadedError("ChatCompletionRequest"));
+    expect(async () => {
+      await engine.getMessage();
+    }).rejects.toThrow(new ModelNotLoadedError("getMessage"));
+    expect(async () => {
+      await engine.resetChat();
+    }).rejects.toThrow(new ModelNotLoadedError("resetChat"));
+  });
+
+  test("E2E test with MLCEngine with two models without specifying a model", () => {
+    const engine = new MLCEngine() as any;
+    engine.loadedModelIdToPipeline = new Map<string, any>();
+    engine.loadedModelIdToPipeline.set("model1", "dummyLLMChatPipeline");
+    engine.loadedModelIdToPipeline.set("model2", "dummyLLMChatPipeline");
+    const loadedModelIds = ["model1", "model2"];
+
+    expect(async () => {
+      await engine.chatCompletion({
+        messages: [{ role: "user", content: "hi" }],
+      });
+    }).rejects.toThrow(
+      new UnclearModelToUseError(loadedModelIds, "ChatCompletionRequest"),
+    );
+    expect(async () => {
+      await engine.getMessage();
+    }).rejects.toThrow(
+      new UnclearModelToUseError(loadedModelIds, "getMessage"),
+    );
+    expect(async () => {
+      await engine.resetChat();
+    }).rejects.toThrow(new UnclearModelToUseError(loadedModelIds, "resetChat"));
+  });
+
+  test("E2E test with MLCEngine with two models specifying wrong model", () => {
+    const engine = new MLCEngine() as any;
+    engine.loadedModelIdToPipeline = new Map<string, any>();
+    engine.loadedModelIdToPipeline.set("model1", "dummyLLMChatPipeline");
+    engine.loadedModelIdToPipeline.set("model2", "dummyLLMChatPipeline");
+    const loadedModelIds = ["model1", "model2"];
+    const requestedModelId = "model3";
+
+    expect(async () => {
+      await engine.chatCompletion({
+        messages: [{ role: "user", content: "hi" }],
+        model: requestedModelId,
+      });
+    }).rejects.toThrow(
+      new SpecifiedModelNotFoundError(
+        loadedModelIds,
+        requestedModelId,
+        "ChatCompletionRequest",
+      ),
+    );
+    expect(async () => {
+      await engine.getMessage(requestedModelId);
+    }).rejects.toThrow(
+      new SpecifiedModelNotFoundError(
+        loadedModelIds,
+        requestedModelId,
+        "getMessage",
+      ),
+    );
+    expect(async () => {
+      await engine.runtimeStatsText(requestedModelId);
+    }).rejects.toThrow(
+      new SpecifiedModelNotFoundError(
+        loadedModelIds,
+        requestedModelId,
+        "runtimeStatsText",
+      ),
+    );
+    expect(async () => {
+      await engine.resetChat(false, requestedModelId);
+    }).rejects.toThrow(
+      new SpecifiedModelNotFoundError(
+        loadedModelIds,
+        requestedModelId,
+        "resetChat",
+      ),
+    );
+  });
+});
+
+describe("Test areChatOptionsListEqual", () => {
+  const dummyChatOpts1: ChatOptions = { tokenizer_files: ["a", "b"] };
+  const dummyChatOpts2: ChatOptions = {};
+  const dummyChatOpts3: ChatOptions = { tokenizer_files: ["a", "b"] };
+  const dummyChatOpts4: ChatOptions = {
+    tokenizer_files: ["a", "b"],
+    top_p: 0.5,
+  };
+
+  test("Two undefined", () => {
+    const options1: ChatOptions[] | undefined = undefined;
+    const options2: ChatOptions[] | undefined = undefined;
+    expect(areChatOptionsListEqual(options1, options2)).toEqual(true);
+  });
+
+  test("One undefined", () => {
+    const options1: ChatOptions[] | undefined = [dummyChatOpts1];
+    const options2: ChatOptions[] | undefined = undefined;
+    expect(areChatOptionsListEqual(options1, options2)).toEqual(false);
+  });
+
+  test("Both defined, not equal", () => {
+    const options1: ChatOptions[] | undefined = [dummyChatOpts1];
+    const options2: ChatOptions[] | undefined = [dummyChatOpts2];
+    expect(areChatOptionsListEqual(options1, options2)).toEqual(false);
+  });
+
+  test("Different size", () => {
+    const options1: ChatOptions[] | undefined = [
+      dummyChatOpts1,
+      dummyChatOpts3,
+    ];
+    const options2: ChatOptions[] | undefined = [dummyChatOpts2];
+    expect(areChatOptionsListEqual(options1, options2)).toEqual(false);
+  });
+
+  test("Same size, not equal 1", () => {
+    const options1: ChatOptions[] | undefined = [
+      dummyChatOpts1,
+      dummyChatOpts3,
+    ];
+    const options2: ChatOptions[] | undefined = [
+      dummyChatOpts1,
+      dummyChatOpts2,
+    ];
+    expect(areChatOptionsListEqual(options1, options2)).toEqual(false);
+  });
+
+  test("Same size, not equal 2", () => {
+    const options1: ChatOptions[] | undefined = [
+      dummyChatOpts1,
+      dummyChatOpts3,
+    ];
+    const options2: ChatOptions[] | undefined = [
+      dummyChatOpts1,
+      dummyChatOpts4,
+    ];
+    expect(areChatOptionsListEqual(options1, options2)).toEqual(false);
+  });
+
+  test("Same size, equal", () => {
+    const options1: ChatOptions[] | undefined = [
+      dummyChatOpts1,
+      dummyChatOpts3,
+    ];
+    const options2: ChatOptions[] | undefined = [
+      dummyChatOpts3,
+      dummyChatOpts1,
+    ];
+    expect(areChatOptionsListEqual(options1, options2)).toEqual(true);
   });
 });
