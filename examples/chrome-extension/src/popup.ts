@@ -11,6 +11,7 @@ import {
   InitProgressReport,
   CreateMLCEngine,
   ChatCompletionMessageParam,
+  prebuiltAppConfig,
 } from "@mlc-ai/web-llm";
 import { ProgressBar, Line } from "progressbar.js";
 
@@ -20,6 +21,28 @@ function setLabel(id: string, text: string) {
   if (label != null) {
     label.innerText = text;
   }
+}
+
+function getElementAndCheck(id: string): HTMLElement {
+  const element = document.getElementById(id);
+  if (element == null) {
+    throw Error("Cannot find element " + id);
+  }
+  return element;
+}
+
+// populate model-selection
+const modelSelector = getElementAndCheck(
+  "model-selection",
+) as HTMLSelectElement;
+for (let i = 0; i < prebuiltAppConfig.model_list.length; ++i) {
+  const model = prebuiltAppConfig.model_list[i];
+  const opt = document.createElement("option");
+  opt.value = model.model_id;
+  opt.innerHTML = model.model_id;
+  opt.selected = i == 0;
+
+  modelSelector.appendChild(opt);
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -56,11 +79,11 @@ const initProgressCallback = (report: InitProgressReport) => {
 
 // const selectedModel = "TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC-1k";
 // const selectedModel = "Mistral-7B-Instruct-v0.2-q4f16_1-MLC";
-const selectedModel = "Qwen2-0.5B-Instruct-q4f16_1-MLC";
+let selectedModel = "Qwen2-0.5B-Instruct-q4f16_1-MLC";
 const engine: MLCEngineInterface = await CreateMLCEngine(selectedModel, {
   initProgressCallback: initProgressCallback,
 });
-const chatHistory: ChatCompletionMessageParam[] = [];
+let chatHistory: ChatCompletionMessageParam[] = [];
 
 isLoadingParams = true;
 
@@ -70,11 +93,11 @@ function enableInputs() {
     (<HTMLButtonElement>submitButton).disabled = false;
     isLoadingParams = false;
   }
-  const initLabel = document.getElementById("init-label");
-  initLabel?.remove();
-  const loadingBarContainer = document.getElementById("loadingContainer")!;
-  loadingBarContainer?.remove();
-  queryInput.focus();
+  // const initLabel = document.getElementById("init-label");
+  // initLabel?.remove();
+  // const loadingBarContainer = document.getElementById("loadingContainer")!;
+  // loadingBarContainer?.remove();
+  // queryInput.focus();
 }
 
 // Disable submit button if input field is empty
@@ -94,8 +117,12 @@ queryInput.addEventListener("keyup", (event) => {
   }
 });
 
+let requestInProgress = false;
+
 // Listen for clicks on submit button
 async function handleClick() {
+  requestInProgress = true;
+
   // Get the message from the input field
   const message = (<HTMLInputElement>queryInput).value;
   console.log("message", message);
@@ -134,8 +161,30 @@ async function handleClick() {
   const response = await engine.getMessage();
   chatHistory.push({ role: "assistant", content: await engine.getMessage() });
   console.log("response", response);
+  requestInProgress = false;
 }
 submitButton.addEventListener("click", handleClick);
+
+// listen for changes in modelSelector
+async function handleSelectChange() {
+  (<HTMLButtonElement>submitButton).disabled = true;
+
+  if (requestInProgress) {
+    engine.interruptGenerate();
+  }
+  engine.resetChat();
+  chatHistory = [];
+  await engine.unload();
+
+  selectedModel = modelSelector.value;
+  requestInProgress = true;
+  engine.setInitProgressCallback(initProgressCallback);
+
+  await engine.reload(selectedModel);
+
+  requestInProgress = false;
+}
+modelSelector.addEventListener("change", handleSelectChange);
 
 // Listen for messages from the background script
 chrome.runtime.onMessage.addListener(({ answer, error }) => {
