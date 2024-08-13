@@ -2,7 +2,7 @@
  * This example demonstrates loading multiple models in the same engine concurrently.
  * sequentialGeneration() shows inference each model one at a time.
  * parallelGeneration() shows inference both models at the same time.
- * This example uses MLCEngine, but the same idea applies to WebWorkerMLCEngine and
+ * This example uses WebWorkerMLCEngine, but the same idea applies to MLCEngine and
  * ServiceWorkerMLCEngine as well.
  */
 
@@ -41,14 +41,15 @@ const request2: webllm.ChatCompletionRequestStreaming = {
   stream_options: { include_usage: true },
   messages: [{ role: "user", content: prompt2 }],
   model: selectedModel2, // without specifying it, error will throw due to ambiguity
-  max_tokens: 256,
+  max_tokens: 128,
 };
 
 /**
- * Streaming chat completion, with two models in the engine running one at a time.
+ * Chat completion (OpenAI style) with streaming, with two models in the pipeline.
  */
 async function sequentialGeneration() {
-  const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
+  const engine = await webllm.CreateWebWorkerMLCEngine(
+    new Worker(new URL("./worker.ts", import.meta.url), { type: "module" }),
     [selectedModel1, selectedModel2],
     { initProgressCallback: initProgressCallback },
   );
@@ -82,10 +83,11 @@ async function sequentialGeneration() {
 }
 
 /**
- * Streaming chat completion, with two models in the engine running concurrently.
+ * Chat completion (OpenAI style) with streaming, with two models in the pipeline.
  */
 async function parallelGeneration() {
-  const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
+  const engine = await webllm.CreateWebWorkerMLCEngine(
+    new Worker(new URL("./worker.ts", import.meta.url), { type: "module" }),
     [selectedModel1, selectedModel2],
     { initProgressCallback: initProgressCallback },
   );
@@ -128,5 +130,5 @@ async function parallelGeneration() {
 }
 
 // Pick one to run
-// sequentialGeneration();
-parallelGeneration();
+sequentialGeneration();
+// parallelGeneration();
