@@ -31,20 +31,6 @@ function getElementAndCheck(id: string): HTMLElement {
   return element;
 }
 
-// populate model-selection
-const modelSelector = getElementAndCheck(
-  "model-selection",
-) as HTMLSelectElement;
-for (let i = 0; i < prebuiltAppConfig.model_list.length; ++i) {
-  const model = prebuiltAppConfig.model_list[i];
-  const opt = document.createElement("option");
-  opt.value = model.model_id;
-  opt.innerHTML = model.model_id;
-  opt.selected = i == 0;
-
-  modelSelector.appendChild(opt);
-}
-
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const queryInput = document.getElementById("query-input")!;
@@ -57,7 +43,7 @@ fetchPageContents();
 
 (<HTMLButtonElement>submitButton).disabled = true;
 
-const progressBar: ProgressBar = new Line("#loadingContainer", {
+let progressBar: ProgressBar = new Line("#loadingContainer", {
   strokeWidth: 4,
   easing: "easeInOut",
   duration: 1400,
@@ -67,7 +53,7 @@ const progressBar: ProgressBar = new Line("#loadingContainer", {
   svgStyle: { width: "100%", height: "100%" },
 });
 
-const initProgressCallback = (report: InitProgressReport) => {
+let initProgressCallback = (report: InitProgressReport) => {
   setLabel("init-label", report.text);
   progressBar.animate(report.progress, {
     duration: 50,
@@ -77,9 +63,27 @@ const initProgressCallback = (report: InitProgressReport) => {
   }
 };
 
-// const selectedModel = "TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC-1k";
-// const selectedModel = "Mistral-7B-Instruct-v0.2-q4f16_1-MLC";
+// initially selected model
 let selectedModel = "Qwen2-0.5B-Instruct-q4f16_1-MLC";
+
+// populate model-selection
+const modelSelector = getElementAndCheck(
+  "model-selection",
+) as HTMLSelectElement;
+for (let i = 0; i < prebuiltAppConfig.model_list.length; ++i) {
+  const model = prebuiltAppConfig.model_list[i];
+  const opt = document.createElement("option");
+  opt.value = model.model_id;
+  opt.innerHTML = model.model_id;
+  opt.selected = i == 0;
+
+  if (model.model_id == selectedModel) {
+    opt.selected = true;
+  }
+
+  modelSelector.appendChild(opt);
+}
+
 const engine: MLCEngineInterface = await CreateMLCEngine(selectedModel, {
   initProgressCallback: initProgressCallback,
 });
@@ -93,11 +97,14 @@ function enableInputs() {
     (<HTMLButtonElement>submitButton).disabled = false;
     isLoadingParams = false;
   }
-  // const initLabel = document.getElementById("init-label");
-  // initLabel?.remove();
-  // const loadingBarContainer = document.getElementById("loadingContainer")!;
-  // loadingBarContainer?.remove();
-  // queryInput.focus();
+  const initLabel = document.getElementById("init-label");
+  initLabel?.remove();
+  const loadingBarContainer = document.getElementById("loadingContainer")!;
+  loadingBarContainer?.remove();
+  queryInput.focus();
+
+  // const modelName = getElementAndCheck("modelName");
+  // modelName.innerText = selectedModel;
 }
 
 // Disable submit button if input field is empty
@@ -168,6 +175,15 @@ submitButton.addEventListener("click", handleClick);
 // listen for changes in modelSelector
 async function handleSelectChange() {
   (<HTMLButtonElement>submitButton).disabled = true;
+  const initLabel = document.createElement("p");
+  initLabel.id = "init-label";
+  initLabel.innerText = "Initializing model...";
+  const loadingContainer = document.createElement("div");
+  loadingContainer.id = "loadingContainer";
+
+  const loadingBox = getElementAndCheck("loadingBox");
+  loadingBox.appendChild(initLabel);
+  loadingBox.appendChild(loadingContainer);
 
   if (requestInProgress) {
     engine.interruptGenerate();
@@ -178,6 +194,27 @@ async function handleSelectChange() {
 
   selectedModel = modelSelector.value;
   requestInProgress = true;
+
+  progressBar = new Line("#loadingContainer", {
+    strokeWidth: 4,
+    easing: "easeInOut",
+    duration: 1400,
+    color: "#ffd166",
+    trailColor: "#eee",
+    trailWidth: 1,
+    svgStyle: { width: "100%", height: "100%" },
+  });
+
+  initProgressCallback = (report: InitProgressReport) => {
+    setLabel("init-label", report.text);
+    progressBar.animate(report.progress, {
+      duration: 50,
+    });
+    if (report.progress == 1.0) {
+      enableInputs();
+    }
+  };
+
   engine.setInitProgressCallback(initProgressCallback);
 
   await engine.reload(selectedModel);
