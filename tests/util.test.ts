@@ -4,7 +4,12 @@ import {
   SpecifiedModelNotFoundError,
   UnclearModelToUseError,
 } from "../src/error";
-import { cleanModelUrl, getModelIdToUse, getTopProbs } from "../src/support";
+import {
+  cleanModelUrl,
+  CustomLock,
+  getModelIdToUse,
+  getTopProbs,
+} from "../src/support";
 import { areChatOptionsListEqual } from "../src/utils";
 import { MLCEngine } from "../src/engine";
 
@@ -311,5 +316,23 @@ describe("Test areChatOptionsListEqual", () => {
       dummyChatOpts1,
     ];
     expect(areChatOptionsListEqual(options1, options2)).toEqual(true);
+  });
+});
+
+// Refers to https://jackpordi.com/posts/locks-in-js-because-why-not
+describe("Test CustomLock", () => {
+  test("Ensure five +1's give 5 with sleep between read/write", async () => {
+    let value = 0;
+    const lock = new CustomLock();
+
+    async function addOne() {
+      await lock.acquire();
+      const readValue = value;
+      await new Promise((r) => setTimeout(r, 100));
+      value = readValue + 1;
+      await lock.release();
+    }
+    await Promise.all([addOne(), addOne(), addOne(), addOne(), addOne()]);
+    expect(value).toEqual(5); // without a lock, most likely less than 5
   });
 });
