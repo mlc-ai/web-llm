@@ -524,7 +524,7 @@ export class IncorrectPipelineLoadedError extends Error {
     requestName: string,
   ) {
     super(
-      `${requestName} expects model be loaded with ${expectedPipeline}. However, ` +
+      `${requestName} expects model to be loaded with ${expectedPipeline}. However, ` +
         `${selectedModelId} is not loaded with this pipeline.`,
     );
     this.name = "IncorrectPipelineLoadedError";
