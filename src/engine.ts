@@ -585,6 +585,8 @@ export class MLCEngine implements MLCEngineInterface {
 
     while (!pipeline.stopped()) {
       if (this.interruptSignal) {
+        // TODO: should we directly release lock here and return the async
+        // generator? Though no issue observed as of now with interruptGenerate()
         pipeline.triggerStop();
         break;
       }

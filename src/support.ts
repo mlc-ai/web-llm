@@ -272,7 +272,7 @@ export class CustomLock {
     } else {
       // Otherwise, push the request to the queue, and
       // a future release() will resolve it
-      return new Promise<void>((resolve, _) => {
+      return new Promise<void>((resolve) => {
         this.queue.push(resolve);
       });
     }

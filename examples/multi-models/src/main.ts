@@ -93,10 +93,8 @@ async function parallelGeneration() {
   );
 
   // We can serve the two requests concurrently
-  let message1 = "";
-  let message2 = "";
-
   async function getModel1Response() {
+    let message1 = "";
     const asyncChunkGenerator1 = await engine.chat.completions.create(request1);
     for await (const chunk of asyncChunkGenerator1) {
       // console.log(chunk);
@@ -110,6 +108,7 @@ async function parallelGeneration() {
   }
 
   async function getModel2Response() {
+    let message2 = "";
     const asyncChunkGenerator2 = await engine.chat.completions.create(request2);
     for await (const chunk of asyncChunkGenerator2) {
       // console.log(chunk);
@@ -123,6 +122,10 @@ async function parallelGeneration() {
   }
 
   await Promise.all([getModel1Response(), getModel2Response()]);
+  // Note: concurrent requests to the same model are executed sequentially in FCFS,
+  // unlike to different models like above
+  // Fore more, see https://github.com/mlc-ai/web-llm/pull/549
+  // await Promise.all([getModel1Response(), getModel1Response()]);
 
   // without specifying from which model to get message, error will throw due to ambiguity
   console.log("Final message 1:\n", await engine.getMessage(selectedModel1));
