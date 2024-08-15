@@ -2,6 +2,12 @@ import * as webllm from "@mlc-ai/web-llm";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
 import type { EmbeddingsInterface } from "@langchain/core/embeddings";
 import type { Document } from "@langchain/core/documents";
+import { formatDocumentsAsString } from "langchain/util/document";
+import { PromptTemplate } from "@langchain/core/prompts";
+import {
+  RunnableSequence,
+  RunnablePassthrough,
+} from "@langchain/core/runnables";
 
 function setLabel(id: string, text: string) {
   const label = document.getElementById(id);
@@ -18,12 +24,17 @@ const initProgressCallback = (report: webllm.InitProgressReport) => {
 // For integration with Langchain
 class WebLLMEmbeddings implements EmbeddingsInterface {
   engine: webllm.MLCEngineInterface;
-  constructor(engine: webllm.MLCEngineInterface) {
+  modelId: string;
+  constructor(engine: webllm.MLCEngineInterface, modelId: string) {
     this.engine = engine;
+    this.modelId = modelId;
   }
 
   async _embed(texts: string[]): Promise<number[][]> {
-    const reply = await this.engine.embeddings.create({ input: texts });
+    const reply = await this.engine.embeddings.create({
+      input: texts,
+      model: this.modelId,
+    });
     const result: number[][] = [];
     for (let i = 0; i < texts.length; i++) {
       result.push(reply.data[i].embedding);
@@ -82,7 +93,7 @@ async function webllmAPI() {
 
   // Calculate similarity (we use langchain here, but any method works)
   const vectorStore = await MemoryVectorStore.fromExistingIndex(
-    new WebLLMEmbeddings(engine),
+    new WebLLMEmbeddings(engine, selectedModel),
   );
   // See score
   for (let i = 0; i < queries_og.length; i++) {
@@ -113,7 +124,7 @@ async function langchainAPI() {
   );
 
   const vectorStore = await MemoryVectorStore.fromExistingIndex(
-    new WebLLMEmbeddings(engine),
+    new WebLLMEmbeddings(engine, selectedModel),
   );
   const document0: Document = {
     pageContent: documents[0],
@@ -142,6 +153,59 @@ async function langchainAPI() {
   }
 }
 
+// RAG with Langchain.js using WebLLM for both LLM and Embedding in a single engine
+// Followed https://js.langchain.com/v0.1/docs/expression_language/cookbook/retrieval/
+// There are many possible ways to achieve RAG (e.g. degree of integration with Langchain,
+// using WebWorker, etc.). We provide a minimal example here.
+async function simpleRAG() {
+  // 0. Load both embedding model and LLM to a single WebLLM Engine
+  const embeddingModelId = "snowflake-arctic-embed-m-q0f32-MLC-b4";
+  const llmModelId = "gemma-2-2b-it-q4f32_1-MLC-1k";
+  const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
+    [embeddingModelId, llmModelId],
+    {
+      initProgressCallback: initProgressCallback,
+      logLevel: "INFO", // specify the log level
+    },
+  );
+
+  const vectorStore = await MemoryVectorStore.fromTexts(
+    ["mitochondria is the powerhouse of the cell"],
+    [{ id: 1 }],
+    new WebLLMEmbeddings(engine, embeddingModelId),
+  );
+  const retriever = vectorStore.asRetriever();
+
+  const prompt =
+    PromptTemplate.fromTemplate(`Answer the question based only on the following context:
+  {context}
+  
+  Question: {question}`);
+
+  const chain = RunnableSequence.from([
+    {
+      context: retriever.pipe(formatDocumentsAsString),
+      question: new RunnablePassthrough(),
+    },
+    prompt,
+  ]);
+
+  const formattedPrompt = (
+    await chain.invoke("What is the powerhouse of the cell?")
+  ).toString();
+  const reply = await engine.chat.completions.create({
+    messages: [{ role: "user", content: formattedPrompt }],
+    model: llmModelId,
+  });
+
+  console.log(reply.choices[0].message.content);
+
+  /*
+    "The powerhouse of the cell is the mitochondria."
+  */
+}
+
 // Select one to run
-webllmAPI();
+// webllmAPI();
 // langchainAPI();
+simpleRAG();
