@@ -40,6 +40,7 @@ const ReadTabButton = document.getElementById("read-tab-button")!;
 let context = "";
 let isLoadingParams = false;
 
+// throws runtime.lastError if you refresh extension AND try to access a webpage that is already open
 fetchPageContents();
 
 (<HTMLButtonElement>submitButton).disabled = true;
@@ -76,7 +77,7 @@ for (let i = 0; i < prebuiltAppConfig.model_list.length; ++i) {
   const opt = document.createElement("option");
   opt.value = model.model_id;
   opt.innerHTML = model.model_id;
-  opt.selected = i == 0;
+  opt.selected = false;
 
   // set initial selection as the initially selected model
   if (model.model_id == selectedModel) {
@@ -106,7 +107,14 @@ function enableInputs() {
   queryInput.focus();
 
   const modelName = getElementAndCheck("modelName");
-  modelName.innerText = selectedModel;
+  const modelNameArray = selectedModel.split("-");
+  let modelDisplayName = modelNameArray[0];
+  let j = 1;
+  while (j < modelNameArray.length && modelNameArray[j][0] != "q") {
+    modelDisplayName = modelDisplayName + "-" + modelNameArray[j];
+    j++;
+  }
+  modelName.innerText = "Now chatting with: " + modelDisplayName;
 }
 
 // Disable submit button if input field is empty
