@@ -16,5 +16,12 @@
     "default_title": "MLCBot",
     "default_popup": "popup.html"
   },
-  "permissions": ["storage", "tabs", "webNavigation"]
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "permissions": ["storage", "tabs", "webNavigation", "activeTab", "scripting"],
+  "host_permissions": ["http://*/", "https://*/"]
 }

@@ -35,6 +35,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const queryInput = document.getElementById("query-input")!;
 const submitButton = document.getElementById("submit-button")!;
+const ReadTabButton = document.getElementById("read-tab-button")!;
 
 let context = "";
 let isLoadingParams = false;
@@ -77,6 +78,7 @@ for (let i = 0; i < prebuiltAppConfig.model_list.length; ++i) {
   opt.innerHTML = model.model_id;
   opt.selected = i == 0;
 
+  // set initial selection as the initially selected model
   if (model.model_id == selectedModel) {
     opt.selected = true;
   }
@@ -103,8 +105,8 @@ function enableInputs() {
   loadingBarContainer?.remove();
   queryInput.focus();
 
-  // const modelName = getElementAndCheck("modelName");
-  // modelName.innerText = selectedModel;
+  const modelName = getElementAndCheck("modelName");
+  modelName.innerText = selectedModel;
 }
 
 // Disable submit button if input field is empty
@@ -174,6 +176,10 @@ submitButton.addEventListener("click", handleClick);
 
 // listen for changes in modelSelector
 async function handleSelectChange() {
+  if (requestInProgress) {
+    return;
+  }
+
   (<HTMLButtonElement>submitButton).disabled = true;
   const initLabel = document.createElement("p");
   initLabel.id = "init-label";

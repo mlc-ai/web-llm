@@ -55,7 +55,7 @@ p {
   margin-right: 0.5rem;
 }
 
-/* SUBMIT BUTTON */
+/* BUTTON */
 .btn {
   background-color: #1b263b;
   color: white;
@@ -64,6 +64,9 @@ p {
   border-radius: 4px;
   border: none;
   padding: 0.5rem;
+  margin-right:0.5rem;
+  width: 40px;
+  height: 33px
 }
 
 .btn:hover {
