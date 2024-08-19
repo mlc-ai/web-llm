@@ -125,7 +125,7 @@ export interface MLCEngineInterface {
    * maintaining the chat history. With that being said, as an implicit internal optimization, if we
    * detect that the user is performing multi-round chatting, we will preserve the KV cache and only
    * prefill the new tokens.
-   *
+   * @note For requests sent to the same modelId, will block until all previous requests finish.
    * @note For more, see https://platform.openai.com/docs/api-reference/chat
    */
   chatCompletion(
@@ -147,6 +147,7 @@ export interface MLCEngineInterface {
    *
    * @param request An OpenAI-style Completion request.
    *
+   * @note For requests sent to the same modelId, will block until all previous requests finish.
    * @note For more, see https://platform.openai.com/docs/api-reference/completions
    */
   completion(request: CompletionCreateParamsNonStreaming): Promise<Completion>;
@@ -166,6 +167,7 @@ export interface MLCEngineInterface {
    *
    * @param request An OpenAI-style Embeddings request.
    *
+   * @note For requests sent to the same modelId, will block until all previous requests finish.
    * @note For more, see https://platform.openai.com/docs/api-reference/embeddings/create
    */
   embedding(request: EmbeddingCreateParams): Promise<CreateEmbeddingResponse>;

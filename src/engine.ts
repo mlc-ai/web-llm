@@ -49,6 +49,7 @@ import {
 } from "./conversation";
 import {
   cleanModelUrl,
+  CustomLock,
   findModelRecord,
   getModelIdToUse,
   getToolCallFromOutputMessage,
@@ -102,6 +103,7 @@ export async function CreateMLCEngine(
  * `webllm.MLCEngine().reload(modelId)`.
  */
 export class MLCEngine implements MLCEngineInterface {
+  // APIs
   /** For chat.completions.create() */
   public chat: API.Chat;
   /** For completions.create() */
@@ -109,6 +111,7 @@ export class MLCEngine implements MLCEngineInterface {
   /** For embeddings.create() */
   public embeddings: API.Embeddings;
 
+  // Maps to maintain states of loaded model(s)
   /** Maps each loaded model's modelId to its pipeline */
   private loadedModelIdToPipeline: Map<
     string,
@@ -116,13 +119,21 @@ export class MLCEngine implements MLCEngineInterface {
   >;
   /** Maps each loaded model's modelId to its chatConfig */
   private loadedModelIdToChatConfig: Map<string, ChatConfig>;
+  /** Maps each loaded model's modelId to a lock. Ensures
+   * each model only processes one request at at time.
+   */
+  private loadedModelIdToLock: Map<string, CustomLock>;
+
+  // Others
   private logger: (msg: string) => void = log.info;
   private logitProcessorRegistry?: Map<string, LogitProcessor>;
   private initProgressCallback?: InitProgressCallback;
+  private appConfig: AppConfig;
+
+  // Signals and flags
   private interruptSignal = false;
   private deviceLostIsError = true; // whether device.lost is due to actual error or model reload
   private reloadController: AbortController | undefined;
-  private appConfig: AppConfig;
 
   constructor(engineConfig?: MLCEngineConfig) {
     this.loadedModelIdToPipeline = new Map<
@@ -130,6 +141,7 @@ export class MLCEngine implements MLCEngineInterface {
       LLMChatPipeline | EmbeddingPipeline
     >();
     this.loadedModelIdToChatConfig = new Map<string, ChatConfig>();
+    this.loadedModelIdToLock = new Map<string, CustomLock>();
     this.appConfig = engineConfig?.appConfig || prebuiltAppConfig;
     this.setLogLevel(engineConfig?.logLevel || DefaultLogLevel);
     this.setInitProgressCallback(engineConfig?.initProgressCallback);
@@ -368,6 +380,7 @@ export class MLCEngine implements MLCEngineInterface {
     }
     await newPipeline.asyncLoadWebGPUPipelines();
     this.loadedModelIdToPipeline.set(modelId, newPipeline);
+    this.loadedModelIdToLock.set(modelId, new CustomLock());
 
     // Clean up
     const tend = performance.now();
@@ -396,6 +409,7 @@ export class MLCEngine implements MLCEngineInterface {
     }
     this.loadedModelIdToPipeline.clear();
     this.loadedModelIdToChatConfig.clear();
+    this.loadedModelIdToLock.clear();
     this.deviceLostIsError = true;
     if (this.reloadController) {
       this.reloadController.abort("Engine.unload() is called.");
@@ -421,13 +435,11 @@ export class MLCEngine implements MLCEngineInterface {
     }
     await this.prefill(input, pipeline, chatConfig, genConfig);
 
-    let counter = 1;
     while (!pipeline.stopped()) {
       if (this.interruptSignal) {
         pipeline.triggerStop();
         break;
       }
-      counter += 1;
       await this.decode(pipeline, genConfig);
     }
     return pipeline.getMessage();
@@ -457,20 +469,30 @@ export class MLCEngine implements MLCEngineInterface {
     chatConfig: ChatConfig,
     genConfig: GenerationConfig,
   ): AsyncGenerator<ChatCompletionChunk | Completion, void, void> {
+    // Since it is an async generator, we need to do fine-grained try-catch to ensure lock is
+    // released only when errors occur. Then release at the very end when no error occurs.
+    // TODO: This makes code less readable, is there a better way to do this?
+    const lock = this.loadedModelIdToLock.get(model)!;
+
     // 0. Pre-processing
     const isChatCompletion = "messages" in request;
     const isFunctionCalling =
       "tools" in request &&
       request.tools !== undefined &&
       request.tools !== null;
-    if (isFunctionCalling && !isChatCompletion) {
-      throw new Error(
-        "Expect `chat.completions` with tools, not `completions`.",
-      );
-    }
-    postInitAndCheckGenerationConfigValues(genConfig);
-    if (request.seed !== null && request.seed !== undefined) {
-      pipeline.setSeed(request.seed);
+    try {
+      if (isFunctionCalling && !isChatCompletion) {
+        throw new Error(
+          "Expect `chat.completions` with tools, not `completions`.",
+        );
+      }
+      postInitAndCheckGenerationConfigValues(genConfig);
+      if (request.seed !== null && request.seed !== undefined) {
+        pipeline.setSeed(request.seed);
+      }
+    } catch (err) {
+      await lock.release();
+      throw err;
     }
 
     // 1. Helper function that generates the chunk
@@ -549,19 +571,32 @@ export class MLCEngine implements MLCEngineInterface {
     }
 
     // 2. Auto-regressive loop
-    await this.prefill(request, pipeline, chatConfig, genConfig);
-    let curChunk = await _getChunk(pipeline); // prefill produces a chunk
+    let curChunk;
+    try {
+      await this.prefill(request, pipeline, chatConfig, genConfig);
+      curChunk = await _getChunk(pipeline); // prefill produces a chunk
+    } catch (err) {
+      await lock.release();
+      throw err;
+    }
     if (curChunk) {
       yield curChunk;
     }
 
     while (!pipeline.stopped()) {
       if (this.interruptSignal) {
+        // TODO: should we directly release lock here and return the async
+        // generator? Though no issue observed as of now with interruptGenerate()
         pipeline.triggerStop();
         break;
       }
-      await this.decode(pipeline, genConfig);
-      curChunk = await _getChunk(pipeline);
+      try {
+        await this.decode(pipeline, genConfig);
+        curChunk = await _getChunk(pipeline);
+      } catch (err) {
+        await lock.release();
+        throw err;
+      }
       if (curChunk) {
         yield curChunk;
       }
@@ -578,15 +613,19 @@ export class MLCEngine implements MLCEngineInterface {
     let tool_calls:
       | Array<ChatCompletionChunk.Choice.Delta.ToolCall>
       | undefined;
-
-    if (pipeline.getFinishReason() === "stop" && isFunctionCalling) {
-      // If stopped due to length or abort, cannot output return tool_calls field
-      finish_reason = "tool_calls";
-      const outputMessage = pipeline.getMessage();
-      tool_calls = getToolCallFromOutputMessage(
-        outputMessage,
-        /*isStreaming=*/ true,
-      ) as Array<ChatCompletionChunk.Choice.Delta.ToolCall>;
+    try {
+      if (pipeline.getFinishReason() === "stop" && isFunctionCalling) {
+        // If stopped due to length or abort, cannot output return tool_calls field
+        finish_reason = "tool_calls";
+        const outputMessage = pipeline.getMessage();
+        tool_calls = getToolCallFromOutputMessage(
+          outputMessage,
+          /*isStreaming=*/ true,
+        ) as Array<ChatCompletionChunk.Choice.Delta.ToolCall>;
+      }
+    } catch (err) {
+      await lock.release();
+      throw err;
     }
 
     if (isChatCompletion) {
@@ -663,6 +702,8 @@ export class MLCEngine implements MLCEngineInterface {
         yield usageChunk;
       }
     }
+
+    await lock.release();
   }
 
   async interruptGenerate() {
@@ -710,6 +751,10 @@ export class MLCEngine implements MLCEngineInterface {
       response_format: request.response_format,
     };
 
+    // 0.5 Block wait until this pipeline finishes all previous requests
+    const lock = this.loadedModelIdToLock.get(selectedModelId)!;
+    await lock.acquire();
+
     // 1. If request is streaming, return an AsyncIterable (an iterable version of `_generate()`)
     if (request.stream) {
       return this.asyncGenerate(
@@ -721,94 +766,102 @@ export class MLCEngine implements MLCEngineInterface {
       );
     }
 
-    if (request.seed !== null && request.seed !== undefined) {
-      selectedPipeline.setSeed(request.seed);
-    }
-
-    // 2. If request is non-streaming, directly reuse `_generate()`
-    const n = request.n ? request.n : 1;
-    const choices: Array<ChatCompletion.Choice> = [];
-    let completion_tokens = 0;
-    let prompt_tokens = 0;
-    let prefill_time = 0;
-    let decode_time = 0;
-    for (let i = 0; i < n; i++) {
-      let outputMessage: string;
-      if (this.interruptSignal) {
-        // A single interrupt signal should stop all choices' generations
-        selectedPipeline.triggerStop();
-        outputMessage = "";
-      } else {
-        outputMessage = await this._generate(
-          request,
-          selectedPipeline,
-          selectedChatConfig,
-          genConfig,
-        );
-      }
-      let finish_reason = selectedPipeline.getFinishReason()!;
-
-      // 3. Post processing for function calling
-      const isFunctionCalling =
-        request.tools !== undefined && request.tools !== null;
-      let tool_calls: Array<ChatCompletionMessageToolCall> | undefined;
-      if (selectedPipeline.getFinishReason() === "stop" && isFunctionCalling) {
-        // If stopped due to length or abort, cannot output return tool_calls field
-        finish_reason = "tool_calls";
-        tool_calls = getToolCallFromOutputMessage(
-          outputMessage,
-          /*isStreaming=*/ false,
-        );
+    // Big try-finally to release lock in case of errors
+    try {
+      if (request.seed !== null && request.seed !== undefined) {
+        selectedPipeline.setSeed(request.seed);
       }
 
-      choices.push({
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        finish_reason: finish_reason,
-        index: i,
-        logprobs: request.logprobs
-          ? ({
-              content: selectedPipeline.getTokenLogprobArray(),
-            } as ChatCompletion.Choice.Logprobs)
-          : null,
-        message: isFunctionCalling
-          ? {
-              content: null,
-              tool_calls: tool_calls,
-              role: "assistant",
-            }
-          : {
-              content: outputMessage,
-              role: "assistant",
-            },
-      });
-      completion_tokens += selectedPipeline.getCurRoundDecodingTotalTokens();
-      prompt_tokens += selectedPipeline.getCurRoundPrefillTotalTokens();
-      prefill_time += selectedPipeline.getCurRoundPrefillTotalTime();
-      decode_time += selectedPipeline.getCurRoundDecodingTotalTime();
-    }
+      // 2. If request is non-streaming, directly reuse `_generate()`
+      const n = request.n ? request.n : 1;
+      const choices: Array<ChatCompletion.Choice> = [];
+      let completion_tokens = 0;
+      let prompt_tokens = 0;
+      let prefill_time = 0;
+      let decode_time = 0;
+      for (let i = 0; i < n; i++) {
+        let outputMessage: string;
+        if (this.interruptSignal) {
+          // A single interrupt signal should stop all choices' generations
+          selectedPipeline.triggerStop();
+          outputMessage = "";
+        } else {
+          outputMessage = await this._generate(
+            request,
+            selectedPipeline,
+            selectedChatConfig,
+            genConfig,
+          );
+        }
+        let finish_reason = selectedPipeline.getFinishReason()!;
 
-    const response: ChatCompletion = {
-      id: crypto.randomUUID(),
-      choices: choices,
-      model: selectedModelId,
-      object: "chat.completion",
-      created: Date.now(),
-      usage: {
-        completion_tokens: completion_tokens,
-        prompt_tokens: prompt_tokens,
-        total_tokens: completion_tokens + prompt_tokens,
-        extra: {
-          prefill_tokens_per_s: prompt_tokens / prefill_time,
-          decode_tokens_per_s: completion_tokens / decode_time,
-        },
-      } as CompletionUsage,
-    };
+        // 3. Post processing for function calling
+        const isFunctionCalling =
+          request.tools !== undefined && request.tools !== null;
+        let tool_calls: Array<ChatCompletionMessageToolCall> | undefined;
+        if (
+          selectedPipeline.getFinishReason() === "stop" &&
+          isFunctionCalling
+        ) {
+          // If stopped due to length or abort, cannot output return tool_calls field
+          finish_reason = "tool_calls";
+          tool_calls = getToolCallFromOutputMessage(
+            outputMessage,
+            /*isStreaming=*/ false,
+          );
+        }
 
-    // Reset seed -- we do not want this seed to affect future requests
-    if (request.seed !== null && request.seed !== undefined) {
-      selectedPipeline.setSeed(Date.now());
+        choices.push({
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          finish_reason: finish_reason,
+          index: i,
+          logprobs: request.logprobs
+            ? ({
+                content: selectedPipeline.getTokenLogprobArray(),
+              } as ChatCompletion.Choice.Logprobs)
+            : null,
+          message: isFunctionCalling
+            ? {
+                content: null,
+                tool_calls: tool_calls,
+                role: "assistant",
+              }
+            : {
+                content: outputMessage,
+                role: "assistant",
+              },
+        });
+        completion_tokens += selectedPipeline.getCurRoundDecodingTotalTokens();
+        prompt_tokens += selectedPipeline.getCurRoundPrefillTotalTokens();
+        prefill_time += selectedPipeline.getCurRoundPrefillTotalTime();
+        decode_time += selectedPipeline.getCurRoundDecodingTotalTime();
+      }
+
+      const response: ChatCompletion = {
+        id: crypto.randomUUID(),
+        choices: choices,
+        model: selectedModelId,
+        object: "chat.completion",
+        created: Date.now(),
+        usage: {
+          completion_tokens: completion_tokens,
+          prompt_tokens: prompt_tokens,
+          total_tokens: completion_tokens + prompt_tokens,
+          extra: {
+            prefill_tokens_per_s: prompt_tokens / prefill_time,
+            decode_tokens_per_s: completion_tokens / decode_time,
+          },
+        } as CompletionUsage,
+      };
+
+      // Reset seed -- we do not want this seed to affect future requests
+      if (request.seed !== null && request.seed !== undefined) {
+        selectedPipeline.setSeed(Date.now());
+      }
+      return response;
+    } finally {
+      await lock.release();
     }
-    return response;
   }
 
   /**
@@ -847,6 +900,10 @@ export class MLCEngine implements MLCEngineInterface {
       top_logprobs: request.top_logprobs,
     };
 
+    // 0.5 Block wait until this pipeline finishes all previous requests
+    const lock = this.loadedModelIdToLock.get(selectedModelId)!;
+    await lock.acquire();
+
     // 1. If request is streaming, return an AsyncIterable (an iterable version of `_generate()`)
     if (request.stream) {
       return this.asyncGenerate(
@@ -858,72 +915,77 @@ export class MLCEngine implements MLCEngineInterface {
       );
     }
 
-    if (request.seed !== null && request.seed !== undefined) {
-      selectedPipeline.setSeed(request.seed);
-    }
-
-    // 2. If request is non-streaming, directly reuse `_generate()`
-    const n = request.n ? request.n : 1;
-    const choices: Array<CompletionChoice> = [];
-    let completion_tokens = 0;
-    let prompt_tokens = 0;
-    let prefill_time = 0;
-    let decode_time = 0;
-    for (let i = 0; i < n; i++) {
-      let outputMessage: string;
-      if (this.interruptSignal) {
-        // A single interrupt signal should stop all choices' generations
-        selectedPipeline.triggerStop();
-        outputMessage = "";
-      } else {
-        outputMessage = await this._generate(
-          request,
-          selectedPipeline,
-          selectedChatConfig,
-          genConfig,
-        );
+    // Big try-finally to release lock in case of errors
+    try {
+      if (request.seed !== null && request.seed !== undefined) {
+        selectedPipeline.setSeed(request.seed);
       }
-      const finish_reason = selectedPipeline.getFinishReason()!;
 
-      choices.push({
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        finish_reason: finish_reason,
-        index: i,
-        logprobs: request.logprobs
-          ? ({
-              content: selectedPipeline.getTokenLogprobArray(),
-            } as ChatCompletion.Choice.Logprobs)
-          : null,
-        text: request.echo ? request.prompt + outputMessage : outputMessage,
-      });
-      completion_tokens += selectedPipeline.getCurRoundDecodingTotalTokens();
-      prompt_tokens += selectedPipeline.getCurRoundPrefillTotalTokens();
-      prefill_time += selectedPipeline.getCurRoundPrefillTotalTime();
-      decode_time += selectedPipeline.getCurRoundDecodingTotalTime();
+      // 2. If request is non-streaming, directly reuse `_generate()`
+      const n = request.n ? request.n : 1;
+      const choices: Array<CompletionChoice> = [];
+      let completion_tokens = 0;
+      let prompt_tokens = 0;
+      let prefill_time = 0;
+      let decode_time = 0;
+      for (let i = 0; i < n; i++) {
+        let outputMessage: string;
+        if (this.interruptSignal) {
+          // A single interrupt signal should stop all choices' generations
+          selectedPipeline.triggerStop();
+          outputMessage = "";
+        } else {
+          outputMessage = await this._generate(
+            request,
+            selectedPipeline,
+            selectedChatConfig,
+            genConfig,
+          );
+        }
+        const finish_reason = selectedPipeline.getFinishReason()!;
+
+        choices.push({
+          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+          finish_reason: finish_reason,
+          index: i,
+          logprobs: request.logprobs
+            ? ({
+                content: selectedPipeline.getTokenLogprobArray(),
+              } as ChatCompletion.Choice.Logprobs)
+            : null,
+          text: request.echo ? request.prompt + outputMessage : outputMessage,
+        });
+        completion_tokens += selectedPipeline.getCurRoundDecodingTotalTokens();
+        prompt_tokens += selectedPipeline.getCurRoundPrefillTotalTokens();
+        prefill_time += selectedPipeline.getCurRoundPrefillTotalTime();
+        decode_time += selectedPipeline.getCurRoundDecodingTotalTime();
+      }
+
+      const response: Completion = {
+        id: crypto.randomUUID(),
+        choices: choices,
+        model: selectedModelId,
+        object: "text_completion",
+        created: Date.now(),
+        usage: {
+          completion_tokens: completion_tokens,
+          prompt_tokens: prompt_tokens,
+          total_tokens: completion_tokens + prompt_tokens,
+          extra: {
+            prefill_tokens_per_s: prompt_tokens / prefill_time,
+            decode_tokens_per_s: completion_tokens / decode_time,
+          },
+        } as CompletionUsage,
+      };
+
+      // Reset seed -- we do not want this seed to affect future requests
+      if (request.seed !== null && request.seed !== undefined) {
+        selectedPipeline.setSeed(Date.now());
+      }
+      return response;
+    } finally {
+      await lock.release();
     }
-
-    const response: Completion = {
-      id: crypto.randomUUID(),
-      choices: choices,
-      model: selectedModelId,
-      object: "text_completion",
-      created: Date.now(),
-      usage: {
-        completion_tokens: completion_tokens,
-        prompt_tokens: prompt_tokens,
-        total_tokens: completion_tokens + prompt_tokens,
-        extra: {
-          prefill_tokens_per_s: prompt_tokens / prefill_time,
-          decode_tokens_per_s: completion_tokens / decode_time,
-        },
-      } as CompletionUsage,
-    };
-
-    // Reset seed -- we do not want this seed to affect future requests
-    if (request.seed !== null && request.seed !== undefined) {
-      selectedPipeline.setSeed(Date.now());
-    }
-    return response;
   }
 
   async embedding(
@@ -936,34 +998,42 @@ export class MLCEngine implements MLCEngineInterface {
     );
     API.postInitAndCheckFieldsEmbedding(request, selectedModelId);
 
-    // 1. Call EmbeddingPipeline to get embeddings
-    const embedResult: Array<Array<number>> = await selectedPipeline.embedStep(
-      request.input,
-    );
+    // 0.5 Block wait until this pipeline finishes all previous requests
+    const lock = this.loadedModelIdToLock.get(selectedModelId)!;
+    await lock.acquire();
 
-    // 2. Prepare response
-    const batchSize = embedResult.length;
-    const data: Array<Embedding> = [];
-    for (let i = 0; i < batchSize; i++) {
-      const curEmbedding: Embedding = {
-        embedding: embedResult[i],
-        index: i,
-        object: "embedding",
-      };
-      data.push(curEmbedding);
-    }
-    return {
-      data: data,
-      model: selectedModelId,
-      object: "list",
-      usage: {
-        prompt_tokens: selectedPipeline.getCurRoundEmbedTotalTokens(),
-        total_tokens: selectedPipeline.getCurRoundEmbedTotalTokens(),
-        extra: {
-          prefill_tokens_per_s: selectedPipeline.getCurRoundEmbedTokensPerSec(),
+    try {
+      // 1. Call EmbeddingPipeline to get embeddings
+      const embedResult: Array<Array<number>> =
+        await selectedPipeline.embedStep(request.input);
+
+      // 2. Prepare response
+      const batchSize = embedResult.length;
+      const data: Array<Embedding> = [];
+      for (let i = 0; i < batchSize; i++) {
+        const curEmbedding: Embedding = {
+          embedding: embedResult[i],
+          index: i,
+          object: "embedding",
+        };
+        data.push(curEmbedding);
+      }
+      return {
+        data: data,
+        model: selectedModelId,
+        object: "list",
+        usage: {
+          prompt_tokens: selectedPipeline.getCurRoundEmbedTotalTokens(),
+          total_tokens: selectedPipeline.getCurRoundEmbedTotalTokens(),
+          extra: {
+            prefill_tokens_per_s:
+              selectedPipeline.getCurRoundEmbedTokensPerSec(),
+          },
         },
-      },
-    };
+      };
+    } finally {
+      await lock.release();
+    }
   }
 
   //-----------------------------
@@ -1091,6 +1161,13 @@ export class MLCEngine implements MLCEngineInterface {
     if (selectedChatConfig === undefined) {
       throw new Error(
         `InternalError: chat config not registered for ${selectedModelId}.`,
+      );
+    }
+
+    // 3. Make sure lock is initialized
+    if (!this.loadedModelIdToLock.has(selectedModelId)) {
+      throw new Error(
+        `InternalError: loadedModelIdToLock does not contain ${selectedModelId}`,
       );
     }
     return [selectedModelId, selectedPipeline, selectedChatConfig];

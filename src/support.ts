@@ -251,3 +251,49 @@ export function getModelIdToUse(
   }
   return selectedModelId;
 }
+
+type Cont = () => void;
+
+/**
+ * A lock implemented using Promise.
+ *
+ * Referred to:
+ * - https://jackpordi.com/posts/locks-in-js-because-why-not
+ * - https://www.linkedin.com/pulse/asynchronous-locking-using-promises-javascript-abdul-ahad-o7smf/
+ */
+export class CustomLock {
+  private acquired = false;
+  private readonly queue: Cont[] = [];
+
+  public async acquire(): Promise<void> {
+    if (!this.acquired) {
+      // If lock is free, directly return
+      this.acquired = true;
+    } else {
+      // Otherwise, push the request to the queue, and
+      // a future release() will resolve it
+      return new Promise<void>((resolve) => {
+        this.queue.push(resolve);
+      });
+    }
+  }
+
+  public async release(): Promise<void> {
+    if (!this.acquired) {
+      throw Error("InternalError: expect lock is acquired upon release()");
+    }
+    if (this.queue.length === 0) {
+      // No one is waiting for the lock, so we free it
+      this.acquired = false;
+      return;
+    }
+
+    // Otherwise, hand the execution to the next in queue, and
+    // the lock is still acquired
+    const cont = this.queue.shift();
+    return new Promise((res: Cont) => {
+      cont!();
+      res();
+    });
+  }
+}
