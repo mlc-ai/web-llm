@@ -21,7 +21,7 @@ const initProgressCallback = (report: webllm.InitProgressReport) => {
 };
 
 // Prepare request for each model, same for both methods
-const selectedModel1 = "Phi-3-mini-4k-instruct-q4f32_1-MLC-1k";
+const selectedModel1 = "Phi-3.5-mini-instruct-q4f32_1-MLC-1k";
 const selectedModel2 = "gemma-2-2b-it-q4f32_1-MLC-1k";
 const prompt1 = "Tell me about California in 3 short sentences.";
 const prompt2 = "Tell me about New York City in 3 short sentences.";
