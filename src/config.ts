@@ -431,14 +431,14 @@ export const prebuiltAppConfig: AppConfig = {
         sliding_window_size: -1,
       },
     },
-    // Phi3-mini-instruct
+    // Phi3.5-mini-instruct
     {
-      model: "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC",
-      model_id: "Phi-3-mini-4k-instruct-q4f16_1-MLC",
+      model: "https://huggingface.co/mlc-ai/Phi-3.5-mini-instruct-q4f16_1-MLC",
+      model_id: "Phi-3.5-mini-instruct-q4f16_1-MLC",
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Phi-3-mini-4k-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+        "/Phi-3.5-mini-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 3672.07,
       low_resource_required: false,
       overrides: {
@@ -446,12 +446,12 @@ export const prebuiltAppConfig: AppConfig = {
       },
     },
     {
-      model: "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f32_1-MLC",
-      model_id: "Phi-3-mini-4k-instruct-q4f32_1-MLC",
+      model: "https://huggingface.co/mlc-ai/Phi-3.5-mini-instruct-q4f32_1-MLC",
+      model_id: "Phi-3.5-mini-instruct-q4f32_1-MLC",
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Phi-3-mini-4k-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+        "/Phi-3.5-mini-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 5483.12,
       low_resource_required: false,
       overrides: {
@@ -459,12 +459,12 @@ export const prebuiltAppConfig: AppConfig = {
       },
     },
     {
-      model: "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC",
-      model_id: "Phi-3-mini-4k-instruct-q4f16_1-MLC-1k",
+      model: "https://huggingface.co/mlc-ai/Phi-3.5-mini-instruct-q4f16_1-MLC",
+      model_id: "Phi-3.5-mini-instruct-q4f16_1-MLC-1k",
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Phi-3-mini-4k-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+        "/Phi-3.5-mini-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 2520.07,
       low_resource_required: true,
       overrides: {
@@ -472,12 +472,12 @@ export const prebuiltAppConfig: AppConfig = {
       },
     },
     {
-      model: "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f32_1-MLC",
-      model_id: "Phi-3-mini-4k-instruct-q4f32_1-MLC-1k",
+      model: "https://huggingface.co/mlc-ai/Phi-3.5-mini-instruct-q4f32_1-MLC",
+      model_id: "Phi-3.5-mini-instruct-q4f32_1-MLC-1k",
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Phi-3-mini-4k-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+        "/Phi-3.5-mini-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 3179.12,
       low_resource_required: true,
       overrides: {
@@ -1222,6 +1222,59 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
+      },
+    },
+    // Phi3-mini-instruct
+    {
+      model: "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC",
+      model_id: "Phi-3-mini-4k-instruct-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Phi-3-mini-4k-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 3672.07,
+      low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f32_1-MLC",
+      model_id: "Phi-3-mini-4k-instruct-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Phi-3-mini-4k-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 5483.12,
+      low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC",
+      model_id: "Phi-3-mini-4k-instruct-q4f16_1-MLC-1k",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Phi-3-mini-4k-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 2520.07,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 1024,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f32_1-MLC",
+      model_id: "Phi-3-mini-4k-instruct-q4f32_1-MLC-1k",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Phi-3-mini-4k-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 3179.12,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 1024,
       },
     },
     // Llama-2
