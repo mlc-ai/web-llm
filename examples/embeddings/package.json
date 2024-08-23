@@ -15,7 +15,7 @@
     "url": "^0.11.3"
   },
   "dependencies": {
-    "@mlc-ai/web-llm": "^0.2.61",
+    "@mlc-ai/web-llm": "^0.2.62",
     "langchain": "0.2.15"
   }
 }
