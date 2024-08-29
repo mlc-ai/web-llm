@@ -108,15 +108,14 @@
 }
 #hero .video-container {
   position: relative;
-  border-radius: 16px;
+  border-radius: 20px;
   overflow: hidden;
   background-color: #13113c;
-  border-radius: 16px;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.08);
   margin-top: 96px;
   width: 100%;
   max-width: 1024px;
-  aspect-ratio: 2292/1644;
+  aspect-ratio: 2286/1684;
 }
 #hero .video-container video {
   width: 100%;
