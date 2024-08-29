@@ -33,12 +33,12 @@ function getElementAndCheck(id: string): HTMLElement {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-const queryInput = document.getElementById("query-input")!;
-const submitButton = document.getElementById("submit-button")!;
-const ReadTabButton = document.getElementById("read-tab-button")!;
+const queryInput = getElementAndCheck("query-input")!;
+const submitButton = getElementAndCheck("submit-button")!;
+const modelName = getElementAndCheck("model-name");
 
 let context = "";
-let isLoadingParams = false;
+let modelDisplayName = "";
 
 // throws runtime.lastError if you refresh extension AND try to access a webpage that is already open
 fetchPageContents();
@@ -54,6 +54,8 @@ let progressBar: ProgressBar = new Line("#loadingContainer", {
   trailWidth: 1,
   svgStyle: { width: "100%", height: "100%" },
 });
+
+let isLoadingParams = true;
 
 let initProgressCallback = (report: InitProgressReport) => {
   setLabel("init-label", report.text);
@@ -87,39 +89,45 @@ for (let i = 0; i < prebuiltAppConfig.model_list.length; ++i) {
   modelSelector.appendChild(opt);
 }
 
+modelName.innerText = "Loading initial model...";
 const engine: MLCEngineInterface = await CreateMLCEngine(selectedModel, {
   initProgressCallback: initProgressCallback,
 });
-let chatHistory: ChatCompletionMessageParam[] = [];
+modelName.innerText = "Now chatting with " + modelDisplayName;
 
-isLoadingParams = true;
+let chatHistory: ChatCompletionMessageParam[] = [];
 
 function enableInputs() {
   if (isLoadingParams) {
     sleep(500);
-    (<HTMLButtonElement>submitButton).disabled = false;
     isLoadingParams = false;
   }
+
+  // remove loading bar and loading bar descriptors, if exists
   const initLabel = document.getElementById("init-label");
   initLabel?.remove();
   const loadingBarContainer = document.getElementById("loadingContainer")!;
   loadingBarContainer?.remove();
   queryInput.focus();
 
-  const modelName = getElementAndCheck("modelName");
   const modelNameArray = selectedModel.split("-");
-  let modelDisplayName = modelNameArray[0];
+  modelDisplayName = modelNameArray[0];
   let j = 1;
   while (j < modelNameArray.length && modelNameArray[j][0] != "q") {
     modelDisplayName = modelDisplayName + "-" + modelNameArray[j];
     j++;
   }
-  modelName.innerText = "Now chatting with: " + modelDisplayName;
 }
+
+let requestInProgress = false;
 
 // Disable submit button if input field is empty
 queryInput.addEventListener("keyup", () => {
-  if ((<HTMLInputElement>queryInput).value === "") {
+  if (
+    (<HTMLInputElement>queryInput).value === "" ||
+    requestInProgress ||
+    isLoadingParams
+  ) {
     (<HTMLButtonElement>submitButton).disabled = true;
   } else {
     (<HTMLButtonElement>submitButton).disabled = false;
@@ -134,11 +142,10 @@ queryInput.addEventListener("keyup", (event) => {
   }
 });
 
-let requestInProgress = false;
-
 // Listen for clicks on submit button
 async function handleClick() {
   requestInProgress = true;
+  (<HTMLButtonElement>submitButton).disabled = true;
 
   // Get the message from the input field
   const message = (<HTMLInputElement>queryInput).value;
@@ -178,17 +185,20 @@ async function handleClick() {
   const response = await engine.getMessage();
   chatHistory.push({ role: "assistant", content: await engine.getMessage() });
   console.log("response", response);
+
   requestInProgress = false;
+  (<HTMLButtonElement>submitButton).disabled = false;
 }
 submitButton.addEventListener("click", handleClick);
 
 // listen for changes in modelSelector
 async function handleSelectChange() {
-  if (requestInProgress) {
+  if (isLoadingParams) {
     return;
   }
 
-  (<HTMLButtonElement>submitButton).disabled = true;
+  modelName.innerText = "";
+
   const initLabel = document.createElement("p");
   initLabel.id = "init-label";
   initLabel.innerText = "Initializing model...";
@@ -199,6 +209,9 @@ async function handleSelectChange() {
   loadingBox.appendChild(initLabel);
   loadingBox.appendChild(loadingContainer);
 
+  isLoadingParams = true;
+  (<HTMLButtonElement>submitButton).disabled = true;
+
   if (requestInProgress) {
     engine.interruptGenerate();
   }
@@ -207,7 +220,6 @@ async function handleSelectChange() {
   await engine.unload();
 
   selectedModel = modelSelector.value;
-  requestInProgress = true;
 
   progressBar = new Line("#loadingContainer", {
     strokeWidth: 4,
@@ -231,9 +243,11 @@ async function handleSelectChange() {
 
   engine.setInitProgressCallback(initProgressCallback);
 
+  requestInProgress = true;
+  modelName.innerText = "Reloading with new model...";
   await engine.reload(selectedModel);
-
   requestInProgress = false;
+  modelName.innerText = "Now chatting with " + modelDisplayName;
 }
 modelSelector.addEventListener("change", handleSelectChange);
 
