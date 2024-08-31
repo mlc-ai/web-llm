@@ -21,7 +21,7 @@ body {
   margin: 0;
   padding: 0.5rem;
   background-color: #778da9;
-  width: 320px;
+  width: 335px;
   font-size: small;
 }
 
@@ -32,7 +32,7 @@ p {
 /* LOADING BAR */
 #loadingContainer {
   margin-bottom: 15px;
-  width: 300px;
+  width: 315px;
   height: 8px;
 }
 
@@ -55,7 +55,7 @@ p {
   margin-right: 0.5rem;
 }
 
-/* SUBMIT BUTTON */
+/* BUTTON */
 .btn {
   background-color: #1b263b;
   color: white;

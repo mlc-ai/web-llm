@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "MLCBot",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Chat with your browser",
   "icons": {
     "16": "icons/icon-16.png",
@@ -16,5 +16,12 @@
     "default_title": "MLCBot",
     "default_popup": "popup.html"
   },
-  "permissions": ["storage", "tabs", "webNavigation"]
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"]
+    }
+  ],
+  "permissions": ["storage", "tabs", "webNavigation", "activeTab", "scripting"],
+  "host_permissions": ["http://*/", "https://*/"]
 }
