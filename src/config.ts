@@ -416,8 +416,7 @@ export const prebuiltAppConfig: AppConfig = {
       },
     },
     {
-      model: 
-        "https://huggingface.co/mlc-ai/Hermes-3-Llama-3.1-8B-q4f32_1-MLC",
+      model: "https://huggingface.co/mlc-ai/Hermes-3-Llama-3.1-8B-q4f32_1-MLC",
       model_id: "Hermes-3-Llama-3.1-8B-q4f32_1-MLC",
       model_lib:
         modelLibURLPrefix + 
@@ -430,8 +429,7 @@ export const prebuiltAppConfig: AppConfig = {
       }
     },
     {
-      model: 
-        "https://huggingface.co/mlc-ai/Hermes-3-Llama-3.1-8B-q4f16_1-MLC",
+      model: "https://huggingface.co/mlc-ai/Hermes-3-Llama-3.1-8B-q4f16_1-MLC",
       model_id: "Hermes-3-Llama-3.1-8B-q4f16_1-MLC",
       model_lib:
         modelLibURLPrefix + 
@@ -441,7 +439,7 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
-      }
+      },
     },
     {
       model:
