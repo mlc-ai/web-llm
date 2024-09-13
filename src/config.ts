@@ -294,6 +294,8 @@ export const functionCallingModelIds = [
   "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC",
   "Hermes-2-Pro-Llama-3-8B-q4f32_1-MLC",
   "Hermes-2-Pro-Mistral-7B-q4f16_1-MLC",
+  "Hermes-3-Llama-3.1-8B-q4f32_1-MLC",
+  "Hermes-3-Llama-3.1-8B-q4f16_1-MLC",
 ];
 
 /**
@@ -410,6 +412,32 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 6051.27,
+      low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Hermes-3-Llama-3.1-8B-q4f32_1-MLC",
+      model_id: "Hermes-3-Llama-3.1-8B-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Llama-3_1-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 5779.27,
+      low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Hermes-3-Llama-3.1-8B-q4f16_1-MLC",
+      model_id: "Hermes-3-Llama-3.1-8B-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Llama-3_1-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 4876.13,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
