@@ -506,7 +506,7 @@ export class LLMChatPipeline {
         if (this.grammarStateMatcher) {
           this.grammarStateMatcher.dispose();
         }
-        if (this.tokenTable === undefined) {
+        if (this.tokenTable === undefined || !this.tokenTable.handle) {
           const rawTokenTable = getTokenTableFromTokenizer(this.tokenizer);
           // Post process entire table
           this.tokenTable = this.fpostProcessTokenTable(
