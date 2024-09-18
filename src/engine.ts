@@ -119,6 +119,8 @@ export class MLCEngine implements MLCEngineInterface {
   >;
   /** Maps each loaded model's modelId to its chatConfig */
   private loadedModelIdToChatConfig: Map<string, ChatConfig>;
+  /** Maps each loaded model's modelId to its modelType */
+  private loadedModelIdToModelType: Map<string, ModelType>;
   /** Maps each loaded model's modelId to a lock. Ensures
    * each model only processes one request at at time.
    */
@@ -141,6 +143,7 @@ export class MLCEngine implements MLCEngineInterface {
       LLMChatPipeline | EmbeddingPipeline
     >();
     this.loadedModelIdToChatConfig = new Map<string, ChatConfig>();
+    this.loadedModelIdToModelType = new Map<string, ModelType>();
     this.loadedModelIdToLock = new Map<string, CustomLock>();
     this.appConfig = engineConfig?.appConfig || prebuiltAppConfig;
     this.setLogLevel(engineConfig?.logLevel || DefaultLogLevel);
@@ -239,6 +242,7 @@ export class MLCEngine implements MLCEngineInterface {
     const logitProcessor = this.logitProcessorRegistry?.get(modelId);
     const tstart = performance.now();
 
+    // look up and parse model record, record model type
     const modelRecord = findModelRecord(modelId, this.appConfig);
     const baseUrl =
       typeof document !== "undefined"
@@ -248,7 +252,13 @@ export class MLCEngine implements MLCEngineInterface {
     if (!modelUrl.startsWith("http")) {
       modelUrl = new URL(modelUrl, baseUrl).href;
     }
+    const modelType =
+      modelRecord.model_type === undefined || modelRecord.model_type === null
+        ? ModelType.LLM
+        : modelRecord.model_type;
+    this.loadedModelIdToModelType.set(modelId, modelType);
 
+    // instantiate cache
     let configCache: tvmjs.ArtifactCacheTemplate;
     if (this.appConfig.useIndexedDBCache) {
       configCache = new tvmjs.ArtifactIndexedDBCache("webllm/config");
@@ -409,6 +419,7 @@ export class MLCEngine implements MLCEngineInterface {
     }
     this.loadedModelIdToPipeline.clear();
     this.loadedModelIdToChatConfig.clear();
+    this.loadedModelIdToModelType.clear();
     this.loadedModelIdToLock.clear();
     this.deviceLostIsError = true;
     if (this.reloadController) {
@@ -737,7 +748,13 @@ export class MLCEngine implements MLCEngineInterface {
     // 0. Check model loaded and preprocess inputs
     const [selectedModelId, selectedPipeline, selectedChatConfig] =
       this.getLLMStates("ChatCompletionRequest", request.model);
-    API.postInitAndCheckFieldsChatCompletion(request, selectedModelId);
+    const selectedModelType =
+      this.loadedModelIdToModelType.get(selectedModelId);
+    API.postInitAndCheckFieldsChatCompletion(
+      request,
+      selectedModelId,
+      selectedModelType!,
+    );
     const genConfig: GenerationConfig = {
       frequency_penalty: request.frequency_penalty,
       presence_penalty: request.presence_penalty,

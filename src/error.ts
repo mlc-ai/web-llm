@@ -124,19 +124,39 @@ export class ContentTypeError extends Error {
   }
 }
 
-export class UserMessageContentError extends Error {
-  constructor(content: any) {
-    super(
-      `User message only supports string content for now, but received: ${content}`,
-    );
-    this.name = "UserMessageContentError";
-  }
-}
-
 export class UnsupportedRoleError extends Error {
   constructor(role: string) {
     super(`Unsupported role of message: ${role}`);
     this.name = "UnsupportedRoleError";
+  }
+}
+
+export class UserMessageContentErrorForNonVLM extends Error {
+  constructor(modelId: string, modelType: string, content: any) {
+    super(
+      `The model loaded is not of type ModelType.VLM (vision-language model). ` +
+        `Therefore, user message only supports string content, but received: ${content}\n` +
+        `Loaded modelId: ${modelId}, modelType: ${modelType}`,
+    );
+    this.name = "UserMessageContentErrorForNonVLM";
+  }
+}
+
+export class UnsupportedDetailError extends Error {
+  constructor(detail: string) {
+    super(
+      `Currently do not support field image_url.detail, but received: ${detail}`,
+    );
+    this.name = "UnsupportedDetailError";
+  }
+}
+
+export class MultipleTextContentError extends Error {
+  constructor(numTextContent: number) {
+    super(
+      `Each message can have at most one text contentPart, but received: ${numTextContent}`,
+    );
+    this.name = "MultipleTextContentError";
   }
 }
 

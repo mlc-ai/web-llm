@@ -139,7 +139,7 @@ export class Conversation {
    */
   getPromptArrayLastRound() {
     if (this.isTextCompletion) {
-      throw new TextCompletionConversationError("getPromptyArrayLastRound");
+      throw new TextCompletionConversationError("getPromptArrayLastRound");
     }
     if (this.messages.length < 3) {
       throw Error("needs to call getPromptArray for the first message");
@@ -346,7 +346,7 @@ export function getConversationFromChatCompletionRequest(
  * encounter invalid request.
  *
  * @param request The chatCompletionRequest we are about to prefill for.
- * @returns The string used to set Conversatoin.function_string
+ * @returns The string used to set Conversation.function_string
  */
 export function getFunctionCallUsage(request: ChatCompletionRequest): string {
   if (
