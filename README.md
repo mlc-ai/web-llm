@@ -329,7 +329,7 @@ async main() {
     "model_list": [
       {
         "model": "/url/to/my/llama",
-        "model_id": "MyLlama-3b-v1-q4f32_0"
+        "model_id": "MyLlama-3b-v1-q4f32_0",
         "model_lib": "/url/to/myllama3b.wasm",
       }
     ],
