@@ -152,9 +152,9 @@ export class UnsupportedDetailError extends Error {
 }
 
 export class MultipleTextContentError extends Error {
-  constructor(numTextContent: number) {
+  constructor() {
     super(
-      `Each message can have at most one text contentPart, but received: ${numTextContent}`,
+      `Each message can have at most one text contentPart, but received more than 1.`,
     );
     this.name = "MultipleTextContentError";
   }

@@ -178,7 +178,7 @@ describe("Check chat completion unsupported requests", () => {
         ModelType.VLM,
       );
     }).toThrow(
-      "Each message can have at most one text contentPart, but received: 2",
+      "Each message can have at most one text contentPart, but received more than 1.",
     );
   });
 

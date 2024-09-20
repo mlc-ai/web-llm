@@ -12,6 +12,7 @@ import {
   ChatCompletionTokenLogprob,
   TopLogprob,
   ResponseFormat,
+  ChatCompletionContentPartImage,
 } from "./openai_api_protocols/index";
 import { BNFGrammar, GrammarFactory, GrammarStateMatcher } from "./grammar";
 import {
@@ -935,7 +936,9 @@ export class LLMChatPipeline {
 
   private getInputTokens(): Array<number> {
     let tokens: Array<number> = [];
-    let prompts: string[];
+    let prompts: Array<
+      string | Array<string | ChatCompletionContentPartImage.ImageURL>
+    >;
     // beginning of the conversation
     if (this.conversation.isTextCompletion) {
       // Non-conversation style
@@ -961,7 +964,12 @@ export class LLMChatPipeline {
     // Encode all prompts
     let numPromptTokens = 0;
     for (let i = 0; i < prompts.length; i++) {
-      const encoded = this.tokenizer.encode(prompts[i]);
+      const curPrompt = prompts[i];
+      if (typeof curPrompt !== "string") {
+        // TODO: SUPPORT IMAGE ENCODING
+        throw new Error("Image input not supported yet");
+      }
+      const encoded = this.tokenizer.encode(curPrompt);
       numPromptTokens += encoded.length;
       tokens.push(...encoded);
     }

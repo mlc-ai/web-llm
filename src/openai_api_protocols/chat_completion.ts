@@ -424,7 +424,9 @@ export function postInitAndCheckFields(
         }
         if (numTextContent > 1) {
           // Only one text contentPart per message
-          throw new MultipleTextContentError(numTextContent);
+          // TODO(Charlie): is it always the case that an input can only have one
+          // textPart? Or it is only for phi3vision?
+          throw new MultipleTextContentError();
         }
       }
       if (message.role === "system" && index !== 0) {
