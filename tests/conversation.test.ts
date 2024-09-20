@@ -257,12 +257,16 @@ describe("Test getConversationFromChatCompletionRequest with image", () => {
       ],
       `<|assistant|>\n`,
     ]);
+    expect(conv1.getPromptArrayLastRound()).toEqual([
+      [
+        `<|user|>\n`,
+        { url: imageUrl2 } as ImageURL,
+        `\n`,
+        { url: imageUrl3 } as ImageURL,
+        `\n`,
+        `${dummyRequestStr}<|end|>\n`,
+      ],
+      `<|assistant|>\n`,
+    ]);
   });
-
-  // test("Test compareConversationObject with image message", () => {
-  //   const config_json = JSON.parse(phi3_5VisionChatConfigJSONString);
-  //   const config = { ...config_json } as ChatConfig;
-  //   const conversation = getConversation(config.conv_template);
-
-  // });
 });
