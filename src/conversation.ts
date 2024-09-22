@@ -75,9 +75,8 @@ export class Conversation {
       MessagePlaceholders.system,
       system_message,
     );
-    const ret: Array<string | Array<string | ImageURL>> = addSystem
-      ? [system_prompt]
-      : [];
+    const ret: Array<string | Array<string | ImageURL>> =
+      addSystem && system_prompt !== "" ? [system_prompt] : [];
 
     // Process each message in this.messages
     for (let i = startPos; i < this.messages.length; ++i) {

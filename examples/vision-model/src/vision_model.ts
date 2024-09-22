@@ -1,4 +1,5 @@
 import * as webllm from "@mlc-ai/web-llm";
+import { imageURLToBase64 } from "./utils";
 
 function setLabel(id: string, text: string) {
   const label = document.getElementById(id);
@@ -8,7 +9,16 @@ function setLabel(id: string, text: string) {
   label.innerText = text;
 }
 
+const proxyUrl = "https://cors-anywhere.herokuapp.com/";
+const url_https_street = "https://www.ilankelman.org/stopsigns/australia.jpg";
+const url_https_tree = "https://www.ilankelman.org/sunset.jpg";
+const url_https_sea =
+  "https://www.islandvulnerability.org/index/silhouette.jpg";
+
 async function main() {
+  // can feed request with either base64 or http url
+  const url_base64_street = await imageURLToBase64(proxyUrl + url_https_street);
+
   const initProgressCallback = (report: webllm.InitProgressReport) => {
     setLabel("init-label", report.text);
   };
@@ -19,23 +29,27 @@ async function main() {
       initProgressCallback: initProgressCallback,
       logLevel: "INFO", // specify the log level
     },
+    {
+      context_window_size: 6144,
+    },
   );
 
   // 1. Single image input (with choices)
   const messages: webllm.ChatCompletionMessageParam[] = [
     {
-      role: "system",
-      content:
-        "You are a helpful and honest assistant that answers question concisely.",
-    },
-    {
       role: "user",
       content: [
-        { type: "text", text: "List the items in the image concisely." },
+        { type: "text", text: "List the items in each image concisely." },
         {
           type: "image_url",
           image_url: {
-            url: "https://www.ilankelman.org/stopsigns/australia.jpg",
+            url: url_base64_street,
+          },
+        },
+        {
+          type: "image_url",
+          image_url: {
+            url: proxyUrl + url_https_sea,
           },
         },
       ],
@@ -53,7 +67,7 @@ async function main() {
 
   // 2. A follow up text-only question
   messages.push({ role: "assistant", content: replyMessage0 });
-  messages.push({ role: "user", content: "What is special about this image?" });
+  messages.push({ role: "user", content: "What is special about each image?" });
   const request1: webllm.ChatCompletionRequest = {
     stream: false, // can be streaming, same behavior
     messages: messages,
@@ -69,14 +83,10 @@ async function main() {
   messages.push({
     role: "user",
     content: [
-      { type: "text", text: "What about these two images? Answer concisely." },
+      { type: "text", text: "What about this image? Answer concisely." },
       {
         type: "image_url",
-        image_url: { url: "https://www.ilankelman.org/eiffeltower.jpg" },
-      },
-      {
-        type: "image_url",
-        image_url: { url: "https://www.ilankelman.org/sunset.jpg" },
+        image_url: { url: proxyUrl + url_https_tree },
       },
     ],
   });

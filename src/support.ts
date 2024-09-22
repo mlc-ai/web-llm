@@ -16,11 +16,6 @@ import {
   UnclearModelToUseError,
 } from "./error";
 
-type ImageURL = ChatCompletionContentPartImage.ImageURL;
-
-// TODO(Charlie): currently hardcoded for phi3.5-vision num_crops 16
-export const IMAGE_EMBED_SIZE = 1921;
-
 /**
  * Based on `p_prob` of size (vocabSize,) which becomes a distribution after calling
  * `applySoftmaxWithTemperature()`, sample `top_logprobs` top-probable tokens.
@@ -405,4 +400,54 @@ export class CustomLock {
       res();
     });
   }
+}
+
+// Image related
+type ImageURL = ChatCompletionContentPartImage.ImageURL;
+
+// TODO(Charlie): currently hardcoded for phi3.5-vision num_crops 16
+export const IMAGE_EMBED_SIZE = 1921;
+
+/**
+ * Given a url, get the image data. The url can either start with `http` or `data:image`.
+ */
+export function getImageDataFromURL(url: string): Promise<ImageData> {
+  return new Promise((resolve, reject) => {
+    // Converts img to any, and later `as CanvasImageSource`, otherwise build complains
+    const img: any = new Image();
+    img.crossOrigin = "anonymous"; // Important for CORS
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Could not get 2d context"));
+        return;
+      }
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img as CanvasImageSource, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, img.width, img.height);
+      resolve(imageData);
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = url;
+  });
+}
+
+/**
+ * Given an ImageData, return the RGB array in Uint8ClampedArray. Note the ImageData.data
+ * is RGBA, so we skip every fourth element of the data. The order goes by rows from the
+ * top-left pixel to the bottom-right, in RGB order.
+ */
+export function getRGBArrayFromImageData(
+  imageData: ImageData,
+): Uint8ClampedArray {
+  const newData = new Uint8ClampedArray(imageData.width * imageData.height * 3);
+  for (let i = 0, offset = 0; i < imageData.data.length; i += 4) {
+    newData[offset++] = imageData.data[i];
+    newData[offset++] = imageData.data[i + 1];
+    newData[offset++] = imageData.data[i + 2];
+  }
+  return newData;
 }

@@ -8,6 +8,8 @@ import { getConversation, Conversation } from "./conversation";
 import { LogitProcessor } from "./types";
 import {
   getChunkedPrefillInputData,
+  getImageDataFromURL,
+  getRGBArrayFromImageData,
   getTokenTableFromTokenizer,
   getTopProbs,
   IMAGE_EMBED_SIZE,
@@ -30,6 +32,7 @@ import {
   MessageOrderError,
   TextCompletionExpectsKVEmptyError,
   PrefillChunkSizeSmallerThanImageError,
+  CannotFindImageEmbedError,
 } from "./error";
 
 type ImageURL = ChatCompletionContentPartImage.ImageURL;
@@ -44,6 +47,7 @@ export class LLMChatPipeline {
   private vm: tvmjs.VirtualMachine;
   private prefill: tvmjs.PackedFunc;
   private decoding: tvmjs.PackedFunc;
+  private image_embed: tvmjs.PackedFunc | undefined;
   private embed: tvmjs.PackedFunc;
   private fapplyBitmask: tvmjs.PackedFunc;
   private fpostProcessTokenTable: tvmjs.PackedFunc;
@@ -179,6 +183,13 @@ export class LLMChatPipeline {
     this.fpostProcessTokenTable = this.tvm.detachFromCurrentScope(
       tvm.getGlobalFunc("mlc.tokenizers.PostProcessTokenTable"),
     );
+    try {
+      this.image_embed = this.tvm.detachFromCurrentScope(
+        this.vm.getFunction("image_embed"),
+      );
+    } catch {
+      log.info("Cannot find function image_embed.");
+    }
 
     // 2. Get json stored in the vm's metadata function
     const fgetMetadata = this.vm.getFunction("_metadata");
@@ -279,6 +290,8 @@ export class LLMChatPipeline {
     this.params.dispose();
     this.decoding.dispose();
     this.prefill.dispose();
+    this.embed.dispose();
+    this.image_embed?.dispose();
     this.vm.dispose();
     this.kvCache.dispose();
     this.fclearKVCaches.dispose();
@@ -501,6 +514,9 @@ export class LLMChatPipeline {
         IMAGE_EMBED_SIZE,
       );
     }
+    if (hasImageInput && this.image_embed === undefined) {
+      throw new CannotFindImageEmbedError();
+    }
 
     // 1. Chunk inputData to embed and forward in one shot for each, minimize intermediate data
     const retGetChunks = getChunkedPrefillInputData(
@@ -518,7 +534,7 @@ export class LLMChatPipeline {
       const chunkLen = chunkLens[i];
       const prevFilledLen = this.filledKVCacheLength;
       logits = this.tvm.detachFromCurrentScope(
-        this.embedAndForward(chunk, chunkLen),
+        await this.embedAndForward(chunk, chunkLen),
       );
       if (this.filledKVCacheLength !== prevFilledLen + chunkLen) {
         throw new Error(
@@ -592,7 +608,7 @@ export class LLMChatPipeline {
     const chunkLen = chunk.length;
     const prevFilledLen = this.filledKVCacheLength;
     const logits = this.tvm.detachFromCurrentScope(
-      this.embedAndForward(chunk, chunkLen),
+      await this.embedAndForward(chunk, chunkLen),
     );
     if (this.filledKVCacheLength !== prevFilledLen + chunkLen) {
       throw new Error(
@@ -743,13 +759,31 @@ export class LLMChatPipeline {
   /**
    * Embed an image input.
    */
-  private getImageEmbeddings(inputImage: ImageURL): tvmjs.NDArray {
+  private async getImageEmbeddings(
+    inputImage: ImageURL,
+  ): Promise<tvmjs.NDArray> {
     this.tvm.beginScope();
     // 1. Transform ImageURL into image input in NDArray
+    const url = inputImage.url;
+    // url starting with `data:image` and `http` share the same loading method
+    const imgData: ImageData = await getImageDataFromURL(url);
+    const pixelValues: Uint8ClampedArray = getRGBArrayFromImageData(imgData);
+    const pixelArray = this.tvm
+      // .empty([imgData.height, imgData.width, 3], "uint8", this.device)
+      .empty([imgData.height, imgData.width, 3], "uint32", this.device)
+      .copyFrom(pixelValues)
+      .view([1, imgData.height, imgData.width, 3]); // NHWC
+
     // 2. Call image embed kernel
     const embed: tvmjs.NDArray = this.tvm.detachFromCurrentScope(
-      this.tvm.empty([]),
-    ); // dummy
+      this.image_embed!(pixelArray, this.params),
+    );
+    if (embed.shape[0] !== IMAGE_EMBED_SIZE) {
+      throw new Error(
+        `InternalError: expect embed.shape[0] to be ${IMAGE_EMBED_SIZE}, ` +
+          `but got ${embed.shape[0]}`,
+      );
+    }
     this.tvm.endScope();
     this.tvm.attachToCurrentScope(embed); // tracked by scope of embedAndForward
     return embed;
@@ -765,10 +799,10 @@ export class LLMChatPipeline {
    *
    * @note Precondition: inputData's data length is smaller than prefill chunk size
    */
-  private embedAndForward(
+  private async embedAndForward(
     inputData: Array<Array<number> | ImageURL>,
     inputDataLen: number,
-  ): tvmjs.NDArray {
+  ): Promise<tvmjs.NDArray> {
     if (inputDataLen > this.prefillChunkSize) {
       throw new Error(
         "InternalError: expect inputDataLen <= this.prefillChunkSize.",
@@ -780,28 +814,30 @@ export class LLMChatPipeline {
     // 1. Embed all inputData
     this.tvm.beginScope();
     const embeddings: tvmjs.NDArray[] = [];
-    inputData.forEach((data) => {
+    for (let i = 0; i < inputData.length; i++) {
+      const data = inputData[i];
       if (Array.isArray(data)) {
         embeddings.push(this.getTokensEmbeddings(data));
       } else {
-        embeddings.push(this.getImageEmbeddings(data));
+        embeddings.push(await this.getImageEmbeddings(data));
       }
-    });
+    }
 
-    // TODO: Should we end this scope and begin another scope? Will this dispose embeddings to
-    // save RAM? We will detach allEmbeddings from this scope and attach to the next scope.
-
-    // TODO: implement concatenateNDArrays, or something like `mlc.copy_embedding_to_offset`.
-    // const allEmbeddings: tvmjs.NDArray = this.tvm.concatenateNDArrays(embeddings);
-
-    // dummy value
-    let allEmbeddings: tvmjs.NDArray = embeddings[0];
+    // 2. Concatenate embeddings
+    let allEmbeddings: tvmjs.NDArray;
+    if (embeddings.length === 1) {
+      allEmbeddings = embeddings[0];
+    } else {
+      allEmbeddings = this.tvm.concatEmbeddings(embeddings);
+    }
     if (inputDataLen !== allEmbeddings.shape[0]) {
       throw new Error("InternalError: expect seqLen == allEmbeddings.shape[0]");
     }
     allEmbeddings = allEmbeddings.view([1].concat(allEmbeddings.shape));
+    // TODO: Should we end this scope here and begin another scope? Will this dispose embeddings to
+    // save RAM? We will detach allEmbeddings from this scope and attach to the next scope.
 
-    // 2. Forward the concatenated embeddings
+    // 3. Forward the concatenated embeddings
     const inputLenShape = this.tvm.makeShapeTuple([inputDataLen]);
     const seqIdsTuple = this.tvm.makeShapeTuple([0]);
     this.fKVCacheBeginForward!(this.kvCache, seqIdsTuple, inputLenShape);
@@ -1183,7 +1219,7 @@ export class LLMChatPipeline {
       const chunk = chunks[i];
       const chunkLen = chunkLens[i];
       const prevFilledLen = this.filledKVCacheLength;
-      logitsOnGPU = this.embedAndForward(chunk, chunkLen);
+      logitsOnGPU = await this.embedAndForward(chunk, chunkLen);
       if (this.filledKVCacheLength !== prevFilledLen + chunkLen) {
         throw new Error(
           "Internal Error: filledKVCacheLength does not match expected value.",
@@ -1285,7 +1321,7 @@ export class LLMChatPipeline {
     const prefillChunk: Array<Array<number>> = [tokens];
     const prefillChunkLen = tokens.length;
     const prefillStart = performance.now();
-    this.embedAndForward(prefillChunk, prefillChunkLen);
+    await this.embedAndForward(prefillChunk, prefillChunkLen);
     this.tvm.endScope();
     await this.device.sync();
 
@@ -1295,7 +1331,7 @@ export class LLMChatPipeline {
     const decodeChunk: Array<Array<number>> = [[6234]];
     const decodeChunkLen = 1;
     const logitsOnCPU = this.updateLogitsOnCPU(
-      this.embedAndForward(decodeChunk, decodeChunkLen),
+      await this.embedAndForward(decodeChunk, decodeChunkLen),
     );
     await this.device.sync();
     this.tvm.endScope();

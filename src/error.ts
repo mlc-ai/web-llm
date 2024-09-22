@@ -153,12 +153,31 @@ export class PrefillChunkSizeSmallerThanImageError extends Error {
   }
 }
 
+export class CannotFindImageEmbedError extends Error {
+  constructor() {
+    super(
+      `Received image input but model does not have kernel image_embed. ` +
+        `Make sure to only pass in image to a vision model.`,
+    );
+    this.name = "CannotFindImageEmbedError";
+  }
+}
+
 export class UnsupportedDetailError extends Error {
   constructor(detail: string) {
     super(
       `Currently do not support field image_url.detail, but received: ${detail}`,
     );
     this.name = "UnsupportedDetailError";
+  }
+}
+
+export class UnsupportedImageURLError extends Error {
+  constructor(url: string) {
+    super(
+      `image_url.url should start with "data:image" for base64, or with "http", but got: ${url}`,
+    );
+    this.name = "UnsupportedImageURLError";
   }
 }
 

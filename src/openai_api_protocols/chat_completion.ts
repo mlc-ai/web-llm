@@ -37,6 +37,7 @@ import {
   SystemMessageOrderError,
   UnsupportedDetailError,
   UnsupportedFieldsError,
+  UnsupportedImageURLError,
   UnsupportedModelIdError,
   UserMessageContentErrorForNonVLM,
 } from "../error";
@@ -417,6 +418,11 @@ export function postInitAndCheckFields(
             const detail = curContent.image_url.detail;
             if (detail !== undefined && detail !== null) {
               throw new UnsupportedDetailError(detail);
+            }
+            // Either start with http or data:image for base64
+            const url = curContent.image_url.url;
+            if (!url.startsWith("data:image") && !url.startsWith("http")) {
+              throw new UnsupportedImageURLError(url);
             }
           } else {
             numTextContent += 1;

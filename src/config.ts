@@ -521,7 +521,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Phi-3.5-vision-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+        "/Phi-3.5-vision-instruct-q4f16_1-ctx4k_cs2k-webgpu.wasm",
       vram_required_MB: 3952.18,
       low_resource_required: true,
       overrides: {
@@ -536,7 +536,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Phi-3.5-vision-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+        "/Phi-3.5-vision-instruct-q4f32_1-ctx4k_cs2k-webgpu.wasm",
       vram_required_MB: 5879.84,
       low_resource_required: true,
       overrides: {
