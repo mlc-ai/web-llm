@@ -142,6 +142,17 @@ export class UserMessageContentErrorForNonVLM extends Error {
   }
 }
 
+export class PrefillChunkSizeSmallerThanImageError extends Error {
+  constructor(prefillChunkSize: number, imageEmbedSize: number) {
+    super(
+      `prefillChunkSize needs to be greater than imageEmbedSize because a single image's ` +
+        `prefill cannot be chunked. Got prefillChunkSize: ` +
+        `${prefillChunkSize}, imageEmbedSize: ${imageEmbedSize}`,
+    );
+    this.name = "PrefillChunkSizeSmallerThanImageError";
+  }
+}
+
 export class UnsupportedDetailError extends Error {
   constructor(detail: string) {
     super(

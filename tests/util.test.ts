@@ -8,10 +8,12 @@ import {
   cleanModelUrl,
   CustomLock,
   getModelIdToUse,
+  getChunkedPrefillInputData,
   getTopProbs,
 } from "../src/support";
 import { areChatOptionsListEqual } from "../src/utils";
 import { MLCEngine } from "../src/engine";
+import { ChatCompletionContentPartImage } from "../src/openai_api_protocols";
 
 describe("Check getTopLogprobs correctness", () => {
   test("Correctness test 1", () => {
@@ -316,6 +318,91 @@ describe("Test areChatOptionsListEqual", () => {
       dummyChatOpts1,
     ];
     expect(areChatOptionsListEqual(options1, options2)).toEqual(true);
+  });
+});
+
+describe("Test getChunkedPrefillInputData", () => {
+  const rangeArr = (start: number, end: number) =>
+    Array.from({ length: end - start }, (v, k) => k + start);
+  type ImageURL = ChatCompletionContentPartImage.ImageURL;
+  const prefillChunkSize = 2048;
+  const image1 = { url: "url1" } as ImageURL;
+  const image2 = { url: "url2" } as ImageURL;
+
+  test("With image data", async () => {
+    const inputData = [
+      rangeArr(0, 200),
+      image1, // 1921 size
+      rangeArr(0, 10),
+    ];
+    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const expectedChunks = [[rangeArr(0, 200)], [image1, rangeArr(0, 10)]];
+    const expectedChunkLens = [200, 1931];
+    expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
+  });
+
+  test("Single image data", async () => {
+    const inputData = [image1];
+    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const expectedChunks = [[image1]];
+    const expectedChunkLens = [1921];
+    expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
+  });
+
+  test("Two images", async () => {
+    const inputData = [image1, image2];
+    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const expectedChunks = [[image1], [image2]];
+    const expectedChunkLens = [1921, 1921];
+    expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
+  });
+
+  test("Single token array that needs to be chunked", async () => {
+    const inputData = [rangeArr(0, 4097)];
+    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const expectedChunks = [
+      [rangeArr(0, 2048)],
+      [rangeArr(2048, 4096)],
+      [rangeArr(4096, 4097)],
+    ];
+    const expectedChunkLens = [2048, 2048, 1];
+    expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
+  });
+
+  test("Single token array that does not need to be chunked", async () => {
+    const inputData = [rangeArr(0, 2048)];
+    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const expectedChunks = [[rangeArr(0, 2048)]];
+    const expectedChunkLens = [2048];
+    expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
+  });
+
+  test("Token array that needs to be chunked, grouped with others", async () => {
+    const inputData = [
+      image1, // 1921
+      rangeArr(0, 2300),
+      image2,
+    ];
+    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const expectedChunks = [
+      [image1, rangeArr(0, 127)], // 127 = 2048 - 1921
+      [rangeArr(127, 2175)], // 2175 = 127 + 2048
+      [rangeArr(2175, 2300), image2],
+    ];
+    const expectedChunkLens = [2048, 2048, 2046];
+    expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
+  });
+
+  test("Image followed by token that fits just well.", async () => {
+    const inputData = [
+      image1, // 1921
+      rangeArr(0, 127),
+      image2,
+    ];
+    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const expectedChunks = [[image1, rangeArr(0, 127)], [image2]];
+    const expectedChunkLens = [2048, 1921];
+    expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
   });
 });
 
