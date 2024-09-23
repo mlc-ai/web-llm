@@ -599,9 +599,6 @@ export class LLMChatPipeline {
     const tstart = performance.now();
 
     this.tvm.beginScope();
-    const inputData = this.tvm.empty([1], "int32", this.device);
-    inputData.copyFrom(this.outputIds.slice(this.outputIds.length - 1));
-
     const chunk: Array<Array<number>> = [
       this.outputIds.slice(this.outputIds.length - 1),
     ];
