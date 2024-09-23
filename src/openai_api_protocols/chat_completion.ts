@@ -16,7 +16,11 @@
  */
 
 import { MLCEngineInterface } from "../types";
-import { functionCallingModelIds, MessagePlaceholders } from "../config";
+import {
+  functionCallingModelIds,
+  MessagePlaceholders,
+  ModelType,
+} from "../config";
 import {
   officialHermes2FunctionCallSchemaArray,
   hermes2FunctionCallingSystemPrompt,
@@ -27,12 +31,15 @@ import {
   InvalidResponseFormatError,
   InvalidStreamOptionsError,
   MessageOrderError,
+  MultipleTextContentError,
   SeedTypeError,
   StreamingCountError,
   SystemMessageOrderError,
+  UnsupportedDetailError,
   UnsupportedFieldsError,
+  UnsupportedImageURLError,
   UnsupportedModelIdError,
-  UserMessageContentError,
+  UserMessageContentErrorForNonVLM,
 } from "../error";
 
 /* eslint-disable @typescript-eslint/no-namespace */
@@ -371,10 +378,12 @@ export const ChatCompletionRequestUnsupportedFields: Array<string> = []; // all 
  * error or in-place update request.
  * @param request User's input request.
  * @param currentModelId The current model loaded that will perform this request.
+ * @param currentModelType The type of the model loaded, decide what requests can be handled.
  */
 export function postInitAndCheckFields(
   request: ChatCompletionRequest,
   currentModelId: string,
+  currentModelType: ModelType,
 ): void {
   // Generation-related checks and post inits are in `postInitAndCheckGenerationConfigValues()`
   // 1. Check unsupported fields in request
@@ -391,10 +400,40 @@ export function postInitAndCheckFields(
   // 2. Check unsupported messages
   request.messages.forEach(
     (message: ChatCompletionMessageParam, index: number) => {
+      // Check content array messages (that are not simple string)
       if (message.role === "user" && typeof message.content !== "string") {
-        // ChatCompletionUserMessageParam
-        // Remove this when we support image input
-        throw new UserMessageContentError(message.content);
+        if (currentModelType !== ModelType.VLM) {
+          // Only VLM can handle non-string content (i.e. message with image)
+          throw new UserMessageContentErrorForNonVLM(
+            currentModelId,
+            ModelType[currentModelType],
+            message.content,
+          );
+        }
+        let numTextContent = 0;
+        for (let i = 0; i < message.content.length; i++) {
+          const curContent = message.content[i];
+          if (curContent.type === "image_url") {
+            // Do not support image_url.detail
+            const detail = curContent.image_url.detail;
+            if (detail !== undefined && detail !== null) {
+              throw new UnsupportedDetailError(detail);
+            }
+            // Either start with http or data:image for base64
+            const url = curContent.image_url.url;
+            if (!url.startsWith("data:image") && !url.startsWith("http")) {
+              throw new UnsupportedImageURLError(url);
+            }
+          } else {
+            numTextContent += 1;
+          }
+        }
+        if (numTextContent > 1) {
+          // Only one text contentPart per message
+          // TODO(Charlie): is it always the case that an input can only have one
+          // textPart? Or it is only for phi3vision?
+          throw new MultipleTextContentError();
+        }
       }
       if (message.role === "system" && index !== 0) {
         throw new SystemMessageOrderError();

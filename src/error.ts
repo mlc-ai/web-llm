@@ -124,19 +124,69 @@ export class ContentTypeError extends Error {
   }
 }
 
-export class UserMessageContentError extends Error {
-  constructor(content: any) {
-    super(
-      `User message only supports string content for now, but received: ${content}`,
-    );
-    this.name = "UserMessageContentError";
-  }
-}
-
 export class UnsupportedRoleError extends Error {
   constructor(role: string) {
     super(`Unsupported role of message: ${role}`);
     this.name = "UnsupportedRoleError";
+  }
+}
+
+export class UserMessageContentErrorForNonVLM extends Error {
+  constructor(modelId: string, modelType: string, content: any) {
+    super(
+      `The model loaded is not of type ModelType.VLM (vision-language model). ` +
+        `Therefore, user message only supports string content, but received: ${content}\n` +
+        `Loaded modelId: ${modelId}, modelType: ${modelType}`,
+    );
+    this.name = "UserMessageContentErrorForNonVLM";
+  }
+}
+
+export class PrefillChunkSizeSmallerThanImageError extends Error {
+  constructor(prefillChunkSize: number, imageEmbedSize: number) {
+    super(
+      `prefillChunkSize needs to be greater than imageEmbedSize because a single image's ` +
+        `prefill cannot be chunked. Got prefillChunkSize: ` +
+        `${prefillChunkSize}, imageEmbedSize: ${imageEmbedSize}`,
+    );
+    this.name = "PrefillChunkSizeSmallerThanImageError";
+  }
+}
+
+export class CannotFindImageEmbedError extends Error {
+  constructor() {
+    super(
+      `Received image input but model does not have kernel image_embed. ` +
+        `Make sure to only pass in image to a vision model.`,
+    );
+    this.name = "CannotFindImageEmbedError";
+  }
+}
+
+export class UnsupportedDetailError extends Error {
+  constructor(detail: string) {
+    super(
+      `Currently do not support field image_url.detail, but received: ${detail}`,
+    );
+    this.name = "UnsupportedDetailError";
+  }
+}
+
+export class UnsupportedImageURLError extends Error {
+  constructor(url: string) {
+    super(
+      `image_url.url should start with "data:image" for base64, or with "http", but got: ${url}`,
+    );
+    this.name = "UnsupportedImageURLError";
+  }
+}
+
+export class MultipleTextContentError extends Error {
+  constructor() {
+    super(
+      `Each message can have at most one text contentPart, but received more than 1.`,
+    );
+    this.name = "MultipleTextContentError";
   }
 }
 

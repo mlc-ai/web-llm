@@ -6,12 +6,20 @@ import { Tokenizer } from "@mlc-ai/web-tokenizers";
 import { ChatConfig, GenerationConfig, Role } from "./config";
 import { getConversation, Conversation } from "./conversation";
 import { LogitProcessor } from "./types";
-import { getTokenTableFromTokenizer, getTopProbs } from "./support";
+import {
+  getChunkedPrefillInputData,
+  getImageDataFromURL,
+  getRGBArrayFromImageData,
+  getTokenTableFromTokenizer,
+  getTopProbs,
+  IMAGE_EMBED_SIZE,
+} from "./support";
 import {
   ChatCompletionFinishReason,
   ChatCompletionTokenLogprob,
   TopLogprob,
   ResponseFormat,
+  ChatCompletionContentPartImage,
 } from "./openai_api_protocols/index";
 import { BNFGrammar, GrammarFactory, GrammarStateMatcher } from "./grammar";
 import {
@@ -23,7 +31,11 @@ import {
   WindowSizeSpecificationError,
   MessageOrderError,
   TextCompletionExpectsKVEmptyError,
+  PrefillChunkSizeSmallerThanImageError,
+  CannotFindImageEmbedError,
 } from "./error";
+
+type ImageURL = ChatCompletionContentPartImage.ImageURL;
 
 export class LLMChatPipeline {
   private config: ChatConfig;
@@ -35,6 +47,7 @@ export class LLMChatPipeline {
   private vm: tvmjs.VirtualMachine;
   private prefill: tvmjs.PackedFunc;
   private decoding: tvmjs.PackedFunc;
+  private image_embed: tvmjs.PackedFunc | undefined;
   private embed: tvmjs.PackedFunc;
   private fapplyBitmask: tvmjs.PackedFunc;
   private fpostProcessTokenTable: tvmjs.PackedFunc;
@@ -170,6 +183,13 @@ export class LLMChatPipeline {
     this.fpostProcessTokenTable = this.tvm.detachFromCurrentScope(
       tvm.getGlobalFunc("mlc.tokenizers.PostProcessTokenTable"),
     );
+    try {
+      this.image_embed = this.tvm.detachFromCurrentScope(
+        this.vm.getFunction("image_embed"),
+      );
+    } catch {
+      log.info("Cannot find function image_embed.");
+    }
 
     // 2. Get json stored in the vm's metadata function
     const fgetMetadata = this.vm.getFunction("_metadata");
@@ -270,6 +290,8 @@ export class LLMChatPipeline {
     this.params.dispose();
     this.decoding.dispose();
     this.prefill.dispose();
+    this.embed.dispose();
+    this.image_embed?.dispose();
     this.vm.dispose();
     this.kvCache.dispose();
     this.fclearKVCaches.dispose();
@@ -454,6 +476,8 @@ export class LLMChatPipeline {
       this.resetRuntimeStats();
     }
 
+    const tstart = performance.now();
+
     // cleanup the per convo states
     this.outputIds = [];
     this.appearedTokensFreq.clear();
@@ -466,36 +490,60 @@ export class LLMChatPipeline {
     this.stopTriggered = false;
     const conversation = this.conversation;
 
-    // initialize
+    // 0. Get inputData from conversation
     if (conversation.isTextCompletion) {
       conversation.prompt = inp;
     } else {
       conversation.appendMessage(msgRole, inp, inp_role_str);
       conversation.appendReplyHeader(Role.assistant);
     }
-    const promptTokens = this.getInputTokens();
+    const retGetInputData = this.getInputData();
+    const inputData: Array<Array<number> | ImageURL> = retGetInputData[0];
+    const promptLen: number = retGetInputData[1];
 
-    const tstart = performance.now();
+    // Check if LLMChatPipeline fits for forwarding image input
+    let hasImageInput = false;
+    inputData.forEach((data) => {
+      if (!Array.isArray(data)) {
+        hasImageInput = true;
+      }
+    });
+    if (hasImageInput && this.prefillChunkSize < IMAGE_EMBED_SIZE) {
+      throw new PrefillChunkSizeSmallerThanImageError(
+        this.prefillChunkSize,
+        IMAGE_EMBED_SIZE,
+      );
+    }
+    if (hasImageInput && this.image_embed === undefined) {
+      throw new CannotFindImageEmbedError();
+    }
+
+    // 1. Chunk inputData to embed and forward in one shot for each, minimize intermediate data
+    const retGetChunks = getChunkedPrefillInputData(
+      inputData,
+      this.prefillChunkSize,
+    );
+    const chunks: Array<Array<number> | ImageURL>[] = retGetChunks[0];
+    const chunkLens: Array<number> = retGetChunks[1];
+
+    // 2. Prefill each chunk
     this.tvm.beginScope();
-
-    let newSeqLen = this.filledKVCacheLength;
-    const tokenLen = promptTokens.length;
-    let logits = this.tvm.empty([1, 1], "int32", this.device); // Dummy value to avoid type error
-    // Use prefill chunking regardless whether we use SWA (see Mistral paper figure 3)
-    for (let begin = 0; begin < tokenLen; begin += this.prefillChunkSize) {
-      const end = Math.min(tokenLen, begin + this.prefillChunkSize);
-      const chunk = promptTokens.slice(begin, end);
-      const inputData = this.tvm.empty([chunk.length], "int32", this.device);
-      inputData.copyFrom(chunk);
-      newSeqLen += chunk.length;
-      logits = this.tvm.detachFromCurrentScope(this.forward(inputData));
+    let logits: tvmjs.NDArray;
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const chunkLen = chunkLens[i];
+      const prevFilledLen = this.filledKVCacheLength;
+      logits = this.tvm.detachFromCurrentScope(
+        await this.embedAndForward(chunk, chunkLen),
+      );
+      if (this.filledKVCacheLength !== prevFilledLen + chunkLen) {
+        throw new Error(
+          "Internal Error: filledKVCacheLength does not match expected value.",
+        );
+      }
     }
-    if (newSeqLen != this.filledKVCacheLength + tokenLen) {
-      throw Error("Expect chunking process all tokens.");
-    }
-    this.filledKVCacheLength = newSeqLen;
 
-    // Instantiate grammar state matcher according to generation config
+    // 3. Instantiate grammar state matcher according to generation config
     if (genConfig?.response_format?.type === "json_object") {
       const curSchema = genConfig.response_format.schema;
       if (curSchema === this.schema && this.grammarStateMatcher) {
@@ -530,13 +578,14 @@ export class LLMChatPipeline {
 
     this.tvm.endScope();
 
-    const nextToken = await this.sampleTokenFromLogits(logits, genConfig);
-    logits.dispose();
+    // 4. Sample, stats, post process token sampled.
+    const nextToken = await this.sampleTokenFromLogits(logits!, genConfig);
+    logits!.dispose();
     const tend = performance.now();
 
     this.prefillTotalTime += (tend - tstart) / 1e3;
-    this.prefillTotalTokens += promptTokens.length;
-    this.curRoundPrefillTotalTokens += promptTokens.length;
+    this.prefillTotalTokens += promptLen;
+    this.curRoundPrefillTotalTokens += promptLen;
     this.curRoundPrefillTotalTime += (tend - tstart) / 1e3;
 
     this.processNextToken(nextToken, genConfig);
@@ -550,11 +599,19 @@ export class LLMChatPipeline {
     const tstart = performance.now();
 
     this.tvm.beginScope();
-    const inputData = this.tvm.empty([1], "int32", this.device);
-    inputData.copyFrom(this.outputIds.slice(this.outputIds.length - 1));
-
-    const logits = this.tvm.detachFromCurrentScope(this.forward(inputData));
-    this.filledKVCacheLength += 1;
+    const chunk: Array<Array<number>> = [
+      this.outputIds.slice(this.outputIds.length - 1),
+    ];
+    const chunkLen = chunk.length;
+    const prevFilledLen = this.filledKVCacheLength;
+    const logits = this.tvm.detachFromCurrentScope(
+      await this.embedAndForward(chunk, chunkLen),
+    );
+    if (this.filledKVCacheLength !== prevFilledLen + chunkLen) {
+      throw new Error(
+        "Internal Error: filledKVCacheLength does not match expected value.",
+      );
+    }
     this.tvm.endScope();
 
     // sample from logits
@@ -669,21 +726,128 @@ export class LLMChatPipeline {
     }
   }
 
-  private forward(inputs: tvmjs.NDArray): tvmjs.NDArray {
+  /**
+   * Given input tokens, return embeddings of them by calling embed kernel.
+   *
+   * @note precondition: inputTokens.length <= prefillChunkSize, since we take care of
+   * chunking in `getChunkedPrefillInputData()`.
+   */
+  private getTokensEmbeddings(inputTokens: number[]): tvmjs.NDArray {
     this.tvm.beginScope();
-    let retValue;
-    const seqLen = inputs.shape[0]; // Num input tokens
-    const seqIdsTuple = this.tvm.makeShapeTuple([0]);
-    const inputLenShape = this.tvm.makeShapeTuple([seqLen]);
-    this.fKVCacheBeginForward!(this.kvCache, seqIdsTuple, inputLenShape);
-    let embed = this.embed!(inputs, this.params);
-    embed = embed.view([1].concat(embed.shape)); // Reshape to [1, seqLen, hiddenSize]
-    if (seqLen > 1) {
-      retValue = this.prefill(embed, this.kvCache, this.params);
-    } else {
-      retValue = this.decoding(embed, this.kvCache, this.params);
+    if (inputTokens.length > this.prefillChunkSize) {
+      throw new Error(
+        "Internal Error: getTokensEmbeddings input should be <= prefillChunkSize.",
+      );
     }
+    const inputData = this.tvm.empty(
+      [inputTokens.length],
+      "int32",
+      this.device,
+    );
+    inputData.copyFrom(inputTokens);
+    const embed: tvmjs.NDArray = this.tvm.detachFromCurrentScope(
+      this.embed!(inputData, this.params),
+    );
+    this.tvm.endScope();
+    this.tvm.attachToCurrentScope(embed); // tracked by scope of embedAndForward
+    return embed;
+  }
+
+  /**
+   * Embed an image input.
+   */
+  private async getImageEmbeddings(
+    inputImage: ImageURL,
+  ): Promise<tvmjs.NDArray> {
+    this.tvm.beginScope();
+    // 1. Transform ImageURL into image input in NDArray
+    const url = inputImage.url;
+    // url starting with `data:image` and `http` share the same loading method
+    const imgData: ImageData = await getImageDataFromURL(url);
+    const pixelValues: Uint8ClampedArray = getRGBArrayFromImageData(imgData);
+    const pixelArray = this.tvm
+      // .empty([imgData.height, imgData.width, 3], "uint8", this.device)
+      .empty([imgData.height, imgData.width, 3], "uint32", this.device)
+      .copyFrom(pixelValues)
+      .view([1, imgData.height, imgData.width, 3]); // NHWC
+
+    // 2. Call image embed kernel
+    const embed: tvmjs.NDArray = this.tvm.detachFromCurrentScope(
+      this.image_embed!(pixelArray, this.params),
+    );
+    if (embed.shape[0] !== IMAGE_EMBED_SIZE) {
+      throw new Error(
+        `InternalError: expect embed.shape[0] to be ${IMAGE_EMBED_SIZE}, ` +
+          `but got ${embed.shape[0]}`,
+      );
+    }
+    this.tvm.endScope();
+    this.tvm.attachToCurrentScope(embed); // tracked by scope of embedAndForward
+    return embed;
+  }
+
+  /**
+   * Embed and forward input data, that can be either array of tokens, or an image.
+   * This will increment `this.filledKVCacheLength`.
+   *
+   * @param inputData data to embed and forward
+   * @param inputDataLen length of this inputData, should smaller than prefill chunk size.
+   * @returns The logits returned by this forward as tvmjs.NDArray on GPU.
+   *
+   * @note Precondition: inputData's data length is smaller than prefill chunk size
+   */
+  private async embedAndForward(
+    inputData: Array<Array<number> | ImageURL>,
+    inputDataLen: number,
+  ): Promise<tvmjs.NDArray> {
+    if (inputDataLen > this.prefillChunkSize) {
+      throw new Error(
+        "InternalError: expect inputDataLen <= this.prefillChunkSize.",
+      );
+    }
+    // TODO: we should combine string data to embed once, then rearrange the embeddings; currently
+    // ["hi", imageUrl, "hi"] would call embed kernels 3 times, while 2 would suffice.
+
+    // 1. Embed all inputData
+    this.tvm.beginScope();
+    const embeddings: tvmjs.NDArray[] = [];
+    for (let i = 0; i < inputData.length; i++) {
+      const data = inputData[i];
+      if (Array.isArray(data)) {
+        embeddings.push(this.getTokensEmbeddings(data));
+      } else {
+        embeddings.push(await this.getImageEmbeddings(data));
+      }
+    }
+
+    // 2. Concatenate embeddings
+    let allEmbeddings: tvmjs.NDArray;
+    if (embeddings.length === 1) {
+      allEmbeddings = embeddings[0];
+    } else {
+      allEmbeddings = this.tvm.concatEmbeddings(embeddings);
+    }
+    if (inputDataLen !== allEmbeddings.shape[0]) {
+      throw new Error("InternalError: expect seqLen == allEmbeddings.shape[0]");
+    }
+    allEmbeddings = allEmbeddings.view([1].concat(allEmbeddings.shape));
+    // TODO: Should we end this scope here and begin another scope? Will this dispose embeddings to
+    // save RAM? We will detach allEmbeddings from this scope and attach to the next scope.
+
+    // 3. Forward the concatenated embeddings
+    const inputLenShape = this.tvm.makeShapeTuple([inputDataLen]);
+    const seqIdsTuple = this.tvm.makeShapeTuple([0]);
+    this.fKVCacheBeginForward!(this.kvCache, seqIdsTuple, inputLenShape);
+    let retValue;
+    if (inputDataLen > 1) {
+      retValue = this.prefill(allEmbeddings, this.kvCache, this.params);
+    } else {
+      retValue = this.decoding(allEmbeddings, this.kvCache, this.params);
+    }
+
+    // Epilogue
     this.fKVCacheEndForward!(this.kvCache);
+    this.filledKVCacheLength += inputDataLen;
     const logits = this.tvm.detachFromCurrentScope(retValue.get(0));
     this.tvm.endScope();
     this.tvm.attachToCurrentScope(logits);
@@ -933,24 +1097,53 @@ export class LLMChatPipeline {
     return sampledToken;
   }
 
-  private getInputTokens(): Array<number> {
-    let tokens: Array<number> = [];
-    let prompts: string[];
-    // beginning of the conversation
+  /**
+   * Return the an array of a mixture of token arrays and imageURLs (which cannot be represented
+   * as tokens). Also return the number of tokens this represents.
+   *
+   * We first convert the Conversation into a prompt array to be prefilled. Then we encode the
+   * text parts, leaving the imageURLs as it is.
+   * Example prompts:
+   * [
+   *   "<|system|>\nSome system prompt\n",
+   *   [
+   *     "<|user|>\n",
+   *     imageURL1,
+   *     "\n",
+   *     imageURL2,
+   *     "\n",
+   *     "Some user input<|end|>\n"
+   *   ],
+   * ]
+   *
+   * Expected output:
+   * [
+   *   token array for "<|system|>\nSome system prompt\n<|user|>\n",
+   *   imageUrl1,
+   *   token array for "\n",
+   *   imageUrl2,
+   *   token array for "\nSome user input<|end|>\n"
+   */
+  private getInputData(): [Array<Array<number> | ImageURL>, number] {
+    const ret: Array<Array<number> | ImageURL> = [];
+    let curTokens: Array<number> = [];
+    let prompts: Array<string | Array<string | ImageURL>>;
+
+    // 1. Get prompts
     if (this.conversation.isTextCompletion) {
-      // Non-conversation style
+      // 1.1. Non-conversation style
       if (this.filledKVCacheLength !== 0) {
         throw new TextCompletionExpectsKVEmptyError();
       }
       prompts = this.conversation.getPromptArrayTextCompletion();
     } else {
-      // Conversation style
+      // 1.2. Conversation style
       if (this.filledKVCacheLength === 0) {
         if (
           this.conversation.config.system_prefix_token_ids !== undefined &&
           this.conversation.config.system_prefix_token_ids !== null
         ) {
-          tokens = [...this.conversation.config.system_prefix_token_ids];
+          curTokens = [...this.conversation.config.system_prefix_token_ids];
         }
         prompts = this.conversation.getPromptArray();
       } else {
@@ -958,13 +1151,37 @@ export class LLMChatPipeline {
       }
     }
 
-    // Encode all prompts
+    // 2. Encode all prompts. Iterate through each message in the prompt array, where each
+    // prompt can either be a string, or an array of a mixture of string and ImageURLs.
     let numPromptTokens = 0;
     for (let i = 0; i < prompts.length; i++) {
-      const encoded = this.tokenizer.encode(prompts[i]);
-      numPromptTokens += encoded.length;
-      tokens.push(...encoded);
+      const curPrompt = prompts[i];
+      if (typeof curPrompt === "string") {
+        const encoded = this.tokenizer.encode(curPrompt);
+        numPromptTokens += encoded.length;
+        curTokens.push(...encoded);
+      } else {
+        for (let j = 0; j < curPrompt.length; j++) {
+          const curPromptContent: string | ImageURL = curPrompt[j];
+          if (typeof curPromptContent === "string") {
+            const encoded = this.tokenizer.encode(curPromptContent);
+            numPromptTokens += encoded.length;
+            curTokens.push(...encoded);
+          } else {
+            // push curTokens to ret, push imageUrl, create a new curTokens
+            ret.push([...curTokens]);
+            ret.push(curPromptContent);
+            numPromptTokens += IMAGE_EMBED_SIZE;
+            curTokens = [];
+          }
+        }
+      }
     }
+    // Deal with last curTokens
+    if (curTokens.length !== 0) {
+      ret.push([...curTokens]);
+    }
+
     // Check if input tokens exceed context window size
     if (
       this.slidingWindowSize == -1 && // There is no limit on contextWindowSize for sliding window
@@ -975,25 +1192,43 @@ export class LLMChatPipeline {
         this.contextWindowSize,
       );
     }
-    return tokens;
+    return [ret, numPromptTokens];
   }
 
   async forwardTokensAndSample(
     inputIds: Array<number>,
     isPrefill: boolean,
   ): Promise<number> {
-    // 1. Convert input to NDArray
     const tstart = performance.now();
     this.tvm.beginScope();
-    const inputData = this.tvm.empty([inputIds.length], "int32", this.device);
-    inputData.copyFrom(inputIds);
+    // 1. Chunk inputData if needed
+    const inputData: Array<Array<number>> = [inputIds];
+    const retGetChunks = getChunkedPrefillInputData(
+      inputData,
+      this.prefillChunkSize,
+    );
+    const chunks: Array<Array<number> | ImageURL>[] = retGetChunks[0];
+    const chunkLens: Array<number> = retGetChunks[1];
 
-    // 2. Forward tokens and get logits
-    const logitsOnGPU: tvmjs.NDArray = this.forward(inputData);
-    const nextToken = await this.sampleTokenFromLogits(logitsOnGPU);
+    // 2. Prefill each chunk
+    let logitsOnGPU: tvmjs.NDArray;
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const chunkLen = chunkLens[i];
+      const prevFilledLen = this.filledKVCacheLength;
+      logitsOnGPU = await this.embedAndForward(chunk, chunkLen);
+      if (this.filledKVCacheLength !== prevFilledLen + chunkLen) {
+        throw new Error(
+          "Internal Error: filledKVCacheLength does not match expected value.",
+        );
+      }
+    }
+
+    // 3. Sample next token
+    const nextToken = await this.sampleTokenFromLogits(logitsOnGPU!);
     this.tvm.endScope();
 
-    // 3. Stats
+    // 4. Stats
     const tend = performance.now();
     if (isPrefill) {
       // We assume that if the input has more than 1 token
@@ -1080,20 +1315,21 @@ export class LLMChatPipeline {
     }
 
     this.tvm.beginScope();
-    const inputData = this.tvm.empty([tokens.length], "int32", this.device);
-    inputData.copyFrom(tokens);
+    const prefillChunk: Array<Array<number>> = [tokens];
+    const prefillChunkLen = tokens.length;
     const prefillStart = performance.now();
-    this.forward(inputData);
+    await this.embedAndForward(prefillChunk, prefillChunkLen);
     this.tvm.endScope();
     await this.device.sync();
 
     const decodingStart = performance.now();
 
     this.tvm.beginScope();
-    const firstSampleToken = this.tvm
-      .empty([1], "int32", this.device)
-      .copyFrom([6234]);
-    const logitsOnCPU = this.updateLogitsOnCPU(this.forward(firstSampleToken));
+    const decodeChunk: Array<Array<number>> = [[6234]];
+    const decodeChunkLen = 1;
+    const logitsOnCPU = this.updateLogitsOnCPU(
+      await this.embedAndForward(decodeChunk, decodeChunkLen),
+    );
     await this.device.sync();
     this.tvm.endScope();
 

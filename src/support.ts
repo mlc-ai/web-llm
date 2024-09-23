@@ -3,6 +3,7 @@ import { Tokenizer } from "@mlc-ai/web-tokenizers";
 import { AppConfig, MessagePlaceholders, ModelRecord } from "./config";
 import {
   ChatCompletionChunk,
+  ChatCompletionContentPartImage,
   ChatCompletionMessageToolCall,
 } from "./openai_api_protocols/index";
 import {
@@ -252,6 +253,109 @@ export function getModelIdToUse(
   return selectedModelId;
 }
 
+/**
+ * TODO: Consider if this is the best strategy (though aligned with mlc-llm). We currently greedily
+ * try to fill up prefillChunkSize. Consider the example with 2048 prefill chunk size:
+ * const inputData = [
+    image1,  // 1921
+    rangeArr(0, 2048),
+    image2,
+  ];
+ * Current approach results in chunks: 
+   [image1, rangeArr(0, 127)],
+   [rangeArr(127, 2048)],
+   [image2],
+ * This means 4 embedding kernels and 3 prefill kernels.
+ * While the optimal chunking may be:
+   [image1],
+   [rangeArr(0, 2048)],
+   [image2],
+ * This results in 3 embedding kernels and 3 prefill kernels.
+ * However, greedy strategy is more intuitive and probably more generalizable.
+ */
+
+/**
+ * Chunk the inputData such that each chunk's total input length is smaller than prefill
+ * chunk size.
+ * @returns [the data chunks, the input length of each chunk]
+ * @note precondition: if inputData has image in it, then prefillChunkSize >= IMAGE_EMBED_SIZE.
+ */
+export function getChunkedPrefillInputData(
+  inputData: Array<Array<number> | ImageURL>,
+  prefillChunkSize: number,
+): [Array<Array<number> | ImageURL>[], Array<number>] {
+  const chunks: Array<Array<number> | ImageURL>[] = [];
+  const chunkLens: Array<number> = [];
+  let curChunk: Array<Array<number> | ImageURL> = [];
+  let curChunkLen = 0;
+  for (let i = 0; i < inputData.length; i++) {
+    let curData: Array<number> | ImageURL = inputData[i];
+    const curDataLen = Array.isArray(curData)
+      ? curData.length
+      : IMAGE_EMBED_SIZE;
+    // 1. curData can fit into this chunk
+    if (curChunkLen + curDataLen <= prefillChunkSize) {
+      curChunk.push(curData);
+      curChunkLen += curDataLen;
+      if (curChunkLen === prefillChunkSize) {
+        chunks.push([...curChunk]);
+        chunkLens.push(curChunkLen);
+        curChunk = [];
+        curChunkLen = 0;
+      }
+      continue;
+    }
+
+    // 2. Otherwise, depends on whether it is token data or image data
+    if (Array.isArray(curData)) {
+      // 2.1. Token data, which itself needs to be chunked. Keep
+      // chunking and finalizing until finished
+      while (curData.length > 0) {
+        const curDataToChunkLen = Math.min(
+          curData.length,
+          prefillChunkSize - curChunkLen,
+        );
+        curChunk.push(curData.slice(0, curDataToChunkLen));
+        curChunkLen += curDataToChunkLen;
+        curData = curData.slice(curDataToChunkLen);
+        if (curChunkLen === prefillChunkSize) {
+          // curChunk is now full, so finalize to chunks
+          chunks.push([...curChunk]);
+          chunkLens.push(curChunkLen);
+          curChunk = [];
+          curChunkLen = 0;
+        }
+      }
+    } else {
+      // 2.2. Image data, which itself cannot be chunked, so cannot fit in current chunk.
+      // 2.2.1. Finalize curChunk
+      if (curChunk.length === 0) {
+        throw new Error(
+          "InternalError: do not expect curChunk to be empty when an image does not fit.",
+        );
+      }
+      chunks.push([...curChunk]);
+      chunkLens.push(curChunkLen);
+      // 2.2.2. Then push image to the new chunk
+      curChunk = [curData];
+      curChunkLen = IMAGE_EMBED_SIZE;
+      if (curChunkLen === prefillChunkSize) {
+        chunks.push([...curChunk]);
+        chunkLens.push(curChunkLen);
+        curChunk = [];
+        curChunkLen = 0;
+      }
+    }
+  }
+  // Last chunk
+  if (curChunk.length > 0) {
+    chunks.push([...curChunk]);
+    chunkLens.push(curChunkLen);
+  }
+
+  return [chunks, chunkLens];
+}
+
 type Cont = () => void;
 
 /**
@@ -296,4 +400,54 @@ export class CustomLock {
       res();
     });
   }
+}
+
+// Image related
+type ImageURL = ChatCompletionContentPartImage.ImageURL;
+
+// TODO(Charlie): currently hardcoded for phi3.5-vision num_crops 16
+export const IMAGE_EMBED_SIZE = 1921;
+
+/**
+ * Given a url, get the image data. The url can either start with `http` or `data:image`.
+ */
+export function getImageDataFromURL(url: string): Promise<ImageData> {
+  return new Promise((resolve, reject) => {
+    // Converts img to any, and later `as CanvasImageSource`, otherwise build complains
+    const img: any = new Image();
+    img.crossOrigin = "anonymous"; // Important for CORS
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Could not get 2d context"));
+        return;
+      }
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.drawImage(img as CanvasImageSource, 0, 0);
+
+      const imageData = ctx.getImageData(0, 0, img.width, img.height);
+      resolve(imageData);
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+    img.src = url;
+  });
+}
+
+/**
+ * Given an ImageData, return the RGB array in Uint8ClampedArray. Note the ImageData.data
+ * is RGBA, so we skip every fourth element of the data. The order goes by rows from the
+ * top-left pixel to the bottom-right, in RGB order.
+ */
+export function getRGBArrayFromImageData(
+  imageData: ImageData,
+): Uint8ClampedArray {
+  const newData = new Uint8ClampedArray(imageData.width * imageData.height * 3);
+  for (let i = 0, offset = 0; i < imageData.data.length; i += 4) {
+    newData[offset++] = imageData.data[i];
+    newData[offset++] = imageData.data[i + 1];
+    newData[offset++] = imageData.data[i + 2];
+  }
+  return newData;
 }

@@ -8,7 +8,7 @@ import {
   hermes2FunctionCallingSystemPrompt,
   officialHermes2FunctionCallSchemaArray,
 } from "../src/support";
-import { MessagePlaceholders } from "../src/config";
+import { MessagePlaceholders, ModelType } from "../src/config";
 import { describe, expect, test } from "@jest/globals";
 
 describe("Check chat completion unsupported requests", () => {
@@ -18,7 +18,11 @@ describe("Check chat completion unsupported requests", () => {
         messages: [{ role: "user", content: "Hello! " }],
         stream_options: { include_usage: true },
       };
-      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
+      postInitAndCheckFields(
+        request,
+        "Llama-3.1-8B-Instruct-q4f32_1-MLC",
+        ModelType.LLM,
+      );
     }).toThrow("Only specify stream_options when stream=True.");
   });
 
@@ -29,7 +33,11 @@ describe("Check chat completion unsupported requests", () => {
         messages: [{ role: "user", content: "Hello! " }],
         stream_options: { include_usage: true },
       };
-      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
+      postInitAndCheckFields(
+        request,
+        "Llama-3.1-8B-Instruct-q4f32_1-MLC",
+        ModelType.LLM,
+      );
     }).toThrow("Only specify stream_options when stream=True.");
   });
 
@@ -42,7 +50,11 @@ describe("Check chat completion unsupported requests", () => {
           { role: "assistant", content: "Hello! How may I help you today?" },
         ],
       };
-      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
+      postInitAndCheckFields(
+        request,
+        "Llama-3.1-8B-Instruct-q4f32_1-MLC",
+        ModelType.LLM,
+      );
     }).toThrow("Last message should be from either `user` or `tool`.");
   });
 
@@ -56,7 +68,11 @@ describe("Check chat completion unsupported requests", () => {
           { role: "system", content: "You are a helpful assistant." },
         ],
       };
-      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
+      postInitAndCheckFields(
+        request,
+        "Llama-3.1-8B-Instruct-q4f32_1-MLC",
+        ModelType.LLM,
+      );
     }).toThrow(
       "System prompt should always be the first message in `messages`.",
     );
@@ -69,7 +85,11 @@ describe("Check chat completion unsupported requests", () => {
         n: 2,
         messages: [{ role: "user", content: "Hello! " }],
       };
-      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
+      postInitAndCheckFields(
+        request,
+        "Llama-3.1-8B-Instruct-q4f32_1-MLC",
+        ModelType.LLM,
+      );
     }).toThrow("When streaming, `n` cannot be > 1.");
   });
 
@@ -80,7 +100,11 @@ describe("Check chat completion unsupported requests", () => {
         max_tokens: 10,
         seed: 42.2, // Note that Number.isInteger(42.0) is true
       };
-      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
+      postInitAndCheckFields(
+        request,
+        "Llama-3.1-8B-Instruct-q4f32_1-MLC",
+        ModelType.LLM,
+      );
     }).toThrow("`seed` should be an integer, but got");
   });
 
@@ -90,14 +114,17 @@ describe("Check chat completion unsupported requests", () => {
         messages: [{ role: "user", content: "Hello! " }],
         response_format: { schema: "some json schema" },
       };
-      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
+      postInitAndCheckFields(
+        request,
+        "Llama-3.1-8B-Instruct-q4f32_1-MLC",
+        ModelType.LLM,
+      );
     }).toThrow(
       "JSON schema is only supported with `json_object` response format.",
     );
   });
 
-  // Remove when we support image input (e.g. LlaVA model)
-  test("Image input is unsupported", () => {
+  test("image_url.detail is unsupported", () => {
     expect(() => {
       const request: ChatCompletionRequest = {
         messages: [
@@ -107,15 +134,79 @@ describe("Check chat completion unsupported requests", () => {
               { type: "text", text: "What is in this image?" },
               {
                 type: "image_url",
-                image_url: { url: "https://url_here.jpg" },
+                image_url: {
+                  url: "https://url_here.jpg",
+                  detail: "high",
+                },
               },
             ],
           },
         ],
       };
-      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
+      postInitAndCheckFields(
+        request,
+        "Phi-3.5-vision-instruct-q4f16_1-MLC",
+        ModelType.VLM,
+      );
     }).toThrow(
-      "User message only supports string content for now, but received:",
+      "Currently do not support field image_url.detail, but received: high",
+    );
+  });
+
+  test("User content cannot have multiple text content parts", () => {
+    expect(() => {
+      const request: ChatCompletionRequest = {
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "What is in this image?" },
+              {
+                type: "image_url",
+                image_url: {
+                  url: "https://url_here.jpg",
+                },
+              },
+              { type: "text", text: "Thank you." },
+            ],
+          },
+        ],
+      };
+      postInitAndCheckFields(
+        request,
+        "Phi-3.5-vision-instruct-q4f16_1-MLC",
+        ModelType.VLM,
+      );
+    }).toThrow(
+      "Each message can have at most one text contentPart, but received more than 1.",
+    );
+  });
+
+  test("Non-VLM cannot support non-string content", () => {
+    expect(() => {
+      const request: ChatCompletionRequest = {
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "What is in this image?" },
+              {
+                type: "image_url",
+                image_url: {
+                  url: "https://url_here.jpg",
+                },
+              },
+            ],
+          },
+        ],
+      };
+      postInitAndCheckFields(
+        request,
+        "Llama-3.1-8B-Instruct-q4f32_1-MLC",
+        ModelType.LLM,
+      );
+    }).toThrow(
+      "The model loaded is not of type ModelType.VLM (vision-language model).",
     );
   });
 });
@@ -142,7 +233,37 @@ describe("Supported requests", () => {
         "7660": 5,
       },
     };
-    postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
+    postInitAndCheckFields(
+      request,
+      "Llama-3.1-8B-Instruct-q4f32_1-MLC",
+      ModelType.LLM,
+    );
+  });
+
+  test("Support image input, single or multiple images", () => {
+    const request: ChatCompletionRequest = {
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "What is in this image?" },
+            {
+              type: "image_url",
+              image_url: { url: "https://url_here1.jpg" },
+            },
+            {
+              type: "image_url",
+              image_url: { url: "https://url_here2.jpg" },
+            },
+          ],
+        },
+      ],
+    };
+    postInitAndCheckFields(
+      request,
+      "Phi-3.5-vision-instruct-q4f16_1-MLC",
+      ModelType.VLM,
+    );
   });
 });
 
@@ -167,7 +288,11 @@ describe("Manual function calling", () => {
         },
       ],
     };
-    postInitAndCheckFields(request, "Hermes-2-Theta-Llama-3-8B-q4f16_1-MLC");
+    postInitAndCheckFields(
+      request,
+      "Hermes-2-Theta-Llama-3-8B-q4f16_1-MLC",
+      ModelType.LLM,
+    );
   });
 });
 
@@ -204,7 +329,11 @@ describe("OpenAI API function calling", () => {
           },
         ],
       };
-      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC");
+      postInitAndCheckFields(
+        request,
+        "Llama-3.1-8B-Instruct-q4f32_1-MLC",
+        ModelType.LLM,
+      );
     }).toThrow(
       "Llama-3.1-8B-Instruct-q4f32_1-MLC is not supported for ChatCompletionRequest.tools.",
     );
@@ -222,7 +351,11 @@ describe("OpenAI API function calling", () => {
         ],
         response_format: { type: "json_object" },
       };
-      postInitAndCheckFields(request, "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC");
+      postInitAndCheckFields(
+        request,
+        "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC",
+        ModelType.LLM,
+      );
     }).toThrow(
       "When using Hermes-2-Pro function calling via ChatCompletionRequest.tools, " +
         "cannot specify customized response_format. We will set it for you internally.",
@@ -244,7 +377,11 @@ describe("OpenAI API function calling", () => {
           },
         ],
       };
-      postInitAndCheckFields(request, "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC");
+      postInitAndCheckFields(
+        request,
+        "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC",
+        ModelType.LLM,
+      );
     }).toThrow(
       "When using Hermes-2-Pro function calling via ChatCompletionRequest.tools, cannot " +
         "specify customized system prompt.",
@@ -266,7 +403,11 @@ describe("OpenAI API function calling", () => {
           },
         ],
       };
-      postInitAndCheckFields(request, "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC");
+      postInitAndCheckFields(
+        request,
+        "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC",
+        ModelType.LLM,
+      );
     }).toThrow(
       "When using Hermes-2-Pro function calling via ChatCompletionRequest.tools, cannot " +
         "specify customized system prompt.",
@@ -283,7 +424,11 @@ describe("OpenAI API function calling", () => {
         },
       ],
     };
-    postInitAndCheckFields(request, "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC");
+    postInitAndCheckFields(
+      request,
+      "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC",
+      ModelType.LLM,
+    );
     expect(request.messages[0].role).toEqual("system");
     expect(request.messages[0].content).toEqual(
       hermes2FunctionCallingSystemPrompt.replace(

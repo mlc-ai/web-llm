@@ -229,6 +229,7 @@ export function postInitAndCheckGenerationConfigValues(
 export enum ModelType {
   "LLM",
   "embedding",
+  "VLM", // vision-language model
 }
 
 /**
@@ -511,6 +512,37 @@ export const prebuiltAppConfig: AppConfig = {
       overrides: {
         context_window_size: 1024,
       },
+    },
+    // Phi-3.5-vision-instruct
+    {
+      model:
+        "https://huggingface.co/mlc-ai/Phi-3.5-vision-instruct-q4f16_1-MLC",
+      model_id: "Phi-3.5-vision-instruct-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Phi-3.5-vision-instruct-q4f16_1-ctx4k_cs2k-webgpu.wasm",
+      vram_required_MB: 3952.18,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+      model_type: ModelType.VLM,
+    },
+    {
+      model:
+        "https://huggingface.co/mlc-ai/Phi-3.5-vision-instruct-q4f32_1-MLC",
+      model_id: "Phi-3.5-vision-instruct-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Phi-3.5-vision-instruct-q4f32_1-ctx4k_cs2k-webgpu.wasm",
+      vram_required_MB: 5879.84,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+      model_type: ModelType.VLM,
     },
     // Mistral variants
     {

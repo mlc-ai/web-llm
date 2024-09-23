@@ -36,6 +36,7 @@ These examples demonstrate various capabilities via WebLLM's OpenAI-like API.
 - [json-schema](json-schema): besides guaranteeing output to be in JSON, ensure output to adhere to a specific JSON schema specified the user
 - [seed-to-reproduce](seed-to-reproduce): use seeding to ensure reproducible output with fields `seed`.
 - [function-calling](function-calling) (WIP): function calling with fields `tools` and `tool_choice` (with preliminary support).
+- [vision-model](vision-model): process request with image input using Vision Language Model (e.g. Phi3.5-vision)
 
 #### Chrome Extension
 
