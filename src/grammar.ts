@@ -1,4 +1,4 @@
-import * as tvmjs from "tvmjs";
+import * as tvmjs from "@mlc-ai/tvmjs";
 
 export type BNFGrammar = tvmjs.TVMObject;
 export type GrammarStateMatcher = tvmjs.TVMObject;

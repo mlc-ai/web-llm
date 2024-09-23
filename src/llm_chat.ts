@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable no-prototype-builtins */
-import * as tvmjs from "tvmjs";
+import * as tvmjs from "@mlc-ai/tvmjs";
 import log from "loglevel";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
 import { ChatConfig, GenerationConfig, Role } from "./config";
