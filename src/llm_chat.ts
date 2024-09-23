@@ -298,6 +298,7 @@ export class LLMChatPipeline {
     this.logitsOnCPU?.dispose();
     this.tvm.dispose();
     this.tokenizer.dispose();
+    this.tokenTable?.dispose();
   }
 
   /**
@@ -557,9 +558,11 @@ export class LLMChatPipeline {
         if (this.tokenTable === undefined) {
           const rawTokenTable = getTokenTableFromTokenizer(this.tokenizer);
           // Post process entire table
-          this.tokenTable = this.fpostProcessTokenTable(
-            rawTokenTable,
-            this.token_postproc_method,
+          this.tokenTable = this.tvm.detachFromCurrentScope(
+            this.fpostProcessTokenTable(
+              rawTokenTable,
+              this.token_postproc_method,
+            ),
           );
         }
         const grammar: BNFGrammar =
