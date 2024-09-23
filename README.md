@@ -360,30 +360,56 @@ see `webllm.prebuiltAppConfig`.
 
 ## Build WebLLM Package From Source
 
-NOTE: you don't need to build by yourself unless you would
-like to change the WebLLM package. To simply use the npm, follow [Get Started](#get-started) or any of the [examples](examples) instead.
+NOTE: you don't need to build from source unless you would like to modify the WebLLM package.
+To use the npm, simply follow [Get Started](#get-started) or any of the [examples](examples) instead.
 
-WebLLM package is a web runtime designed for [MLC LLM](https://github.com/mlc-ai/mlc-llm).
+To build from source, simply run:
 
-1. Install all the prerequisites for compilation:
+```bash
+npm install
+npm run build
+```
 
-   1. [emscripten](https://emscripten.org). It is an LLVM-based compiler that compiles C/C++ source code to WebAssembly.
-      - Follow the [installation instruction](https://emscripten.org/docs/getting_started/downloads.html#installation-instructions-using-the-emsdk-recommended) to install the latest emsdk.
-      - Source `emsdk_env.sh` by `source path/to/emsdk_env.sh`, so that `emcc` is reachable from PATH and the command `emcc` works.
-   2. Install jekyll by following the [official guides](https://jekyllrb.com/docs/installation/). It is the package we use for website. This is not needed if you're using nextjs (see next-simple-chat in the examples).
-   3. Install jekyll-remote-theme by command. Try [gem mirror](https://gems.ruby-china.com/) if install blocked.
-      `shell
-gem install jekyll-remote-theme
-`
-      We can verify the successful installation by trying out `emcc` and `jekyll` in terminal, respectively.
+Then, to test the effects of your code change in an example, inside `examples/get-started/package.json`, change from `"@mlc-ai/web-llm": "^0.2.65"` to `"@mlc-ai/web-llm": ../..`.
 
-      Note: We recently found that using the latest `emcc` version may run into issues during runtime. Use `./emsdk install 3.1.56` instead of `./emsdk install latest` for now as a workaround. The error may look like
-      ```
-      Init error, LinkError: WebAssembly.instantiate(): Import #6 module="wasi_snapshot_preview1"
-      function="proc_exit": function import requires a callable
-      ```
+Then run:
 
-2. Setup necessary environment
+```bash
+cd examples/get-started
+npm install
+npm start
+```
+
+Note that sometimes you would need to switch between `file:../..` and `../..` to trigger npm to recognize new changes. In the worst case, you can run:
+
+```bash
+cd examples/get-started
+rm -rf node_modules dist package-lock.json .parcel-cache
+npm install
+npm start
+```
+
+### In case you need to build TVMjs from source
+
+WebLLM's runtime largely depends on TVMjs: https://github.com/apache/tvm/tree/main/web
+
+While it is also available as an npm package: https://www.npmjs.com/package/@mlc-ai/web-runtime, you can build it from source if needed by following the steps below.
+
+1. Install [emscripten](https://emscripten.org). It is an LLVM-based compiler that compiles C/C++ source code to WebAssembly.
+    - Follow the [installation instruction](https://emscripten.org/docs/getting_started/downloads.html#installation-instructions-using-the-emsdk-recommended) to install the latest emsdk.
+    - Source `emsdk_env.sh` by `source path/to/emsdk_env.sh`, so that `emcc` is reachable from PATH and the command `emcc` works.
+
+    We can verify the successful installation by trying out `emcc` terminal.
+
+    Note: We recently found that using the latest `emcc` version may run into issues during runtime. Use `./emsdk install 3.1.56` instead of `./emsdk install latest` for now as a workaround. The error may look like
+    ```
+    Init error, LinkError: WebAssembly.instantiate(): Import #6 module="wasi_snapshot_preview1"
+    function="proc_exit": function import requires a callable
+    ```
+
+2. In `./package.json`, change from `"@mlc-ai/web-runtime": "0.18.0-dev0",` to `"tvmjs": "file:./tvm_home/web",`.
+
+3. Setup necessary environment
 
    Prepare all the necessary dependencies for web build:
 
@@ -400,7 +426,7 @@ gem install jekyll-remote-theme
 
    Besides, `--recursive` is necessary and important. Otherwise, you may encounter errors like `fatal error: 'dlpack/dlpack.h' file not found`.
 
-4. Buld WebLLM Package
+4. Build WebLLM Package
 
    ```shell
    npm run build

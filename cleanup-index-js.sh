@@ -18,6 +18,13 @@ sed -e s/"import require\$\$3 from 'perf_hooks';"/"const require\$\$3 = \"MLC_DU
 # Similarly replace `const performanceNode = require(\"perf_hooks\")` with `const performanceNode = \"MLC_DUMMY_REQUIRE_VAR\"`
 sed -e s/'require(\\\"perf_hooks\\\")'/'\\\"MLC_DUMMY_REQUIRE_VAR\\\"'/g -i .backup lib/index.js.map
 
+# Below is added when we include dependency @mlc-ai/web-runtime, rather than using local tvm_home
+# Replace "import require$$4 from 'ws'" with a string "const require$$3 = "MLC_DUMMY_REQUIRE_VAR""
+# This is to prevent error `Cannot find module 'ws'`
+sed -e s/"import require\$\$4 from 'ws';"/"const require\$\$4 = \"MLC_DUMMY_REQUIRE_VAR\""/g -i .backup lib/index.js
+# Similarly replace `const WebSocket = require(\"ws\")` with `const WebSocket = \"MLC_DUMMY_REQUIRE_VAR\"`
+sed -e s/'require(\\\"ws\\\")'/'\\\"MLC_DUMMY_REQUIRE_VAR\\\"'/g -i .backup lib/index.js.map
+
 # Cleanup backup files
 rm lib/index.js.backup
 rm lib/index.js.map.backup

@@ -1,6 +1,6 @@
 import ModelRecord from "@mlc-ai/web-llm";
 import appConfig from "./app-config"; // Modify this to inspect vram requirement for models of choice
-import * as tvmjs from "tvmjs";
+import * as tvmjs from "@mlc-ai/web-runtime";
 import log from "loglevel";
 
 function setLabel(id: string, text: string) {
