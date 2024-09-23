@@ -393,7 +393,7 @@ npm start
 
 WebLLM's runtime largely depends on TVMjs: https://github.com/apache/tvm/tree/main/web
 
-While it is also available as an npm package: https://www.npmjs.com/package/@mlc-ai/tvmjs, you can build it from source if needed by following the steps below.
+While it is also available as an npm package: https://www.npmjs.com/package/@mlc-ai/web-runtime, you can build it from source if needed by following the steps below.
 
 1. Install [emscripten](https://emscripten.org). It is an LLVM-based compiler that compiles C/C++ source code to WebAssembly.
     - Follow the [installation instruction](https://emscripten.org/docs/getting_started/downloads.html#installation-instructions-using-the-emsdk-recommended) to install the latest emsdk.
@@ -407,7 +407,7 @@ While it is also available as an npm package: https://www.npmjs.com/package/@mlc
     function="proc_exit": function import requires a callable
     ```
 
-2. In `./package.json`, change from `"@mlc-ai/tvmjs": "0.18.0-dev0",` to `"tvmjs": "file:./tvm_home/web",`.
+2. In `./package.json`, change from `"@mlc-ai/web-runtime": "0.18.0-dev0",` to `"tvmjs": "file:./tvm_home/web",`.
 
 3. Setup necessary environment
 

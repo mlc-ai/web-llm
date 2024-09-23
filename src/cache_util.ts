@@ -1,4 +1,4 @@
-import * as tvmjs from "@mlc-ai/tvmjs";
+import * as tvmjs from "@mlc-ai/web-runtime";
 import {
   AppConfig,
   ChatConfig,
