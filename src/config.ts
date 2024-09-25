@@ -308,7 +308,85 @@ export const functionCallingModelIds = [
 export const prebuiltAppConfig: AppConfig = {
   useIndexedDBCache: false,
   model_list: [
-    // Llama-3
+    {
+      model: "https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q4f32_1-MLC",
+      model_id: "Llama-3.2-1B-Instruct-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Llama-3.2-1B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 1128.82,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q4f16_1-MLC",
+      model_id: "Llama-3.2-1B-Instruct-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Llama-3.2-1B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 879.04,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q0f32-MLC",
+      model_id: "Llama-3.2-1B-Instruct-q0f32-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Llama-3.2-1B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 5106.26,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q0f16-MLC",
+      model_id: "Llama-3.2-1B-Instruct-q0f16-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Llama-3.2-1B-Instruct-q0f16-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 2573.13,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Llama-3.2-3B-Instruct-q4f32_1-MLC",
+      model_id: "Llama-3.2-3B-Instruct-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Llama-3.2-3B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 2951.51,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Llama-3.2-3B-Instruct-q4f16_1-MLC",
+      model_id: "Llama-3.2-3B-Instruct-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Llama-3.2-3B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 2263.69,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    // Llama-3.1
     {
       model: "https://huggingface.co/mlc-ai/Llama-3.1-8B-Instruct-q4f32_1-MLC",
       model_id: "Llama-3.1-8B-Instruct-q4f32_1-MLC-1k",
