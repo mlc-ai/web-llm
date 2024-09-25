@@ -411,28 +411,18 @@ export const IMAGE_EMBED_SIZE = 1921;
 /**
  * Given a url, get the image data. The url can either start with `http` or `data:image`.
  */
-export function getImageDataFromURL(url: string): Promise<ImageData> {
-  return new Promise((resolve, reject) => {
-    // Converts img to any, and later `as CanvasImageSource`, otherwise build complains
-    const img: any = new Image();
-    img.crossOrigin = "anonymous"; // Important for CORS
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        reject(new Error("Could not get 2d context"));
-        return;
-      }
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img as CanvasImageSource, 0, 0);
+export async function getImageDataFromURL(url: string): Promise<ImageData> {
+  const response = await fetch(url, { mode: "cors" });
+  const img = await createImageBitmap(await response.blob());
+  const canvas = new OffscreenCanvas(img.width, img.height);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Could not get 2d context");
+  }
+  ctx.drawImage(img, 0, 0);
 
-      const imageData = ctx.getImageData(0, 0, img.width, img.height);
-      resolve(imageData);
-    };
-    img.onerror = () => reject(new Error("Failed to load image"));
-    img.src = url;
-  });
+  const imageData = ctx.getImageData(0, 0, img.width, img.height);
+  return imageData;
 }
 
 /**
