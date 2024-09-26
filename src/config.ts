@@ -991,7 +991,7 @@ export const prebuiltAppConfig: AppConfig = {
       },
     },
     {
-      model: "https://huggingface.co/mlc-ai/Qwen2-0.5B-Instruct-q0f16-MLC",
+      model: "https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q0f16-MLC",
       model_id: "Qwen2.5-0.5B-Instruct-q0f16-MLC",
       model_lib:
         modelLibURLPrefix +
