@@ -9,6 +9,8 @@ function setLabel(id: string, text: string) {
   label.innerText = text;
 }
 
+const USE_WEB_WORKER = false;
+
 const proxyUrl = "https://cors-anywhere.herokuapp.com/";
 const url_https_street = "https://www.ilankelman.org/stopsigns/australia.jpg";
 const url_https_tree = "https://www.ilankelman.org/sunset.jpg";
@@ -23,16 +25,25 @@ async function main() {
     setLabel("init-label", report.text);
   };
   const selectedModel = "Phi-3.5-vision-instruct-q4f16_1-MLC";
-  const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
-    selectedModel,
-    {
-      initProgressCallback: initProgressCallback,
-      logLevel: "INFO", // specify the log level
-    },
-    {
-      context_window_size: 6144,
-    },
-  );
+
+  const engineConfig: webllm.MLCEngineConfig = {
+    initProgressCallback: initProgressCallback,
+    logLevel: "INFO", // specify the log level
+  };
+  const chatOpts = {
+    context_window_size: 6144,
+  };
+
+  const engine: webllm.MLCEngineInterface = USE_WEB_WORKER
+    ? await webllm.CreateWebWorkerMLCEngine(
+        new Worker(new URL("./worker.ts", import.meta.url), {
+          type: "module",
+        }),
+        selectedModel,
+        engineConfig,
+        chatOpts,
+      )
+    : await webllm.CreateMLCEngine(selectedModel, engineConfig, chatOpts);
 
   // 1. Single image input (with choices)
   const messages: webllm.ChatCompletionMessageParam[] = [
