@@ -9,7 +9,7 @@ function setLabel(id: string, text: string) {
   label.innerText = text;
 }
 
-const USE_WEB_WORKER = false;
+const USE_WEB_WORKER = true;
 
 const proxyUrl = "https://cors-anywhere.herokuapp.com/";
 const url_https_street = "https://www.ilankelman.org/stopsigns/australia.jpg";
@@ -45,7 +45,7 @@ async function main() {
       )
     : await webllm.CreateMLCEngine(selectedModel, engineConfig, chatOpts);
 
-  // 1. Single image input (with choices)
+  // 1. Prefill two images
   const messages: webllm.ChatCompletionMessageParam[] = [
     {
       role: "user",
@@ -89,7 +89,7 @@ async function main() {
   console.log(replyMessage1);
   console.log(reply1.usage);
 
-  // 3. A follow up multi-image question
+  // 3. A follow up single-image question
   messages.push({ role: "assistant", content: replyMessage1 });
   messages.push({
     role: "user",
