@@ -36,8 +36,7 @@ async function main() {
 
   const engine: webllm.MLCEngineInterface = USE_WEB_WORKER
     ? await webllm.CreateWebWorkerMLCEngine(
-        (new URL("./worker.ts", import.meta.url),
-        {
+        new Worker(new URL("./worker.ts", import.meta.url), {
           type: "module",
         }),
         selectedModel,
