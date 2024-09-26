@@ -407,7 +407,7 @@ While it is also available as an npm package: https://www.npmjs.com/package/@mlc
     function="proc_exit": function import requires a callable
     ```
 
-2. In `./package.json`, change from `"@mlc-ai/web-runtime": "0.18.0-dev0",` to `"tvmjs": "file:./tvm_home/web",`.
+2. In `./package.json`, change from `"@mlc-ai/web-runtime": "0.18.0-dev1",` to `"@mlc-ai/web-runtime": "file:./tvm_home/web",`.
 
 3. Setup necessary environment
 

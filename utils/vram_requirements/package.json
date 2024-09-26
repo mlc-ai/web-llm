@@ -20,6 +20,6 @@
   },
   "dependencies": {
     "@mlc-ai/web-llm": "^0.2.69",
-    "@mlc-ai/web-runtime": "0.18.0-dev0"
+    "@mlc-ai/web-runtime": "0.18.0-dev1"
   }
 }
