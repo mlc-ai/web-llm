@@ -370,7 +370,7 @@ npm install
 npm run build
 ```
 
-Then, to test the effects of your code change in an example, inside `examples/get-started/package.json`, change from `"@mlc-ai/web-llm": "^0.2.70"` to `"@mlc-ai/web-llm": ../..`.
+Then, to test the effects of your code change in an example, inside `examples/get-started/package.json`, change from `"@mlc-ai/web-llm": "^0.2.71"` to `"@mlc-ai/web-llm": ../..`.
 
 Then run:
 
@@ -407,7 +407,7 @@ While it is also available as an npm package: https://www.npmjs.com/package/@mlc
     function="proc_exit": function import requires a callable
     ```
 
-2. In `./package.json`, change from `"@mlc-ai/web-runtime": "0.18.0-dev1",` to `"@mlc-ai/web-runtime": "file:./tvm_home/web",`.
+2. In `./package.json`, change from `"@mlc-ai/web-runtime": "0.18.0-dev2",` to `"@mlc-ai/web-runtime": "file:./tvm_home/web",`.
 
 3. Setup necessary environment
 
