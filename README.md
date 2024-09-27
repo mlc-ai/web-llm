@@ -10,7 +10,7 @@
 **High-Performance In-Browser LLM Inference Engine.**
 
 
-[Get Started](#get-started) | [Examples](examples) | [Documentation](https://mlc.ai/mlc-llm/docs/deploy/webllm.html)
+[Get Started](#get-started) | [Blogpost](https://blog.mlc.ai/2024/06/13/webllm-a-high-performance-in-browser-llm-inference-engine) | [Examples](examples) | [Documentation](https://mlc.ai/mlc-llm/docs/deploy/webllm.html)
 
 </div>
 
