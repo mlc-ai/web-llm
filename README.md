@@ -132,17 +132,17 @@ const engine = await CreateMLCEngine(
 );
 ```
 
-Under the hood, this factory function does the following steps for first creating an engine instance (synchrounous) and then loading the model (asynchrounous). You can also do them separately in your application.
+Under the hood, this factory function does the following steps for first creating an engine instance (synchronous) and then loading the model (asynchronous). You can also do them separately in your application.
 
 ```typescript
 import { MLCEngine } from "@mlc-ai/web-llm";
 
-// This is a synchrounous call that returns immediately
+// This is a synchronous call that returns immediately
 const engine = new MLCEngine({
   initProgressCallback: initProgressCallback
 });
 
-// This is an asynchrounous call and can take a long time to finish
+// This is an asynchronous call and can take a long time to finish
 await engine.reload(selectedModel);
 ```
 
