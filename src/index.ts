@@ -4,6 +4,7 @@ export {
   ChatOptions,
   MLCEngineConfig,
   GenerationConfig,
+  ModelType,
   prebuiltAppConfig,
   modelVersion,
   modelLibURLPrefix,
