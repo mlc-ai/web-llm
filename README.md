@@ -105,10 +105,14 @@ import { CreateMLCEngine } from "@mlc-ai/web-llm";
 
 #### CDN Delivery
 
-Thanks to [jsdelivr.com](https://www.jsdelivr.com/package/npm/@mlc-ai/web-llm), WebLLM can be imported directly through URL and work out-of-the-box on cloud development platforms like [jsfiddle.net](https://jsfiddle.net/) and [Codepen.io](https://codepen.io/):
+Thanks to [jsdelivr.com](https://www.jsdelivr.com/package/npm/@mlc-ai/web-llm), WebLLM can be imported directly through URL and work out-of-the-box on cloud development platforms like [jsfiddle.net](https://jsfiddle.net/), [Codepen.io](https://codepen.io/), and [Scribbler](https://scribbler.live):
 
 ```javascript
 import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+```
+It can also be dynamicall imported as:
+```javascript
+const webllm = await import ("https://esm.run/@mlc-ai/web-llm");
 ```
 
 ### Create MLCEngine
