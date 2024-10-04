@@ -209,7 +209,7 @@ You can put the heavy computation in a worker script to optimize your applicatio
 1. Create a handler in the worker thread that communicates with the frontend while handling the requests.
 2. Create a Worker Engine in your main application, which under the hood sends messages to the handler in the worker thread.
 
-For detailed implementation for different kinds of Workers, check the following sections.
+For detailed implementations of different kinds of Workers, check the following sections.
 
 #### Dedicated Web Worker
 
