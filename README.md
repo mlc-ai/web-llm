@@ -1,6 +1,8 @@
 <div align="center">
 
 # WebLLM
+![WebLLM Logo](https://webllm.mlc.ai/assets/img/logo/mlc-logo-with-text-landscape.svg)
+
 [![NPM Package](https://img.shields.io/badge/NPM_Package-Published-cc3534)](https://www.npmjs.com/package/@mlc-ai/web-llm)
 [!["WebLLM Chat Deployed"](https://img.shields.io/badge/WebLLM_Chat-Deployed-%2332a852)](https://chat.webllm.ai/)
 [![Join Discord](https://img.shields.io/badge/Join-Discord-7289DA?logo=discord&logoColor=white)]("https://discord.gg/9Xpy2HGBuD")
@@ -8,6 +10,7 @@
 [![Related Repository: MLC LLM](https://img.shields.io/badge/Related_Repo-MLC_LLM-fafbfc?logo=github)](https://github.com/mlc-ai/mlc-llm/)
 
 **High-Performance In-Browser LLM Inference Engine.**
+
 
 
 [Get Started](#get-started) | [Blogpost](https://blog.mlc.ai/2024/06/13/webllm-a-high-performance-in-browser-llm-inference-engine) | [Examples](examples) | [Documentation](https://mlc.ai/mlc-llm/docs/deploy/webllm.html)
@@ -24,7 +27,7 @@ including streaming, JSON-mode, function-calling (WIP), etc.
 
 We can bring a lot of fun opportunities to build AI assistants for everyone and enable privacy while enjoying GPU acceleration.
 
-You can use WebLLM as a base [npm package](https://www.npmjs.com/package/@mlc-ai/web-llm) and build your own web application on top of it by following the examples below. This project is a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm), which enables universal deployment of LLM across hardware environments.
+You can use WebLLM as a base [npm package](https://www.npmjs.com/package/@mlc-ai/web-llm) and build your web application on top of it by following the examples below. This project is a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm), which enables universal deployment of LLM across hardware environments.
 
 <div align="center">
 
@@ -61,7 +64,7 @@ Here are the primary families of models currently supported:
 - **Phi**: Phi 3, Phi 2, Phi 1.5
 - **Gemma**: Gemma-2B
 - **Mistral**: Mistral-7B-v0.3, Hermes-2-Pro-Mistral-7B, NeuralHermes-2.5-Mistral-7B, OpenHermes-2.5-Mistral-7B
-- **Qwen (通义千问)**: Qwen2 0.5B, 1.5B, 7B
+- **Qwen (通义千问)(Universal Understanding, A Thousand Questions)**: Qwen2 0.5B, 1.5B, 7B
 
 If you need more models, [request a new model via opening an issue](https://github.com/mlc-ai/web-llm/issues/new/choose) or check [Custom Models](#custom-models) for how to compile and use your own models with WebLLM.
 
@@ -69,8 +72,12 @@ If you need more models, [request a new model via opening an issue](https://gith
 
 Learn how to use WebLLM to integrate large language models into your application and generate chat completions through this simple Chatbot example: 
 
+<div align="center">
+  
 [![Example Chatbot on JSFiddle](https://img.shields.io/badge/Example-JSFiddle-blue?logo=jsfiddle&logoColor=white)](https://jsfiddle.net/neetnestor/4nmgvsa2/)
 [![Example Chatbot on Codepen](https://img.shields.io/badge/Example-Codepen-gainsboro?logo=codepen)](https://codepen.io/neetnestor/pen/vYwgZaG)
+
+</div>
 
 For an advanced example of a larger, more complicated project, check [WebLLM Chat](https://github.com/mlc-ai/web-llm-chat/blob/main/app/client/webllm.ts).
 
@@ -110,7 +117,7 @@ Thanks to [jsdelivr.com](https://www.jsdelivr.com/package/npm/@mlc-ai/web-llm), 
 ```javascript
 import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 ```
-It can also be dynamicall imported as:
+It can also be dynamically imported as:
 ```javascript
 const webllm = await import ("https://esm.run/@mlc-ai/web-llm");
 ```
@@ -206,7 +213,7 @@ console.log(fullReply);
 
 You can put the heavy computation in a worker script to optimize your application performance. To do so, you need to:
 
-1. Create a handler in the worker thread that communicates with the frontend while handling the requests.
+1. Create a handler in the worker thread that communicates with the front end while handling the requests.
 2. Create a Worker Engine in your main application, which under the hood sends messages to the handler in the worker thread.
 
 For detailed implementations of different kinds of Workers, check the following sections.
@@ -217,7 +224,7 @@ WebLLM comes with API support for WebWorker so you can hook
 the generation process into a separate worker thread so that
 the computing in the worker thread won't disrupt the UI.
 
-We create a handler in the worker thread that communicates with the frontend while handling the requests.
+We create a handler in the worker thread that communicates with the front end while handling the requests.
 
 ```typescript
 // worker.ts
@@ -260,9 +267,9 @@ WebLLM comes with API support for ServiceWorker so you can hook the generation p
 into a service worker to avoid reloading the model in every page visit and optimize
 your application's offline experience.
 
-(Note, Service Worker's life cycle is managed by the browser and can be killed any time without notifying the webapp. `ServiceWorkerMLCEngine` will try to keep the service worker thread alive by periodically sending heartbeat events, but your application should also include proper error handling. Check `keepAliveMs` and `missedHeatbeat` in [`ServiceWorkerMLCEngine`](https://github.com/mlc-ai/web-llm/blob/main/src/service_worker.ts#L234) for more details.)
+(Note, Service Worker's life cycle is managed by the browser and can be killed at any time without notifying the web app. `ServiceWorkerMLCEngine` will try to keep the service worker thread alive by periodically sending heartbeat events, but your application should also include proper error handling. Check `keepAliveMs` and `missedHeatbeat` in [`ServiceWorkerMLCEngine`](https://github.com/mlc-ai/web-llm/blob/main/src/service_worker.ts#L234) for more details.)
 
-We create a handler in the worker thread that communicates with the frontend while handling the requests.
+We create a handler in the worker thread that communicates with the front end while handling the requests.
 
 
 ```typescript
@@ -298,7 +305,7 @@ const engine: MLCEngineInterface =
   );
 ```
 
-You can find a complete example on how to run WebLLM in service worker in [examples/service-worker](examples/service-worker/).
+You can find a complete example of how to run WebLLM in service worker in [examples/service-worker](examples/service-worker/).
 
 ### Chrome Extension
 You can also find examples of building Chrome extension with WebLLM in [examples/chrome-extension](examples/chrome-extension/) and [examples/chrome-extension-webgpu-service-worker](examples/chrome-extension-webgpu-service-worker/). The latter one leverages service worker, so the extension is persistent in the background.
@@ -314,8 +321,8 @@ WebLLM is designed to be fully compatible with [OpenAI API](https://platform.ope
 ## Custom Models
 
 WebLLM works as a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm) and it supports custom models in MLC format. 
-It reuses the model artifact and builds the flow of MLC LLM. To compile and use your own models with WebLLM, please check out
-[MLC LLM document](https://llm.mlc.ai/docs/deploy/webllm.html)
+It reuses the model artifact and builds the flow of MLC LLM. To compile and use your models with WebLLM, please check out
+[MLC LLM document](https://llm.mlc.ai/docs/deploy/webllm)
 on how to compile and deploy new model weights and libraries to WebLLM. 
 
 Here, we go over the high-level idea. There are two elements of the WebLLM package that enable new models and weight variants.
@@ -367,7 +374,7 @@ see `webllm.prebuiltAppConfig`.
 NOTE: you don't need to build from source unless you would like to modify the WebLLM package.
 To use the npm, simply follow [Get Started](#get-started) or any of the [examples](examples) instead.
 
-To build from source, simply run:
+To build from the source, simply run:
 
 ```bash
 npm install
@@ -393,17 +400,17 @@ npm install
 npm start
 ```
 
-### In case you need to build TVMjs from source
+### In case you need to build TVMjs from the source
 
 WebLLM's runtime largely depends on TVMjs: https://github.com/apache/tvm/tree/main/web
 
-While it is also available as an npm package: https://www.npmjs.com/package/@mlc-ai/web-runtime, you can build it from source if needed by following the steps below.
+While it is also available as an npm package: https://www.npmjs.com/package/@mlc-ai/web-runtime, you can build it from the source if needed by following the steps below.
 
 1. Install [emscripten](https://emscripten.org). It is an LLVM-based compiler that compiles C/C++ source code to WebAssembly.
     - Follow the [installation instruction](https://emscripten.org/docs/getting_started/downloads.html#installation-instructions-using-the-emsdk-recommended) to install the latest emsdk.
     - Source `emsdk_env.sh` by `source path/to/emsdk_env.sh`, so that `emcc` is reachable from PATH and the command `emcc` works.
 
-    We can verify the successful installation by trying out `emcc` terminal.
+    We can verify the successful installation by trying out the `emcc` terminal.
 
     Note: We recently found that using the latest `emcc` version may run into issues during runtime. Use `./emsdk install 3.1.56` instead of `./emsdk install latest` for now as a workaround. The error may look like
     ```
@@ -426,7 +433,7 @@ While it is also available as an npm package: https://www.npmjs.com/package/@mlc
    git clone https://github.com/mlc-ai/relax 3rdparty/tvm-unity --recursive
    ```
 
-   This clones the current HEAD of `mlc-ai/relax`. However, it may not always be the correct branch or commit to clone. To build a specific npm version from source, refer to the version bump PR, which states which branch (i.e. `mlc-ai/relax` or `apache/tvm`) and which commit the current WebLLM version depends on. For instance, version 0.2.52, according to its version bump PR https://github.com/mlc-ai/web-llm/pull/521, is built by checking out the following commit https://github.com/apache/tvm/commit/e6476847753c80e054719ac47bc2091c888418b6 in `apache/tvm`, rather than the HEAD of `mlc-ai/relax`.
+   This clones the current HEAD of `mlc-ai/relax`. However, it may not always be the correct branch or commit to clone. To build a specific npm version from source, refer to the version bump PR, which states which branch (i.e. `mlc-ai/relax` or `apache/tvm`) and which commit the current WebLLM version depends on. For instance, version 0.2.52, according to its version bump PR https://github.com/mlc-ai/web-llm/pull/521, is built by checking out the following [commit](https://github.com/apache/tvm/commit/e6476847753c80e054719ac47bc2091c888418b6) in `apache/tvm`, rather than the HEAD of `mlc-ai/relax`.
 
    Besides, `--recursive` is necessary and important. Otherwise, you may encounter errors like `fatal error: 'dlpack/dlpack.h' file not found`.
 
