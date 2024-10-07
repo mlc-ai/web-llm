@@ -1,6 +1,7 @@
 <div align="center">
+<img src="./assets/logo.jpg" width="100px">
+<h1 align="center">WebLLM</h1>
 
-# WebLLM
 [![NPM Package](https://img.shields.io/badge/NPM_Package-Published-cc3534)](https://www.npmjs.com/package/@mlc-ai/web-llm)
 [!["WebLLM Chat Deployed"](https://img.shields.io/badge/WebLLM_Chat-Deployed-%2332a852)](https://chat.webllm.ai/)
 [![Join Discord](https://img.shields.io/badge/Join-Discord-7289DA?logo=discord&logoColor=white)]("https://discord.gg/9Xpy2HGBuD")
