@@ -46,7 +46,7 @@ const initProgressCallback = (report: InitProgressReport) => {
 };
 
 const engine: MLCEngineInterface = await CreateExtensionServiceWorkerMLCEngine(
-  "Mistral-7B-Instruct-v0.2-q4f16_1-MLC",
+  "Qwen2-0.5B-Instruct-q4f16_1-MLC",
   { initProgressCallback: initProgressCallback },
 );
 const chatHistory: ChatCompletionMessageParam[] = [];

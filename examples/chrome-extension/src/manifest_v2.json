@@ -9,7 +9,7 @@
     "64": "icons/icon-64.png",
     "128": "icons/icon-128.png"
   },
-  "content_security_policy": "style-src-elem 'self' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; default-src 'self' data:; connect-src 'self' data: http://localhost:8000 https://huggingface.co https://cdn-lfs.huggingface.co https://raw.githubusercontent.com",
+  "content_security_policy": "style-src-elem 'self' https://cdnjs.cloudflare.com; font-src 'self' https://cdnjs.cloudflare.com; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; default-src 'self' data:; connect-src 'self' data: http://localhost:8000 https://huggingface.co https://cdn-lfs.huggingface.co https://raw.githubusercontent.com https://cdn-lfs-us-1.hf.co",
   "browser_action": {
     "default_popup": "popup.html"
   },
