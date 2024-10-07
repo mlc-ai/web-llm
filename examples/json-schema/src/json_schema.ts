@@ -37,8 +37,13 @@ async function simpleStructuredTextExample() {
   const initProgressCallback = (report: webllm.InitProgressReport) => {
     setLabel("init-label", report.text);
   };
+
+  // Pick any one of these models to start trying -- most models in WebLLM support grammar
+  // const selectedModel = "Llama-3.2-3B-Instruct-q4f16_1-MLC";
+  // const selectedModel = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
+  const selectedModel = "Phi-3.5-mini-instruct-q4f16_1-MLC";
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
-    "Llama-3.1-8B-Instruct-q4f16_1-MLC",
+    selectedModel,
     { initProgressCallback: initProgressCallback },
   );
 
@@ -106,8 +111,13 @@ async function harryPotterExample() {
     setLabel("init-label", report.text);
   };
 
+  // Pick any one of these models to start trying -- most models in WebLLM support grammar
+  // const selectedModel = "Llama-3.2-3B-Instruct-q4f16_1-MLC";
+  // const selectedModel = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
+  const selectedModel = "Phi-3.5-mini-instruct-q4f16_1-MLC";
+
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
-    "Llama-3.1-8B-Instruct-q4f16_1-MLC",
+    selectedModel,
     { initProgressCallback: initProgressCallback },
   );
 
@@ -216,8 +226,8 @@ async function functionCallingExample() {
 
 async function main() {
   // await simpleStructuredTextExample();
-  // await harryPotterExample();
-  await functionCallingExample();
+  await harryPotterExample();
+  // await functionCallingExample();
 }
 
 main();

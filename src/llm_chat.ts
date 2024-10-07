@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable no-prototype-builtins */
 import * as tvmjs from "@mlc-ai/web-runtime";
+import * as xgrammar from "@mlc-ai/web-xgrammar";
 import log from "loglevel";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
 import { ChatConfig, GenerationConfig, Role } from "./config";
@@ -21,7 +22,6 @@ import {
   ResponseFormat,
   ChatCompletionContentPartImage,
 } from "./openai_api_protocols/index";
-import { BNFGrammar, GrammarFactory, GrammarStateMatcher } from "./grammar";
 import {
   AttentionSinkSizeError,
   ContextWindowSizeExceededError,
@@ -50,7 +50,6 @@ export class LLMChatPipeline {
   private image_embed: tvmjs.PackedFunc | undefined;
   private embed: tvmjs.PackedFunc;
   private fapplyBitmask: tvmjs.PackedFunc;
-  private fpostProcessTokenTable: tvmjs.PackedFunc;
   // Functions related to PagedKVCache
   private fclearKVCaches: tvmjs.PackedFunc;
   private fKVCacheAddSequence: tvmjs.PackedFunc;
@@ -103,18 +102,16 @@ export class LLMChatPipeline {
   private logitProcessor?: LogitProcessor = undefined;
 
   // Grammar-related
-  // A factory to instantiate and maintain the BNF grammars and grammar state matchers.
-  private grammarFactory: GrammarFactory;
   // A grammar state matcher for this current round if response_format is set. Reinitialized upon
   // each step regardless of whether the chat is multi-round or not.
-  private grammarStateMatcher?: GrammarStateMatcher = undefined;
+  private grammarStateMatcher?: xgrammar.GrammarStateMatcher = undefined;
   // The current schema used for grammarStateMatcher; if undefined, grammarStateMatcher is simply
   // using JSON mode. We use this field to determine whether we re-initiate a GrammarStateMatcher
   // or simply reset the state during each round (i.e. during prefillStep).
   private schema?: string = undefined;
   // A string list of tokens ordered by their token id, post-processed. Once initialized, will not
   // be reinitialized since `this.tokenizer` does not change throughout the lifetime of LLMChatPipeline.
-  private tokenTable?: tvmjs.TVMObject = undefined;
+  private tokenTable?: xgrammar.XGTokenTable = undefined;
   private bitmaskSize: number;
   // `vocab_size` read from `config.json`. Can be different from the size of the tokenTable for some
   // models due to dummy padded tokens.
@@ -133,7 +130,6 @@ export class LLMChatPipeline {
     this.tokenizer = tokenizer;
     this.config = config;
     this.logitProcessor = logitProcessor;
-    this.grammarFactory = new GrammarFactory(tvm);
     this.fullVocabSize = this.config.vocab_size;
     this.bitmaskSize = Math.ceil(this.fullVocabSize / 32);
 
@@ -179,9 +175,6 @@ export class LLMChatPipeline {
     );
     this.fapplyBitmask = this.tvm.detachFromCurrentScope(
       this.vm.getFunction("apply_bitmask_inplace"),
-    );
-    this.fpostProcessTokenTable = this.tvm.detachFromCurrentScope(
-      tvm.getGlobalFunc("mlc.tokenizers.PostProcessTokenTable"),
     );
     try {
       this.image_embed = this.tvm.detachFromCurrentScope(
@@ -285,7 +278,6 @@ export class LLMChatPipeline {
 
   dispose() {
     // TODO: Do we need to dispose all PackedFuncs here?
-    this.grammarFactory.dispose();
     this.grammarStateMatcher?.dispose();
     this.params.dispose();
     this.decoding.dispose();
@@ -549,32 +541,30 @@ export class LLMChatPipeline {
       const curSchema = genConfig.response_format.schema;
       if (curSchema === this.schema && this.grammarStateMatcher) {
         // If we did not change the schema and have instantiated a GrammarStateMatcher, we reuse it.
-        this.grammarFactory.resetState(this.grammarStateMatcher);
+        this.grammarStateMatcher.reset();
       } else {
         // Else dispose current grammarStateMatcher, reinitialize, and update this.schema.
         if (this.grammarStateMatcher) {
           this.grammarStateMatcher.dispose();
         }
         if (this.tokenTable === undefined) {
-          const rawTokenTable = getTokenTableFromTokenizer(this.tokenizer);
           // Post process entire table
-          this.tokenTable = this.tvm.detachFromCurrentScope(
-            this.fpostProcessTokenTable(
-              rawTokenTable,
-              this.token_postproc_method,
-            ),
+          const rawTokenTable = getTokenTableFromTokenizer(this.tokenizer);
+          this.tokenTable = await xgrammar.XGTokenTable.createXGTokenTable(
+            rawTokenTable,
+            this.token_postproc_method,
           );
         }
-        const grammar: BNFGrammar =
+        const grammar: xgrammar.BNFGrammar =
           curSchema === undefined
-            ? this.grammarFactory.getBNFGrammarOfJSON()
-            : this.grammarFactory.getBNFGrammarFromSchema(curSchema);
-        this.grammarStateMatcher = this.tvm.detachFromCurrentScope(
-          this.grammarFactory.getGrammarStateMatcherFromTokenTable(
+            ? await xgrammar.BuiltinGrammar.json()
+            : await xgrammar.BuiltinGrammar.jsonSchema(curSchema);
+        this.grammarStateMatcher =
+          await xgrammar.GrammarStateMatcher.createGrammarStateMatcher(
             grammar,
-            this.tokenTable!,
-          ),
-        );
+            this.tokenTable,
+          );
+        grammar.dispose();
         this.schema = curSchema;
       }
     }
@@ -957,11 +947,14 @@ export class LLMChatPipeline {
       if (this.grammarStateMatcher === undefined) {
         throw Error("Expect grammar state matcher to be initialized.");
       }
-      // TODO(Charlie): Do we detach from current scope here for bitmask?
-      const bitMaskOnCPU = this.grammarFactory.findNextTokenBitmask(
-        this.grammarStateMatcher,
-        this.fullVocabSize,
-      ) as unknown as tvmjs.NDArray;
+      const bitMaskOnCPU: Int32Array =
+        await this.grammarStateMatcher.findNextTokenBitmask();
+      if (bitMaskOnCPU.length !== this.bitmaskSize) {
+        throw new Error(
+          `InternalError: Expect grammar bitmask to be ` +
+            `size ${this.bitmaskSize}, but got ${bitMaskOnCPU.length}.`,
+        );
+      }
       const bitMaskOnGPU = this.tvm
         .empty([1, this.bitmaskSize], "int32", this.device)
         .copyFrom(bitMaskOnCPU);
@@ -1087,10 +1080,7 @@ export class LLMChatPipeline {
       if (this.grammarStateMatcher === undefined) {
         throw Error("Expect grammar state matcher to be initialized.");
       }
-      const accepted = this.grammarFactory.acceptToken(
-        this.grammarStateMatcher,
-        sampledToken,
-      );
+      const accepted = this.grammarStateMatcher.acceptToken(sampledToken);
       if (!accepted) {
         throw Error("Grammar state matcher rejected the newly sampled token.");
       }
