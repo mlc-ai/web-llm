@@ -169,7 +169,7 @@ console.log(reply.choices[0].message);
 console.log(reply.usage);
 ```
 
-### Streaming
+### 🎥 Streaming
 
 WebLLM also supports streaming chat completion generating. To use it, simply pass `stream: true` to the `engine.chat.completions.create` call.
 
@@ -200,9 +200,9 @@ const fullReply = await engine.getMessage();
 console.log(fullReply);
 ```
 
-## Advanced Usage
+## ⚙️ Advanced Usage
 
-### Using Workers
+### 👷‍♂️ Using Workers
 
 You can put the heavy computation in a worker script to optimize your application performance. To do so, you need to:
 
@@ -211,7 +211,7 @@ You can put the heavy computation in a worker script to optimize your applicatio
 
 For detailed implementations of different kinds of Workers, check the following sections.
 
-#### Dedicated Web Worker
+#### 🛠️ Dedicated Web Worker
 
 WebLLM comes with API support for WebWorker so you can hook
 the generation process into a separate worker thread so that
@@ -254,7 +254,7 @@ async function main() {
 }
 ```
 
-### Use Service Worker
+### 🛡️ Use Service Worker
 
 WebLLM comes with API support for ServiceWorker so you can hook the generation process
 into a service worker to avoid reloading the model in every page visit and optimize
@@ -300,10 +300,10 @@ const engine: MLCEngineInterface =
 
 You can find a complete example on how to run WebLLM in service worker in [examples/service-worker](examples/service-worker/).
 
-### Chrome Extension
+### 📦 Chrome Extension
 You can also find examples of building Chrome extension with WebLLM in [examples/chrome-extension](examples/chrome-extension/) and [examples/chrome-extension-webgpu-service-worker](examples/chrome-extension-webgpu-service-worker/). The latter one leverages service worker, so the extension is persistent in the background.
 
-## Full OpenAI Compatibility
+## 🔗 Full OpenAI Compatibility
 WebLLM is designed to be fully compatible with [OpenAI API](https://platform.openai.com/docs/api-reference/chat). Thus, besides building a simple chatbot, you can also have the following functionalities with WebLLM:
 
 - [streaming](examples/streaming): return output as chunks in real-time in the form of an AsyncGenerator
@@ -311,7 +311,7 @@ WebLLM is designed to be fully compatible with [OpenAI API](https://platform.ope
 - [seed-to-reproduce](examples/seed-to-reproduce): use seeding to ensure a reproducible output with fields `seed`.
 - [function-calling](examples/function-calling) (WIP): function calling with fields `tools` and `tool_choice` (with preliminary support); or manual function calling without `tools` or `tool_choice` (keeps the most flexibility).
 
-## Custom Models
+## 🏷️ Custom Models
 
 WebLLM works as a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm) and it supports custom models in MLC format. 
 It reuses the model artifact and builds the flow of MLC LLM. To compile and use your own models with WebLLM, please check out
@@ -362,7 +362,7 @@ not necessarily a new model (e.g. `NeuralHermes-Mistral` can reuse `Mistral`'s
 model library). For examples of how a model library can be shared by different model variants,
 see `webllm.prebuiltAppConfig`.
 
-## Build WebLLM Package From Source
+## 🏗️ Build WebLLM Package From Source
 
 NOTE: you don't need to build from source unless you would like to modify the WebLLM package.
 To use the npm, simply follow [Get Started](#get-started) or any of the [examples](examples) instead.
@@ -393,7 +393,7 @@ npm install
 npm start
 ```
 
-### In case you need to build TVMjs from source
+### 📜 In case you need to build TVMjs from source
 
 WebLLM's runtime largely depends on TVMjs: https://github.com/apache/tvm/tree/main/web
 
@@ -443,13 +443,13 @@ While it is also available as an npm package: https://www.npmjs.com/package/@mlc
    changes sometimes. When you make a change in the WebLLM package, try to edit the `package.json`
    of the subfolder and save it, which will trigger Parcel to rebuild.
 
-## Links
+## 🔗 Links
 
 - [Demo App: WebLLM Chat](https://chat.webllm.ai/)
 - If you want to run LLM on native runtime, check out [MLC-LLM](https://github.com/mlc-ai/mlc-llm)
 - You might also be interested in [Web Stable Diffusion](https://github.com/mlc-ai/web-stable-diffusion/).
 
-## Acknowledgement
+## 🏆 Acknowledgement
 
 This project is initiated by members from CMU Catalyst, UW SAMPL, SJTU, OctoML, and the MLC community. We would love to continue developing and supporting the open-source ML community.
 
