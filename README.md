@@ -1,20 +1,20 @@
 <div align="center">
 
-# WebLLM
+# 🌐 WebLLM
 [![NPM Package](https://img.shields.io/badge/NPM_Package-Published-cc3534)](https://www.npmjs.com/package/@mlc-ai/web-llm)
 [!["WebLLM Chat Deployed"](https://img.shields.io/badge/WebLLM_Chat-Deployed-%2332a852)](https://chat.webllm.ai/)
 [![Join Discord](https://img.shields.io/badge/Join-Discord-7289DA?logo=discord&logoColor=white)]("https://discord.gg/9Xpy2HGBuD")
 [![Related Repository: WebLLM Chat](https://img.shields.io/badge/Related_Repo-WebLLM_Chat-fafbfc?logo=github)](https://github.com/mlc-ai/web-llm-chat/)
 [![Related Repository: MLC LLM](https://img.shields.io/badge/Related_Repo-MLC_LLM-fafbfc?logo=github)](https://github.com/mlc-ai/mlc-llm/)
 
-**High-Performance In-Browser LLM Inference Engine.**
+** 🚀 High-Performance In-Browser LLM Inference Engine.**
 
 
 [Get Started](#get-started) | [Blogpost](https://blog.mlc.ai/2024/06/13/webllm-a-high-performance-in-browser-llm-inference-engine) | [Examples](examples) | [Documentation](https://mlc.ai/mlc-llm/docs/deploy/webllm.html)
 
 </div>
 
-## Overview
+## 📖 Overview
 WebLLM is a high-performance in-browser LLM inference engine that brings language model inference directly onto web browsers with hardware acceleration.
 Everything runs inside the browser with no server support and is accelerated with WebGPU.
 
@@ -32,7 +32,7 @@ You can use WebLLM as a base [npm package](https://www.npmjs.com/package/@mlc-ai
 
 </div>
 
-## Key Features
+## 🔑 Key Features
 - **In-Browser Inference**: WebLLM is a high-performance, in-browser language model inference engine that leverages WebGPU for hardware acceleration, enabling powerful LLM operations directly within web browsers without server-side processing.
 
 - [**Full OpenAI API Compatibility**](#full-openai-compatibility): Seamlessly integrate your app with WebLLM using OpenAI API with functionalities such as streaming, JSON-mode, logit-level control, seeding, and more.
@@ -51,7 +51,7 @@ You can use WebLLM as a base [npm package](https://www.npmjs.com/package/@mlc-ai
 
 - **Chrome Extension Support**: Extend the functionality of web browsers through custom Chrome extensions using WebLLM, with examples available for building both basic and advanced extensions.
 
-## Built-in Models
+## 📚 Built-in Models
 
 Check the complete list of available models on [MLC Models](https://mlc.ai/models). WebLLM supports a subset of these available models and the list can be accessed at [`prebuiltAppConfig.model_list`](https://github.com/mlc-ai/web-llm/blob/main/src/config.ts#L293).
 
@@ -65,7 +65,7 @@ Here are the primary families of models currently supported:
 
 If you need more models, [request a new model via opening an issue](https://github.com/mlc-ai/web-llm/issues/new/choose) or check [Custom Models](#custom-models) for how to compile and use your own models with WebLLM.
 
-## Jumpstart with Examples
+## 🚀 Jumpstart with Examples
 
 Learn how to use WebLLM to integrate large language models into your application and generate chat completions through this simple Chatbot example: 
 
@@ -76,7 +76,7 @@ For an advanced example of a larger, more complicated project, check [WebLLM Cha
 
 More examples for different use cases are available in the [examples](./examples/) folder.
 
-## Get Started
+## 🛠️ Get Started
 
 WebLLM offers a minimalist and modular interface to access the chatbot in the browser.
 The package is designed in a modular way to hook to any of the UI components.
@@ -103,7 +103,7 @@ import * as webllm from "@mlc-ai/web-llm";
 import { CreateMLCEngine } from "@mlc-ai/web-llm";
 ```
 
-#### CDN Delivery
+#### 🌍 CDN Delivery
 
 Thanks to [jsdelivr.com](https://www.jsdelivr.com/package/npm/@mlc-ai/web-llm), WebLLM can be imported directly through URL and work out-of-the-box on cloud development platforms like [jsfiddle.net](https://jsfiddle.net/), [Codepen.io](https://codepen.io/), and [Scribbler](https://scribbler.live):
 
@@ -115,7 +115,7 @@ It can also be dynamicall imported as:
 const webllm = await import ("https://esm.run/@mlc-ai/web-llm");
 ```
 
-### Create MLCEngine
+### ⚙️ Create MLCEngine
 
 Most operations in WebLLM are invoked through the `MLCEngine` interface. You can create an `MLCEngine` instance and loading the model by calling the `CreateMLCEngine()` factory function.
 
