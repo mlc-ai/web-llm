@@ -44,7 +44,7 @@ async function simpleStructuredTextExample() {
   const selectedModel = "Phi-3.5-mini-instruct-q4f16_1-MLC";
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
-    { initProgressCallback: initProgressCallback },
+    { initProgressCallback: initProgressCallback, logLevel: "INFO" },
   );
 
   // Note that you'd need to prompt the model to answer in JSON either in
@@ -112,13 +112,13 @@ async function harryPotterExample() {
   };
 
   // Pick any one of these models to start trying -- most models in WebLLM support grammar
-  // const selectedModel = "Llama-3.2-3B-Instruct-q4f16_1-MLC";
+  const selectedModel = "Llama-3.2-3B-Instruct-q4f16_1-MLC";
   // const selectedModel = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
-  const selectedModel = "Phi-3.5-mini-instruct-q4f16_1-MLC";
+  // const selectedModel = "Phi-3.5-mini-instruct-q4f16_1-MLC";
 
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
-    { initProgressCallback: initProgressCallback },
+    { initProgressCallback: initProgressCallback, logLevel: "INFO" },
   );
 
   // Note that you'd need to prompt the model to answer in JSON either in
@@ -144,6 +144,7 @@ async function harryPotterExample() {
   console.log(reply);
   console.log("Output:\n" + (await engine.getMessage()));
   console.log(reply.usage);
+  console.log(reply.usage!.extra);
 }
 
 async function functionCallingExample() {
@@ -251,7 +252,7 @@ ws ::= [ \n\t]*
   // const selectedModel = "Phi-3.5-mini-instruct-q4f16_1-MLC";
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
-    { initProgressCallback: initProgressCallback },
+    { initProgressCallback: initProgressCallback, logLevel: "INFO" },
   );
 
   // Note that you'd need to prompt the model to answer in JSON either in
@@ -279,9 +280,9 @@ ws ::= [ \n\t]*
 
 async function main() {
   // await simpleStructuredTextExample();
-  // await harryPotterExample();
+  await harryPotterExample();
   // await functionCallingExample();
-  await ebnfGrammarExample();
+  // await ebnfGrammarExample();
 }
 
 main();
