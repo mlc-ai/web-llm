@@ -932,6 +932,17 @@ export interface CompletionUsage {
      * Number of tokens per second for autoregressive decoding.
      */
     decode_tokens_per_s: number;
+
+    /**
+     * Milliseconds spent on initializing grammar matcher for structured output.
+     */
+    grammar_init_ms?: number;
+
+    /**
+     * Milliseconds per-token that grammar matcher spent on creating bitmask and accepting token for
+     * structured output.
+     */
+    grammar_per_token_ms?: number;
   };
 }
 
