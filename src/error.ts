@@ -411,6 +411,16 @@ export class InvalidResponseFormatError extends Error {
   }
 }
 
+export class InvalidResponseFormatGrammarError extends Error {
+  constructor() {
+    super(
+      "When ResponseFormat.type is `grammar`, ResponseFormat.grammar needs to be specified.\n" +
+        "When ResponseFormat.grammar is specified, ResponseFormat.type needs to be grammar.",
+    );
+    this.name = "InvalidResponseFormatGrammarError";
+  }
+}
+
 export class CustomResponseFormatError extends Error {
   constructor(currentFormat: any) {
     super(

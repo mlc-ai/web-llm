@@ -105,10 +105,10 @@ export class LLMChatPipeline {
   // A grammar matcher for this current round if response_format is set. Reinitialized upon
   // each step regardless of whether the chat is multi-round or not.
   private grammarMatcher?: xgrammar.GrammarMatcher = undefined;
-  // The current schema used for grammarMatcher; if undefined, grammarMatcher is simply
-  // using JSON mode. We use this field to determine whether we re-initiate a GrammarMatcher
+  // The current schema or grammar string used for grammarMatcher; if undefined, grammarMatcher is
+  // simply using JSON mode. We use this field to determine whether we re-initiate a GrammarMatcher
   // or simply reset the state during each round (i.e. during prefillStep).
-  private schema?: string = undefined;
+  private schemaOrGrammarStr?: string = undefined;
   // A string list of tokens ordered by their token id, post-processed. Once initialized, will not
   // be reinitialized since `this.tokenizer` does not change throughout the lifetime of LLMChatPipeline.
   private xgTokenizerInfo?: xgrammar.TokenizerInfo = undefined;
@@ -543,9 +543,16 @@ export class LLMChatPipeline {
     }
 
     // 3. Instantiate grammar matcher according to generation config
-    if (genConfig?.response_format?.type === "json_object") {
-      const curSchema = genConfig.response_format.schema;
-      if (curSchema === this.schema && this.grammarMatcher) {
+    if (
+      genConfig?.response_format?.type === "json_object" ||
+      genConfig?.response_format?.type === "grammar"
+    ) {
+      const curSchemaOrGrammarStr =
+        genConfig.response_format.schema || genConfig.response_format.grammar;
+      if (
+        curSchemaOrGrammarStr === this.schemaOrGrammarStr &&
+        this.grammarMatcher
+      ) {
         console.log("REUSE SCHEMA");
         // If we did not change the schema and have instantiated a GrammarMatcher, we reuse it.
         this.grammarMatcher.reset();
@@ -567,9 +574,13 @@ export class LLMChatPipeline {
             );
         }
         const grammar: xgrammar.BNFGrammar =
-          curSchema === undefined
+          curSchemaOrGrammarStr === undefined
             ? await xgrammar.BuiltinGrammar.json()
-            : await xgrammar.BuiltinGrammar.jsonSchema(curSchema);
+            : genConfig?.response_format?.type === "json_object"
+              ? await xgrammar.BuiltinGrammar.jsonSchema(curSchemaOrGrammarStr)
+              : await xgrammar.BNFGrammar.createBNFGrammar(
+                  curSchemaOrGrammarStr,
+                );
         this.grammarMatcher =
           await xgrammar.GrammarMatcher.createGrammarMatcher(
             grammar,
@@ -579,7 +590,7 @@ export class LLMChatPipeline {
             this.fullVocabSize,
           );
         grammar.dispose();
-        this.schema = curSchema;
+        this.schemaOrGrammarStr = curSchemaOrGrammarStr;
       }
     }
 
@@ -956,7 +967,10 @@ export class LLMChatPipeline {
     }
 
     // 0. Update logitsOnGPU with on-GPU grammar bitmasking
-    if (response_format?.type === "json_object") {
+    if (
+      response_format?.type === "json_object" ||
+      response_format?.type === "grammar"
+    ) {
       this.tvm.beginScope();
       if (this.grammarMatcher === undefined) {
         throw Error("Expect grammar matcher to be initialized.");
@@ -1089,7 +1103,10 @@ export class LLMChatPipeline {
     this.logitProcessor?.processSampledToken(sampledToken);
 
     // 6. Update grammar matcher with new token
-    if (response_format?.type === "json_object") {
+    if (
+      response_format?.type === "json_object" ||
+      response_format?.type === "grammar"
+    ) {
       this.tvm.beginScope();
       if (this.grammarMatcher === undefined) {
         throw Error("Expect grammar matcher to be initialized.");

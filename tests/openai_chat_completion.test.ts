@@ -124,6 +124,46 @@ describe("Check chat completion unsupported requests", () => {
     );
   });
 
+  test("Grammar string without grammar type", () => {
+    expect(() => {
+      const request: ChatCompletionRequest = {
+        messages: [{ role: "user", content: "Hello! " }],
+        response_format: { grammar: "some grammar string" },
+      };
+      postInitAndCheckFields(
+        request,
+        "Llama-3.1-8B-Instruct-q4f32_1-MLC",
+        ModelType.LLM,
+      );
+    }).toThrow("When ResponseFormat.type is `grammar`,");
+  });
+
+  test("Grammar type without grammar string", () => {
+    expect(() => {
+      const request: ChatCompletionRequest = {
+        messages: [{ role: "user", content: "Hello! " }],
+        response_format: { type: "grammar" },
+      };
+      postInitAndCheckFields(
+        request,
+        "Llama-3.1-8B-Instruct-q4f32_1-MLC",
+        ModelType.LLM,
+      );
+    }).toThrow("When ResponseFormat.type is `grammar`,");
+  });
+
+  test("Valid: Grammar type with grammar string", () => {
+    const request: ChatCompletionRequest = {
+      messages: [{ role: "user", content: "Hello! " }],
+      response_format: { type: "grammar", grammar: "some grammar string" },
+    };
+    postInitAndCheckFields(
+      request,
+      "Llama-3.1-8B-Instruct-q4f32_1-MLC",
+      ModelType.LLM,
+    );
+  });
+
   test("image_url.detail is unsupported", () => {
     expect(() => {
       const request: ChatCompletionRequest = {

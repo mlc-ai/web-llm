@@ -29,6 +29,7 @@ import {
   CustomResponseFormatError,
   CustomSystemPromptError,
   InvalidResponseFormatError,
+  InvalidResponseFormatGrammarError,
   InvalidStreamOptionsError,
   MessageOrderError,
   MultipleTextContentError,
@@ -471,6 +472,26 @@ export function postInitAndCheckFields(
   ) {
     if (request.response_format?.type !== "json_object") {
       throw new InvalidResponseFormatError();
+    }
+  }
+
+  // 6.1 When grammar is specified, the type needs to be grammar
+  if (
+    request.response_format?.grammar !== undefined &&
+    request.response_format?.grammar !== null
+  ) {
+    if (request.response_format?.type !== "grammar") {
+      throw new InvalidResponseFormatGrammarError();
+    }
+  }
+
+  // 6.2 When type is grammar, the grammar field needs to be specified.
+  if (request.response_format?.type === "grammar") {
+    if (
+      request.response_format?.grammar === undefined ||
+      request.response_format?.grammar === null
+    ) {
+      throw new InvalidResponseFormatGrammarError();
     }
   }
 
@@ -1066,6 +1087,9 @@ export namespace ChatCompletionChunk {
  * Setting to `{ "type": "json_object" }` enables JSON mode, which guarantees the
  * message the model generates is valid JSON.
  *
+ * Setting to `{ "type": "grammar" }` requires you to also specify the `grammar` field, which
+ * is a BNFGrammar string.
+ *
  * Setting `schema` specifies the output format of the json object such as properties to include.
  *
  * **Important:** when using JSON mode, you **must** also instruct the model to produce JSON
@@ -1078,11 +1102,26 @@ export namespace ChatCompletionChunk {
  */
 export interface ResponseFormat {
   /**
-   * Must be one of `text` or `json_object`.
+   * Must be one of `text`, `json_object`, or `grammar`.
    */
-  type?: "text" | "json_object";
+  type?: "text" | "json_object" | "grammar";
   /**
    * A schema string in the format of the schema of a JSON file. `type` needs to be `json_object`.
    */
   schema?: string;
+  /**
+   * An EBNF-formatted string. Needs to be specified when, and only specified when,
+   * `type` is `grammar`. The grammar will be normalized (simplified) by default.
+   * EBNF grammar: see https://www.w3.org/TR/xml/#sec-notation. Note:
+      1. Use # as the comment mark
+      2. Use C-style unicode escape sequence \u01AB, \U000001AB, \xAB
+      3. A-B (match A and not match B) is not supported yet
+      4. Lookahead assertion can be added at the end of a rule to speed up matching. E.g.
+      ```
+      main ::= "ab" a [a-z]
+      a ::= "cd" (=[a-z])
+      ```
+      The assertion (=[a-z]) means a must be followed by [a-z].
+   */
+  grammar?: string;
 }

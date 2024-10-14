@@ -224,10 +224,64 @@ async function functionCallingExample() {
   console.log(reply.usage);
 }
 
+async function ebnfGrammarExample() {
+  // You can directly define an EBNFGrammar string with ResponseFormat.grammar
+  const jsonGrammarStr = String.raw`
+main ::= basic_array | basic_object
+basic_any ::= basic_number | basic_string | basic_boolean | basic_null | basic_array | basic_object
+basic_integer ::= ("0" | "-"? [1-9] [0-9]*) ".0"?
+basic_number ::= ("0" | "-"? [1-9] [0-9]*) ("." [0-9]+)? ([eE] [+-]? [0-9]+)?
+basic_string ::= (([\"] basic_string_1 [\"]))
+basic_string_1 ::= "" | [^"\\\x00-\x1F] basic_string_1 | "\\" escape basic_string_1
+escape ::= ["\\/bfnrt] | "u" [A-Fa-f0-9] [A-Fa-f0-9] [A-Fa-f0-9] [A-Fa-f0-9]
+basic_boolean ::= "true" | "false"
+basic_null ::= "null"
+basic_array ::= "[" ("" | ws basic_any (ws "," ws basic_any)*) ws "]"
+basic_object ::= "{" ("" | ws basic_string ws ":" ws basic_any ( ws "," ws basic_string ws ":" ws basic_any)*) ws "}"
+ws ::= [ \n\t]*
+`;
+
+  const initProgressCallback = (report: webllm.InitProgressReport) => {
+    setLabel("init-label", report.text);
+  };
+
+  // Pick any one of these models to start trying -- most models in WebLLM support grammar
+  const selectedModel = "Llama-3.2-3B-Instruct-q4f16_1-MLC";
+  // const selectedModel = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
+  // const selectedModel = "Phi-3.5-mini-instruct-q4f16_1-MLC";
+  const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
+    selectedModel,
+    { initProgressCallback: initProgressCallback },
+  );
+
+  // Note that you'd need to prompt the model to answer in JSON either in
+  // user's message or the system prompt
+  const request: webllm.ChatCompletionRequest = {
+    stream: false, // works with streaming, logprobs, top_logprobs as well
+    messages: [
+      {
+        role: "user",
+        content: "Introduce yourself in JSON",
+      },
+    ],
+    max_tokens: 128,
+    response_format: {
+      type: "grammar",
+      grammar: jsonGrammarStr,
+    } as webllm.ResponseFormat,
+  };
+
+  const reply0 = await engine.chatCompletion(request);
+  console.log(reply0);
+  console.log("Output:\n" + (await engine.getMessage()));
+  console.log(reply0.usage);
+}
+
 async function main() {
   // await simpleStructuredTextExample();
-  await harryPotterExample();
+  // await harryPotterExample();
   // await functionCallingExample();
+  await ebnfGrammarExample();
 }
 
 main();
