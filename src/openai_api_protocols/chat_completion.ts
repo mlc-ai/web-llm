@@ -934,15 +934,28 @@ export interface CompletionUsage {
     decode_tokens_per_s: number;
 
     /**
-     * Milliseconds spent on initializing grammar matcher for structured output.
+     * Seconds spent to generate the first token since receiving the request. Mainly contains
+     * prefilling overhead. If n > 1, it is the sum over all choices.
      */
-    grammar_init_ms?: number;
+    time_to_first_token_s: number;
 
     /**
-     * Milliseconds per-token that grammar matcher spent on creating bitmask and accepting token for
-     * structured output.
+     * Seconds in between generated tokens. Mainly contains decoding overhead. If n > 1, it
+     * is the average over all choices.
      */
-    grammar_per_token_ms?: number;
+    time_per_output_token_s: number;
+
+    /**
+     * Seconds spent on initializing grammar matcher for structured output. If n > 1, it
+     * is the sum over all choices.
+     */
+    grammar_init_s?: number;
+
+    /**
+     * Seconds per-token that grammar matcher spent on creating bitmask and accepting token for
+     * structured output. If n > 1, it is the average over all choices.
+     */
+    grammar_per_token_s?: number;
   };
 }
 

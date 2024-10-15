@@ -687,24 +687,29 @@ export class MLCEngine implements MLCEngineInterface {
       const prefill_tokens_per_s = pipeline.getCurRoundPrefillTokensPerSec();
       const decode_tokens_per_s = pipeline.getCurRoundDecodingTokensPerSec();
       const grammar_init_s = pipeline.getCurRoundGrammarInitTotalTime();
+      const prefill_time = pipeline.getCurRoundPrefillTotalTime();
+      const decode_time = pipeline.getCurRoundDecodingTotalTime();
       const grammar_per_token_s =
         pipeline.getCurRoundGrammarPerTokenTotalTime();
+      const defaultExtra = {
+        prefill_tokens_per_s: prefill_tokens_per_s,
+        decode_tokens_per_s: decode_tokens_per_s,
+        time_to_first_token_s: prefill_time,
+        time_per_output_token_s: decode_time / completion_tokens,
+      };
       const usage: CompletionUsage = {
         completion_tokens: completion_tokens,
         prompt_tokens: prompt_tokens,
         total_tokens: completion_tokens + prompt_tokens,
         extra: usedGrammar
           ? {
-              prefill_tokens_per_s: prefill_tokens_per_s,
-              decode_tokens_per_s: decode_tokens_per_s,
-              grammar_init_ms: grammar_init_s * 1e3,
-              grammar_per_token_ms:
-                (grammar_per_token_s / completion_tokens) * 1e3,
+              ...defaultExtra,
+              ...{
+                grammar_init_s: grammar_init_s,
+                grammar_per_token_s: grammar_per_token_s / completion_tokens,
+              },
             }
-          : {
-              prefill_tokens_per_s: prefill_tokens_per_s,
-              decode_tokens_per_s: decode_tokens_per_s,
-            },
+          : defaultExtra,
       };
       if (isChatCompletion) {
         const usageChunk: ChatCompletionChunk = {
@@ -811,8 +816,8 @@ export class MLCEngine implements MLCEngineInterface {
       let prompt_tokens = 0;
       let prefill_time = 0;
       let decode_time = 0;
-      let grammar_init_time = 0;
-      let grammar_per_token_time = 0;
+      let grammar_init_s = 0;
+      let grammar_per_token_s = 0;
       for (let i = 0; i < n; i++) {
         let outputMessage: string;
         if (this.interruptSignal) {
@@ -869,14 +874,20 @@ export class MLCEngine implements MLCEngineInterface {
         prompt_tokens += selectedPipeline.getCurRoundPrefillTotalTokens();
         prefill_time += selectedPipeline.getCurRoundPrefillTotalTime();
         decode_time += selectedPipeline.getCurRoundDecodingTotalTime();
-        grammar_init_time += selectedPipeline.getCurRoundGrammarInitTotalTime();
-        grammar_per_token_time +=
+        grammar_init_s += selectedPipeline.getCurRoundGrammarInitTotalTime();
+        grammar_per_token_s +=
           selectedPipeline.getCurRoundGrammarPerTokenTotalTime();
       }
       const usedGrammar =
         "response_format" in request &&
         (request.response_format?.type === "grammar" ||
           request.response_format?.type === "json_object");
+      const defaultExtra = {
+        prefill_tokens_per_s: prompt_tokens / prefill_time,
+        decode_tokens_per_s: completion_tokens / decode_time,
+        time_to_first_token_s: prefill_time,
+        time_per_output_token_s: decode_time / completion_tokens,
+      };
       const response: ChatCompletion = {
         id: crypto.randomUUID(),
         choices: choices,
@@ -889,16 +900,13 @@ export class MLCEngine implements MLCEngineInterface {
           total_tokens: completion_tokens + prompt_tokens,
           extra: usedGrammar
             ? {
-                prefill_tokens_per_s: prompt_tokens / prefill_time,
-                decode_tokens_per_s: completion_tokens / decode_time,
-                grammar_init_ms: grammar_init_time * 1e3,
-                grammar_per_token_ms:
-                  (grammar_per_token_time / completion_tokens) * 1e3,
+                ...defaultExtra,
+                ...{
+                  grammar_init_s: grammar_init_s,
+                  grammar_per_token_s: grammar_per_token_s / completion_tokens,
+                },
               }
-            : {
-                prefill_tokens_per_s: prompt_tokens / prefill_time,
-                decode_tokens_per_s: completion_tokens / decode_time,
-              },
+            : defaultExtra,
         } as CompletionUsage,
       };
 
@@ -1022,6 +1030,8 @@ export class MLCEngine implements MLCEngineInterface {
           extra: {
             prefill_tokens_per_s: prompt_tokens / prefill_time,
             decode_tokens_per_s: completion_tokens / decode_time,
+            time_to_first_token_s: prefill_time,
+            time_per_output_token_s: decode_time / completion_tokens,
           },
         } as CompletionUsage,
       };
