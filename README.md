@@ -110,7 +110,7 @@ Thanks to [jsdelivr.com](https://www.jsdelivr.com/package/npm/@mlc-ai/web-llm), 
 ```javascript
 import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 ```
-It can also be dynamicall imported as:
+It can also be dynamically imported as:
 ```javascript
 const webllm = await import ("https://esm.run/@mlc-ai/web-llm");
 ```
