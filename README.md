@@ -1,4 +1,4 @@
-<div align="center">
+<div align="center" id="webllm">
 
 # WebLLM
 [![NPM Package](https://img.shields.io/badge/NPM_Package-Published-cc3534)](https://www.npmjs.com/package/@mlc-ai/web-llm)
@@ -451,6 +451,14 @@ While it is also available as an npm package: https://www.npmjs.com/package/@mlc
 
 ## Acknowledgement
 
-This project is initiated by members from CMU Catalyst, UW SAMPL, SJTU, OctoML, and the MLC community. We would love to continue developing and supporting the open-source ML community.
+This project is initiated by members from CMU Catalyst, UW SAMPL, SJTU, OctoML, and the MLC community. We would love to continue developing and supporting the 
+open-source ML community.
 
 This project is only possible thanks to the shoulders open-source ecosystems that we stand on. We want to thank the Apache TVM community and developers of the TVM Unity effort. The open-source ML community members made these models publicly available. PyTorch and Hugging Face communities make these models accessible. We would like to thank the teams behind Vicuna, SentencePiece, LLaMA, and Alpaca. We also would like to thank the WebAssembly, Emscripten, and WebGPU communities. Finally, thanks to Dawn and WebGPU developers.
+
+
+<p align="center">
+  <a href="#webllm" target="_blank">
+  <bold>Back To Top </bold>
+  </a>
+</p>
