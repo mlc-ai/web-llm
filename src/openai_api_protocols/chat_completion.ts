@@ -924,6 +924,11 @@ export interface CompletionUsage {
    */
   extra: {
     /**
+     * Total seconds spent on this request, from receiving the request, to generating the response.
+     */
+    e2e_latency_s: number;
+
+    /**
      * Number of tokens per second for prefilling.
      */
     prefill_tokens_per_s: number;

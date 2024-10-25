@@ -465,6 +465,7 @@ export class MLCEngine implements MLCEngineInterface {
     pipeline: LLMChatPipeline,
     chatConfig: ChatConfig,
     genConfig: GenerationConfig,
+    timeReceived: number,
   ): AsyncGenerator<ChatCompletionChunk, void, void>;
   asyncGenerate(
     request: CompletionCreateParamsStreaming,
@@ -472,6 +473,7 @@ export class MLCEngine implements MLCEngineInterface {
     pipeline: LLMChatPipeline,
     chatConfig: ChatConfig,
     genConfig: GenerationConfig,
+    timeReceived: number,
   ): AsyncGenerator<Completion, void, void>;
   async *asyncGenerate(
     request: ChatCompletionRequestStreaming | CompletionCreateParamsStreaming,
@@ -479,6 +481,7 @@ export class MLCEngine implements MLCEngineInterface {
     pipeline: LLMChatPipeline,
     chatConfig: ChatConfig,
     genConfig: GenerationConfig,
+    timeReceived: number,
   ): AsyncGenerator<ChatCompletionChunk | Completion, void, void> {
     // Since it is an async generator, we need to do fine-grained try-catch to ensure lock is
     // released only when errors occur. Then release at the very end when no error occurs.
@@ -692,6 +695,7 @@ export class MLCEngine implements MLCEngineInterface {
       const grammar_per_token_s =
         pipeline.getCurRoundGrammarPerTokenTotalTime();
       const defaultExtra = {
+        e2e_latency_s: (Date.now() - timeReceived) / 1000,
         prefill_tokens_per_s: prefill_tokens_per_s,
         decode_tokens_per_s: decode_tokens_per_s,
         time_to_first_token_s: prefill_time,
@@ -765,6 +769,7 @@ export class MLCEngine implements MLCEngineInterface {
   async chatCompletion(
     request: ChatCompletionRequest,
   ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
+    const timeReceived = Date.now();
     // 0. Check model loaded and preprocess inputs
     const [selectedModelId, selectedPipeline, selectedChatConfig] =
       this.getLLMStates("ChatCompletionRequest", request.model);
@@ -800,6 +805,7 @@ export class MLCEngine implements MLCEngineInterface {
         selectedPipeline,
         selectedChatConfig,
         genConfig,
+        timeReceived,
       );
     }
 
@@ -883,6 +889,7 @@ export class MLCEngine implements MLCEngineInterface {
         (request.response_format?.type === "grammar" ||
           request.response_format?.type === "json_object");
       const defaultExtra = {
+        e2e_latency_s: (Date.now() - timeReceived) / 1000,
         prefill_tokens_per_s: prompt_tokens / prefill_time,
         decode_tokens_per_s: completion_tokens / decode_time,
         time_to_first_token_s: prefill_time,
@@ -940,6 +947,8 @@ export class MLCEngine implements MLCEngineInterface {
   async completion(
     request: CompletionCreateParams,
   ): Promise<AsyncIterable<Completion> | Completion> {
+    const timeReceived = Date.now();
+
     // 0. Check model loaded and preprocess inputs
     const [selectedModelId, selectedPipeline, selectedChatConfig] =
       this.getLLMStates("CompletionCreateParams", request.model);
@@ -968,6 +977,7 @@ export class MLCEngine implements MLCEngineInterface {
         selectedPipeline,
         selectedChatConfig,
         genConfig,
+        timeReceived,
       );
     }
 
@@ -1028,6 +1038,7 @@ export class MLCEngine implements MLCEngineInterface {
           prompt_tokens: prompt_tokens,
           total_tokens: completion_tokens + prompt_tokens,
           extra: {
+            e2e_latency_s: (Date.now() - timeReceived) / 1000,
             prefill_tokens_per_s: prompt_tokens / prefill_time,
             decode_tokens_per_s: completion_tokens / decode_time,
             time_to_first_token_s: prefill_time,
