@@ -228,7 +228,7 @@ async function functionCallingExample() {
 async function ebnfGrammarExample() {
   // You can directly define an EBNFGrammar string with ResponseFormat.grammar
   const jsonGrammarStr = String.raw`
-main ::= basic_array | basic_object
+root ::= basic_array | basic_object
 basic_any ::= basic_number | basic_string | basic_boolean | basic_null | basic_array | basic_object
 basic_integer ::= ("0" | "-"? [1-9] [0-9]*) ".0"?
 basic_number ::= ("0" | "-"? [1-9] [0-9]*) ("." [0-9]+)? ([eE] [+-]? [0-9]+)?
