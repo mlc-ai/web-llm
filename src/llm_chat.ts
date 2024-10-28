@@ -471,6 +471,8 @@ export class LLMChatPipeline {
    */
   setConversation(newConv: Conversation) {
     this.conversation = newConv;
+    this.stopStr = this.conversation.getStopStr();
+    this.stopTokens = this.conversation.getStopTokens();
   }
 
   async asyncLoadWebGPUPipelines() {
@@ -719,14 +721,31 @@ export class LLMChatPipeline {
     if (max_tokens <= 0) {
       throw new MinValueError("max_tokens", 0);
     }
+
+    // Get ignore_eos from generationConfig (specified by user in completion request)
+    let ignore_eos = false;
+    if (
+      genConfig !== undefined &&
+      genConfig.ignore_eos !== undefined &&
+      genConfig.ignore_eos !== null
+    ) {
+      ignore_eos = genConfig.ignore_eos;
+    }
+
     // Get stopStrs, possibly overridden by genConfig for this round
     let stopStrs = this.stopStr;
     if (genConfig !== undefined && genConfig.stop) {
       stopStrs = stopStrs.concat(genConfig.stop);
     }
 
+    let stopTokens = this.stopTokens;
+    if (ignore_eos) {
+      stopTokens = [];
+      stopStrs = [];
+    }
+
     // Stop condition 1: stop token; otherwise, append to `this.outputIds`
-    if (this.stopTokens.includes(nextToken)) {
+    if (stopTokens.includes(nextToken)) {
       this.stopTriggered = true;
       this.finishReason = "stop";
     }

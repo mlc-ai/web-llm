@@ -257,10 +257,12 @@ export class Conversation {
   }
 
   getStopStr(): string[] {
-    if (this.config.stop_str.length > 0) {
-      return this.config.stop_str;
-    }
-    return [this.config.seps[this.config.seps.length - 1]];
+    // TODO(Charlie): Is this needed?
+    // if (this.config.stop_str.length > 0) {
+    //   return this.config.stop_str;
+    // }
+    // return [this.config.seps[this.config.seps.length - 1]];
+    return this.config.stop_str;
   }
 
   getStopTokens() {

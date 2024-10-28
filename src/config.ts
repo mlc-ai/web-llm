@@ -127,6 +127,7 @@ export interface MLCEngineConfig {
 export interface GenerationConfig {
   // Only used in MLC
   repetition_penalty?: number;
+  ignore_eos?: boolean;
   // Shared by MLC and OpenAI APIs
   top_p?: number | null;
   temperature?: number | null;

@@ -791,6 +791,7 @@ export class MLCEngine implements MLCEngineInterface {
       logprobs: request.logprobs,
       top_logprobs: request.top_logprobs,
       response_format: request.response_format,
+      ignore_eos: request.ignore_eos,
     };
 
     // 0.5 Block wait until this pipeline finishes all previous requests
@@ -963,6 +964,7 @@ export class MLCEngine implements MLCEngineInterface {
       logit_bias: request.logit_bias,
       logprobs: request.logprobs,
       top_logprobs: request.top_logprobs,
+      ignore_eos: request.ignore_eos,
     };
 
     // 0.5 Block wait until this pipeline finishes all previous requests
