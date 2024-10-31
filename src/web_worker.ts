@@ -26,6 +26,8 @@ import {
   MessageContent,
   ReloadParams,
   ForwardTokensAndSampleParams,
+  TokenizeParams,
+  DecodeTokensParams,
   ChatCompletionNonStreamingParams,
   ChatCompletionStreamInitParams,
   ResetChatParams,
@@ -345,6 +347,24 @@ export class WebWorkerMLCEngineHandler {
         onComplete?.(null);
         return;
       }
+      case "decodeTokens": {
+        this.handleTask(msg.uuid, async () => {
+          const params = msg.content as DecodeTokensParams;
+          const res = await this.engine.decodeTokens(params.inputIds);
+          onComplete?.(res);
+          return res;
+        });
+        return;
+      }
+      case "tokenize": {
+        this.handleTask(msg.uuid, async () => {
+          const params = msg.content as TokenizeParams;
+          const res = await this.engine.tokenize(params.text);
+          onComplete?.(res);
+          return res;
+        });
+        return;
+      }
       default: {
         if (msg.kind && msg.content) {
           onError?.();
@@ -631,6 +651,30 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
       },
     };
     return await this.getPromise<number>(msg);
+  }
+
+  async tokenize(text: string, modelId?: string) {
+    const msg: WorkerRequest = {
+      kind: "tokenize",
+      uuid: crypto.randomUUID(),
+      content: {
+        text,
+        modelId: modelId,
+      },
+    };
+    return await this.getPromise<Int32Array>(msg);
+  }
+
+  async decodeTokens(ids: Int32Array, modelId?: string) {
+    const msg: WorkerRequest = {
+      kind: "decodeTokens",
+      uuid: crypto.randomUUID(),
+      content: {
+        inputIds: Array.from(ids),
+        modelId: modelId,
+      },
+    };
+    return await this.getPromise<string>(msg);
   }
 
   /**
