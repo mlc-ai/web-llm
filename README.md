@@ -1,9 +1,9 @@
-<div align="center">
+<div align="center" id="top">
 
 # WebLLM
 [![NPM Package](https://img.shields.io/badge/NPM_Package-Published-cc3534)](https://www.npmjs.com/package/@mlc-ai/web-llm)
 [!["WebLLM Chat Deployed"](https://img.shields.io/badge/WebLLM_Chat-Deployed-%2332a852)](https://chat.webllm.ai/)
-[![Join Discord](https://img.shields.io/badge/Join-Discord-7289DA?logo=discord&logoColor=white)]("https://discord.gg/9Xpy2HGBuD")
+[![Join Discord](https://img.shields.io/badge/Join-Discord-7289DA?logo=discord&logoColor=white)](https://discord.gg/9Xpy2HGBuD)
 [![Related Repository: WebLLM Chat](https://img.shields.io/badge/Related_Repo-WebLLM_Chat-fafbfc?logo=github)](https://github.com/mlc-ai/web-llm-chat/)
 [![Related Repository: MLC LLM](https://img.shields.io/badge/Related_Repo-MLC_LLM-fafbfc?logo=github)](https://github.com/mlc-ai/mlc-llm/)
 
@@ -110,7 +110,7 @@ Thanks to [jsdelivr.com](https://www.jsdelivr.com/package/npm/@mlc-ai/web-llm), 
 ```javascript
 import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 ```
-It can also be dynamicall imported as:
+It can also be dynamically imported as:
 ```javascript
 const webllm = await import ("https://esm.run/@mlc-ai/web-llm");
 ```
@@ -374,7 +374,7 @@ npm install
 npm run build
 ```
 
-Then, to test the effects of your code change in an example, inside `examples/get-started/package.json`, change from `"@mlc-ai/web-llm": "^0.2.73"` to `"@mlc-ai/web-llm": ../..`.
+Then, to test the effects of your code change in an example, inside `examples/get-started/package.json`, change from `"@mlc-ai/web-llm": "^0.2.75"` to `"@mlc-ai/web-llm": ../..`.
 
 Then run:
 
@@ -460,3 +460,7 @@ This project is only possible thanks to the shoulders open-source ecosystems tha
 <a href="https://github.com/mlc-ai/web-llm/graphs/contributors">
   <img alt="contributors" src="https://contrib.rocks/image?repo=mlc-ai/web-llm"/>
 </a>
+
+<p align="right">
+  <a href="#top">⬆ Back to Top ⬆</a>
+</p>
