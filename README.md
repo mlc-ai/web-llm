@@ -455,6 +455,11 @@ This project is initiated by members from CMU Catalyst, UW SAMPL, SJTU, OctoML, 
 
 This project is only possible thanks to the shoulders open-source ecosystems that we stand on. We want to thank the Apache TVM community and developers of the TVM Unity effort. The open-source ML community members made these models publicly available. PyTorch and Hugging Face communities make these models accessible. We would like to thank the teams behind Vicuna, SentencePiece, LLaMA, and Alpaca. We also would like to thank the WebAssembly, Emscripten, and WebGPU communities. Finally, thanks to Dawn and WebGPU developers.
 
+## Contributors
+
+<a href="https://github.com/mlc-ai/web-llm/graphs/contributors">
+  <img alt="contributors" src="https://contrib.rocks/image?repo=mlc-ai/web-llm"/>
+</a>
 
 <p align="right">
   <a href="#top">⬆ Back to Top ⬆</a>
