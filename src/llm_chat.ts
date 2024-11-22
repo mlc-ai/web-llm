@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 /* eslint-disable no-prototype-builtins */
 import * as tvmjs from "@mlc-ai/web-runtime";
+import * as xgr from "@mlc-ai/web-xgrammar";
 import log from "loglevel";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
 import { ChatConfig, GenerationConfig, Role } from "./config";
@@ -21,7 +22,6 @@ import {
   ResponseFormat,
   ChatCompletionContentPartImage,
 } from "./openai_api_protocols/index";
-import { BNFGrammar, GrammarFactory, GrammarStateMatcher } from "./grammar";
 import {
   AttentionSinkSizeError,
   ContextWindowSizeExceededError,
@@ -50,7 +50,6 @@ export class LLMChatPipeline {
   private image_embed: tvmjs.PackedFunc | undefined;
   private embed: tvmjs.PackedFunc;
   private fapplyBitmask: tvmjs.PackedFunc;
-  private fpostProcessTokenTable: tvmjs.PackedFunc;
   // Functions related to PagedKVCache
   private fclearKVCaches: tvmjs.PackedFunc;
   private fKVCacheAddSequence: tvmjs.PackedFunc;
@@ -103,24 +102,32 @@ export class LLMChatPipeline {
   private logitProcessor?: LogitProcessor = undefined;
 
   // Grammar-related
-  // A factory to instantiate and maintain the BNF grammars and grammar state matchers.
-  private grammarFactory: GrammarFactory;
-  // A grammar state matcher for this current round if response_format is set. Reinitialized upon
+  // A grammar matcher for this current round if response_format is set. Reinitialized upon
   // each step regardless of whether the chat is multi-round or not.
-  private grammarStateMatcher?: GrammarStateMatcher = undefined;
-  // The current schema used for grammarStateMatcher; if undefined, grammarStateMatcher is simply
-  // using JSON mode. We use this field to determine whether we re-initiate a GrammarStateMatcher
+  private grammarMatcher?: xgr.GrammarMatcher = undefined;
+  // The current schema or grammar string used for grammarMatcher; if undefined, grammarMatcher is
+  // simply using JSON mode. We use this field to determine whether we re-initiate a GrammarMatcher
   // or simply reset the state during each round (i.e. during prefillStep).
-  private schema?: string = undefined;
+  private schemaOrGrammarStr?: string = undefined;
   // A string list of tokens ordered by their token id, post-processed. Once initialized, will not
   // be reinitialized since `this.tokenizer` does not change throughout the lifetime of LLMChatPipeline.
-  private tokenTable?: tvmjs.TVMObject = undefined;
+  private xgTokenizerInfo?: xgr.TokenizerInfo = undefined;
+  // Compiler for grammar. It is persistent since it specializes on xgTokenizerInfo.
+  private grammarCompiler?: xgr.GrammarCompiler = undefined;
+  // Size of the bitmask for grammar, determined by fullVocabSize
   private bitmaskSize: number;
   // `vocab_size` read from `config.json`. Can be different from the size of the tokenTable for some
   // models due to dummy padded tokens.
   private fullVocabSize: number;
   // Method to post process the token for grammar; either "byte_level" or default "byte_fallback".
   private token_postproc_method: string;
+  // Whether to prepend space for grammar
+  private prepend_space_in_encode: boolean;
+  // stats for grammar-related overhead
+  // Time to initialize grammar matcher in seconds
+  private curRoundGrammarInitTotalTime = 0;
+  // Total time of getting next bitmask and accepting token in seconds
+  private curRoundGrammarPerTokenTotalTime = 0;
 
   constructor(
     tvm: tvmjs.Instance,
@@ -133,7 +140,6 @@ export class LLMChatPipeline {
     this.tokenizer = tokenizer;
     this.config = config;
     this.logitProcessor = logitProcessor;
-    this.grammarFactory = new GrammarFactory(tvm);
     this.fullVocabSize = this.config.vocab_size;
     this.bitmaskSize = Math.ceil(this.fullVocabSize / 32);
 
@@ -150,18 +156,22 @@ export class LLMChatPipeline {
     // fallback mechanisms
     if (config.tokenizer_info !== undefined) {
       this.token_postproc_method = config.tokenizer_info.token_postproc_method;
+      this.prepend_space_in_encode =
+        config.tokenizer_info.prepend_space_in_encode;
     } else if (config.token_table_postproc_method !== undefined) {
       this.token_postproc_method = config.token_table_postproc_method;
+      this.prepend_space_in_encode = false;
     } else {
       log.warn(
         "Cannot find `tokenizer_info` or `token_table_postproc_method` in `mlc-chat-config.json`, " +
-          "using default token_postproc_method `byte_fallback`.\n" +
-          "Models that should not use `byte_fallback` include: Llama3, Qwen1.5-1.8B, StableLM-zerphyr-1.6B.\n" +
+          "using default token_postproc_method `raw`.\n" +
           "This field is only used for json mode.",
       );
-      this.token_postproc_method = "byte_fallback";
+      this.token_postproc_method = "raw";
+      this.prepend_space_in_encode = false;
     }
     log.info("token_postproc_method: ", this.token_postproc_method);
+    log.info("prepend_space_in_encode: ", this.prepend_space_in_encode);
 
     this.device = this.tvm.webgpu();
 
@@ -179,9 +189,6 @@ export class LLMChatPipeline {
     );
     this.fapplyBitmask = this.tvm.detachFromCurrentScope(
       this.vm.getFunction("apply_bitmask_inplace"),
-    );
-    this.fpostProcessTokenTable = this.tvm.detachFromCurrentScope(
-      tvm.getGlobalFunc("mlc.tokenizers.PostProcessTokenTable"),
     );
     try {
       this.image_embed = this.tvm.detachFromCurrentScope(
@@ -285,8 +292,7 @@ export class LLMChatPipeline {
 
   dispose() {
     // TODO: Do we need to dispose all PackedFuncs here?
-    this.grammarFactory.dispose();
-    this.grammarStateMatcher?.dispose();
+    this.grammarMatcher?.dispose();
     this.params.dispose();
     this.decoding.dispose();
     this.prefill.dispose();
@@ -298,7 +304,8 @@ export class LLMChatPipeline {
     this.logitsOnCPU?.dispose();
     this.tvm.dispose();
     this.tokenizer.dispose();
-    this.tokenTable?.dispose();
+    this.xgTokenizerInfo?.dispose();
+    this.grammarCompiler?.dispose();
   }
 
   /**
@@ -400,6 +407,21 @@ export class LLMChatPipeline {
   }
 
   /**
+   * @returns the time (seconds) spent on for initializing grammar matcher for a single request.
+   */
+  getCurRoundGrammarInitTotalTime(): number {
+    return this.curRoundGrammarInitTotalTime;
+  }
+
+  /**
+   * @returns the total time (seconds) spent on creating bitmask and accepting token grammar matcher
+   * for all the generated tokens in a single request.
+   */
+  getCurRoundGrammarPerTokenTotalTime(): number {
+    return this.curRoundGrammarPerTokenTotalTime;
+  }
+
+  /**
    * @returns Runtime stats information.
    */
   runtimeStatsText(): string {
@@ -453,6 +475,8 @@ export class LLMChatPipeline {
    */
   setConversation(newConv: Conversation) {
     this.conversation = newConv;
+    this.stopStr = this.conversation.getStopStr();
+    this.stopTokens = this.conversation.getStopTokens();
   }
 
   async asyncLoadWebGPUPipelines() {
@@ -488,8 +512,74 @@ export class LLMChatPipeline {
     this.curRoundPrefillTotalTokens = 0;
     this.curRoundPrefillTotalTime = 0;
     this.curRoundDecodingTotalTime = 0;
+    this.curRoundGrammarInitTotalTime = 0;
+    this.curRoundGrammarPerTokenTotalTime = 0;
     this.stopTriggered = false;
     const conversation = this.conversation;
+
+    // -1. Instantiate grammar matcher according to generation config. This step is overlapped
+    // with prefilling the prompt to hide overhead by using this promise.
+    let grammarMatcherInitPromise: Promise<void> | undefined = undefined;
+    if (
+      genConfig?.response_format?.type === "json_object" ||
+      genConfig?.response_format?.type === "grammar"
+    ) {
+      const curSchemaOrGrammarStr =
+        genConfig.response_format.schema || genConfig.response_format.grammar;
+      if (
+        curSchemaOrGrammarStr === this.schemaOrGrammarStr &&
+        this.grammarMatcher
+      ) {
+        // If we did not change the schema and have instantiated a GrammarMatcher, we reuse it.
+        const tGrammarInitStart = performance.now();
+        log.info("Reuse grammar matcher.");
+        this.grammarMatcher.reset();
+        this.curRoundGrammarInitTotalTime =
+          (performance.now() - tGrammarInitStart) / 1e3;
+      } else {
+        // Else dispose current grammarMatcher, reinitialize, and update this.schema.
+        /* eslint-disable no-async-promise-executor */
+        grammarMatcherInitPromise = new Promise(async (resolve) => {
+          const tGrammarInitStart = performance.now();
+          log.info("Initialize new grammar matcher.");
+          if (this.grammarMatcher) {
+            this.grammarMatcher.dispose();
+          }
+          if (this.xgTokenizerInfo === undefined) {
+            log.info("Initialize token table.");
+            // Post process entire table
+            const rawTokenTable = getTokenTableFromTokenizer(this.tokenizer);
+            this.xgTokenizerInfo = await xgr.TokenizerInfo.createTokenizerInfo(
+              rawTokenTable,
+              this.token_postproc_method,
+              this.prepend_space_in_encode,
+              this.fullVocabSize,
+            );
+            this.grammarCompiler =
+              await xgr.GrammarCompiler.createGrammarCompiler(
+                this.xgTokenizerInfo,
+              );
+          }
+          const grammar: xgr.CompiledGrammar =
+            curSchemaOrGrammarStr === undefined
+              ? await this.grammarCompiler!.compileBuiltinJSONGrammar()
+              : genConfig?.response_format?.type === "json_object"
+                ? await this.grammarCompiler!.compileJSONSchema(
+                    curSchemaOrGrammarStr,
+                  )
+                : await this.grammarCompiler!.compileGrammar(
+                    curSchemaOrGrammarStr,
+                  );
+          this.grammarMatcher =
+            await xgr.GrammarMatcher.createGrammarMatcher(grammar);
+          grammar.dispose();
+          this.schemaOrGrammarStr = curSchemaOrGrammarStr;
+          this.curRoundGrammarInitTotalTime =
+            (performance.now() - tGrammarInitStart) / 1e3;
+          resolve();
+        });
+      }
+    }
 
     // 0. Get inputData from conversation
     if (conversation.isTextCompletion) {
@@ -543,45 +633,11 @@ export class LLMChatPipeline {
         );
       }
     }
-
-    // 3. Instantiate grammar state matcher according to generation config
-    if (genConfig?.response_format?.type === "json_object") {
-      const curSchema = genConfig.response_format.schema;
-      if (curSchema === this.schema && this.grammarStateMatcher) {
-        // If we did not change the schema and have instantiated a GrammarStateMatcher, we reuse it.
-        this.grammarFactory.resetState(this.grammarStateMatcher);
-      } else {
-        // Else dispose current grammarStateMatcher, reinitialize, and update this.schema.
-        if (this.grammarStateMatcher) {
-          this.grammarStateMatcher.dispose();
-        }
-        if (this.tokenTable === undefined) {
-          const rawTokenTable = getTokenTableFromTokenizer(this.tokenizer);
-          // Post process entire table
-          this.tokenTable = this.tvm.detachFromCurrentScope(
-            this.fpostProcessTokenTable(
-              rawTokenTable,
-              this.token_postproc_method,
-            ),
-          );
-        }
-        const grammar: BNFGrammar =
-          curSchema === undefined
-            ? this.grammarFactory.getBNFGrammarOfJSON()
-            : this.grammarFactory.getBNFGrammarFromSchema(curSchema);
-        this.grammarStateMatcher = this.tvm.detachFromCurrentScope(
-          this.grammarFactory.getGrammarStateMatcherFromTokenTable(
-            grammar,
-            this.tokenTable!,
-          ),
-        );
-        this.schema = curSchema;
-      }
-    }
-
     this.tvm.endScope();
 
     // 4. Sample, stats, post process token sampled.
+    // We wait for prefill and grammar matcher init to finish
+    await Promise.all([this.device.sync(), grammarMatcherInitPromise]);
     const nextToken = await this.sampleTokenFromLogits(logits!, genConfig);
     logits!.dispose();
     const tend = performance.now();
@@ -667,14 +723,31 @@ export class LLMChatPipeline {
     if (max_tokens <= 0) {
       throw new MinValueError("max_tokens", 0);
     }
+
+    // Get ignore_eos from generationConfig (specified by user in completion request)
+    let ignore_eos = false;
+    if (
+      genConfig !== undefined &&
+      genConfig.ignore_eos !== undefined &&
+      genConfig.ignore_eos !== null
+    ) {
+      ignore_eos = genConfig.ignore_eos;
+    }
+
     // Get stopStrs, possibly overridden by genConfig for this round
     let stopStrs = this.stopStr;
     if (genConfig !== undefined && genConfig.stop) {
       stopStrs = stopStrs.concat(genConfig.stop);
     }
 
+    let stopTokens = this.stopTokens;
+    if (ignore_eos) {
+      stopTokens = [];
+      stopStrs = [];
+    }
+
     // Stop condition 1: stop token; otherwise, append to `this.outputIds`
-    if (this.stopTokens.includes(nextToken)) {
+    if (stopTokens.includes(nextToken)) {
       this.stopTriggered = true;
       this.finishReason = "stop";
     }
@@ -952,16 +1025,27 @@ export class LLMChatPipeline {
     }
 
     // 0. Update logitsOnGPU with on-GPU grammar bitmasking
-    if (response_format?.type === "json_object") {
+    if (
+      response_format?.type === "json_object" ||
+      response_format?.type === "grammar"
+    ) {
       this.tvm.beginScope();
-      if (this.grammarStateMatcher === undefined) {
-        throw Error("Expect grammar state matcher to be initialized.");
+      if (this.grammarMatcher === undefined) {
+        throw Error("Expect grammar matcher to be initialized.");
       }
-      // TODO(Charlie): Do we detach from current scope here for bitmask?
-      const bitMaskOnCPU = this.grammarFactory.findNextTokenBitmask(
-        this.grammarStateMatcher,
-        this.fullVocabSize,
-      ) as unknown as tvmjs.NDArray;
+
+      const tBitmaskStart = performance.now();
+      const bitMaskOnCPU: Int32Array =
+        await this.grammarMatcher.getNextTokenBitmask();
+      this.curRoundGrammarPerTokenTotalTime +=
+        (performance.now() - tBitmaskStart) / 1e3;
+
+      if (bitMaskOnCPU.length !== this.bitmaskSize) {
+        throw new Error(
+          `InternalError: Expect grammar bitmask to be ` +
+            `size ${this.bitmaskSize}, but got ${bitMaskOnCPU.length}.`,
+        );
+      }
       const bitMaskOnGPU = this.tvm
         .empty([1, this.bitmaskSize], "int32", this.device)
         .copyFrom(bitMaskOnCPU);
@@ -1081,20 +1165,21 @@ export class LLMChatPipeline {
     // 5. Update logit processor
     this.logitProcessor?.processSampledToken(sampledToken);
 
-    // 6. Update grammar state matcher with new token
-    if (response_format?.type === "json_object") {
-      this.tvm.beginScope();
-      if (this.grammarStateMatcher === undefined) {
-        throw Error("Expect grammar state matcher to be initialized.");
+    // 6. Update grammar matcher with new token
+    if (
+      response_format?.type === "json_object" ||
+      response_format?.type === "grammar"
+    ) {
+      if (this.grammarMatcher === undefined) {
+        throw Error("Expect grammar matcher to be initialized.");
       }
-      const accepted = this.grammarFactory.acceptToken(
-        this.grammarStateMatcher,
-        sampledToken,
-      );
+      const tAcceptStart = performance.now();
+      const accepted = this.grammarMatcher.acceptToken(sampledToken);
+      this.curRoundGrammarPerTokenTotalTime +=
+        (performance.now() - tAcceptStart) / 1e3;
       if (!accepted) {
-        throw Error("Grammar state matcher rejected the newly sampled token.");
+        throw Error("Grammar matcher rejected the newly sampled token.");
       }
-      this.tvm.endScope();
     }
 
     return sampledToken;

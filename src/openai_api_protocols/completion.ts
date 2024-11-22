@@ -183,6 +183,12 @@ export interface CompletionCreateParamsBase {
   top_p?: number | null;
 
   /**
+   * If true, will ignore stop string and stop token and generate until max_tokens hit.
+   * If unset, will treat as false.
+   */
+  ignore_eos?: boolean;
+
+  /**
    * ID of the model to use. This equals to `ModelRecord.model_id`, which needs to either be in
    * `webllm.prebuiltAppConfig` or in `engineConfig.appConfig`.
    *

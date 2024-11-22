@@ -465,6 +465,7 @@ export class MLCEngine implements MLCEngineInterface {
     pipeline: LLMChatPipeline,
     chatConfig: ChatConfig,
     genConfig: GenerationConfig,
+    timeReceived: number,
   ): AsyncGenerator<ChatCompletionChunk, void, void>;
   asyncGenerate(
     request: CompletionCreateParamsStreaming,
@@ -472,6 +473,7 @@ export class MLCEngine implements MLCEngineInterface {
     pipeline: LLMChatPipeline,
     chatConfig: ChatConfig,
     genConfig: GenerationConfig,
+    timeReceived: number,
   ): AsyncGenerator<Completion, void, void>;
   async *asyncGenerate(
     request: ChatCompletionRequestStreaming | CompletionCreateParamsStreaming,
@@ -479,6 +481,7 @@ export class MLCEngine implements MLCEngineInterface {
     pipeline: LLMChatPipeline,
     chatConfig: ChatConfig,
     genConfig: GenerationConfig,
+    timeReceived: number,
   ): AsyncGenerator<ChatCompletionChunk | Completion, void, void> {
     // Since it is an async generator, we need to do fine-grained try-catch to ensure lock is
     // released only when errors occur. Then release at the very end when no error occurs.
@@ -678,18 +681,39 @@ export class MLCEngine implements MLCEngineInterface {
 
     // 4. Usage chunk
     if (request.stream_options?.include_usage) {
+      const usedGrammar =
+        "response_format" in request &&
+        (request.response_format?.type === "grammar" ||
+          request.response_format?.type === "json_object");
       const completion_tokens = pipeline.getCurRoundDecodingTotalTokens();
       const prompt_tokens = pipeline.getCurRoundPrefillTotalTokens();
       const prefill_tokens_per_s = pipeline.getCurRoundPrefillTokensPerSec();
       const decode_tokens_per_s = pipeline.getCurRoundDecodingTokensPerSec();
+      const grammar_init_s = pipeline.getCurRoundGrammarInitTotalTime();
+      const prefill_time = pipeline.getCurRoundPrefillTotalTime();
+      const decode_time = pipeline.getCurRoundDecodingTotalTime();
+      const grammar_per_token_s =
+        pipeline.getCurRoundGrammarPerTokenTotalTime();
+      const defaultExtra = {
+        e2e_latency_s: (Date.now() - timeReceived) / 1000,
+        prefill_tokens_per_s: prefill_tokens_per_s,
+        decode_tokens_per_s: decode_tokens_per_s,
+        time_to_first_token_s: prefill_time,
+        time_per_output_token_s: decode_time / completion_tokens,
+      };
       const usage: CompletionUsage = {
         completion_tokens: completion_tokens,
         prompt_tokens: prompt_tokens,
         total_tokens: completion_tokens + prompt_tokens,
-        extra: {
-          prefill_tokens_per_s: prefill_tokens_per_s,
-          decode_tokens_per_s: decode_tokens_per_s,
-        },
+        extra: usedGrammar
+          ? {
+              ...defaultExtra,
+              ...{
+                grammar_init_s: grammar_init_s,
+                grammar_per_token_s: grammar_per_token_s / completion_tokens,
+              },
+            }
+          : defaultExtra,
       };
       if (isChatCompletion) {
         const usageChunk: ChatCompletionChunk = {
@@ -745,6 +769,7 @@ export class MLCEngine implements MLCEngineInterface {
   async chatCompletion(
     request: ChatCompletionRequest,
   ): Promise<AsyncIterable<ChatCompletionChunk> | ChatCompletion> {
+    const timeReceived = Date.now();
     // 0. Check model loaded and preprocess inputs
     const [selectedModelId, selectedPipeline, selectedChatConfig] =
       this.getLLMStates("ChatCompletionRequest", request.model);
@@ -766,6 +791,7 @@ export class MLCEngine implements MLCEngineInterface {
       logprobs: request.logprobs,
       top_logprobs: request.top_logprobs,
       response_format: request.response_format,
+      ignore_eos: request.ignore_eos,
     };
 
     // 0.5 Block wait until this pipeline finishes all previous requests
@@ -780,6 +806,7 @@ export class MLCEngine implements MLCEngineInterface {
         selectedPipeline,
         selectedChatConfig,
         genConfig,
+        timeReceived,
       );
     }
 
@@ -796,6 +823,8 @@ export class MLCEngine implements MLCEngineInterface {
       let prompt_tokens = 0;
       let prefill_time = 0;
       let decode_time = 0;
+      let grammar_init_s = 0;
+      let grammar_per_token_s = 0;
       for (let i = 0; i < n; i++) {
         let outputMessage: string;
         if (this.interruptSignal) {
@@ -852,8 +881,21 @@ export class MLCEngine implements MLCEngineInterface {
         prompt_tokens += selectedPipeline.getCurRoundPrefillTotalTokens();
         prefill_time += selectedPipeline.getCurRoundPrefillTotalTime();
         decode_time += selectedPipeline.getCurRoundDecodingTotalTime();
+        grammar_init_s += selectedPipeline.getCurRoundGrammarInitTotalTime();
+        grammar_per_token_s +=
+          selectedPipeline.getCurRoundGrammarPerTokenTotalTime();
       }
-
+      const usedGrammar =
+        "response_format" in request &&
+        (request.response_format?.type === "grammar" ||
+          request.response_format?.type === "json_object");
+      const defaultExtra = {
+        e2e_latency_s: (Date.now() - timeReceived) / 1000,
+        prefill_tokens_per_s: prompt_tokens / prefill_time,
+        decode_tokens_per_s: completion_tokens / decode_time,
+        time_to_first_token_s: prefill_time,
+        time_per_output_token_s: decode_time / completion_tokens,
+      };
       const response: ChatCompletion = {
         id: crypto.randomUUID(),
         choices: choices,
@@ -864,10 +906,15 @@ export class MLCEngine implements MLCEngineInterface {
           completion_tokens: completion_tokens,
           prompt_tokens: prompt_tokens,
           total_tokens: completion_tokens + prompt_tokens,
-          extra: {
-            prefill_tokens_per_s: prompt_tokens / prefill_time,
-            decode_tokens_per_s: completion_tokens / decode_time,
-          },
+          extra: usedGrammar
+            ? {
+                ...defaultExtra,
+                ...{
+                  grammar_init_s: grammar_init_s,
+                  grammar_per_token_s: grammar_per_token_s / completion_tokens,
+                },
+              }
+            : defaultExtra,
         } as CompletionUsage,
       };
 
@@ -901,6 +948,8 @@ export class MLCEngine implements MLCEngineInterface {
   async completion(
     request: CompletionCreateParams,
   ): Promise<AsyncIterable<Completion> | Completion> {
+    const timeReceived = Date.now();
+
     // 0. Check model loaded and preprocess inputs
     const [selectedModelId, selectedPipeline, selectedChatConfig] =
       this.getLLMStates("CompletionCreateParams", request.model);
@@ -915,6 +964,7 @@ export class MLCEngine implements MLCEngineInterface {
       logit_bias: request.logit_bias,
       logprobs: request.logprobs,
       top_logprobs: request.top_logprobs,
+      ignore_eos: request.ignore_eos,
     };
 
     // 0.5 Block wait until this pipeline finishes all previous requests
@@ -929,6 +979,7 @@ export class MLCEngine implements MLCEngineInterface {
         selectedPipeline,
         selectedChatConfig,
         genConfig,
+        timeReceived,
       );
     }
 
@@ -989,8 +1040,11 @@ export class MLCEngine implements MLCEngineInterface {
           prompt_tokens: prompt_tokens,
           total_tokens: completion_tokens + prompt_tokens,
           extra: {
+            e2e_latency_s: (Date.now() - timeReceived) / 1000,
             prefill_tokens_per_s: prompt_tokens / prefill_time,
             decode_tokens_per_s: completion_tokens / decode_time,
+            time_to_first_token_s: prefill_time,
+            time_per_output_token_s: decode_time / completion_tokens,
           },
         } as CompletionUsage,
       };
