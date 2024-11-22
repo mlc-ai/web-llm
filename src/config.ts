@@ -1134,7 +1134,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       low_resource_required: false,
-      vram_required_MB: 5106.67,
+      vram_required_MB: 1629.75,
       overrides: {
         context_window_size: 4096,
       },
@@ -1148,7 +1148,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
       low_resource_required: false,
-      vram_required_MB: 5900.09,
+      vram_required_MB: 1888.97,
       overrides: {
         context_window_size: 4096,
       },
