@@ -554,6 +554,7 @@ export class LLMChatPipeline {
               this.token_postproc_method,
               this.prepend_space_in_encode,
               this.fullVocabSize,
+              this.stopTokens,
             );
             this.grammarCompiler =
               await xgr.GrammarCompiler.createGrammarCompiler(
