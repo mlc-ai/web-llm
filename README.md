@@ -301,7 +301,7 @@ const engine: MLCEngineInterface =
 You can find a complete example on how to run WebLLM in service worker in [examples/service-worker](examples/service-worker/).
 
 ### Chrome Extension
-You can also find examples of building Chrome extension with WebLLM in [examples/chrome-extension](examples/chrome-extension/) and [examples/chrome-extension-webgpu-service-worker](examples/chrome-extension-webgpu-service-worker/). The latter one leverages service worker, so the extension is persistent in the background.
+You can also find examples of building Chrome extension with WebLLM in [examples/chrome-extension](examples/chrome-extension/) and [examples/chrome-extension-webgpu-service-worker](examples/chrome-extension-webgpu-service-worker/). The latter one leverages service worker, so the extension is persistent in the background. Additionally, you can explore another full project of a Chrome extension, WebLLM Assistant, which leverages WebLLM [here](https://github.com/mlc-ai/web-llm-assistant).
 
 ## Full OpenAI Compatibility
 WebLLM is designed to be fully compatible with [OpenAI API](https://platform.openai.com/docs/api-reference/chat). Thus, besides building a simple chatbot, you can also have the following functionalities with WebLLM:
