@@ -173,6 +173,12 @@ export interface MLCEngineInterface {
   embedding(request: EmbeddingCreateParams): Promise<CreateEmbeddingResponse>;
 
   /**
+   * Exposes the tokenizer for clients to avoid needing to load it twice
+   */
+  tokenize(input: string): Promise<Int32Array>;
+  decodeTokens(input: Int32Array): Promise<string>;
+
+  /**
    * @returns A text summarizing the runtime stats.
    * @param modelId Only required when multiple models are loaded.
    * @note This is an async function

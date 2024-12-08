@@ -34,7 +34,9 @@ type RequestKind =
   | "customRequest"
   | "keepAlive"
   | "setLogLevel"
-  | "setAppConfig";
+  | "setAppConfig"
+  | "tokenize"
+  | "decodeTokens";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 type ResponseKind = "return" | "throw" | "initProgressCallback";
@@ -57,6 +59,12 @@ export interface ForwardTokensAndSampleParams {
   inputIds: Array<number>;
   isPrefill: boolean;
   modelId?: string;
+}
+export interface TokenizeParams {
+  text: string;
+}
+export interface DecodeTokensParams {
+  inputIds: Int32Array;
 }
 
 // Notes on the following Params with modelId and chatOpts:
@@ -128,6 +136,7 @@ export type MessageContent =
   | CreateEmbeddingResponse
   | Completion
   | AppConfig
+  | Int32Array
   | void;
 /**
  * The message used in exchange between worker
