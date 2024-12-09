@@ -1,0 +1,433 @@
+
+
+
+
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Basic Usage &mdash; web-llm 0.2.77 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/tabs.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/tlcpack_theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+  
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <script type="text/javascript" src="../_static/js/tlcpack_theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Advanced Use Cases" href="advanced_usage.html" />
+    <link rel="prev" title="Getting Started with WebLLM" href="get_started.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    
+<header class="header">
+    <div class="innercontainer">
+      <div class="headerInner d-flex justify-content-between align-items-center">
+          <div class="headerLogo">
+          </div>
+
+          <div id="headMenu" class="headerNav">
+            <button type="button" id="closeHeadMenu" class="navCloseBtn"><img src="../_static/img/close-icon.svg" alt="Close"></button>
+             <ul class="nav">
+                <li class="nav-item">
+                   <a class="nav-link" href=https://webllm.mlc.ai/>Home</a>
+                </li>
+                <li class="nav-item">
+                   <a class="nav-link" href=https://github.com/mlc-ai/web-llm>Github</a>
+                </li>
+                <li class="nav-item">
+                   <a class="nav-link" href=https://discord.gg/9Xpy2HGBuD>Discord Server</a>
+                </li>
+             </ul>
+               <div class="responsivetlcdropdown">
+                 <button type="button" class="btn-link">
+                   Other Resources
+                 </button>
+                 <ul>
+                     <li>
+                       <a href=https://chat.webllm.ai/>WebLLM Chat</a>
+                     </li>
+                     <li>
+                       <a href=https://mlc.ai/>MLC Course</a>
+                     </li>
+                     <li>
+                       <a href=https://blog.mlc.ai/>MLC Blog</a>
+                     </li>
+                     <li>
+                       <a href=https://llm.mlc.ai/>MLC LLM</a>
+                     </li>
+                 </ul>
+               </div>
+          </div>
+            <div class="responsiveMenuIcon">
+              <button type="button" id="menuBtn" class="btn-menu"><img src="../_static/img/menu-icon.svg" alt="Menu Icon"></button>
+            </div>
+
+            <div class="tlcDropdown">
+              <div class="dropdown">
+                <button type="button" class="btn-link dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  Other Resources
+                </button>
+                <div class="dropdown-menu dropdown-menu-right">
+                  <ul>
+                     <li>
+                       <a href=https://chat.webllm.ai/>WebLLM Chat</a>
+                     </li>
+                     <li>
+                       <a href=https://mlc.ai/>MLC Course</a>
+                     </li>
+                     <li>
+                       <a href=https://blog.mlc.ai/>MLC Blog</a>
+                     </li>
+                     <li>
+                       <a href=https://llm.mlc.ai/>MLC LLM</a>
+                     </li>
+                  </ul>
+                </div>
+              </div>
+          </div>
+       </div>
+    </div>
+ </header>
+ 
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side fixed">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html">
+          
+
+          
+            
+            <img src="../_static/mlc-logo-with-text-landscape.svg" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+                <div class="version">
+                  0.2.77
+                </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="get_started.html">Getting Started with WebLLM</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Basic Usage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#model-records-in-webllm">Model Records in WebLLM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#creating-an-mlcengine">Creating an MLCEngine</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#chat-completion">Chat Completion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#streaming-chat-completion">Streaming Chat Completion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#chatbot-examples">Chatbot Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_usage.html">Advanced Use Cases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">WebLLM API Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../developer/building_from_source.html">Building From Source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer/add_models.html">Adding Models</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      
+      <nav class="wy-nav-top" aria-label="top navigation" data-toggle="wy-nav-top">
+        
+            <div class="togglemenu">
+
+            </div>
+            <div class="nav-content">
+              <!-- web-llm -->
+              Table of Contents
+            </div>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> <span class="br-arrow">></span></li>
+        
+      <li>Basic Usage</li>
+    
+    
+      
+      
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            
+              <a href="https://github.com/mlc-ai/mlc-llm/edit/main/docs/user/basic_usage.rst" class="fa fa-github"> Edit on GitHub</a>
+            
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <section id="basic-usage">
+<h1>Basic Usage<a class="headerlink" href="#basic-usage" title="Permalink to this heading">¶</a></h1>
+<section id="model-records-in-webllm">
+<h2>Model Records in WebLLM<a class="headerlink" href="#model-records-in-webllm" title="Permalink to this heading">¶</a></h2>
+<p>Each of the model available WebLLM is registered as an instance of
+<code class="docutils literal notranslate"><span class="pre">ModelRecord</span></code> and can be accessed at
+<a class="reference external" href="https://github.com/mlc-ai/web-llm/blob/main/src/config.ts#L293">webllm.prebuiltAppConfig.model_list</a>.</p>
+</section>
+<section id="creating-an-mlcengine">
+<h2>Creating an MLCEngine<a class="headerlink" href="#creating-an-mlcengine" title="Permalink to this heading">¶</a></h2>
+<p>WebLLM APIs are exposed through the <code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code> interface. You can create an <code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code> instance and loading the model by calling the CreateMLCEngine() factory function.</p>
+<p>(Note that loading models requires downloading and it can take a significant amount of time for the very first run without caching previously. You should properly handle this asynchronous call.)</p>
+<p><code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code> can be instantiated in two ways:
+1. Using the factory function <code class="docutils literal notranslate"><span class="pre">CreateMLCEngine</span></code>.
+2. Instantiating the <code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code> class directly and using <code class="docutils literal notranslate"><span class="pre">reload()</span></code> to load models.</p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">CreateMLCEngine</span><span class="p">,</span><span class="w"> </span><span class="nx">MLCEngine</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@mlc-ai/web-llm&quot;</span><span class="p">;</span>
+
+<span class="w"> </span><span class="c1">// Initialize with a progress callback</span>
+<span class="w"> </span><span class="kd">const</span><span class="w"> </span><span class="nx">initProgressCallback</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="nx">progress</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">     </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">&quot;Model loading progress:&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">progress</span><span class="p">);</span>
+<span class="w"> </span><span class="p">};</span>
+
+<span class="c1">// Using CreateMLCEngine</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">engine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">CreateMLCEngine</span><span class="p">(</span><span class="s2">&quot;Llama-3.1-8B-Instruct&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">initProgressCallback</span><span class="w"> </span><span class="p">});</span>
+
+<span class="c1">// Direct instantiation</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">engineInstance</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">MLCEngine</span><span class="p">({</span><span class="w"> </span><span class="nx">initProgressCallback</span><span class="w"> </span><span class="p">});</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">engineInstance</span><span class="p">.</span><span class="nx">reload</span><span class="p">(</span><span class="s2">&quot;Llama-3.1-8B-Instruct&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Under the hood, this factory function <code class="docutils literal notranslate"><span class="pre">CreateMLCEngine</span></code> does the following steps for first creating an engine instance (synchronous) and then loading the model (asynchronous). You can also do them separately in your application.</p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">MLCEngine</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@mlc-ai/web-llm&quot;</span><span class="p">;</span>
+
+<span class="c1">// This is a synchronous call that returns immediately</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">engine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">MLCEngine</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">initProgressCallback</span><span class="o">:</span><span class="w"> </span><span class="kt">initProgressCallback</span>
+<span class="p">});</span>
+
+<span class="c1">// This is an asynchronous call and can take a long time to finish</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">reload</span><span class="p">(</span><span class="nx">selectedModel</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+<section id="chat-completion">
+<h2>Chat Completion<a class="headerlink" href="#chat-completion" title="Permalink to this heading">¶</a></h2>
+<p>Chat completions can be invoked using OpenAI style chat APIs through the <code class="docutils literal notranslate"><span class="pre">engine.chat.completions</span></code> interface of an initialized <code class="docutils literal notranslate"><span class="pre">MLCEgnine</span></code>. For the full list of parameters and their descriptions, check <a class="reference internal" href="api_reference.html#api-reference"><span class="std std-ref">WebLLM API Reference</span></a> for full list of parameters.</p>
+<p>(Note: As model is determined at the <code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code> initialization time, <code class="docutils literal notranslate"><span class="pre">model</span></code> parameter is not supported and will be <strong>ignored</strong>. Instead, call <code class="docutils literal notranslate"><span class="pre">CreateMLCEngine(model)</span></code> or <code class="docutils literal notranslate"><span class="pre">engine.reload(model)</span></code> to reinitialize the engine to use a specific model.)</p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">messages</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">role</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;system&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">content</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;You are a helpful AI assistant.&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">role</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;user&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">content</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;Hello!&quot;</span><span class="w"> </span><span class="p">}</span>
+<span class="p">];</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">reply</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">completions</span><span class="p">.</span><span class="nx">create</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">messages</span><span class="p">,</span>
+<span class="p">});</span>
+
+<span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">reply</span><span class="p">.</span><span class="nx">choices</span><span class="p">[</span><span class="mf">0</span><span class="p">].</span><span class="nx">message</span><span class="p">);</span>
+<span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">reply</span><span class="p">.</span><span class="nx">usage</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+<section id="streaming-chat-completion">
+<h2>Streaming Chat Completion<a class="headerlink" href="#streaming-chat-completion" title="Permalink to this heading">¶</a></h2>
+<p>Streaming chat completion could be enabled by passsing <code class="docutils literal notranslate"><span class="pre">stream:</span> <span class="pre">true</span></code> parameter to the <cite>engine.chat.completions.create</cite> call configuration. Check <a class="reference internal" href="api_reference.html#api-reference"><span class="std std-ref">WebLLM API Reference</span></a> for full list of parameters.</p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">messages</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">role</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;system&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">content</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;You are a helpful AI assistant.&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">role</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;user&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">content</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;Hello!&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="p">]</span>
+
+<span class="c1">// Chunks is an AsyncGenerator object</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">chunks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">completions</span><span class="p">.</span><span class="nx">create</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">messages</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">temperature</span><span class="o">:</span><span class="w"> </span><span class="kt">1</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">stream</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span><span class="w"> </span><span class="c1">// &lt;-- Enable streaming</span>
+<span class="w">    </span><span class="nx">stream_options</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">include_usage</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span>
+<span class="p">});</span>
+
+<span class="kd">let</span><span class="w"> </span><span class="nx">reply</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">;</span>
+<span class="k">for</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="nx">chunk</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="nx">chunks</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">reply</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="nx">chunk</span><span class="p">.</span><span class="nx">choices</span><span class="p">[</span><span class="mf">0</span><span class="p">]</span><span class="o">?</span><span class="p">.</span><span class="nx">delta</span><span class="p">.</span><span class="nx">content</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="s2">&quot;&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">reply</span><span class="p">);</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">chunk</span><span class="p">.</span><span class="nx">usage</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">chunk</span><span class="p">.</span><span class="nx">usage</span><span class="p">);</span><span class="w"> </span><span class="c1">// only last chunk has usage</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">fullReply</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">getMessage</span><span class="p">();</span>
+<span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">fullReply</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+<section id="chatbot-examples">
+<h2>Chatbot Examples<a class="headerlink" href="#chatbot-examples" title="Permalink to this heading">¶</a></h2>
+<p>Learn how to use WebLLM to integrate large language models into your applications and generate chat completions through this simple Chatbot example:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://jsfiddle.net/neetnestor/4nmgvsa2/">Example in JSFiddle</a></p></li>
+<li><p><a class="reference external" href="https://codepen.io/neetnestor/pen/vYwgZaG">Example in CodePen</a></p></li>
+</ul>
+<p>For an advanced example of a larger, more complicated project, check <a class="reference external" href="https://github.com/mlc-ai/web-llm-chat/blob/main/app/client/webllm.ts">WebLLM Chat</a>.</p>
+<p>More examples for different use cases are available in the examples folder.</p>
+</section>
+</section>
+
+
+           </div>
+           
+          </div>
+          
+
+<footer>
+
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="advanced_usage.html" class="btn btn-neutral float-right" title="Advanced Use Cases" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="get_started.html" class="btn btn-neutral float-left" title="Getting Started with WebLLM" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+
+<div id="button" class="backtop"><img src="../_static/img/right.svg" alt="backtop"/> </div>
+<section class="footerSec">
+    <div class="footerHeader">
+      <div class="d-flex align-md-items-center justify-content-between flex-column flex-md-row">
+        <div class="copywrite d-flex align-items-center">
+          <h5 id="copy-right-info">© 2023 MLC LLM</h5>
+        </div>
+      </div>
+
+    </div>
+
+    <div>
+      <div class="footernote"> </div>
+    </div>
+
+</section>
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+
+  </body>
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

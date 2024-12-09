@@ -1,0 +1,395 @@
+
+
+
+
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Getting Started with WebLLM &mdash; web-llm 0.2.77 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/tabs.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/tlcpack_theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+  
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <script type="text/javascript" src="../_static/js/tlcpack_theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Basic Usage" href="basic_usage.html" />
+    <link rel="prev" title="👋 Welcome to WebLLM" href="../index.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    
+<header class="header">
+    <div class="innercontainer">
+      <div class="headerInner d-flex justify-content-between align-items-center">
+          <div class="headerLogo">
+          </div>
+
+          <div id="headMenu" class="headerNav">
+            <button type="button" id="closeHeadMenu" class="navCloseBtn"><img src="../_static/img/close-icon.svg" alt="Close"></button>
+             <ul class="nav">
+                <li class="nav-item">
+                   <a class="nav-link" href=https://webllm.mlc.ai/>Home</a>
+                </li>
+                <li class="nav-item">
+                   <a class="nav-link" href=https://github.com/mlc-ai/web-llm>Github</a>
+                </li>
+                <li class="nav-item">
+                   <a class="nav-link" href=https://discord.gg/9Xpy2HGBuD>Discord Server</a>
+                </li>
+             </ul>
+               <div class="responsivetlcdropdown">
+                 <button type="button" class="btn-link">
+                   Other Resources
+                 </button>
+                 <ul>
+                     <li>
+                       <a href=https://chat.webllm.ai/>WebLLM Chat</a>
+                     </li>
+                     <li>
+                       <a href=https://mlc.ai/>MLC Course</a>
+                     </li>
+                     <li>
+                       <a href=https://blog.mlc.ai/>MLC Blog</a>
+                     </li>
+                     <li>
+                       <a href=https://llm.mlc.ai/>MLC LLM</a>
+                     </li>
+                 </ul>
+               </div>
+          </div>
+            <div class="responsiveMenuIcon">
+              <button type="button" id="menuBtn" class="btn-menu"><img src="../_static/img/menu-icon.svg" alt="Menu Icon"></button>
+            </div>
+
+            <div class="tlcDropdown">
+              <div class="dropdown">
+                <button type="button" class="btn-link dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  Other Resources
+                </button>
+                <div class="dropdown-menu dropdown-menu-right">
+                  <ul>
+                     <li>
+                       <a href=https://chat.webllm.ai/>WebLLM Chat</a>
+                     </li>
+                     <li>
+                       <a href=https://mlc.ai/>MLC Course</a>
+                     </li>
+                     <li>
+                       <a href=https://blog.mlc.ai/>MLC Blog</a>
+                     </li>
+                     <li>
+                       <a href=https://llm.mlc.ai/>MLC LLM</a>
+                     </li>
+                  </ul>
+                </div>
+              </div>
+          </div>
+       </div>
+    </div>
+ </header>
+ 
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side fixed">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html">
+          
+
+          
+            
+            <img src="../_static/mlc-logo-with-text-landscape.svg" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+                <div class="version">
+                  0.2.77
+                </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Getting Started with WebLLM</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#webllm-chat">WebLLM Chat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#using-package-managers">Using Package Managers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#using-cdn">Using CDN</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#verifying-installation">Verifying Installation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#online-ide-sandbox">Online IDE Sandbox</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="basic_usage.html">Basic Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_usage.html">Advanced Use Cases</a></li>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">WebLLM API Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../developer/building_from_source.html">Building From Source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer/add_models.html">Adding Models</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      
+      <nav class="wy-nav-top" aria-label="top navigation" data-toggle="wy-nav-top">
+        
+            <div class="togglemenu">
+
+            </div>
+            <div class="nav-content">
+              <!-- web-llm -->
+              Table of Contents
+            </div>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> <span class="br-arrow">></span></li>
+        
+      <li>Getting Started with WebLLM</li>
+    
+    
+      
+      
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            
+              <a href="https://github.com/mlc-ai/mlc-llm/edit/main/docs/user/get_started.rst" class="fa fa-github"> Edit on GitHub</a>
+            
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <section id="getting-started-with-webllm">
+<h1>Getting Started with WebLLM<a class="headerlink" href="#getting-started-with-webllm" title="Permalink to this heading">¶</a></h1>
+<p>This guide will help you set up WebLLM in your project, install necessary dependencies, and verify your setup.</p>
+<section id="webllm-chat">
+<h2>WebLLM Chat<a class="headerlink" href="#webllm-chat" title="Permalink to this heading">¶</a></h2>
+<p>If you want to experience AI Chat supported by local LLM inference and understand how WebLLM works, try out <a class="reference external" href="https://chat.webllm.ai/">WebLLM Chat</a>, which provides a great example
+of integrating WebLLM into a full web application.</p>
+<p>A WebGPU-compatible browser is needed to run WebLLM-powered web applications.
+You can download the latest Google Chrome and use <a class="reference external" href="https://webgpureport.org/">WebGPU Report</a>
+to verify the functionality of WebGPU on your browser.</p>
+</section>
+<section id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this heading">¶</a></h2>
+<p>WebLLM offers a minimalist and modular interface to access the chatbot in the browser. The package is designed in a modular way to hook to any of the UI components.</p>
+<p>WebLLM is available as an <a class="reference external" href="https://www.npmjs.com/package/&#64;mlc-ai/web-llm">npm package</a> and is also CDN-delivered. Therefore, uou can install WebLLM using Node.js pacakage managers like npm, yarn, or pnpm, or directly import the pacakge via CDN.</p>
+<section id="using-package-managers">
+<h3>Using Package Managers<a class="headerlink" href="#using-package-managers" title="Permalink to this heading">¶</a></h3>
+<p>Install WebLLM via your preferred package manager:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># npm</span>
+npm<span class="w"> </span>install<span class="w"> </span>@mlc-ai/web-llm
+<span class="c1"># yarn</span>
+yarn<span class="w"> </span>add<span class="w"> </span>@mlc-ai/web-llm
+<span class="c1"># pnpm</span>
+pnpm<span class="w"> </span>install<span class="w"> </span>@mlc-ai/web-llm
+</pre></div>
+</div>
+<p>Import WebLLM into your project:</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// Import everything</span>
+<span class="k">import</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="nx">webllm</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@mlc-ai/web-llm&quot;</span><span class="p">;</span>
+
+<span class="c1">// Or only import what you need</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">CreateMLCEngine</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@mlc-ai/web-llm&quot;</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+<section id="using-cdn">
+<h3>Using CDN<a class="headerlink" href="#using-cdn" title="Permalink to this heading">¶</a></h3>
+<p>Thanks to <a class="reference external" href="https://www.jsdelivr.com/package/npm/&#64;mlc-ai/web-llm">jsdelivr.com</a>, WebLLM can be imported directly through URL and work out-of-the-box on cloud development platforms like <a class="reference external" href="https://jsfiddle.net/">jsfiddle.net</a>, <a class="reference external" href="https://codepen.io/">Codepen.io</a>, and <a class="reference external" href="https://scribbler.live/">Scribbler</a>:</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="k">import</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="nx">webllm</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;https://esm.run/@mlc-ai/web-llm&quot;</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>This method is especially useful for online environments like CodePen, JSFiddle, or local experiments.</p>
+</section>
+<section id="verifying-installation">
+<h3>Verifying Installation<a class="headerlink" href="#verifying-installation" title="Permalink to this heading">¶</a></h3>
+<p>Run the following script to verify the installation:</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">CreateMLCEngine</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@mlc-ai/web-llm&quot;</span><span class="p">;</span>
+<span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">&quot;WebLLM loaded successfully!&quot;</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="online-ide-sandbox">
+<h2>Online IDE Sandbox<a class="headerlink" href="#online-ide-sandbox" title="Permalink to this heading">¶</a></h2>
+<p>Instead of setting WebLLM locally, you can also try it on online Javascript IDE sandboxes like:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://jsfiddle.net/neetnestor/4nmgvsa2/">Example in JSFiddle</a></p></li>
+<li><p><a class="reference external" href="https://codepen.io/neetnestor/pen/vYwgZaG">Example in CodePen</a></p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+           
+          </div>
+          
+
+<footer>
+
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="basic_usage.html" class="btn btn-neutral float-right" title="Basic Usage" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="../index.html" class="btn btn-neutral float-left" title="👋 Welcome to WebLLM" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+
+<div id="button" class="backtop"><img src="../_static/img/right.svg" alt="backtop"/> </div>
+<section class="footerSec">
+    <div class="footerHeader">
+      <div class="d-flex align-md-items-center justify-content-between flex-column flex-md-row">
+        <div class="copywrite d-flex align-items-center">
+          <h5 id="copy-right-info">© 2023 MLC LLM</h5>
+        </div>
+      </div>
+
+    </div>
+
+    <div>
+      <div class="footernote"> </div>
+    </div>
+
+</section>
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+
+  </body>
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

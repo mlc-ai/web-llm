@@ -1,0 +1,449 @@
+
+
+
+
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Advanced Use Cases &mdash; web-llm 0.2.77 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/tabs.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/tlcpack_theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+  
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <script type="text/javascript" src="../_static/js/tlcpack_theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="WebLLM API Reference" href="api_reference.html" />
+    <link rel="prev" title="Basic Usage" href="basic_usage.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    
+<header class="header">
+    <div class="innercontainer">
+      <div class="headerInner d-flex justify-content-between align-items-center">
+          <div class="headerLogo">
+          </div>
+
+          <div id="headMenu" class="headerNav">
+            <button type="button" id="closeHeadMenu" class="navCloseBtn"><img src="../_static/img/close-icon.svg" alt="Close"></button>
+             <ul class="nav">
+                <li class="nav-item">
+                   <a class="nav-link" href=https://webllm.mlc.ai/>Home</a>
+                </li>
+                <li class="nav-item">
+                   <a class="nav-link" href=https://github.com/mlc-ai/web-llm>Github</a>
+                </li>
+                <li class="nav-item">
+                   <a class="nav-link" href=https://discord.gg/9Xpy2HGBuD>Discord Server</a>
+                </li>
+             </ul>
+               <div class="responsivetlcdropdown">
+                 <button type="button" class="btn-link">
+                   Other Resources
+                 </button>
+                 <ul>
+                     <li>
+                       <a href=https://chat.webllm.ai/>WebLLM Chat</a>
+                     </li>
+                     <li>
+                       <a href=https://mlc.ai/>MLC Course</a>
+                     </li>
+                     <li>
+                       <a href=https://blog.mlc.ai/>MLC Blog</a>
+                     </li>
+                     <li>
+                       <a href=https://llm.mlc.ai/>MLC LLM</a>
+                     </li>
+                 </ul>
+               </div>
+          </div>
+            <div class="responsiveMenuIcon">
+              <button type="button" id="menuBtn" class="btn-menu"><img src="../_static/img/menu-icon.svg" alt="Menu Icon"></button>
+            </div>
+
+            <div class="tlcDropdown">
+              <div class="dropdown">
+                <button type="button" class="btn-link dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  Other Resources
+                </button>
+                <div class="dropdown-menu dropdown-menu-right">
+                  <ul>
+                     <li>
+                       <a href=https://chat.webllm.ai/>WebLLM Chat</a>
+                     </li>
+                     <li>
+                       <a href=https://mlc.ai/>MLC Course</a>
+                     </li>
+                     <li>
+                       <a href=https://blog.mlc.ai/>MLC Blog</a>
+                     </li>
+                     <li>
+                       <a href=https://llm.mlc.ai/>MLC LLM</a>
+                     </li>
+                  </ul>
+                </div>
+              </div>
+          </div>
+       </div>
+    </div>
+ </header>
+ 
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side fixed">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html">
+          
+
+          
+            
+            <img src="../_static/mlc-logo-with-text-landscape.svg" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+                <div class="version">
+                  0.2.77
+                </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="get_started.html">Getting Started with WebLLM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_usage.html">Basic Usage</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Advanced Use Cases</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#using-workers">Using Workers</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#using-web-workers">Using Web Workers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#service-workers">Service Workers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#chrome-extension">Chrome Extension</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#other-customization">Other Customization</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#using-indexeddb-cache">Using IndexedDB Cache</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#customizing-token-behavior">Customizing Token Behavior</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">WebLLM API Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../developer/building_from_source.html">Building From Source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer/add_models.html">Adding Models</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      
+      <nav class="wy-nav-top" aria-label="top navigation" data-toggle="wy-nav-top">
+        
+            <div class="togglemenu">
+
+            </div>
+            <div class="nav-content">
+              <!-- web-llm -->
+              Table of Contents
+            </div>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> <span class="br-arrow">></span></li>
+        
+      <li>Advanced Use Cases</li>
+    
+    
+      
+      
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            
+              <a href="https://github.com/mlc-ai/mlc-llm/edit/main/docs/user/advanced_usage.rst" class="fa fa-github"> Edit on GitHub</a>
+            
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <section id="advanced-use-cases">
+<h1>Advanced Use Cases<a class="headerlink" href="#advanced-use-cases" title="Permalink to this heading">¶</a></h1>
+<section id="using-workers">
+<h2>Using Workers<a class="headerlink" href="#using-workers" title="Permalink to this heading">¶</a></h2>
+<p>You can put the heavy computation in a worker script to optimize your application performance. To do so, you need to:</p>
+<p>Create a handler in the worker thread that communicates with the frontend while handling the requests.
+Create a Worker Engine in your main application, which under the hood sends messages to the handler in the worker thread.
+For detailed implementations of different kinds of Workers, check the following sections.</p>
+<section id="using-web-workers">
+<h3>Using Web Workers<a class="headerlink" href="#using-web-workers" title="Permalink to this heading">¶</a></h3>
+<p>WebLLM comes with API support for <a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers">Web Workers</a> so you can offload the computation-heavy generation work into a separate worker thread. WebLLM has implemented the cross-thread communication through messages under the hood so you don’t need to manually implement it any more.</p>
+<p>In the worker script, import and instantiate <code class="docutils literal notranslate"><span class="pre">WebWorkerMLCEngineHandler</span></code>, which handles the communications with other scripts and processes incoming requests.</p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="c1">// worker.ts</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">WebWorkerMLCEngineHandler</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@mlc-ai/web-llm&quot;</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">handler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">WebWorkerMLCEngineHandler</span><span class="p">();</span>
+<span class="nx">self</span><span class="p">.</span><span class="nx">onmessage</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="nx">msg</span><span class="o">:</span><span class="w"> </span><span class="kt">MessageEvent</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">handler</span><span class="p">.</span><span class="nx">onmessage</span><span class="p">(</span><span class="nx">msg</span><span class="p">);</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p>In the main script, import and instantiate a <code class="docutils literal notranslate"><span class="pre">WebWorkerMLCEngine</span></code> that implements the same <code class="docutils literal notranslate"><span class="pre">MLCEngineInterface</span></code> and exposes the same APIs, then simply use it as how you would use a normal <code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code> in your application.</p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">CreateWebWorkerMLCEngine</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@mlc-ai/web-llm&quot;</span><span class="p">;</span>
+
+<span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">runWorker</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">engine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">CreateWebWorkerMLCEngine</span><span class="p">(</span>
+<span class="w">        </span><span class="ow">new</span><span class="w"> </span><span class="nx">Worker</span><span class="p">(</span><span class="ow">new</span><span class="w"> </span><span class="nx">URL</span><span class="p">(</span><span class="s2">&quot;./worker.ts&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">import</span><span class="p">.</span><span class="nx">meta</span><span class="p">.</span><span class="nx">url</span><span class="p">),</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;module&quot;</span><span class="w"> </span><span class="p">}),</span>
+<span class="w">        </span><span class="s2">&quot;Llama-3.1-8B-Instruct&quot;</span>
+<span class="w">    </span><span class="p">);</span>
+
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">messages</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[{</span><span class="w"> </span><span class="nx">role</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;user&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">content</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;How does WebLLM use workers?&quot;</span><span class="w"> </span><span class="p">}];</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">reply</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">completions</span><span class="p">.</span><span class="nx">create</span><span class="p">({</span><span class="w"> </span><span class="nx">messages</span><span class="w"> </span><span class="p">});</span>
+<span class="w">    </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">reply</span><span class="p">.</span><span class="nx">choices</span><span class="p">[</span><span class="mf">0</span><span class="p">].</span><span class="nx">message</span><span class="p">.</span><span class="nx">content</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="nx">runWorker</span><span class="p">();</span>
+</pre></div>
+</div>
+<p>Under the hood, <code class="docutils literal notranslate"><span class="pre">WebWorkerMLCEngine</span></code> does <strong>not</strong> actual doing any computation, but instead serves as a proxy to translate all calls into messages and send to the <code class="docutils literal notranslate"><span class="pre">WebWorkerMLCEngineHandler</span></code> to process. The worker thread will receive these messages and process the actual computation using a hidden engine, and return the result back to the main thread using messages.</p>
+</section>
+<section id="service-workers">
+<h3>Service Workers<a class="headerlink" href="#service-workers" title="Permalink to this heading">¶</a></h3>
+<p>WebLLM also support offloading the computation in <a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API">Service Workers</a> to avoid reloading the model between page refreshes and optimize your application’s offline experience.</p>
+<p>(Note, Service Worker’s life cycle is managed by the browser and can be killed any time without notifying the webapp. WebLLM’s <code class="docutils literal notranslate"><span class="pre">ServiceWorkerMLCEngine</span></code> will try to keep the service worker thread alive by periodically sending heartbeat events, but the script could still be killed any time by Chrome and your application should include proper error handling. Check <cite>keepAliveMs</cite> and <cite>missedHeatbeat</cite> in <a class="reference external" href="https://github.com/mlc-ai/web-llm/blob/main/src/service_worker.ts#L234">ServiceWorkerMLCEngine</a> for more details.)</p>
+<p>In the worker script, import and instantiate <code class="docutils literal notranslate"><span class="pre">ServiceWorkerMLCEngineHandler</span></code>, which handles the communications with page scripts and processes incoming requests.</p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="c1">// sw.ts</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ServiceWorkerMLCEngineHandler</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@mlc-ai/web-llm&quot;</span><span class="p">;</span>
+
+<span class="nx">self</span><span class="p">.</span><span class="nx">addEventListener</span><span class="p">(</span><span class="s2">&quot;activate&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">handler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="ow">new</span><span class="w"> </span><span class="nx">ServiceWorkerMLCEngineHandler</span><span class="p">();</span>
+<span class="w">    </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">&quot;Service Worker activated!&quot;</span><span class="p">);</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+<p>Then in the main page script, register the service worker and instantiate the engine using <code class="docutils literal notranslate"><span class="pre">CreateServiceWorkerMLCEngine</span></code> factory function. The Engine implements the same <code class="docutils literal notranslate"><span class="pre">MLCEngineInterface</span></code> and exposes the same APIs, then simply use it as how you would use a normal <code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code> in your application.</p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="c1">// main.ts</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">MLCEngineInterface</span><span class="p">,</span><span class="w"> </span><span class="nx">CreateServiceWorkerMLCEngine</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@mlc-ai/web-llm&quot;</span><span class="p">;</span>
+
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="s2">&quot;serviceWorker&quot;</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="nx">navigator</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="nx">navigator</span><span class="p">.</span><span class="nx">serviceWorker</span><span class="p">.</span><span class="nx">register</span><span class="p">(</span>
+<span class="w">    </span><span class="ow">new</span><span class="w"> </span><span class="nx">URL</span><span class="p">(</span><span class="s2">&quot;sw.ts&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">import</span><span class="p">.</span><span class="nx">meta</span><span class="p">.</span><span class="nx">url</span><span class="p">),</span><span class="w">  </span><span class="c1">// worker script</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;module&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">engine</span><span class="o">:</span><span class="w"> </span><span class="kt">MLCEngineInterface</span><span class="w"> </span><span class="o">=</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">CreateServiceWorkerMLCEngine</span><span class="p">(</span>
+<span class="w">    </span><span class="nx">selectedModel</span><span class="p">,</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">initProgressCallback</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="c1">// engineConfig</span>
+<span class="p">);</span>
+</pre></div>
+</div>
+<p>Similar to the <code class="docutils literal notranslate"><span class="pre">WebWorkerMLCEngine</span></code> above, the <code class="docutils literal notranslate"><span class="pre">ServiceWorkerMLCEngine</span></code> is also a proxy and does not do any actual computation. Instead it sends all calls to the service worker thread to handle and receives the result back through messages.</p>
+</section>
+</section>
+<section id="chrome-extension">
+<h2>Chrome Extension<a class="headerlink" href="#chrome-extension" title="Permalink to this heading">¶</a></h2>
+<p>WebLLM can be used in Chrome extensions to empower local LLM inference. You can find examples of building Chrome extension using WebLLM in <a class="reference external" href="https://github.com/mlc-ai/web-llm/blob/main/examples/chrome-extension">examples/chrome-extension</a> and <a class="reference external" href="https://github.com/mlc-ai/web-llm/blob/main/examples/chrome-extension-webgpu-service-worker">examples/chrome-extension-webgpu-service-worker</a>. The latter one leverages service worker, so the extension is persistent in the background.</p>
+<p>Additionally, we have a full Chrome extension project, <a class="reference external" href="https://github.com/mlc-ai/web-llm-assistant">WebLLM Assistant</a>, which leverages WebLLM to provide personal web browsing copilot assistance experience. Free to to check it out and contribute if you are interested.</p>
+</section>
+<section id="other-customization">
+<h2>Other Customization<a class="headerlink" href="#other-customization" title="Permalink to this heading">¶</a></h2>
+<section id="using-indexeddb-cache">
+<h3>Using IndexedDB Cache<a class="headerlink" href="#using-indexeddb-cache" title="Permalink to this heading">¶</a></h3>
+<p>Set <cite>appConfig</cite> in <cite>MLCEngineConfig</cite> to enable caching for faster subsequent model loads.</p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">engine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">CreateMLCEngine</span><span class="p">(</span><span class="s2">&quot;Llama-3.1-8B-Instruct&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">appConfig</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">useIndexedDB</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">models</span><span class="o">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">            </span><span class="p">{</span><span class="w"> </span><span class="nx">model_id</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;Llama-3.1-8B&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">model_path</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;/models/llama3&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">        </span><span class="p">],</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+</section>
+<section id="customizing-token-behavior">
+<h3>Customizing Token Behavior<a class="headerlink" href="#customizing-token-behavior" title="Permalink to this heading">¶</a></h3>
+<p>Modify <cite>logit_bias</cite> in <cite>GenerationConfig</cite> to influence token likelihood:</p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">messages</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">role</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;user&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">content</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;Describe WebLLM in detail.&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="p">];</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">response</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">chatCompletion</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">messages</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">logit_bias</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s2">&quot;50256&quot;</span><span class="o">:</span><span class="w"> </span><span class="o">-</span><span class="mf">100</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="c1">// Example: Prevent specific token generation</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+
+           </div>
+           
+          </div>
+          
+
+<footer>
+
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="api_reference.html" class="btn btn-neutral float-right" title="WebLLM API Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="basic_usage.html" class="btn btn-neutral float-left" title="Basic Usage" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+
+<div id="button" class="backtop"><img src="../_static/img/right.svg" alt="backtop"/> </div>
+<section class="footerSec">
+    <div class="footerHeader">
+      <div class="d-flex align-md-items-center justify-content-between flex-column flex-md-row">
+        <div class="copywrite d-flex align-items-center">
+          <h5 id="copy-right-info">© 2023 MLC LLM</h5>
+        </div>
+      </div>
+
+    </div>
+
+    <div>
+      <div class="footernote"> </div>
+    </div>
+
+</section>
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+
+  </body>
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
