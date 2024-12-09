@@ -1,4 +1,4 @@
-# MLC-LLM Documentation
+# WebLLM Documentation
 
 The documentation was built upon [Sphinx](https://www.sphinx-doc.org/en/master/).
 
