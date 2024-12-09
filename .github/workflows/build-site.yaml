@@ -16,6 +16,7 @@ jobs:
     - name: Configuring build Environment
       run: |
         sudo apt-get update
+        python -m pip install -U pip
 
     - name: Setup Ruby
       uses: ruby/setup-ruby@v1
@@ -24,13 +25,10 @@ jobs:
 
     - name: Installing dependencies
       run: |
+        python -m pip install -r docs/requirements.txt
         gem install jekyll jekyll-remote-theme jekyll-sass-converter
 
-    - name: Build site
-      run: |
-        cd site && jekyll b && cd ..
-
-    - name: Push to gh-pages branch
+    - name: Build and deploy site
       if: github.ref == 'refs/heads/main'
       run: |
         git remote set-url origin https://x-access-token:${{ secrets.MLC_GITHUB_TOKEN }}@github.com/$GITHUB_REPOSITORY
