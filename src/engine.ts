@@ -70,6 +70,7 @@ import {
 } from "./error";
 import { asyncLoadTokenizer } from "./cache_util";
 import { EmbeddingPipeline } from "./embedding";
+import { Tokenizer } from "@mlc-ai/web-tokenizers";
 
 /**
  * Creates `MLCEngine`, and loads `modelId` onto WebGPU.
@@ -131,6 +132,7 @@ export class MLCEngine implements MLCEngineInterface {
   private logitProcessorRegistry?: Map<string, LogitProcessor>;
   private initProgressCallback?: InitProgressCallback;
   private appConfig: AppConfig;
+  private tokenizer: Tokenizer | null = null;
 
   // Signals and flags
   private interruptSignal = false;
@@ -359,7 +361,7 @@ export class MLCEngine implements MLCEngineInterface {
     });
     tvm.initWebGPU(gpuDetectOutput.device);
 
-    const tokenizer = await asyncLoadTokenizer(
+    this.tokenizer = await asyncLoadTokenizer(
       modelUrl,
       curModelConfig,
       this.appConfig,
@@ -379,11 +381,11 @@ export class MLCEngine implements MLCEngineInterface {
     // embedding model, and prompt user to use ModelRecord.model_type
     let newPipeline: LLMChatPipeline | EmbeddingPipeline;
     if (modelRecord.model_type === ModelType.embedding) {
-      newPipeline = new EmbeddingPipeline(tvm, tokenizer, curModelConfig);
+      newPipeline = new EmbeddingPipeline(tvm, this.tokenizer, curModelConfig);
     } else {
       newPipeline = new LLMChatPipeline(
         tvm,
-        tokenizer,
+        this.tokenizer,
         curModelConfig,
         logitProcessor,
       );
@@ -1386,5 +1388,17 @@ export class MLCEngine implements MLCEngineInterface {
    */
   async decode(pipeline: LLMChatPipeline, genConfig?: GenerationConfig) {
     return pipeline.decodeStep(genConfig);
+  }
+
+  //-----------------------------------------------
+  // 8. Expose tokenizer
+  //-----------------------------------------------
+
+  async tokenize(text: string) {
+    return this.tokenizer!.encode(text);
+  }
+
+  async decodeTokens(ids: Int32Array) {
+    return this.tokenizer!.decode(ids);
   }
 }
