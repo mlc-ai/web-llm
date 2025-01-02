@@ -78,23 +78,27 @@ function displayReceivedMessage(peerId: string, message: string) {
 }
 
 // Tracker server integration to setup initial connection
-const trackerUrl = "wss://tracker.example.com";
-const tracker = new WebSocket(trackerUrl);
+const trackerClient = new Tracker({
+  infoHash: crypto.randomBytes(20).toString("hex"),
+  peerId: crypto.randomBytes(20).toString("hex"),
+  announce: ["wss://tracker.example.com"],
+  port: 6881
+});
 
-tracker.onopen = () => {
-  console.log("Connected to tracker server");
-  const peerId = crypto.randomBytes(20).toString("hex");
-  tracker.send(JSON.stringify({ action: "announce", peer_id: peerId }));
-};
+trackerClient.on('error', err => {
+  console.error('Tracker error:', err);
+});
 
-tracker.onmessage = (event) => {
-  const message = JSON.parse(event.data);
-  if (message.action === "announce") {
-    const { peer_id, host, port } = message;
-    console.log(`Received peer info from tracker: ${peer_id} - ${host}:${port}`);
-    connectToPeer(host, port);
-  }
-};
+trackerClient.on('update', data => {
+  console.log('Tracker update:', data);
+});
+
+trackerClient.on('peer', peer => {
+  console.log('Found peer:', peer);
+  connectToPeer(peer.host, peer.port);
+});
+
+trackerClient.start();
 
 let handler: ServiceWorkerMLCEngineHandler;
 
