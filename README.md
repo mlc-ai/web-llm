@@ -518,3 +518,73 @@ If you find this project to be useful, please cite:
 <p align="right">
   <a href="#top">⬆ Back to Top ⬆</a>
 </p>
+
+## WebRTC and DHT Integration
+
+### Sending Messages to Other Nodes
+
+To send a message to another node using WebRTC, you can use the `sendMessageToNode` function. Here is an example:
+
+```typescript
+function sendMessageToNode(peerId: string, message: string) {
+  const peerConnection = peers.get(peerId);
+  if (peerConnection) {
+    const dataChannel = peerConnection.createDataChannel("data");
+    dataChannel.onopen = () => {
+      dataChannel.send(message);
+      console.log(`Sent message to ${peerId}: ${message}`);
+    };
+  } else {
+    console.log(`Peer ${peerId} not found`);
+  }
+}
+```
+
+### Displaying Received Messages
+
+To display received messages from other nodes, you can use the `displayReceivedMessage` function. Here is an example:
+
+```typescript
+function displayReceivedMessage(peerId: string, message: string) {
+  console.log(`Message from ${peerId}: ${message}`);
+}
+```
+
+### Using Tracker to Setup Initial Connection
+
+To use a tracker to setup the initial connection, you can integrate the tracker server in your code. Here is an example:
+
+```typescript
+const trackerUrl = "wss://tracker.example.com";
+const tracker = new WebSocket(trackerUrl);
+
+tracker.onopen = () => {
+  console.log("Connected to tracker server");
+  const peerId = crypto.randomBytes(20).toString("hex");
+  tracker.send(JSON.stringify({ action: "announce", peer_id: peerId }));
+};
+
+tracker.onmessage = (event) => {
+  const message = JSON.parse(event.data);
+  if (message.action === "announce") {
+    const { peer_id, host, port } = message;
+    console.log(`Received peer info from tracker: ${peer_id} - ${host}:${port}`);
+    connectToPeer(host, port);
+  }
+};
+```
+
+### Tracker Response Format in WebTorrent
+
+The tracker response in WebTorrent is expected to be in the following format:
+
+```json
+{
+  "action": "announce",
+  "peer_id": "peer_id_value",
+  "host": "peer_host",
+  "port": "peer_port"
+}
+```
+
+This response includes the action type (`announce`), the peer ID (`peer_id`), the host (`host`), and the port (`port`) of the peer.

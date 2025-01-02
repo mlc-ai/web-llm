@@ -81,3 +81,22 @@ function sendMessageToNode(peerId: string, message: string) {
 function displayReceivedMessage(peerId: string, message: string) {
   console.log(`Message from ${peerId}: ${message}`);
 }
+
+// Tracker server integration to setup initial connection
+const trackerUrl = "wss://tracker.example.com";
+const tracker = new WebSocket(trackerUrl);
+
+tracker.onopen = () => {
+  console.log("Connected to tracker server");
+  const peerId = crypto.randomBytes(20).toString("hex");
+  tracker.send(JSON.stringify({ action: "announce", peer_id: peerId }));
+};
+
+tracker.onmessage = (event) => {
+  const message = JSON.parse(event.data);
+  if (message.action === "announce") {
+    const { peer_id, host, port } = message;
+    console.log(`Received peer info from tracker: ${peer_id} - ${host}:${port}`);
+    connectToPeer(host, port);
+  }
+};
