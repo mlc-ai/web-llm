@@ -126,6 +126,10 @@ export class MLCEngine implements MLCEngineInterface {
    */
   private loadedModelIdToLock: Map<string, CustomLock>;
 
+  // Model parallelism
+  private modelParallelismEnabled: boolean;
+  private distributedFramework: any; // Placeholder for the distributed framework
+
   // Others
   private logger: (msg: string) => void = log.info;
   private logitProcessorRegistry?: Map<string, LogitProcessor>;
@@ -153,6 +157,10 @@ export class MLCEngine implements MLCEngineInterface {
     this.chat = new API.Chat(this);
     this.completions = new API.Completions(this);
     this.embeddings = new API.Embeddings(this);
+
+    // Initialize model parallelism
+    this.modelParallelismEnabled = false;
+    this.distributedFramework = null; // Placeholder for the distributed framework
   }
 
   //-----------------------
@@ -184,6 +192,22 @@ export class MLCEngine implements MLCEngineInterface {
    */
   setLogLevel(logLevel: LogLevel) {
     log.setLevel(logLevel);
+  }
+
+  /**
+   * Enable model parallelism
+   */
+  enableModelParallelism(distributedFramework: any) {
+    this.modelParallelismEnabled = true;
+    this.distributedFramework = distributedFramework;
+  }
+
+  /**
+   * Disable model parallelism
+   */
+  disableModelParallelism() {
+    this.modelParallelismEnabled = false;
+    this.distributedFramework = null;
   }
 
   //----------------------------------------
@@ -931,7 +955,7 @@ export class MLCEngine implements MLCEngineInterface {
   /**
    * Completes a single CompletionCreateParams, a text completion with no chat template.
    *
-   * @param request A OpenAI-style Completion request.
+   * @param request An OpenAI-style Completion request.
    *
    * @note For each choice (i.e. `n`), a request is defined by a single `prefill()` and multiple
    * `decode()`. This is important as it determines the behavior of various fields including `seed`.

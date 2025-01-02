@@ -97,6 +97,44 @@ WebLLM can be used in Chrome extensions to empower local LLM inference. You can 
 Additionally, we have a full Chrome extension project, `WebLLM Assistant <https://github.com/mlc-ai/web-llm-assistant>`_, which leverages WebLLM to provide personal web browsing copilot assistance experience. Free to to check it out and contribute if you are interested.
 
 
+Using Model Parallelism
+-----------------------
+
+WebLLM supports model parallelism, allowing you to split models across multiple machines. This feature is useful for handling larger models that exceed the local memory size of a single machine.
+
+To enable model parallelism, follow these steps:
+
+1. **Enable Model Parallelism**: Use the `enableModelParallelism` method to enable model parallelism and specify the distributed framework to manage communication and synchronization between machines.
+
+.. code-block:: typescript
+
+   import { CreateMLCEngine } from "@mlc-ai/web-llm";
+
+   // Callback function to update model loading progress
+   const initProgressCallback = (initProgress) => {
+     console.log(initProgress);
+   }
+   const selectedModel = "Llama-3.1-8B-Instruct-q4f32_1-MLC";
+
+   const engine = await CreateMLCEngine(
+     selectedModel,
+     { initProgressCallback: initProgressCallback }, // engineConfig
+   );
+
+   // Enable model parallelism
+   const distributedFramework = /* Initialize your distributed framework here */;
+   engine.enableModelParallelism(distributedFramework);
+
+2. **Disable Model Parallelism**: If you need to disable model parallelism, use the `disableModelParallelism` method.
+
+.. code-block:: typescript
+
+   engine.disableModelParallelism();
+
+3. **Partition the Model**: Ensure that the model is partitioned in a way that minimizes communication overhead between machines. This step is specific to your distributed framework and model architecture.
+
+By following these steps, you can leverage model parallelism in WebLLM to handle larger models across multiple machines.
+
 Other Customization
 -------------------
 
