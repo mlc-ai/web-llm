@@ -2,6 +2,7 @@ import { WebWorkerMLCEngineHandler } from "@mlc-ai/web-llm";
 import { RTCPeerConnection, RTCSessionDescription } from "wrtc";
 import DHT from "bittorrent-dht";
 import crypto from "crypto";
+import Tracker from "bittorrent-tracker";
 
 // Hookup an engine to a worker handler
 const handler = new WebWorkerMLCEngineHandler();

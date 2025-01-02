@@ -2,6 +2,7 @@ import { ServiceWorkerMLCEngineHandler } from "@mlc-ai/web-llm";
 import { RTCPeerConnection, RTCSessionDescription } from "wrtc";
 import DHT from "bittorrent-dht";
 import crypto from "crypto";
+import Tracker from "bittorrent-tracker";
 
 // WebRTC and DHT integration
 const dht = new DHT();
