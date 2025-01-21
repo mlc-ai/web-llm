@@ -309,6 +309,7 @@ export const functionCallingModelIds = [
 export const prebuiltAppConfig: AppConfig = {
   useIndexedDBCache: false,
   model_list: [
+    // Llama-3.2
     {
       model: "https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q4f32_1-MLC",
       model_id: "Llama-3.2-1B-Instruct-q4f32_1-MLC",
@@ -440,7 +441,92 @@ export const prebuiltAppConfig: AppConfig = {
         context_window_size: 4096,
       },
     },
-    // Hermes-2
+    // DeepSeek-R1-Distill-Qwen
+    // TODO(Charlie): Qwen2-1.5B is experiencing correctness issue, hence commented for now.
+    // {
+    //   model: "https://huggingface.co/mlc-ai/DeepSeek-R1-Distill-Qwen-1.5B-q4f16_1-MLC",
+    //   model_id: "DeepSeek-R1-Distill-Qwen-1.5B-q4f16_1-MLC",
+    //   model_lib:
+    //     modelLibURLPrefix +
+    //     modelVersion +
+    //     "/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    //   low_resource_required: true,
+    //   vram_required_MB: 1629.75,
+    //   overrides: {
+    //     context_window_size: 4096,
+    //   },
+    // },
+    // {
+    //   model: "https://huggingface.co/mlc-ai/DeepSeek-R1-Distill-Qwen-1.5B-q4f32_1-MLC",
+    //   model_id: "DeepSeek-R1-Distill-Qwen-1.5B-q4f32_1-MLC",
+    //   model_lib:
+    //     modelLibURLPrefix +
+    //     modelVersion +
+    //     "/Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    //   low_resource_required: true,
+    //   vram_required_MB: 1888.97,
+    //   overrides: {
+    //     context_window_size: 4096,
+    //   },
+    // },
+    {
+      model:
+        "https://huggingface.co/mlc-ai/DeepSeek-R1-Distill-Qwen-7B-q4f16_1-MLC",
+      model_id: "DeepSeek-R1-Distill-Qwen-7B-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      low_resource_required: false,
+      vram_required_MB: 5106.67,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model:
+        "https://huggingface.co/mlc-ai/DeepSeek-R1-Distill-Qwen-7B-q4f32_1-MLC",
+      model_id: "DeepSeek-R1-Distill-Qwen-7B-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Qwen2-7B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      low_resource_required: false,
+      vram_required_MB: 5900.09,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    // DeepSeek-R1-Distill-Llama
+    {
+      model:
+        "https://huggingface.co/mlc-ai/DeepSeek-R1-Distill-Llama-8B-q4f32_1-MLC",
+      model_id: "DeepSeek-R1-Distill-Llama-8B-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Llama-3_1-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 6101.01,
+      low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model:
+        "https://huggingface.co/mlc-ai/DeepSeek-R1-Distill-Llama-8B-q4f16_1-MLC",
+      model_id: "DeepSeek-R1-Distill-Llama-8B-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Llama-3_1-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 5001.0,
+      low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    // Hermes-3 and Hermes-2
     {
       model:
         "https://huggingface.co/mlc-ai/Hermes-2-Theta-Llama-3-8B-q4f16_1-MLC",
@@ -493,6 +579,32 @@ export const prebuiltAppConfig: AppConfig = {
         "/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 6051.27,
       low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Hermes-3-Llama-3.2-3B-q4f32_1-MLC",
+      model_id: "Hermes-3-Llama-3.2-3B-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Llama-3.2-3B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 2951.51,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Hermes-3-Llama-3.2-3B-q4f16_1-MLC",
+      model_id: "Hermes-3-Llama-3.2-3B-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Llama-3.2-3B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 2263.69,
+      low_resource_required: true,
       overrides: {
         context_window_size: 4096,
       },
