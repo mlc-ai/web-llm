@@ -93,9 +93,11 @@ export class Conversation {
               "message for a reply header.",
           );
         }
-        const empty_sep = this.config.role_empty_sep
-          ? this.config.role_empty_sep
-          : ": ";
+        // Add ": " if there is no such field. If "", do not add sep
+        const empty_sep =
+          this.config.role_empty_sep || this.config.role_empty_sep == ""
+            ? this.config.role_empty_sep
+            : ": ";
         ret.push(role_str + empty_sep);
         continue;
       }
@@ -153,9 +155,11 @@ export class Conversation {
       ) {
         role_prefix = "";
       } else {
-        const content_sep = this.config.role_content_sep
-          ? this.config.role_content_sep
-          : ": ";
+        // Add ": " if there is no such field. If "", do not add sep
+        const content_sep =
+          this.config.role_content_sep || this.config.role_content_sep == ""
+            ? this.config.role_content_sep
+            : ": ";
         role_prefix = role_str + content_sep;
       }
 
