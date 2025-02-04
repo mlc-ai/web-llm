@@ -674,7 +674,7 @@ export class LLMChatPipeline {
       this.tvm.endScope();
     } else if (seqID !== 0) {
       // If no match is found, add the new sequence to the KV cache
-      console.log("Adding new sequence to KV cache: ", seqID);
+      console.log("Adding prefix to KV cache: ", seqID);
       this.fKVCacheAddSequence!(this.kvCache, new tvmjs.Scalar(seqID, "int64"));
     }
 
