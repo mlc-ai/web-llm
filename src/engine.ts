@@ -131,6 +131,7 @@ export class MLCEngine implements MLCEngineInterface {
   private logitProcessorRegistry?: Map<string, LogitProcessor>;
   private initProgressCallback?: InitProgressCallback;
   private appConfig: AppConfig;
+  private cachedPrefixes: ChatCompletionMessageParam[][];
 
   // Signals and flags
   private interruptSignal = false;
@@ -149,6 +150,7 @@ export class MLCEngine implements MLCEngineInterface {
     this.setLogLevel(engineConfig?.logLevel || DefaultLogLevel);
     this.setInitProgressCallback(engineConfig?.initProgressCallback);
     this.setLogitProcessorRegistry(engineConfig?.logitProcessorRegistry);
+    this.cachedPrefixes = engineConfig?.cachedPrefixes || [];
 
     this.chat = new API.Chat(this);
     this.completions = new API.Completions(this);
@@ -392,6 +394,16 @@ export class MLCEngine implements MLCEngineInterface {
     this.loadedModelIdToPipeline.set(modelId, newPipeline);
     this.loadedModelIdToLock.set(modelId, new CustomLock());
 
+    // Call prefillConvSequence() if cachedPrefixes is specified
+    if (
+      newPipeline instanceof LLMChatPipeline &&
+      this.cachedPrefixes.length > 0
+    ) {
+      for (let i = 0; i < this.cachedPrefixes.length; i++) {
+        await newPipeline.prefillConvSequence(this.cachedPrefixes[i]);
+      }
+    }
+
     // Clean up
     const tend = performance.now();
     if (this.initProgressCallback !== undefined) {
@@ -444,6 +456,7 @@ export class MLCEngine implements MLCEngineInterface {
     if (genConfig !== undefined) {
       postInitAndCheckGenerationConfigValues(genConfig);
     }
+    console.log("prefill in _generate, input: ", input);
     await this.prefill(input, pipeline, chatConfig, genConfig);
 
     while (!pipeline.stopped()) {
