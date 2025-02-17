@@ -106,9 +106,13 @@ export interface ChatOptions extends Partial<ChatConfig> {}
  * appConfig: Configure the app, including the list of models and whether to use IndexedDB cache.
  * initProgressCallback: A callback for showing the progress of loading the model.
  * logitProcessorRegistry: A register for stateful logit processors, see `webllm.LogitProcessor`.
+ * cachedPrefixes: Specifies a system prompt (prefix) that will be prefilled when loading the engine
+ * to create their corresponding KV cache and store them for reuse. These cached kv pairs persist
+ * until the engine is reloaded.
  *
  * @note All fields are optional, and `logitProcessorRegistry` is only used for `MLCEngine` and not
  * other `MLCEngine`s.
+ * @note cachedPrefixes is experimental. It may change in future versions.
  */
 export interface MLCEngineConfig {
   appConfig?: AppConfig;

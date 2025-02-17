@@ -38,6 +38,9 @@ import { ChatCompletionMessageParam } from "./openai_api_protocols/chat_completi
 
 type ImageURL = ChatCompletionContentPartImage.ImageURL;
 
+// Default sequence ID for chat completion
+const CHAT_SEQUENCE_ID = 0;
+
 export class LLMChatPipeline {
   private config: ChatConfig;
   private tokenizer: Tokenizer;
@@ -510,9 +513,9 @@ export class LLMChatPipeline {
     msgRole: Role, // either user or tool
     inp_role_str?: string,
     genConfig?: GenerationConfig,
-    seqID = 0,
+    seqID = CHAT_SEQUENCE_ID,
   ): Promise<void> {
-    if (seqID === 0) {
+    if (seqID === CHAT_SEQUENCE_ID) {
       if (msgRole !== Role.user && msgRole !== Role.tool) {
         throw new MessageOrderError(
           "The last message should be from `user` or `tool`.",
@@ -608,7 +611,7 @@ export class LLMChatPipeline {
     }
 
     // 0. Get inputData from conversation
-    if (seqID === 0) {
+    if (seqID === CHAT_SEQUENCE_ID) {
       if (conversation.isTextCompletion) {
         conversation.prompt = inp;
       } else {
@@ -652,13 +655,8 @@ export class LLMChatPipeline {
 
     // If a match is found, fork the sequence
     if (matchedSeqId !== -1 && maxMatchedLen > 0) {
-      console.log(
-        "Forking sequence",
-        matchedSeqId,
-        "at position",
-        maxMatchedLen,
-      );
-      if (seqID === 0) {
+      log.info("Forking sequence", matchedSeqId, "at position", maxMatchedLen);
+      if (seqID === CHAT_SEQUENCE_ID) {
         this.fKVCacheRemoveSequence!(
           this.kvCache,
           new tvmjs.Scalar(seqID, "int64"),
@@ -672,14 +670,14 @@ export class LLMChatPipeline {
         new tvmjs.Scalar(maxMatchedLen, "int64"), // fork_position
       );
       this.tvm.endScope();
-    } else if (seqID !== 0) {
+    } else if (seqID !== CHAT_SEQUENCE_ID) {
       // If no match is found, add the new sequence to the KV cache
-      console.log("Adding prefix to KV cache: ", seqID);
+      log.info("Adding prefix to KV cache: ", seqID);
       this.fKVCacheAddSequence!(this.kvCache, new tvmjs.Scalar(seqID, "int64"));
     }
 
     // Add the new sequence to the seqIdToPrefix map (if it is a prefix)
-    if (seqID !== 0) {
+    if (seqID !== CHAT_SEQUENCE_ID) {
       this.seqIdToPrefix.set(seqID, inputTokens);
     }
 
@@ -996,7 +994,7 @@ export class LLMChatPipeline {
   private async embedAndForward(
     inputData: Array<Array<number> | ImageURL>,
     inputDataLen: number,
-    seqID = 0,
+    seqID = CHAT_SEQUENCE_ID,
   ): Promise<tvmjs.NDArray> {
     if (inputDataLen > this.prefillChunkSize) {
       throw new Error(
