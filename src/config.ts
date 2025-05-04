@@ -141,6 +141,8 @@ export interface GenerationConfig {
   logprobs?: boolean | null;
   top_logprobs?: number | null;
   response_format?: ResponseFormat | null;
+  // extra_body in ChatCompletionsRequest
+  enable_thinking?: boolean | null;
 }
 
 export function postInitAndCheckGenerationConfigValues(
@@ -1046,6 +1048,137 @@ export const prebuiltAppConfig: AppConfig = {
         "/gemma-2-2b-jpn-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
       vram_required_MB: 2508.75,
       low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    // Qwen-3
+    {
+      model: "https://huggingface.co/mlc-ai/Qwen3-0.6B-q4f16_1-MLC",
+      model_id: "Qwen3-0.6B-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Qwen3-0.6B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 1403.34,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Qwen3-0.6B-q4f32_1-MLC",
+      model_id: "Qwen3-0.6B-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Qwen3-0.6B-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 1924.98,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Qwen3-0.6B-q0f16-MLC",
+      model_id: "Qwen3-0.6B-q0f16-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Qwen3-0.6B-q0f16-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 2220.38,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Qwen3-0.6B-q0f32-MLC",
+      model_id: "Qwen3-0.6B-q0f32-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Qwen3-0.6B-q0f32-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 3843.25,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Qwen3-1.7B-q4f16_1-MLC",
+      model_id: "Qwen3-1.7B-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Qwen3-1.7B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 2036.66,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Qwen3-1.7B-q4f32_1-MLC",
+      model_id: "Qwen3-1.7B-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Qwen3-1.7B-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 2635.44,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Qwen3-4B-q4f16_1-MLC",
+      model_id: "Qwen3-4B-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Qwen3-4B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 3431.59,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Qwen3-4B-q4f32_1-MLC",
+      model_id: "Qwen3-4B-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Qwen3-4B-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 4327.71,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Qwen3-8B-q4f16_1-MLC",
+      model_id: "Qwen3-8B-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Qwen3-8B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 5695.78,
+      low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Qwen3-8B-q4f32_1-MLC",
+      model_id: "Qwen3-8B-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Qwen3-8B-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      vram_required_MB: 6852.55,
+      low_resource_required: false,
       overrides: {
         context_window_size: 4096,
       },

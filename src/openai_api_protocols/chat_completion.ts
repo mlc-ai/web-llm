@@ -256,6 +256,19 @@ export interface ChatCompletionRequestBase {
    *   are loaded, this is required.
    */
   model?: string | null;
+
+  /**
+   * Fields specific to WebLLM, not present in OpenAI.
+   */
+  extra_body?: {
+    /**
+     * If set to false, prepend a "<think></think>" to the response, preventing the model from
+     * generating thinking tokens. If set to true or undefined, does nothing.
+     *
+     * @note Currently only allowed to be used for Qwen3 models, though not explicitly checked.
+     */
+    enable_thinking?: boolean | null;
+  };
 }
 
 export interface ChatCompletionRequestNonStreaming

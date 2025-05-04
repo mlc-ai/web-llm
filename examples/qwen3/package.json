@@ -1,0 +1,20 @@
+{
+  "name": "qwen3_example",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "parcel src/qwen3_example.html  --port 8883",
+    "build": "parcel build src/qwen3_example.html --dist-dir lib"
+  },
+  "devDependencies": {
+    "buffer": "^5.7.1",
+    "parcel": "^2.8.3",
+    "process": "^0.11.10",
+    "tslib": "^2.3.1",
+    "typescript": "^4.9.5",
+    "url": "^0.11.3"
+  },
+  "dependencies": {
+    "@mlc-ai/web-llm": "^0.2.78"
+  }
+}

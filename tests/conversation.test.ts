@@ -8,6 +8,7 @@ import { describe, expect, test } from "@jest/globals";
 import {
   llama2ChatConfigJSONString,
   phi3_5VisionChatConfigJSONString,
+  qwen3ChatConfigJSONString,
 } from "./constants";
 import {
   ChatCompletionContentPartImage,
@@ -47,6 +48,38 @@ describe("Test basic conversation loading and getPromptArray", () => {
     const prompt = conversation.getPromptArray().join("");
     expect(prompt).toEqual(
       "[INST] <<SYS>>\nYou are a helpful, respectful and honest assistant.\n<</SYS>>\n\ntest1 [/INST] test2 [INST] test3 [/INST] ",
+    );
+  });
+});
+
+describe("Test getConversationFromChatCompletionRequest with Qwen3", () => {
+  test("Test Qwen3 appendEmptyThinkingReplyHeader", () => {
+    const config_json = JSON.parse(qwen3ChatConfigJSONString);
+    const config = { ...config_json } as ChatConfig;
+    const conversation = getConversation(config.conv_template);
+
+    conversation.appendMessage(Role.user, "test1");
+    conversation.appendMessage(Role.assistant, "test2");
+    const emptyThinkingBlockStr = "<think>\n\n</think>\n\n";
+    conversation.appendEmptyThinkingReplyHeader(
+      Role.user,
+      emptyThinkingBlockStr,
+    );
+    const prompt = conversation.getPromptArray().join("");
+    expect(prompt).toEqual(
+      "<|im_start|>system\nYou are a helpful assistant.<|im_end|>\n" +
+        "<|im_start|>user\n" +
+        "test1<|im_end|>\n" +
+        "<|im_start|>assistant\n" +
+        "test2<|im_end|>\n" +
+        "<|im_start|>user\n" +
+        emptyThinkingBlockStr,
+    );
+
+    const message = emptyThinkingBlockStr + "test3";
+    conversation.finishReply(message);
+    expect(conversation.messages[conversation.messages.length - 1][2]).toEqual(
+      message,
     );
   });
 });

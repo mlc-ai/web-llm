@@ -587,7 +587,18 @@ export class LLMChatPipeline {
       conversation.prompt = inp;
     } else {
       conversation.appendMessage(msgRole, inp, inp_role_str);
-      conversation.appendReplyHeader(Role.assistant);
+      if (genConfig?.enable_thinking === false) {
+        // TODO(Charlie): In future we should make emptyThinkingBlockStr configurable.
+        const emptyThinkingBlockStr = "<think>\n\n</think>\n\n";
+        const encoded = this.tokenizer.encode(emptyThinkingBlockStr);
+        this.outputIds.push(...encoded);
+        conversation.appendEmptyThinkingReplyHeader(
+          Role.assistant,
+          emptyThinkingBlockStr,
+        );
+      } else {
+        conversation.appendReplyHeader(Role.assistant);
+      }
     }
     const retGetInputData = this.getInputData();
     const inputData: Array<Array<number> | ImageURL> = retGetInputData[0];
