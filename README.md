@@ -374,7 +374,7 @@ npm install
 npm run build
 ```
 
-Then, to test the effects of your code change in an example, inside `examples/get-started/package.json`, change from `"@mlc-ai/web-llm": "^0.2.78"` to `"@mlc-ai/web-llm": ../..`.
+Then, to test the effects of your code change in an example, inside `examples/get-started/package.json`, change from `"@mlc-ai/web-llm": "^0.2.79"` to `"@mlc-ai/web-llm": ../..`.
 
 Then run:
 
