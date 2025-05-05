@@ -303,6 +303,12 @@ class ChatUI {
         stream: true,
         messages: this.chatHistory,
         stream_options: { include_usage: true },
+        // if model starts with "Qwen3", disable thinking.
+        extra_body: this.selectedModel.startsWith("Qwen3")
+          ? {
+              enable_thinking: false,
+            }
+          : undefined,
       });
       // TODO(Charlie): Processing of � requires changes
       for await (const chunk of completion) {

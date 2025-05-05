@@ -48,6 +48,13 @@ export class Conversation {
   public use_function_calling = false;
   public override_system_message?: string = undefined;
 
+  /**
+   * Tracks whether the last message is an empty thinking block. Should only
+   * be true when we are in the middle of a generation. Will be set to
+   * false when the reply is finished with `finishReply()`.
+   */
+  private isLastMessageEmptyThinkingReplyHeader = false;
+
   // TODO(tvm-team) confirm and remove
   // private contextWindowStart = 0;
 
@@ -102,7 +109,21 @@ export class Conversation {
         continue;
       }
 
-      // 2. Each messageContent consists of one textPart, and >= 0 imageParts, regardless whether
+      // 2. Message from `appendEmptyThinkingReplyHeader()`, message is an empty thinking block.
+      if (
+        this.isLastMessageEmptyThinkingReplyHeader &&
+        i === this.messages.length - 1
+      ) {
+        // TODO(Charlie): content_sep or empty_sep? For Qwen3, both are "\n".
+        const content_sep =
+          this.config.role_content_sep || this.config.role_content_sep == ""
+            ? this.config.role_content_sep
+            : ": ";
+        ret.push(role_str + content_sep + messageContent);
+        continue;
+      }
+
+      // 3. Each messageContent consists of one textPart, and >= 0 imageParts, regardless whether
       // it is Array<ChatCompletionContentPart> or text message. So we extract out each.
       let textContentPart = ""; // if no textPart, use an empty string
       const imageContentParts: ImageURL[] = [];
@@ -304,6 +325,16 @@ export class Conversation {
     this.messages.push([role, this.config.roles[role], undefined]);
   }
 
+  appendEmptyThinkingReplyHeader(role: Role, emptyThinkingBlockStr: string) {
+    if (this.isTextCompletion) {
+      throw new TextCompletionConversationError(
+        "appendEmptyThinkingReplyHeader",
+      );
+    }
+    this.isLastMessageEmptyThinkingReplyHeader = true;
+    this.messages.push([role, this.config.roles[role], emptyThinkingBlockStr]);
+  }
+
   finishReply(message: string) {
     if (this.isTextCompletion) {
       throw new TextCompletionConversationError("finishReply");
@@ -311,10 +342,16 @@ export class Conversation {
     if (this.messages.length == 0) {
       throw Error("Message error should not be 0");
     }
-    if (this.messages[this.messages.length - 1][2] !== undefined) {
+    if (
+      this.messages[this.messages.length - 1][2] !== undefined &&
+      // If the last message has an empty thinknig block, last message is expected
+      // to be non-empty.
+      this.isLastMessageEmptyThinkingReplyHeader === false
+    ) {
       throw Error("Already assigned");
     }
     this.messages[this.messages.length - 1][2] = message;
+    this.isLastMessageEmptyThinkingReplyHeader = false;
   }
 }
 

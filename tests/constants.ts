@@ -219,3 +219,90 @@ export const phi3_5VisionChatConfigJSONString = String.raw`{
   "bos_token_id": 1,
   "eos_token_id": 2
 }`;
+
+export const qwen3ChatConfigJSONString = String.raw`{
+  "version": "0.1.0",
+  "model_type": "qwen3",
+  "quantization": "q0f32",
+  "model_config": {
+    "hidden_act": "silu",
+    "hidden_size": 1024,
+    "intermediate_size": 3072,
+    "attention_bias": false,
+    "num_attention_heads": 16,
+    "num_hidden_layers": 28,
+    "num_key_value_heads": 8,
+    "rms_norm_eps": 1e-06,
+    "rope_theta": 1000000,
+    "vocab_size": 151936,
+    "tie_word_embeddings": true,
+    "context_window_size": 40960,
+    "prefill_chunk_size": 2048,
+    "tensor_parallel_shards": 1,
+    "head_dim": 128,
+    "dtype": "float32",
+    "max_batch_size": 128,
+    "weight_block_size": null
+  },
+  "vocab_size": 151936,
+  "context_window_size": 40960,
+  "sliding_window_size": -1,
+  "prefill_chunk_size": 2048,
+  "attention_sink_size": -1,
+  "tensor_parallel_shards": 1,
+  "pipeline_parallel_stages": 1,
+  "temperature": 0.6,
+  "presence_penalty": 0.0,
+  "frequency_penalty": 0.0,
+  "repetition_penalty": 1.0,
+  "top_p": 0.95,
+  "tokenizer_files": [
+    "tokenizer.json",
+    "vocab.json",
+    "merges.txt",
+    "tokenizer_config.json"
+  ],
+  "tokenizer_info": {
+    "token_postproc_method": "byte_level",
+    "prepend_space_in_encode": false,
+    "strip_space_in_decode": false
+  },
+  "conv_template": {
+    "name": "qwen2",
+    "system_template": "<|im_start|>system\n{system_message}<|im_end|>\n",
+    "system_message": "You are a helpful assistant.",
+    "system_prefix_token_ids": null,
+    "add_role_after_system_message": true,
+    "roles": {
+      "user": "<|im_start|>user",
+      "assistant": "<|im_start|>assistant"
+    },
+    "role_templates": {
+      "user": "{user_message}",
+      "assistant": "{assistant_message}",
+      "tool": "{tool_message}"
+    },
+    "messages": [],
+    "seps": [
+      "<|im_end|>\n"
+    ],
+    "role_content_sep": "\n",
+    "role_empty_sep": "\n",
+    "stop_str": [
+      "<|endoftext|>",
+      "<|im_end|>"
+    ],
+    "stop_token_ids": [
+      151643,
+      151645
+    ],
+    "function_string": "",
+    "use_function_calling": false
+  },
+  "pad_token_id": 151643,
+  "bos_token_id": 151643,
+  "eos_token_id": [
+    151645,
+    151643
+  ]
+}`;
