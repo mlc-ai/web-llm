@@ -50,6 +50,12 @@ export class LLMChatPipeline {
   private image_embed: tvmjs.PackedFunc | undefined;
   private embed: tvmjs.PackedFunc;
   private fapplyBitmask: tvmjs.PackedFunc;
+  private fapplyPenalty: tvmjs.PackedFunc;
+  private fapplyLogitBias: tvmjs.PackedFunc;
+  private fsoftmaxWithTemperature: tvmjs.PackedFunc;
+  // private frenormalizeByTopP: tvmjs.PackedFunc; //BatchRenormalizeProbsByTopP
+  // private //BatchSampleTokensImpl, ChunkSampleTokensImpl
+
   // Functions related to PagedKVCache
   private fclearKVCaches: tvmjs.PackedFunc;
   private fKVCacheAddSequence: tvmjs.PackedFunc;
@@ -62,6 +68,7 @@ export class LLMChatPipeline {
   private params: tvmjs.TVMObject;
   private kvCache: tvmjs.TVMObject;
   private logitsOnCPU?: tvmjs.NDArray = undefined;
+  private logitsOnCPUCopy?: tvmjs.NDArray = undefined;
   private filledKVCacheLength = 0;
 
   // meta data
@@ -190,6 +197,15 @@ export class LLMChatPipeline {
     this.fapplyBitmask = this.tvm.detachFromCurrentScope(
       this.vm.getFunction("apply_bitmask_inplace"),
     );
+    this.fapplyPenalty = this.tvm.detachFromCurrentScope(
+      this.vm.getFunction("apply_penalty_inplace"),
+    );
+    this.fapplyLogitBias = this.tvm.detachFromCurrentScope(
+      this.vm.getFunction("apply_logit_bias_inplace"),
+    );
+    this.fsoftmaxWithTemperature = this.tvm.detachFromCurrentScope(
+      this.vm.getFunction("softmax_with_temperature"),
+    );
     try {
       this.image_embed = this.tvm.detachFromCurrentScope(
         this.vm.getFunction("image_embed"),
@@ -302,6 +318,7 @@ export class LLMChatPipeline {
     this.kvCache.dispose();
     this.fclearKVCaches.dispose();
     this.logitsOnCPU?.dispose();
+    this.logitsOnCPUCopy?.dispose();
     this.tvm.dispose();
     this.tokenizer.dispose();
     this.xgTokenizerInfo?.dispose();
@@ -957,6 +974,20 @@ export class LLMChatPipeline {
     return this.logitsOnCPU;
   }
 
+  private updateLogitsOnCPUCopy(logits: tvmjs.NDArray): tvmjs.NDArray {
+    if (this.logitsOnCPUCopy == undefined) {
+      this.logitsOnCPUCopy = this.tvm.detachFromCurrentScope(
+        this.tvm.empty(logits.shape, logits.dtype, this.tvm.cpu()),
+      );
+    } else {
+      if (logits.shape[0] != this.logitsOnCPUCopy.shape[0]) {
+        throw Error("We expect the size of logits to remain unchanged");
+      }
+    }
+    this.logitsOnCPUCopy.copyFrom(logits);
+    return this.logitsOnCPUCopy;
+  }
+
   private async sampleTokenFromLogits(
     logitsOnGPU: tvmjs.NDArray,
     genConfig?: GenerationConfig,
@@ -1091,68 +1122,221 @@ export class LLMChatPipeline {
       if (this.logitProcessor !== undefined) {
         logitsOnCPUArray = this.logitProcessor.processLogits(logitsOnCPUArray);
       }
+
       if (_hasValue(logit_bias)) {
-        for (const tokenID in logit_bias) {
-          const curBias = logit_bias[tokenID];
-          const curTokenID = parseInt(tokenID);
-          if (curTokenID > vocab_size) {
-            throw Error(
-              "Token " +
-                curTokenID +
-                " in logit_bias exceeds vocab_size " +
-                vocab_size,
-            );
-          }
-          logitsOnCPUArray[curTokenID] += curBias;
+        this.tvm.beginScope();
+        const numTokens = Object.keys(logit_bias ?? {}).length;
+        const pos2seq_id = new Int32Array(numTokens);
+        const tokenIds = new Int32Array(numTokens);
+        const tokenLogitBias = new Float32Array(numTokens);
+
+        for (let index = 0; index < numTokens; index++) {
+          pos2seq_id[index] = 0;
+          tokenIds[index] = parseInt(Object.keys(logit_bias ?? {})[index]);
+          tokenLogitBias[index] = logit_bias![tokenIds[index]];
         }
+
+        const pos2seqIdsArray = this.tvm
+          .empty([numTokens], "int32", this.device)
+          .copyFrom(pos2seq_id);
+
+        const tokenIdsArray = this.tvm
+          .empty([numTokens], "int32", this.device)
+          .copyFrom(tokenIds);
+
+        const tokenLogitBiasArray = this.tvm
+          .empty([numTokens], "float32", this.device)
+          .copyFrom(tokenLogitBias);
+
+        const logitsOnGPU = this.tvm
+          .empty([1, this.fullVocabSize], "float32", this.device)
+          .copyFrom(logitsOnCPUArray);
+
+        this.fapplyLogitBias(
+          logitsOnGPU,
+          pos2seqIdsArray,
+          tokenIdsArray,
+          tokenLogitBiasArray,
+        );
+        this.updateLogitsOnCPU(logitsOnGPU);
+        this.tvm.endScope();
       }
-      this.logitsOnCPU.copyFrom(logitsOnCPUArray);
+      await this.device.sync();
+      // console.log("After applying logit bias (GPU):", this.logitsOnCPUCopy?.toArray().slice(0, 20));
+
+      // if (_hasValue(logit_bias)) {
+      //   for (const tokenID in logit_bias) {
+      //     const curBias = logit_bias[tokenID];
+      //     const curTokenID = parseInt(tokenID);
+      //     if (curTokenID > vocab_size) {
+      //       throw Error(
+      //         "Token " +
+      //           curTokenID +
+      //           " in logit_bias exceeds vocab_size " +
+      //           vocab_size,
+      //       );
+      //     }
+      //     logitsOnCPUArray[curTokenID] += curBias;
+      //   }
+      // }
+      // this.logitsOnCPU.copyFrom(logitsOnCPUArray);
+      // console.log("After applying logit bias (CPU):", this.logitsOnCPU.toArray().slice(0, 20));
     }
 
+    // if (JSON.stringify(this.logitsOnCPUCopy?.toArray()) !== JSON.stringify(this.logitsOnCPU.toArray())) {
+    //   throw new Error("Logits on CPU and GPU do not match");
+    // }
+
+    // console.log("Penalties:", {
+    //   frequency_penalty,
+    //   presence_penalty,
+    //   repetition_penalty,
+    // });
+
     // 3. Apply penalties to logits
-    if (_hasValue(frequency_penalty) && _hasValue(presence_penalty)) {
-      // 3.1. Use frequency and presence penalty
+    if (
+      frequency_penalty != 0.0 ||
+      presence_penalty != 0.0 ||
+      repetition_penalty != 1.0
+    ) {
       this.tvm.beginScope();
-      // Both `keys()` and `values()` are in insertion order.
       const appearedTokens = [...this.appearedTokensFreq.keys()];
       const appearedTokensFreqs = [...this.appearedTokensFreq.values()];
-      const appeared_tokens_ndarray = this.tvm.empty(
-        [1, appearedTokens.length],
-        "int32",
-        this.tvm.cpu(),
-      );
-      const appeared_tokens_freqs_ndarray = this.tvm.empty(
-        [1, appearedTokensFreqs.length],
-        "int32",
-        this.tvm.cpu(),
-      );
-      appeared_tokens_ndarray.copyFrom(appearedTokens);
-      appeared_tokens_freqs_ndarray.copyFrom(appearedTokensFreqs);
-      this.tvm.applyPresenceAndFrequencyPenalty(
-        this.logitsOnCPU,
-        appeared_tokens_ndarray,
-        appeared_tokens_freqs_ndarray,
-        presence_penalty!,
-        frequency_penalty!,
-      );
-      this.tvm.endScope();
-    } else if (repetition_penalty != 1.0) {
-      // 3.2. Use repetition penalty
-      this.tvm.beginScope();
-      const appearedTokens = [...this.appearedTokensFreq.keys()];
-      const appeared_tokens_ndarray = this.tvm.empty(
-        [1, appearedTokens.length],
-        "int32",
-        this.tvm.cpu(),
-      );
-      appeared_tokens_ndarray.copyFrom(appearedTokens);
-      this.tvm.applyRepetitionPenalty(
-        this.logitsOnCPU,
-        appeared_tokens_ndarray,
+
+      const numTokens = appearedTokens.length;
+      // const paddedNumTokens = Math.ceil(numTokens / 4) * 4;
+
+      const seqIdsArray = this.tvm
+        .empty([1], "int32", this.device)
+        .copyFrom([0]);
+
+      const pos2seq_id = new Int32Array(numTokens).fill(0);
+      const tokenIds = new Int32Array(numTokens).fill(0);
+      const tokenCnt = new Int32Array(numTokens).fill(0);
+      const penalties = new Float32Array([
+        presence_penalty,
+        frequency_penalty,
         repetition_penalty,
-      );
+      ]);
+      const paddedPenalties = new Float32Array(3);
+      paddedPenalties.set(penalties);
+
+      for (let index = 0; index < numTokens; index++) {
+        pos2seq_id[index] = 0;
+        tokenIds[index] = appearedTokens[index];
+        tokenCnt[index] = appearedTokensFreqs[index];
+      }
+
+      const pos2seqIdsArray = this.tvm
+        .empty([numTokens], "int32", this.device)
+        .copyFrom(pos2seq_id);
+
+      const tokenIdsArray = this.tvm
+        .empty([numTokens], "int32", this.device)
+        .copyFrom(tokenIds);
+
+      const tokenCntArray = this.tvm
+        .empty([numTokens], "int32", this.device)
+        .copyFrom(tokenCnt);
+
+      const penaltiesArray = this.tvm
+        .empty([1, 3], "float32", this.device)
+        .copyFrom(paddedPenalties);
+
+      const logitsOnGPU = this.tvm
+        .empty([1, this.fullVocabSize], "float32", this.device)
+        .copyFrom(this.logitsOnCPU.toArray());
+
+      // console.log("logitsOnGPU shape:", logitsOnGPU.shape);
+      // console.log("seqIdsArray shape:", seqIdsArray.shape);
+      // console.log("pos2seqIdsArray shape:", pos2seqIdsArray.shape);
+      // console.log("tokenIdsArray shape:", tokenIdsArray.shape);
+      // console.log("tokenCntArray shape:", tokenCntArray.shape);
+      // console.log("penaltiesArray shape:", penaltiesArray.shape);
+
+      if (numTokens > 0) {
+        this.fapplyPenalty(
+          logitsOnGPU,
+          seqIdsArray,
+          pos2seqIdsArray,
+          tokenIdsArray,
+          tokenCntArray,
+          penaltiesArray,
+        );
+      }
+      this.updateLogitsOnCPU(logitsOnGPU);
       this.tvm.endScope();
     }
+    await this.device.sync();
+    // console.log("After applying penalties (GPU):", this.logitsOnCPUCopy?.toArray().slice(0, 20));
+
+    // if (_hasValue(frequency_penalty) && _hasValue(presence_penalty)) {
+    //   // 3.1. Use frequency and presence penalty
+    //   this.tvm.beginScope();
+    //   // Both `keys()` and `values()` are in insertion order.
+    //   const appearedTokens = [...this.appearedTokensFreq.keys()];
+    //   const appearedTokensFreqs = [...this.appearedTokensFreq.values()];
+    //   const appeared_tokens_ndarray = this.tvm.empty(
+    //     [1, appearedTokens.length],
+    //     "int32",
+    //     this.tvm.cpu(),
+    //   );
+    //   const appeared_tokens_freqs_ndarray = this.tvm.empty(
+    //     [1, appearedTokensFreqs.length],
+    //     "int32",
+    //     this.tvm.cpu(),
+    //   );
+    //   appeared_tokens_ndarray.copyFrom(appearedTokens);
+    //   appeared_tokens_freqs_ndarray.copyFrom(appearedTokensFreqs);
+    //   // let logitsOnCPUBefore = this.logitsOnCPU.toArray();
+    //   this.tvm.applyPresenceAndFrequencyPenalty(
+    //     this.logitsOnCPU,
+    //     appeared_tokens_ndarray,
+    //     appeared_tokens_freqs_ndarray,
+    //     presence_penalty!,
+    //     frequency_penalty!,
+    //   );
+    //   // if (
+    //   //   JSON.stringify(logitsOnCPUBefore) ===
+    //   //   JSON.stringify(this.logitsOnCPU.toArray())
+    //   // ) {
+    //   //   console.log("No penalty applied");
+    //   // }
+    //   this.tvm.endScope();
+    // } else if (repetition_penalty != 1.0) {
+    //   // 3.2. Use repetition penalty
+    //   this.tvm.beginScope();
+    //   const appearedTokens = [...this.appearedTokensFreq.keys()];
+    //   const appeared_tokens_ndarray = this.tvm.empty(
+    //     [1, appearedTokens.length],
+    //     "int32",
+    //     this.tvm.cpu(),
+    //   );
+    //   appeared_tokens_ndarray.copyFrom(appearedTokens);
+    //   this.tvm.applyRepetitionPenalty(
+    //     this.logitsOnCPU,
+    //     appeared_tokens_ndarray,
+    //     repetition_penalty,
+    //   );
+    //   this.tvm.endScope();
+    // }
+    // // console.log("After applying penalties (CPU):", this.logitsOnCPU.toArray().slice(0, 20));
+
+    // if (this.logitsOnCPUCopy) {
+    //   console.log("logitsOnCPUCopy shape:", this.logitsOnCPUCopy.shape);
+    //   const logitsOnCPUArray = this.logitsOnCPU.toArray();
+    //   const logitsOnCPUCopyArray = this.logitsOnCPUCopy.toArray();
+    //   let flag = true;
+    //   for (let i = 0; i < logitsOnCPUArray.length; i++) {
+    //     if (Math.abs(logitsOnCPUArray[i] - logitsOnCPUCopyArray[i]) > 1e-6) {
+    //       console.error(`Mismatch at index ${i}: CPU=${logitsOnCPUArray[i]}, GPU=${logitsOnCPUCopyArray[i]}`);
+    //       flag = false;
+    //     }
+    //   }
+    //   if (!flag) {
+    //     throw new Error("Logits on CPU and GPU do not match within tolerance");
+    //   }
+    // }
 
     // 4. Sample token from logits
     // If logprobs, need the actual distribution via softmax, otherwise directly sample from logits
@@ -1160,11 +1344,82 @@ export class LLMChatPipeline {
     if (logprobs) {
       // Inplace transform logitsOnCPU to a distribution
       temperature = Math.max(1e-6, temperature); // to prevent division by zero
-      this.tvm.applySoftmaxWithTemperature(this.logitsOnCPU, temperature);
-      sampledToken = this.tvm.sampleTopPFromProb(this.logitsOnCPU, top_p);
-      this.tokenLogprobArray.push(
-        this.getTokenLogprob(sampledToken, top_logprobs!),
-      );
+
+      if (this.logitsOnCPU.shape[2] !== this.fullVocabSize) {
+        throw new Error("Logits vocab size does not match full vocab size");
+      }
+
+      // this.tvm.beginScope();
+      // const testArray = new Float32Array(this.fullVocabSize);
+      // for (let i = 0; i < this.fullVocabSize; i++) {
+      //   testArray[i] = Math.random() * 10;
+      // }
+      // console.log("Test array:", testArray.slice(0, 20));
+      // const detachedTestArrayOnGPU = this.tvm.detachFromCurrentScope(
+      //   this.tvm.empty([1, 1, this.fullVocabSize], "float32", this.device).copyFrom(testArray)
+      // );
+      // await this.device.sync();
+      // const detachedTestArrayOnCPU = this.tvm.detachFromCurrentScope(
+      //   this.tvm.empty([testArray.length], "float32", this.tvm.cpu()).copyFrom(testArray)
+      // );
+      // this.tvm.endScope();
+
+      const numSeqs = 1;
+      const numTokens = this.appearedTokensFreq.size;
+
+      if (numTokens > 0) {
+        const temperatures = new Float32Array([temperature]);
+
+        this.tvm.beginScope();
+        const temperaturesArray = this.tvm
+          .empty([numSeqs], "float32", this.device)
+          .copyFrom(temperatures);
+
+        const logitsOnGPU = this.tvm
+          .empty([numSeqs, 1, this.fullVocabSize], "float32", this.device)
+          .copyFrom(this.logitsOnCPU.toArray());
+
+        // const detachedTestArrayOnGPUCopy = this.tvm
+        //   .empty(detachedTestArrayOnGPU.shape, detachedTestArrayOnGPU.dtype, this.tvm.cpu())
+        //   .copyFrom(detachedTestArrayOnGPU);
+
+        // await this.device.sync();
+
+        const probs = this.fsoftmaxWithTemperature(
+          logitsOnGPU,
+          temperaturesArray,
+        );
+        this.updateLogitsOnCPU(probs);
+        this.tvm.endScope();
+        await this.device.sync();
+
+        sampledToken = this.tvm.sampleTopPFromProb(this.logitsOnCPU, top_p);
+        this.tokenLogprobArray.push(
+          this.getTokenLogprob(sampledToken, top_logprobs!),
+        );
+      } else {
+        this.tvm.applySoftmaxWithTemperature(this.logitsOnCPU, temperature);
+        sampledToken = this.tvm.sampleTopPFromProb(this.logitsOnCPU, top_p);
+        this.tokenLogprobArray.push(
+          this.getTokenLogprob(sampledToken, top_logprobs!),
+        );
+      }
+
+      // if (numTokens > 0 && this.logitsOnCPUCopy) {
+      //   console.log("logitsOnCPUCopy shape:", this.logitsOnCPUCopy.shape);
+      //   const logitsOnCPUArray = this.logitsOnCPU.toArray();
+      //   const logitsOnCPUCopyArray = this.logitsOnCPUCopy.toArray();
+      //   let flag = true;
+      //   for (let i = 0; i < logitsOnCPUArray.length; i++) {
+      //     if (Math.abs(logitsOnCPUArray[i] - logitsOnCPUCopyArray[i]) > 1e-6) {
+      //       console.error(`Mismatch at index ${i}: CPU=${logitsOnCPUArray[i]}, GPU=${logitsOnCPUCopyArray[i]}`);
+      //       flag = false;
+      //     }
+      //   }
+      //   if (!flag) {
+      //     throw new Error("Logits on CPU and GPU do not match within tolerance");
+      //   }
+      // }
     } else {
       // temperature being 0 is allowed here, equivalent to argmax
       sampledToken = this.tvm.sampleTopPFromLogits(
