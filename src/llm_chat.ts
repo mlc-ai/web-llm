@@ -1162,36 +1162,7 @@ export class LLMChatPipeline {
         this.tvm.endScope();
       }
       await this.device.sync();
-      // console.log("After applying logit bias (GPU):", this.logitsOnCPUCopy?.toArray().slice(0, 20));
-
-      // if (_hasValue(logit_bias)) {
-      //   for (const tokenID in logit_bias) {
-      //     const curBias = logit_bias[tokenID];
-      //     const curTokenID = parseInt(tokenID);
-      //     if (curTokenID > vocab_size) {
-      //       throw Error(
-      //         "Token " +
-      //           curTokenID +
-      //           " in logit_bias exceeds vocab_size " +
-      //           vocab_size,
-      //       );
-      //     }
-      //     logitsOnCPUArray[curTokenID] += curBias;
-      //   }
-      // }
-      // this.logitsOnCPU.copyFrom(logitsOnCPUArray);
-      // console.log("After applying logit bias (CPU):", this.logitsOnCPU.toArray().slice(0, 20));
     }
-
-    // if (JSON.stringify(this.logitsOnCPUCopy?.toArray()) !== JSON.stringify(this.logitsOnCPU.toArray())) {
-    //   throw new Error("Logits on CPU and GPU do not match");
-    // }
-
-    // console.log("Penalties:", {
-    //   frequency_penalty,
-    //   presence_penalty,
-    //   repetition_penalty,
-    // });
 
     // 3. Apply penalties to logits
     if (
@@ -1204,7 +1175,6 @@ export class LLMChatPipeline {
       const appearedTokensFreqs = [...this.appearedTokensFreq.values()];
 
       const numTokens = appearedTokens.length;
-      // const paddedNumTokens = Math.ceil(numTokens / 4) * 4;
 
       const seqIdsArray = this.tvm
         .empty([1], "int32", this.device)
@@ -1247,13 +1217,6 @@ export class LLMChatPipeline {
         .empty([1, this.fullVocabSize], "float32", this.device)
         .copyFrom(this.logitsOnCPU.toArray());
 
-      // console.log("logitsOnGPU shape:", logitsOnGPU.shape);
-      // console.log("seqIdsArray shape:", seqIdsArray.shape);
-      // console.log("pos2seqIdsArray shape:", pos2seqIdsArray.shape);
-      // console.log("tokenIdsArray shape:", tokenIdsArray.shape);
-      // console.log("tokenCntArray shape:", tokenCntArray.shape);
-      // console.log("penaltiesArray shape:", penaltiesArray.shape);
-
       if (numTokens > 0) {
         this.fapplyPenalty(
           logitsOnGPU,
@@ -1268,75 +1231,6 @@ export class LLMChatPipeline {
       this.tvm.endScope();
     }
     await this.device.sync();
-    // console.log("After applying penalties (GPU):", this.logitsOnCPUCopy?.toArray().slice(0, 20));
-
-    // if (_hasValue(frequency_penalty) && _hasValue(presence_penalty)) {
-    //   // 3.1. Use frequency and presence penalty
-    //   this.tvm.beginScope();
-    //   // Both `keys()` and `values()` are in insertion order.
-    //   const appearedTokens = [...this.appearedTokensFreq.keys()];
-    //   const appearedTokensFreqs = [...this.appearedTokensFreq.values()];
-    //   const appeared_tokens_ndarray = this.tvm.empty(
-    //     [1, appearedTokens.length],
-    //     "int32",
-    //     this.tvm.cpu(),
-    //   );
-    //   const appeared_tokens_freqs_ndarray = this.tvm.empty(
-    //     [1, appearedTokensFreqs.length],
-    //     "int32",
-    //     this.tvm.cpu(),
-    //   );
-    //   appeared_tokens_ndarray.copyFrom(appearedTokens);
-    //   appeared_tokens_freqs_ndarray.copyFrom(appearedTokensFreqs);
-    //   // let logitsOnCPUBefore = this.logitsOnCPU.toArray();
-    //   this.tvm.applyPresenceAndFrequencyPenalty(
-    //     this.logitsOnCPU,
-    //     appeared_tokens_ndarray,
-    //     appeared_tokens_freqs_ndarray,
-    //     presence_penalty!,
-    //     frequency_penalty!,
-    //   );
-    //   // if (
-    //   //   JSON.stringify(logitsOnCPUBefore) ===
-    //   //   JSON.stringify(this.logitsOnCPU.toArray())
-    //   // ) {
-    //   //   console.log("No penalty applied");
-    //   // }
-    //   this.tvm.endScope();
-    // } else if (repetition_penalty != 1.0) {
-    //   // 3.2. Use repetition penalty
-    //   this.tvm.beginScope();
-    //   const appearedTokens = [...this.appearedTokensFreq.keys()];
-    //   const appeared_tokens_ndarray = this.tvm.empty(
-    //     [1, appearedTokens.length],
-    //     "int32",
-    //     this.tvm.cpu(),
-    //   );
-    //   appeared_tokens_ndarray.copyFrom(appearedTokens);
-    //   this.tvm.applyRepetitionPenalty(
-    //     this.logitsOnCPU,
-    //     appeared_tokens_ndarray,
-    //     repetition_penalty,
-    //   );
-    //   this.tvm.endScope();
-    // }
-    // // console.log("After applying penalties (CPU):", this.logitsOnCPU.toArray().slice(0, 20));
-
-    // if (this.logitsOnCPUCopy) {
-    //   console.log("logitsOnCPUCopy shape:", this.logitsOnCPUCopy.shape);
-    //   const logitsOnCPUArray = this.logitsOnCPU.toArray();
-    //   const logitsOnCPUCopyArray = this.logitsOnCPUCopy.toArray();
-    //   let flag = true;
-    //   for (let i = 0; i < logitsOnCPUArray.length; i++) {
-    //     if (Math.abs(logitsOnCPUArray[i] - logitsOnCPUCopyArray[i]) > 1e-6) {
-    //       console.error(`Mismatch at index ${i}: CPU=${logitsOnCPUArray[i]}, GPU=${logitsOnCPUCopyArray[i]}`);
-    //       flag = false;
-    //     }
-    //   }
-    //   if (!flag) {
-    //     throw new Error("Logits on CPU and GPU do not match within tolerance");
-    //   }
-    // }
 
     // 4. Sample token from logits
     // If logprobs, need the actual distribution via softmax, otherwise directly sample from logits
@@ -1344,25 +1238,6 @@ export class LLMChatPipeline {
     if (logprobs) {
       // Inplace transform logitsOnCPU to a distribution
       temperature = Math.max(1e-6, temperature); // to prevent division by zero
-
-      if (this.logitsOnCPU.shape[2] !== this.fullVocabSize) {
-        throw new Error("Logits vocab size does not match full vocab size");
-      }
-
-      // this.tvm.beginScope();
-      // const testArray = new Float32Array(this.fullVocabSize);
-      // for (let i = 0; i < this.fullVocabSize; i++) {
-      //   testArray[i] = Math.random() * 10;
-      // }
-      // console.log("Test array:", testArray.slice(0, 20));
-      // const detachedTestArrayOnGPU = this.tvm.detachFromCurrentScope(
-      //   this.tvm.empty([1, 1, this.fullVocabSize], "float32", this.device).copyFrom(testArray)
-      // );
-      // await this.device.sync();
-      // const detachedTestArrayOnCPU = this.tvm.detachFromCurrentScope(
-      //   this.tvm.empty([testArray.length], "float32", this.tvm.cpu()).copyFrom(testArray)
-      // );
-      // this.tvm.endScope();
 
       const numSeqs = 1;
       const numTokens = this.appearedTokensFreq.size;
@@ -1378,12 +1253,6 @@ export class LLMChatPipeline {
         const logitsOnGPU = this.tvm
           .empty([numSeqs, 1, this.fullVocabSize], "float32", this.device)
           .copyFrom(this.logitsOnCPU.toArray());
-
-        // const detachedTestArrayOnGPUCopy = this.tvm
-        //   .empty(detachedTestArrayOnGPU.shape, detachedTestArrayOnGPU.dtype, this.tvm.cpu())
-        //   .copyFrom(detachedTestArrayOnGPU);
-
-        // await this.device.sync();
 
         const probs = this.fsoftmaxWithTemperature(
           logitsOnGPU,
@@ -1404,22 +1273,6 @@ export class LLMChatPipeline {
           this.getTokenLogprob(sampledToken, top_logprobs!),
         );
       }
-
-      // if (numTokens > 0 && this.logitsOnCPUCopy) {
-      //   console.log("logitsOnCPUCopy shape:", this.logitsOnCPUCopy.shape);
-      //   const logitsOnCPUArray = this.logitsOnCPU.toArray();
-      //   const logitsOnCPUCopyArray = this.logitsOnCPUCopy.toArray();
-      //   let flag = true;
-      //   for (let i = 0; i < logitsOnCPUArray.length; i++) {
-      //     if (Math.abs(logitsOnCPUArray[i] - logitsOnCPUCopyArray[i]) > 1e-6) {
-      //       console.error(`Mismatch at index ${i}: CPU=${logitsOnCPUArray[i]}, GPU=${logitsOnCPUCopyArray[i]}`);
-      //       flag = false;
-      //     }
-      //   }
-      //   if (!flag) {
-      //     throw new Error("Logits on CPU and GPU do not match within tolerance");
-      //   }
-      // }
     } else {
       // temperature being 0 is allowed here, equivalent to argmax
       sampledToken = this.tvm.sampleTopPFromLogits(
