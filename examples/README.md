@@ -55,3 +55,7 @@ These examples demonstrate various capabilities via WebLLM's OpenAI-like API.
 
 - [web-llm-embed](https://huggingface.co/spaces/matthoffner/web-llm-embed): document chat prototype using react-llm with transformers.js embeddings
 - [DeVinci](https://x6occ-biaaa-aaaai-acqzq-cai.icp0.io/): AI chat app based on WebLLM and hosted on decentralized cloud platform
+
+## Projects built with WebLLM
+
+- [◉ Universal Intelligence](https://github.com/blueraai/universal-intelligence): UIN aims to make AI development accessible to everyone through a simple interface, which can optionally be customized to grow with you as you learn, up to production readiness
