@@ -53,8 +53,6 @@ export class LLMChatPipeline {
   private fapplyPenalty: tvmjs.PackedFunc;
   private fapplyLogitBias: tvmjs.PackedFunc;
   private fsoftmaxWithTemperature: tvmjs.PackedFunc;
-  // private frenormalizeByTopP: tvmjs.PackedFunc; //BatchRenormalizeProbsByTopP
-  // private //BatchSampleTokensImpl, ChunkSampleTokensImpl
 
   // Functions related to PagedKVCache
   private fclearKVCaches: tvmjs.PackedFunc;
@@ -68,7 +66,6 @@ export class LLMChatPipeline {
   private params: tvmjs.TVMObject;
   private kvCache: tvmjs.TVMObject;
   private logitsOnCPU?: tvmjs.NDArray = undefined;
-  private logitsOnCPUCopy?: tvmjs.NDArray = undefined;
   private filledKVCacheLength = 0;
 
   // meta data
@@ -318,7 +315,6 @@ export class LLMChatPipeline {
     this.kvCache.dispose();
     this.fclearKVCaches.dispose();
     this.logitsOnCPU?.dispose();
-    this.logitsOnCPUCopy?.dispose();
     this.tvm.dispose();
     this.tokenizer.dispose();
     this.xgTokenizerInfo?.dispose();
@@ -974,20 +970,6 @@ export class LLMChatPipeline {
     return this.logitsOnCPU;
   }
 
-  private updateLogitsOnCPUCopy(logits: tvmjs.NDArray): tvmjs.NDArray {
-    if (this.logitsOnCPUCopy == undefined) {
-      this.logitsOnCPUCopy = this.tvm.detachFromCurrentScope(
-        this.tvm.empty(logits.shape, logits.dtype, this.tvm.cpu()),
-      );
-    } else {
-      if (logits.shape[0] != this.logitsOnCPUCopy.shape[0]) {
-        throw Error("We expect the size of logits to remain unchanged");
-      }
-    }
-    this.logitsOnCPUCopy.copyFrom(logits);
-    return this.logitsOnCPUCopy;
-  }
-
   private async sampleTokenFromLogits(
     logitsOnGPU: tvmjs.NDArray,
     genConfig?: GenerationConfig,
@@ -1126,14 +1108,15 @@ export class LLMChatPipeline {
       if (_hasValue(logit_bias)) {
         this.tvm.beginScope();
         const numTokens = Object.keys(logit_bias ?? {}).length;
-        const pos2seq_id = new Int32Array(numTokens);
+        const pos2seq_id = new Int32Array(numTokens).fill(0);
         const tokenIds = new Int32Array(numTokens);
         const tokenLogitBias = new Float32Array(numTokens);
 
+        const logitBiasKeys = Object.keys(logit_bias ?? {});
         for (let index = 0; index < numTokens; index++) {
-          pos2seq_id[index] = 0;
-          tokenIds[index] = parseInt(Object.keys(logit_bias ?? {})[index]);
-          tokenLogitBias[index] = logit_bias![tokenIds[index]];
+          const tokenId = parseInt(logitBiasKeys[index]);
+          tokenIds[index] = tokenId;
+          tokenLogitBias[index] = logit_bias![tokenId];
         }
 
         const pos2seqIdsArray = this.tvm
@@ -1191,11 +1174,8 @@ export class LLMChatPipeline {
       const paddedPenalties = new Float32Array(3);
       paddedPenalties.set(penalties);
 
-      for (let index = 0; index < numTokens; index++) {
-        pos2seq_id[index] = 0;
-        tokenIds[index] = appearedTokens[index];
-        tokenCnt[index] = appearedTokensFreqs[index];
-      }
+      tokenIds.set(appearedTokens);
+      tokenCnt.set(appearedTokensFreqs);
 
       const pos2seqIdsArray = this.tvm
         .empty([numTokens], "int32", this.device)
