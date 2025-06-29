@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Teacher (WebLLM)</title>
+  <script src="https://mlc.ai/web-llm/dist/webllm.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #e9f0ff;
+      text-align: center;
+      padding: 20px;
+    }
+    #chat {
+      width: 90%;
+      max-width: 700px;
+      margin: auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px #ccc;
+    }
+    #output {
+      border: 1px solid #ccc;
+      min-height: 150px;
+      padding: 10px;
+      text-align: left;
+      margin-top: 20px;
+      border-radius: 10px;
+      white-space: pre-wrap;
+    }
+    input, button {
+      padding: 10px;
+      margin-top: 10px;
+      width: 70%;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <h2>👩‍🏫 Ask Your AI Teacher (Offline Web)</h2>
+  <div id="chat">
+    <input type="text" id="question" placeholder="Ask a Class 10 question..." />
+    <br/>
+    <button onclick="askTeacher()">Ask</button>
+    <div id="output">Model is loading, please wait...</div>
+  </div>
+
+  <script>
+    let chat = null;
+
+    // Load the model (only runs once)
+    window.onload = async () => {
+      chat = new window.webllm.ChatModule();
+      await chat.reload("RedPajama-INCITE-Chat-3B-v1"); // 3B model
+      document.getElementById("output").innerHTML = "✅ Model ready! Ask your question.";
+    };
+
+    async function askTeacher() {
+      const question = document.getElementById("question").value;
+      const output = document.getElementById("output");
+      output.innerHTML = "🧠 Thinking...";
+
+      const reply = await chat.chat(question);
+      output.innerHTML = reply;
+    }
+  </script>
+</body>
+</html>
