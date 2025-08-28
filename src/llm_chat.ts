@@ -1085,97 +1085,39 @@ export class LLMChatPipeline {
       this.tvm.endScope();
     }
 
-    // 1. Move logits to CPU
-    this.tvm.beginScope();
-    this.updateLogitsOnCPU(logitsOnGPU);
-    this.tvm.endScope();
-    await this.device.sync();
+    // 1. Post process logits via logitProcessor and/or logit_bias
+    if (this.logitProcessor !== undefined) {
+      // Move logits to CPU
+      this.tvm.beginScope();
+      this.updateLogitsOnCPU(logitsOnGPU);
+      this.tvm.endScope();
+      await this.device.sync();
 
-    if (this.logitsOnCPU == undefined) {
-      throw Error("logits should be assigned");
-    }
-
-    // 2. Post process logits via logitProcessor and/or logit_bias
-    if (this.logitProcessor !== undefined || _hasValue(logit_bias)) {
+      if (this.logitsOnCPU == undefined) {
+        throw Error("logits should be assigned");
+      }
       let logitsOnCPUArray: Float32Array = <Float32Array>(
         this.logitsOnCPU.toArray()
       );
-      const vocab_size = logitsOnCPUArray.length;
-      if (this.logitProcessor !== undefined) {
-        logitsOnCPUArray = this.logitProcessor.processLogits(logitsOnCPUArray);
-      }
-
-      if (_hasValue(logit_bias)) {
-        this.tvm.beginScope();
-        const numTokens = Object.keys(logit_bias ?? {}).length;
-        const pos2seq_id = new Int32Array(numTokens).fill(0);
-        const tokenIds = new Int32Array(numTokens);
-        const tokenLogitBias = new Float32Array(numTokens);
-
-        const logitBiasKeys = Object.keys(logit_bias ?? {});
-        for (let index = 0; index < numTokens; index++) {
-          const tokenId = parseInt(logitBiasKeys[index]);
-          tokenIds[index] = tokenId;
-          tokenLogitBias[index] = logit_bias![tokenId];
-        }
-
-        const pos2seqIdsArray = this.tvm
-          .empty([numTokens], "int32", this.device)
-          .copyFrom(pos2seq_id);
-
-        const tokenIdsArray = this.tvm
-          .empty([numTokens], "int32", this.device)
-          .copyFrom(tokenIds);
-
-        const tokenLogitBiasArray = this.tvm
-          .empty([numTokens], "float32", this.device)
-          .copyFrom(tokenLogitBias);
-
-        const logitsOnGPU = this.tvm
-          .empty([1, this.fullVocabSize], "float32", this.device)
-          .copyFrom(logitsOnCPUArray);
-
-        this.fapplyLogitBias(
-          logitsOnGPU,
-          pos2seqIdsArray,
-          tokenIdsArray,
-          tokenLogitBiasArray,
-        );
-        this.updateLogitsOnCPU(logitsOnGPU);
-        this.tvm.endScope();
-      }
-      await this.device.sync();
+      logitsOnCPUArray = this.logitProcessor.processLogits(logitsOnCPUArray);
+      logitsOnGPU.copyFrom(logitsOnCPUArray);
+      this.logitsOnCPU.copyFrom(logitsOnCPUArray);
     }
 
-    // 3. Apply penalties to logits
-    if (
-      frequency_penalty != 0.0 ||
-      presence_penalty != 0.0 ||
-      repetition_penalty != 1.0
-    ) {
-      this.tvm.beginScope();
-      const appearedTokens = [...this.appearedTokensFreq.keys()];
-      const appearedTokensFreqs = [...this.appearedTokensFreq.values()];
-
-      const numTokens = appearedTokens.length;
-
-      const seqIdsArray = this.tvm
-        .empty([1], "int32", this.device)
-        .copyFrom([0]);
-
+    if (_hasValue(logit_bias)) {
+      const numTokens = Object.keys(logit_bias ?? {}).length;
       const pos2seq_id = new Int32Array(numTokens).fill(0);
-      const tokenIds = new Int32Array(numTokens).fill(0);
-      const tokenCnt = new Int32Array(numTokens).fill(0);
-      const penalties = new Float32Array([
-        presence_penalty,
-        frequency_penalty,
-        repetition_penalty,
-      ]);
-      const paddedPenalties = new Float32Array(3);
-      paddedPenalties.set(penalties);
+      const tokenIds = new Int32Array(numTokens);
+      const tokenLogitBias = new Float32Array(numTokens);
 
-      tokenIds.set(appearedTokens);
-      tokenCnt.set(appearedTokensFreqs);
+      const logitBiasKeys = Object.keys(logit_bias ?? {});
+      for (let index = 0; index < numTokens; index++) {
+        const tokenId = parseInt(logitBiasKeys[index]);
+        tokenIds[index] = tokenId;
+        tokenLogitBias[index] = logit_bias![tokenId];
+      }
+
+      this.tvm.beginScope();
 
       const pos2seqIdsArray = this.tvm
         .empty([numTokens], "int32", this.device)
@@ -1185,32 +1127,77 @@ export class LLMChatPipeline {
         .empty([numTokens], "int32", this.device)
         .copyFrom(tokenIds);
 
-      const tokenCntArray = this.tvm
-        .empty([numTokens], "int32", this.device)
-        .copyFrom(tokenCnt);
+      const tokenLogitBiasArray = this.tvm
+        .empty([numTokens], "float32", this.device)
+        .copyFrom(tokenLogitBias);
 
-      const penaltiesArray = this.tvm
-        .empty([1, 3], "float32", this.device)
-        .copyFrom(paddedPenalties);
+      this.fapplyLogitBias(
+        logitsOnGPU.view([1, this.fullVocabSize]),
+        pos2seqIdsArray,
+        tokenIdsArray,
+        tokenLogitBiasArray,
+      );
 
-      const logitsOnGPU = this.tvm
-        .empty([1, this.fullVocabSize], "float32", this.device)
-        .copyFrom(this.logitsOnCPU.toArray());
+      this.tvm.endScope();
+    }
+
+    // 3. Apply penalties to logits
+    if (
+      frequency_penalty != 0.0 ||
+      presence_penalty != 0.0 ||
+      repetition_penalty != 1.0
+    ) {
+      const appearedTokens = [...this.appearedTokensFreq.keys()];
+      const appearedTokensFreqs = [...this.appearedTokensFreq.values()];
+
+      const numTokens = appearedTokens.length;
 
       if (numTokens > 0) {
+        const pos2seq_id = new Int32Array(numTokens).fill(0);
+        const tokenIds = new Int32Array(numTokens).fill(0);
+        const tokenCnt = new Int32Array(numTokens).fill(0);
+        const penalties = new Float32Array([
+          presence_penalty,
+          frequency_penalty,
+          repetition_penalty,
+        ]);
+
+        tokenIds.set(appearedTokens);
+        tokenCnt.set(appearedTokensFreqs);
+
+        this.tvm.beginScope();
+        const seqIdsArray = this.tvm
+          .empty([1], "int32", this.device)
+          .copyFrom([0]);
+
+        const pos2seqIdsArray = this.tvm
+          .empty([numTokens], "int32", this.device)
+          .copyFrom(pos2seq_id);
+
+        const tokenIdsArray = this.tvm
+          .empty([numTokens], "int32", this.device)
+          .copyFrom(tokenIds);
+
+        const tokenCntArray = this.tvm
+          .empty([numTokens], "int32", this.device)
+          .copyFrom(tokenCnt);
+
+        const penaltiesArray = this.tvm
+          .empty([1, 3], "float32", this.device)
+          .copyFrom(penalties);
+
         this.fapplyPenalty(
-          logitsOnGPU,
+          logitsOnGPU.view([1, this.fullVocabSize]),
           seqIdsArray,
           pos2seqIdsArray,
           tokenIdsArray,
           tokenCntArray,
           penaltiesArray,
         );
+
+        this.tvm.endScope();
       }
-      this.updateLogitsOnCPU(logitsOnGPU);
-      this.tvm.endScope();
     }
-    await this.device.sync();
 
     // 4. Sample token from logits
     // If logprobs, need the actual distribution via softmax, otherwise directly sample from logits
@@ -1230,33 +1217,46 @@ export class LLMChatPipeline {
           .empty([numSeqs], "float32", this.device)
           .copyFrom(temperatures);
 
-        const logitsOnGPU = this.tvm
-          .empty([numSeqs, 1, this.fullVocabSize], "float32", this.device)
-          .copyFrom(this.logitsOnCPU.toArray());
-
         const probs = this.fsoftmaxWithTemperature(
-          logitsOnGPU,
+          logitsOnGPU.view([numSeqs, 1, this.fullVocabSize]),
           temperaturesArray,
         );
         this.updateLogitsOnCPU(probs);
         this.tvm.endScope();
         await this.device.sync();
 
-        sampledToken = this.tvm.sampleTopPFromProb(this.logitsOnCPU, top_p);
+        // sampledToken = this.fsampleWithTopP(
+        //   probs.view([numSeqs, 1, this.fullVocabSize]),
+        //   top_p,
+        //   top_logprobs,
+        //   this.fullVocabSize,
+        //   this.appearedTokensFreq,
+        //   this.tokenLogprobArray,
+        // )
+
+        sampledToken = this.tvm.sampleTopPFromProb(this.logitsOnCPU!, top_p);
         this.tokenLogprobArray.push(
           this.getTokenLogprob(sampledToken, top_logprobs!),
         );
       } else {
-        this.tvm.applySoftmaxWithTemperature(this.logitsOnCPU, temperature);
-        sampledToken = this.tvm.sampleTopPFromProb(this.logitsOnCPU, top_p);
+        this.tvm.beginScope();
+        this.updateLogitsOnCPU(logitsOnGPU);
+        this.tvm.endScope();
+        await this.device.sync();
+        this.tvm.applySoftmaxWithTemperature(this.logitsOnCPU!, temperature);
+        sampledToken = this.tvm.sampleTopPFromProb(this.logitsOnCPU!, top_p);
         this.tokenLogprobArray.push(
           this.getTokenLogprob(sampledToken, top_logprobs!),
         );
       }
     } else {
       // temperature being 0 is allowed here, equivalent to argmax
+      this.tvm.beginScope();
+      this.updateLogitsOnCPU(logitsOnGPU);
+      this.tvm.endScope();
+      await this.device.sync();
       sampledToken = this.tvm.sampleTopPFromLogits(
-        this.logitsOnCPU,
+        this.logitsOnCPU!,
         temperature,
         top_p,
       );
