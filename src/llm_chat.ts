@@ -1085,7 +1085,7 @@ export class LLMChatPipeline {
       this.tvm.endScope();
     }
 
-    // 1. Post process logits via logitProcessor and/or logit_bias
+    // 1. Apply logitProcessor on CPU
     if (this.logitProcessor !== undefined) {
       // Move logits to CPU
       this.tvm.beginScope();
@@ -1104,6 +1104,7 @@ export class LLMChatPipeline {
       this.logitsOnCPU.copyFrom(logitsOnCPUArray);
     }
 
+    // 2. Apply logit_bias on GPU
     if (_hasValue(logit_bias)) {
       const numTokens = Object.keys(logit_bias ?? {}).length;
       const pos2seq_id = new Int32Array(numTokens).fill(0);
@@ -1209,46 +1210,34 @@ export class LLMChatPipeline {
       const numSeqs = 1;
       const numTokens = this.appearedTokensFreq.size;
 
-      if (numTokens > 0) {
-        const temperatures = new Float32Array([temperature]);
+      const temperatures = new Float32Array([temperature]);
 
-        this.tvm.beginScope();
-        const temperaturesArray = this.tvm
-          .empty([numSeqs], "float32", this.device)
-          .copyFrom(temperatures);
+      this.tvm.beginScope();
+      const temperaturesArray = this.tvm
+        .empty([numSeqs], "float32", this.device)
+        .copyFrom(temperatures);
 
-        const probs = this.fsoftmaxWithTemperature(
-          logitsOnGPU.view([numSeqs, 1, this.fullVocabSize]),
-          temperaturesArray,
-        );
-        this.updateLogitsOnCPU(probs);
-        this.tvm.endScope();
-        await this.device.sync();
+      const probs = this.fsoftmaxWithTemperature(
+        logitsOnGPU.view([numSeqs, 1, this.fullVocabSize]),
+        temperaturesArray,
+      );
+      this.updateLogitsOnCPU(probs);
+      this.tvm.endScope();
+      await this.device.sync();
 
-        // sampledToken = this.fsampleWithTopP(
-        //   probs.view([numSeqs, 1, this.fullVocabSize]),
-        //   top_p,
-        //   top_logprobs,
-        //   this.fullVocabSize,
-        //   this.appearedTokensFreq,
-        //   this.tokenLogprobArray,
-        // )
+      // sampledToken = this.fsampleWithTopP(
+      //   probs.view([numSeqs, 1, this.fullVocabSize]),
+      //   top_p,
+      //   top_logprobs,
+      //   this.fullVocabSize,
+      //   this.appearedTokensFreq,
+      //   this.tokenLogprobArray,
+      // )
 
-        sampledToken = this.tvm.sampleTopPFromProb(this.logitsOnCPU!, top_p);
-        this.tokenLogprobArray.push(
-          this.getTokenLogprob(sampledToken, top_logprobs!),
-        );
-      } else {
-        this.tvm.beginScope();
-        this.updateLogitsOnCPU(logitsOnGPU);
-        this.tvm.endScope();
-        await this.device.sync();
-        this.tvm.applySoftmaxWithTemperature(this.logitsOnCPU!, temperature);
-        sampledToken = this.tvm.sampleTopPFromProb(this.logitsOnCPU!, top_p);
-        this.tokenLogprobArray.push(
-          this.getTokenLogprob(sampledToken, top_logprobs!),
-        );
-      }
+      sampledToken = this.tvm.sampleTopPFromProb(this.logitsOnCPU!, top_p);
+      this.tokenLogprobArray.push(
+        this.getTokenLogprob(sampledToken, top_logprobs!),
+      );
     } else {
       // temperature being 0 is allowed here, equivalent to argmax
       this.tvm.beginScope();
