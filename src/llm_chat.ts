@@ -6,7 +6,7 @@ import log from "loglevel";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
 import { ChatConfig, GenerationConfig, Role } from "./config";
 import { getConversation, Conversation } from "./conversation";
-import { LogitProcessor } from "./types";
+import { LogitProcessor, LatencyBreakdown } from "./types";
 import {
   getChunkedPrefillInputData,
   getImageDataFromURL,
@@ -101,6 +101,16 @@ export class LLMChatPipeline {
   private curRoundPrefillTotalTokens = 0;
   private curRoundDecodingTotalTime = 0;
   private curRoundPrefillTotalTime = 0;
+
+  // additional stats, reset at every prefillStep()
+  public curRoundLatencyBreakdown: LatencyBreakdown = {
+    logitProcessorTime: [],
+    logitBiasTime: [],
+    penaltyTime: [],
+    sampleTime: [],
+    totalTime: [],
+    grammarBitmaskTime: [],
+  };
 
   // LogitProcessor
   private logitProcessor?: LogitProcessor = undefined;
@@ -435,6 +445,13 @@ export class LLMChatPipeline {
   }
 
   /**
+   * @returns the breakdown of latencies for sampling each token for a single request.
+   */
+  getCurRoundLatencyBreakdown(): LatencyBreakdown {
+    return this.curRoundLatencyBreakdown;
+  }
+
+  /**
    * @returns Runtime stats information.
    */
   runtimeStatsText(): string {
@@ -527,6 +544,16 @@ export class LLMChatPipeline {
     this.curRoundDecodingTotalTime = 0;
     this.curRoundGrammarInitTotalTime = 0;
     this.curRoundGrammarPerTokenTotalTime = 0;
+
+    this.curRoundLatencyBreakdown = {
+      logitProcessorTime: [],
+      logitBiasTime: [],
+      penaltyTime: [],
+      sampleTime: [],
+      totalTime: [],
+      grammarBitmaskTime: [],
+    };
+
     this.stopTriggered = false;
     const conversation = this.conversation;
 
@@ -1049,11 +1076,15 @@ export class LLMChatPipeline {
       throw new RangeError("presence_penalty", -2.0, 2.0);
     }
 
+    const outputTokenBegin = performance.now();
+
     // 0. Update logitsOnGPU with on-GPU grammar bitmasking
     if (
       response_format?.type === "json_object" ||
       response_format?.type === "grammar"
     ) {
+      const grammarBitmaskBegin = performance.now();
+
       this.tvm.beginScope();
       if (this.grammarMatcher === undefined) {
         throw Error("Expect grammar matcher to be initialized.");
@@ -1083,6 +1114,15 @@ export class LLMChatPipeline {
         bitMaskOnGPU,
       );
       this.tvm.endScope();
+
+      if (genConfig?.enable_latency_breakdown) {
+        const grammarBitmaskEnd = performance.now();
+        const grammarBitmaskTimeSpent =
+          (grammarBitmaskEnd - grammarBitmaskBegin) / 1e3;
+        this.curRoundLatencyBreakdown.grammarBitmaskTime.push(
+          grammarBitmaskTimeSpent,
+        );
+      }
     }
 
     // 1. Apply logitProcessor on CPU
@@ -1093,6 +1133,8 @@ export class LLMChatPipeline {
       this.tvm.endScope();
       await this.device.sync();
 
+      const logitProcessorBegin = performance.now();
+
       if (this.logitsOnCPU == undefined) {
         throw Error("logits should be assigned");
       }
@@ -1102,10 +1144,21 @@ export class LLMChatPipeline {
       logitsOnCPUArray = this.logitProcessor.processLogits(logitsOnCPUArray);
       logitsOnGPU.copyFrom(logitsOnCPUArray);
       this.logitsOnCPU.copyFrom(logitsOnCPUArray);
+
+      if (genConfig?.enable_latency_breakdown) {
+        const logitProcessorEnd = performance.now();
+        const logitProcessorTimeSpent =
+          (logitProcessorEnd - logitProcessorBegin) / 1e3;
+        this.curRoundLatencyBreakdown.logitProcessorTime.push(
+          logitProcessorTimeSpent,
+        );
+      }
     }
 
     // 2. Apply logit_bias on GPU
     if (_hasValue(logit_bias)) {
+      const logitBiasBegin = performance.now();
+
       const numTokens = Object.keys(logit_bias ?? {}).length;
       const pos2seq_id = new Int32Array(numTokens).fill(0);
       const tokenIds = new Int32Array(numTokens);
@@ -1140,9 +1193,15 @@ export class LLMChatPipeline {
       );
 
       this.tvm.endScope();
+
+      if (genConfig?.enable_latency_breakdown) {
+        const logitBiasEnd = performance.now();
+        const logitBiasTimeSpent = (logitBiasEnd - logitBiasBegin) / 1e3;
+        this.curRoundLatencyBreakdown.logitBiasTime.push(logitBiasTimeSpent);
+      }
     }
 
-    // 3. Apply penalties to logits
+    // 3. Apply penalties to logits on GPU
     if (
       frequency_penalty != 0.0 ||
       presence_penalty != 0.0 ||
@@ -1154,6 +1213,8 @@ export class LLMChatPipeline {
       const numTokens = appearedTokens.length;
 
       if (numTokens > 0) {
+        const penaltyBegin = performance.now();
+
         const pos2seq_id = new Int32Array(numTokens).fill(0);
         const tokenIds = new Int32Array(numTokens).fill(0);
         const tokenCnt = new Int32Array(numTokens).fill(0);
@@ -1197,11 +1258,18 @@ export class LLMChatPipeline {
         );
 
         this.tvm.endScope();
+
+        if (genConfig?.enable_latency_breakdown) {
+          const penaltyEnd = performance.now();
+          const penaltyTimeSpent = (penaltyEnd - penaltyBegin) / 1e3;
+          this.curRoundLatencyBreakdown.penaltyTime.push(penaltyTimeSpent);
+        }
       }
     }
 
     // 4. Sample token from logits
     // If logprobs, need the actual distribution via softmax, otherwise directly sample from logits
+    const sampleBegin = performance.now();
     let sampledToken: number;
     if (logprobs) {
       // Inplace transform logitsOnCPU to a distribution
@@ -1225,15 +1293,6 @@ export class LLMChatPipeline {
       this.tvm.endScope();
       await this.device.sync();
 
-      // sampledToken = this.fsampleWithTopP(
-      //   probs.view([numSeqs, 1, this.fullVocabSize]),
-      //   top_p,
-      //   top_logprobs,
-      //   this.fullVocabSize,
-      //   this.appearedTokensFreq,
-      //   this.tokenLogprobArray,
-      // )
-
       sampledToken = this.tvm.sampleTopPFromProb(this.logitsOnCPU!, top_p);
       this.tokenLogprobArray.push(
         this.getTokenLogprob(sampledToken, top_logprobs!),
@@ -1249,6 +1308,12 @@ export class LLMChatPipeline {
         temperature,
         top_p,
       );
+    }
+
+    if (genConfig?.enable_latency_breakdown) {
+      const sampleEnd = performance.now();
+      const sampleTimeSpent = (sampleEnd - sampleBegin) / 1e3;
+      this.curRoundLatencyBreakdown.sampleTime.push(sampleTimeSpent);
     }
 
     // 5. Update logit processor
@@ -1269,6 +1334,12 @@ export class LLMChatPipeline {
       if (!accepted) {
         throw Error("Grammar matcher rejected the newly sampled token.");
       }
+    }
+
+    if (genConfig?.enable_latency_breakdown) {
+      const outputTokenEnd = performance.now();
+      const outputTokenTimeSpent = (outputTokenEnd - outputTokenBegin) / 1e3;
+      this.curRoundLatencyBreakdown.totalTime.push(outputTokenTimeSpent);
     }
 
     return sampledToken;
