@@ -251,3 +251,12 @@ export const LOG_LEVELS = {
   SILENT: 5,
 };
 export type LogLevel = keyof typeof LOG_LEVELS;
+
+export type LatencyBreakdown = {
+  logitProcessorTime: number[];
+  logitBiasTime: number[];
+  penaltyTime: number[];
+  sampleTime: number[];
+  totalTime: number[];
+  grammarBitmaskTime: number[];
+};

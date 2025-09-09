@@ -138,6 +138,13 @@ export interface CompletionCreateParamsBase {
   presence_penalty?: number | null;
 
   /**
+   * Number greater than or equal to 1.0. Values greater than 1.0 discourage
+   * the model from repeating tokens that have already been generated. Repetition
+   * penalty is like presence penalty but is multiplicative.
+   */
+  repetition_penalty?: number | null;
+
+  /**
    * If specified, our system will make a best effort to sample deterministically,
    * such that repeated requests with the same `seed` and parameters should return
    * the same result.
@@ -225,6 +232,17 @@ export interface CompletionCreateParamsBase {
    * @note This field is not supported.
    */
   best_of?: number | null;
+
+  /**
+   * Fields specific to WebLLM, not present in OpenAI.
+   */
+  extra_body?: {
+    /**
+     * If set to true, the response will include a breakdown of the time spent in various
+     * stages of token sampling.
+     */
+    enable_latency_breakdown?: boolean | null;
+  };
 }
 
 export type CompletionCreateParams =
