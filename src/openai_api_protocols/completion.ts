@@ -138,9 +138,9 @@ export interface CompletionCreateParamsBase {
   presence_penalty?: number | null;
 
   /**
-   * Number greater than or equal to 1.0. Values greater than 1.0 discourage
-   * the model from repeating tokens that have already been generated. Repetition
-   * penalty is like presence penalty but is multiplicative.
+   * Penalizes new tokens based on whether they appear in the prompt and the
+   * generated text so far. Values greater than 1.0 encourage the model to use new
+   * tokens, while values less than 1.0 encourage the model to repeat tokens.
    */
   repetition_penalty?: number | null;
 
