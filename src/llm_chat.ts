@@ -1276,7 +1276,6 @@ export class LLMChatPipeline {
       temperature = Math.max(1e-6, temperature); // to prevent division by zero
 
       const numSeqs = 1;
-      const numTokens = this.appearedTokensFreq.size;
 
       const temperatures = new Float32Array([temperature]);
 

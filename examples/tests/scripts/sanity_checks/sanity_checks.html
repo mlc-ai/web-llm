@@ -1,17 +1,31 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GPU sampleTokenFromLogits Tests</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 2em; }
-        .label { margin: 0.5em 0; font-weight: bold; }
-        .result { margin: 0.5em 0 1.5em 0; padding: 0.5em; background: #f4f4f4; border-radius: 4px; }
-        button { padding: 0.5em 1em; font-size: 1em; }
+      body {
+        font-family: Arial, sans-serif;
+        margin: 2em;
+      }
+      .label {
+        margin: 0.5em 0;
+        font-weight: bold;
+      }
+      .result {
+        margin: 0.5em 0 1.5em 0;
+        padding: 0.5em;
+        background: #f4f4f4;
+        border-radius: 4px;
+      }
+      button {
+        padding: 0.5em 1em;
+        font-size: 1em;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <h1>GPU sampleTokenFromLogits Tests</h1>
     <button id="run-tests">Re-run All Tests</button>
     <div class="label">Overall:</div>
@@ -25,11 +39,11 @@
     <div class="label">Logprobs:</div>
     <div id="logprobs-label" class="result"></div>
     <script type="module">
-        import './sanity_checks.ts';
-        document.getElementById('run-tests').onclick = () => {
-            // Reload the module to rerun tests
-            window.location.reload();
-        };
+      import "./sanity_checks.ts";
+      document.getElementById("run-tests").onclick = () => {
+        // Reload the module to rerun tests
+        window.location.reload();
+      };
     </script>
-</body>
+  </body>
 </html>

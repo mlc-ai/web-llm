@@ -1,6 +1,6 @@
 # WebLLM Get Started App
 
-This folder provides a minimum demo to show WebLLM API in a webapp setting with 
+This folder provides a minimum demo to show WebLLM API in a webapp setting with
 collection of latency statistics for individual token sampling steps.
 To try it out, you can do the following steps under this folder
 
