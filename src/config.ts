@@ -126,7 +126,7 @@ export interface MLCEngineConfig {
  */
 export interface GenerationConfig {
   // Only used in MLC
-  repetition_penalty?: number;
+  repetition_penalty?: number | null;
   ignore_eos?: boolean;
   // Shared by MLC and OpenAI APIs
   top_p?: number | null;
@@ -143,6 +143,7 @@ export interface GenerationConfig {
   response_format?: ResponseFormat | null;
   // extra_body in ChatCompletionsRequest
   enable_thinking?: boolean | null;
+  enable_latency_breakdown?: boolean | null;
 }
 
 export function postInitAndCheckGenerationConfigValues(

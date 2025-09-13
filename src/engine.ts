@@ -41,6 +41,7 @@ import {
   MLCEngineInterface,
   LogitProcessor,
   LogLevel,
+  LatencyBreakdown,
 } from "./types";
 import {
   compareConversationObject,
@@ -694,12 +695,18 @@ export class MLCEngine implements MLCEngineInterface {
       const decode_time = pipeline.getCurRoundDecodingTotalTime();
       const grammar_per_token_s =
         pipeline.getCurRoundGrammarPerTokenTotalTime();
+      const latencyBreakdown: LatencyBreakdown =
+        pipeline.getCurRoundLatencyBreakdown();
+
       const defaultExtra = {
         e2e_latency_s: (Date.now() - timeReceived) / 1000,
         prefill_tokens_per_s: prefill_tokens_per_s,
         decode_tokens_per_s: decode_tokens_per_s,
         time_to_first_token_s: prefill_time,
         time_per_output_token_s: decode_time / completion_tokens,
+        latencyBreakdown: request.extra_body?.enable_latency_breakdown
+          ? latencyBreakdown
+          : undefined,
       };
       const usage: CompletionUsage = {
         completion_tokens: completion_tokens,
@@ -783,6 +790,7 @@ export class MLCEngine implements MLCEngineInterface {
     const genConfig: GenerationConfig = {
       frequency_penalty: request.frequency_penalty,
       presence_penalty: request.presence_penalty,
+      repetition_penalty: request.repetition_penalty,
       max_tokens: request.max_tokens,
       stop: request.stop,
       top_p: request.top_p,
@@ -793,6 +801,7 @@ export class MLCEngine implements MLCEngineInterface {
       response_format: request.response_format,
       ignore_eos: request.ignore_eos,
       enable_thinking: request.extra_body?.enable_thinking,
+      enable_latency_breakdown: request.extra_body?.enable_latency_breakdown,
     };
 
     // 0.5 Block wait until this pipeline finishes all previous requests
@@ -890,12 +899,19 @@ export class MLCEngine implements MLCEngineInterface {
         "response_format" in request &&
         (request.response_format?.type === "grammar" ||
           request.response_format?.type === "json_object");
+
+      const latencyBreakdown: LatencyBreakdown =
+        selectedPipeline.getCurRoundLatencyBreakdown();
+
       const defaultExtra = {
         e2e_latency_s: (Date.now() - timeReceived) / 1000,
         prefill_tokens_per_s: prompt_tokens / prefill_time,
         decode_tokens_per_s: completion_tokens / decode_time,
         time_to_first_token_s: prefill_time,
         time_per_output_token_s: decode_time / completion_tokens,
+        latencyBreakdown: request.extra_body?.enable_latency_breakdown
+          ? latencyBreakdown
+          : undefined,
       };
       const response: ChatCompletion = {
         id: crypto.randomUUID(),
@@ -958,6 +974,7 @@ export class MLCEngine implements MLCEngineInterface {
     const genConfig: GenerationConfig = {
       frequency_penalty: request.frequency_penalty,
       presence_penalty: request.presence_penalty,
+      repetition_penalty: request.repetition_penalty,
       max_tokens: request.max_tokens,
       stop: request.stop,
       top_p: request.top_p,
@@ -1030,6 +1047,9 @@ export class MLCEngine implements MLCEngineInterface {
         decode_time += selectedPipeline.getCurRoundDecodingTotalTime();
       }
 
+      const latencyBreakdown: LatencyBreakdown =
+        selectedPipeline.getCurRoundLatencyBreakdown();
+
       const response: Completion = {
         id: crypto.randomUUID(),
         choices: choices,
@@ -1046,6 +1066,9 @@ export class MLCEngine implements MLCEngineInterface {
             decode_tokens_per_s: completion_tokens / decode_time,
             time_to_first_token_s: prefill_time,
             time_per_output_token_s: decode_time / completion_tokens,
+            latencyBreakdown: request.extra_body?.enable_latency_breakdown
+              ? latencyBreakdown
+              : undefined,
           },
         } as CompletionUsage,
       };

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-import { MLCEngineInterface } from "../types";
+import { MLCEngineInterface, LatencyBreakdown } from "../types";
 import {
   functionCallingModelIds,
   MessagePlaceholders,
@@ -124,6 +124,13 @@ export interface ChatCompletionRequestBase {
    * [See more information about frequency and presence penalties.](https://platform.openai.com/docs/guides/text-generation/parameter-details)
    */
   presence_penalty?: number | null;
+
+  /**
+   * Penalizes new tokens based on whether they appear in the prompt and the
+   * generated text so far. Values greater than 1.0 encourage the model to use new
+   * tokens, while values less than 1.0 encourage the model to repeat tokens.
+   */
+  repetition_penalty?: number | null;
 
   /**
    * The maximum number of [tokens](/tokenizer) that can be generated in the chat
@@ -268,6 +275,12 @@ export interface ChatCompletionRequestBase {
      * @note Currently only allowed to be used for Qwen3 models, though not explicitly checked.
      */
     enable_thinking?: boolean | null;
+
+    /**
+     * If set to true, the response will include a breakdown of the time spent in various
+     * stages of token sampling.
+     */
+    enable_latency_breakdown?: boolean | null;
   };
 }
 
@@ -980,6 +993,12 @@ export interface CompletionUsage {
      * structured output. If n > 1, it is the average over all choices.
      */
     grammar_per_token_s?: number;
+
+    /**
+     * If `enable_latency_breakdown` is set to true in the request, this field will be
+     * present and contain a breakdown of the time spent in various stages of token sampling.
+     */
+    latencyBreakdown?: LatencyBreakdown;
   };
 }
 

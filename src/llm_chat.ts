@@ -6,7 +6,7 @@ import log from "loglevel";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
 import { ChatConfig, GenerationConfig, Role } from "./config";
 import { getConversation, Conversation } from "./conversation";
-import { LogitProcessor } from "./types";
+import { LogitProcessor, LatencyBreakdown } from "./types";
 import {
   getChunkedPrefillInputData,
   getImageDataFromURL,
@@ -50,6 +50,10 @@ export class LLMChatPipeline {
   private image_embed: tvmjs.PackedFunc | undefined;
   private embed: tvmjs.PackedFunc;
   private fapplyBitmask: tvmjs.PackedFunc;
+  private fapplyPenalty: tvmjs.PackedFunc;
+  private fapplyLogitBias: tvmjs.PackedFunc;
+  private fsoftmaxWithTemperature: tvmjs.PackedFunc;
+
   // Functions related to PagedKVCache
   private fclearKVCaches: tvmjs.PackedFunc;
   private fKVCacheAddSequence: tvmjs.PackedFunc;
@@ -97,6 +101,16 @@ export class LLMChatPipeline {
   private curRoundPrefillTotalTokens = 0;
   private curRoundDecodingTotalTime = 0;
   private curRoundPrefillTotalTime = 0;
+
+  // additional stats, reset at every prefillStep()
+  public curRoundLatencyBreakdown: LatencyBreakdown = {
+    logitProcessorTime: [],
+    logitBiasTime: [],
+    penaltyTime: [],
+    sampleTime: [],
+    totalTime: [],
+    grammarBitmaskTime: [],
+  };
 
   // LogitProcessor
   private logitProcessor?: LogitProcessor = undefined;
@@ -189,6 +203,15 @@ export class LLMChatPipeline {
     );
     this.fapplyBitmask = this.tvm.detachFromCurrentScope(
       this.vm.getFunction("apply_bitmask_inplace"),
+    );
+    this.fapplyPenalty = this.tvm.detachFromCurrentScope(
+      this.vm.getFunction("apply_penalty_inplace"),
+    );
+    this.fapplyLogitBias = this.tvm.detachFromCurrentScope(
+      this.vm.getFunction("apply_logit_bias_inplace"),
+    );
+    this.fsoftmaxWithTemperature = this.tvm.detachFromCurrentScope(
+      this.vm.getFunction("softmax_with_temperature"),
     );
     try {
       this.image_embed = this.tvm.detachFromCurrentScope(
@@ -422,6 +445,13 @@ export class LLMChatPipeline {
   }
 
   /**
+   * @returns the breakdown of latencies for sampling each token for a single request.
+   */
+  getCurRoundLatencyBreakdown(): LatencyBreakdown {
+    return this.curRoundLatencyBreakdown;
+  }
+
+  /**
    * @returns Runtime stats information.
    */
   runtimeStatsText(): string {
@@ -514,6 +544,16 @@ export class LLMChatPipeline {
     this.curRoundDecodingTotalTime = 0;
     this.curRoundGrammarInitTotalTime = 0;
     this.curRoundGrammarPerTokenTotalTime = 0;
+
+    this.curRoundLatencyBreakdown = {
+      logitProcessorTime: [],
+      logitBiasTime: [],
+      penaltyTime: [],
+      sampleTime: [],
+      totalTime: [],
+      grammarBitmaskTime: [],
+    };
+
     this.stopTriggered = false;
     const conversation = this.conversation;
 
@@ -1036,11 +1076,15 @@ export class LLMChatPipeline {
       throw new RangeError("presence_penalty", -2.0, 2.0);
     }
 
+    const outputTokenBegin = performance.now();
+
     // 0. Update logitsOnGPU with on-GPU grammar bitmasking
     if (
       response_format?.type === "json_object" ||
       response_format?.type === "grammar"
     ) {
+      const grammarBitmaskBegin = performance.now();
+
       this.tvm.beginScope();
       if (this.grammarMatcher === undefined) {
         throw Error("Expect grammar matcher to be initialized.");
@@ -1070,108 +1114,205 @@ export class LLMChatPipeline {
         bitMaskOnGPU,
       );
       this.tvm.endScope();
+
+      if (genConfig?.enable_latency_breakdown) {
+        const grammarBitmaskEnd = performance.now();
+        const grammarBitmaskTimeSpent =
+          (grammarBitmaskEnd - grammarBitmaskBegin) / 1e3;
+        this.curRoundLatencyBreakdown.grammarBitmaskTime.push(
+          grammarBitmaskTimeSpent,
+        );
+      }
     }
 
-    // 1. Move logits to CPU
-    this.tvm.beginScope();
-    this.updateLogitsOnCPU(logitsOnGPU);
-    this.tvm.endScope();
-    await this.device.sync();
+    // 1. Apply logitProcessor on CPU
+    if (this.logitProcessor !== undefined) {
+      // Move logits to CPU
+      this.tvm.beginScope();
+      this.updateLogitsOnCPU(logitsOnGPU);
+      this.tvm.endScope();
+      await this.device.sync();
 
-    if (this.logitsOnCPU == undefined) {
-      throw Error("logits should be assigned");
-    }
+      const logitProcessorBegin = performance.now();
 
-    // 2. Post process logits via logitProcessor and/or logit_bias
-    if (this.logitProcessor !== undefined || _hasValue(logit_bias)) {
+      if (this.logitsOnCPU == undefined) {
+        throw Error("logits should be assigned");
+      }
       let logitsOnCPUArray: Float32Array = <Float32Array>(
         this.logitsOnCPU.toArray()
       );
-      const vocab_size = logitsOnCPUArray.length;
-      if (this.logitProcessor !== undefined) {
-        logitsOnCPUArray = this.logitProcessor.processLogits(logitsOnCPUArray);
-      }
-      if (_hasValue(logit_bias)) {
-        for (const tokenID in logit_bias) {
-          const curBias = logit_bias[tokenID];
-          const curTokenID = parseInt(tokenID);
-          if (curTokenID > vocab_size) {
-            throw Error(
-              "Token " +
-                curTokenID +
-                " in logit_bias exceeds vocab_size " +
-                vocab_size,
-            );
-          }
-          logitsOnCPUArray[curTokenID] += curBias;
-        }
-      }
+      logitsOnCPUArray = this.logitProcessor.processLogits(logitsOnCPUArray);
+      logitsOnGPU.copyFrom(logitsOnCPUArray);
       this.logitsOnCPU.copyFrom(logitsOnCPUArray);
+
+      if (genConfig?.enable_latency_breakdown) {
+        const logitProcessorEnd = performance.now();
+        const logitProcessorTimeSpent =
+          (logitProcessorEnd - logitProcessorBegin) / 1e3;
+        this.curRoundLatencyBreakdown.logitProcessorTime.push(
+          logitProcessorTimeSpent,
+        );
+      }
     }
 
-    // 3. Apply penalties to logits
-    if (_hasValue(frequency_penalty) && _hasValue(presence_penalty)) {
-      // 3.1. Use frequency and presence penalty
+    // 2. Apply logit_bias on GPU
+    if (_hasValue(logit_bias)) {
+      const logitBiasBegin = performance.now();
+
+      const numTokens = Object.keys(logit_bias ?? {}).length;
+      const pos2seq_id = new Int32Array(numTokens).fill(0);
+      const tokenIds = new Int32Array(numTokens);
+      const tokenLogitBias = new Float32Array(numTokens);
+
+      const logitBiasKeys = Object.keys(logit_bias ?? {});
+      for (let index = 0; index < numTokens; index++) {
+        const tokenId = parseInt(logitBiasKeys[index]);
+        tokenIds[index] = tokenId;
+        tokenLogitBias[index] = logit_bias![tokenId];
+      }
+
       this.tvm.beginScope();
-      // Both `keys()` and `values()` are in insertion order.
+
+      const pos2seqIdsArray = this.tvm
+        .empty([numTokens], "int32", this.device)
+        .copyFrom(pos2seq_id);
+
+      const tokenIdsArray = this.tvm
+        .empty([numTokens], "int32", this.device)
+        .copyFrom(tokenIds);
+
+      const tokenLogitBiasArray = this.tvm
+        .empty([numTokens], "float32", this.device)
+        .copyFrom(tokenLogitBias);
+
+      this.fapplyLogitBias(
+        logitsOnGPU.view([1, this.fullVocabSize]),
+        pos2seqIdsArray,
+        tokenIdsArray,
+        tokenLogitBiasArray,
+      );
+
+      this.tvm.endScope();
+
+      if (genConfig?.enable_latency_breakdown) {
+        const logitBiasEnd = performance.now();
+        const logitBiasTimeSpent = (logitBiasEnd - logitBiasBegin) / 1e3;
+        this.curRoundLatencyBreakdown.logitBiasTime.push(logitBiasTimeSpent);
+      }
+    }
+
+    // 3. Apply penalties to logits on GPU
+    if (
+      frequency_penalty != 0.0 ||
+      presence_penalty != 0.0 ||
+      repetition_penalty != 1.0
+    ) {
       const appearedTokens = [...this.appearedTokensFreq.keys()];
       const appearedTokensFreqs = [...this.appearedTokensFreq.values()];
-      const appeared_tokens_ndarray = this.tvm.empty(
-        [1, appearedTokens.length],
-        "int32",
-        this.tvm.cpu(),
-      );
-      const appeared_tokens_freqs_ndarray = this.tvm.empty(
-        [1, appearedTokensFreqs.length],
-        "int32",
-        this.tvm.cpu(),
-      );
-      appeared_tokens_ndarray.copyFrom(appearedTokens);
-      appeared_tokens_freqs_ndarray.copyFrom(appearedTokensFreqs);
-      this.tvm.applyPresenceAndFrequencyPenalty(
-        this.logitsOnCPU,
-        appeared_tokens_ndarray,
-        appeared_tokens_freqs_ndarray,
-        presence_penalty!,
-        frequency_penalty!,
-      );
-      this.tvm.endScope();
-    } else if (repetition_penalty != 1.0) {
-      // 3.2. Use repetition penalty
-      this.tvm.beginScope();
-      const appearedTokens = [...this.appearedTokensFreq.keys()];
-      const appeared_tokens_ndarray = this.tvm.empty(
-        [1, appearedTokens.length],
-        "int32",
-        this.tvm.cpu(),
-      );
-      appeared_tokens_ndarray.copyFrom(appearedTokens);
-      this.tvm.applyRepetitionPenalty(
-        this.logitsOnCPU,
-        appeared_tokens_ndarray,
-        repetition_penalty,
-      );
-      this.tvm.endScope();
+
+      const numTokens = appearedTokens.length;
+
+      if (numTokens > 0) {
+        const penaltyBegin = performance.now();
+
+        const pos2seq_id = new Int32Array(numTokens).fill(0);
+        const tokenIds = new Int32Array(numTokens).fill(0);
+        const tokenCnt = new Int32Array(numTokens).fill(0);
+        const penalties = new Float32Array([
+          presence_penalty,
+          frequency_penalty,
+          repetition_penalty,
+        ]);
+
+        tokenIds.set(appearedTokens);
+        tokenCnt.set(appearedTokensFreqs);
+
+        this.tvm.beginScope();
+        const seqIdsArray = this.tvm
+          .empty([1], "int32", this.device)
+          .copyFrom([0]);
+
+        const pos2seqIdsArray = this.tvm
+          .empty([numTokens], "int32", this.device)
+          .copyFrom(pos2seq_id);
+
+        const tokenIdsArray = this.tvm
+          .empty([numTokens], "int32", this.device)
+          .copyFrom(tokenIds);
+
+        const tokenCntArray = this.tvm
+          .empty([numTokens], "int32", this.device)
+          .copyFrom(tokenCnt);
+
+        const penaltiesArray = this.tvm
+          .empty([1, 3], "float32", this.device)
+          .copyFrom(penalties);
+
+        this.fapplyPenalty(
+          logitsOnGPU.view([1, this.fullVocabSize]),
+          seqIdsArray,
+          pos2seqIdsArray,
+          tokenIdsArray,
+          tokenCntArray,
+          penaltiesArray,
+        );
+
+        this.tvm.endScope();
+
+        if (genConfig?.enable_latency_breakdown) {
+          const penaltyEnd = performance.now();
+          const penaltyTimeSpent = (penaltyEnd - penaltyBegin) / 1e3;
+          this.curRoundLatencyBreakdown.penaltyTime.push(penaltyTimeSpent);
+        }
+      }
     }
 
     // 4. Sample token from logits
     // If logprobs, need the actual distribution via softmax, otherwise directly sample from logits
+    const sampleBegin = performance.now();
     let sampledToken: number;
     if (logprobs) {
       // Inplace transform logitsOnCPU to a distribution
       temperature = Math.max(1e-6, temperature); // to prevent division by zero
-      this.tvm.applySoftmaxWithTemperature(this.logitsOnCPU, temperature);
-      sampledToken = this.tvm.sampleTopPFromProb(this.logitsOnCPU, top_p);
+
+      const numSeqs = 1;
+
+      const temperatures = new Float32Array([temperature]);
+
+      this.tvm.beginScope();
+      const temperaturesArray = this.tvm
+        .empty([numSeqs], "float32", this.device)
+        .copyFrom(temperatures);
+
+      const probs = this.fsoftmaxWithTemperature(
+        logitsOnGPU.view([numSeqs, 1, this.fullVocabSize]),
+        temperaturesArray,
+      );
+      this.updateLogitsOnCPU(probs);
+      this.tvm.endScope();
+      await this.device.sync();
+
+      sampledToken = this.tvm.sampleTopPFromProb(this.logitsOnCPU!, top_p);
       this.tokenLogprobArray.push(
         this.getTokenLogprob(sampledToken, top_logprobs!),
       );
     } else {
       // temperature being 0 is allowed here, equivalent to argmax
+      this.tvm.beginScope();
+      this.updateLogitsOnCPU(logitsOnGPU);
+      this.tvm.endScope();
+      await this.device.sync();
       sampledToken = this.tvm.sampleTopPFromLogits(
-        this.logitsOnCPU,
+        this.logitsOnCPU!,
         temperature,
         top_p,
       );
+    }
+
+    if (genConfig?.enable_latency_breakdown) {
+      const sampleEnd = performance.now();
+      const sampleTimeSpent = (sampleEnd - sampleBegin) / 1e3;
+      this.curRoundLatencyBreakdown.sampleTime.push(sampleTimeSpent);
     }
 
     // 5. Update logit processor
@@ -1192,6 +1333,12 @@ export class LLMChatPipeline {
       if (!accepted) {
         throw Error("Grammar matcher rejected the newly sampled token.");
       }
+    }
+
+    if (genConfig?.enable_latency_breakdown) {
+      const outputTokenEnd = performance.now();
+      const outputTokenTimeSpent = (outputTokenEnd - outputTokenBegin) / 1e3;
+      this.curRoundLatencyBreakdown.totalTime.push(outputTokenTimeSpent);
     }
 
     return sampledToken;
