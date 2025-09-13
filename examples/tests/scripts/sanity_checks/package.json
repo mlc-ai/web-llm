@@ -1,5 +1,5 @@
 {
-  "name": "tests",
+  "name": "sanity_checks",
   "version": "0.1.0",
   "private": true,
   "scripts": {
