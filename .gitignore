@@ -323,6 +323,5 @@ tvm_home
 node_modules
 lib
 .parcel-cache
-package-lock.json
 
 **/.next
