@@ -71,7 +71,6 @@ async function testLogitProcessor(
 async function testLogitBias(modelId: string, appConfig: webllm.AppConfig) {
   // Set logit_bias to strongly favor token 0
   const prompt = "Test logit bias.";
-  // const t0 = performance.now();
   const engine: webllm.MLCEngineInterface = await createEngine(
     modelId,
     appConfig,
@@ -128,7 +127,6 @@ async function testPenalties(modelId: string, appConfig: webllm.AppConfig) {
 async function testLogprobs(modelId: string, appConfig: webllm.AppConfig) {
   // Test logprobs: check that logprobs are returned and sum to ~1 after exp
   const prompt = "Test logprobs.";
-  const t0 = performance.now();
   const engine: webllm.MLCEngineInterface = await createEngine(
     modelId,
     appConfig,
@@ -140,7 +138,6 @@ async function testLogprobs(modelId: string, appConfig: webllm.AppConfig) {
     logprobs: true,
     top_logprobs: 5,
   });
-  const t1 = performance.now();
   const logprobs = reply.choices[0]?.logprobs;
 
   let logprobsAllCloseTo1 = true;

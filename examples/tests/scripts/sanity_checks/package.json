@@ -1,10 +1,10 @@
 {
-  "name": "sanity-checks",
+  "name": "tests",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "start": "parcel src/sanity_checks.html --port 8889",
-    "build": "parcel build src/sanity_checks.html --dist-dir lib"
+    "start": "parcel sanity_checks.html --port 8889",
+    "build": "parcel build sanity_checks.html --dist-dir lib"
   },
   "devDependencies": {
     "buffer": "^5.7.1",

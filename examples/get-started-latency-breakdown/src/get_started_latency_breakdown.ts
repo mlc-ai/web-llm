@@ -45,7 +45,6 @@ async function main() {
     setLabel("init-label", report.text);
   };
   // Option 1: If we do not specify appConfig, we use `prebuiltAppConfig` defined in `config.ts`
-  // const selectedModel = "Llama-3.1-8B-Instruct-q4f32_1-MLC";
   const selectedModel = "Qwen3-0.6B-q0f32-MLC";
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
@@ -61,34 +60,6 @@ async function main() {
     },
   );
 
-  // Option 2: Specify your own model other than the prebuilt ones
-  // const appConfig: webllm.AppConfig = {
-  //   model_list: [
-  //     {
-  //       model: "https://huggingface.co/mlc-ai/Llama-3.1-8B-Instruct-q4f32_1-MLC",
-  //       model_id: "Llama-3.1-8B-Instruct-q4f32_1-MLC",
-  //       model_lib:
-  //         webllm.modelLibURLPrefix +
-  //         webllm.modelVersion +
-  //         "/Llama-3_1-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
-  //       overrides: {
-  //         context_window_size: 2048,
-  //       },
-  //     },
-  //   ],
-  // };
-  // const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
-  //   selectedModel,
-  //   { appConfig: appConfig, initProgressCallback: initProgressCallback },
-  // );
-
-  // Option 3: Instantiate MLCEngine() and call reload() separately
-  // const engine: webllm.MLCEngineInterface = new webllm.MLCEngine({
-  //   appConfig: appConfig, // if do not specify, we use webllm.prebuiltAppConfig
-  //   initProgressCallback: initProgressCallback,
-  // });
-  // await engine.reload(selectedModel);
-
   const latencyBreakdown: LatencyBreakdown = {
     logitProcessorTime: [],
     logitBiasTime: [],
@@ -97,7 +68,7 @@ async function main() {
     totalTime: [],
     grammarBitmaskTime: [],
   };
-  // want decode_tokens_per_s, e2e_latency_s, time_per_output_token_s, completion_tokens
+
   const decodeTokensPerS: number[] = [];
   const completionTokens: number[] = [];
   const e2eLatencyS: number[] = [];
