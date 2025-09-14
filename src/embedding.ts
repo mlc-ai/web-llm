@@ -49,7 +49,7 @@ export class EmbeddingPipeline {
     // 2. Get json stored in the vm's metadata function
     const fgetMetadata = this.vm.getFunction("_metadata");
     const ret_value = fgetMetadata();
-    const metadataStr = this.tvm.detachFromCurrentScope(ret_value).toString();
+    const metadataStr = ret_value.toString();
     const metadata = JSON.parse(metadataStr);
 
     // 3. Load parameters by name
