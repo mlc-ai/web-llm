@@ -80,6 +80,9 @@ export function areAppConfigsEqual(
   if (config1.useIndexedDBCache !== config2.useIndexedDBCache) {
     return false;
   }
+  if (config1.cacheBackend !== config2.cacheBackend) {
+    return false;
+  }
 
   // Check if both configurations have the same number of model records
   if (config1.model_list.length !== config2.model_list.length) {
