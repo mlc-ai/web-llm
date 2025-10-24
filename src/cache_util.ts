@@ -29,7 +29,7 @@ export async function hasModelInCache(
   const modelRecord = findModelRecord(modelId, appConfig);
   const modelUrl = cleanModelUrl(modelRecord.model);
   const cacheType = appConfig.useIndexedDBCache ? "indexeddb" : "cache";
-  return tvmjs.hasNDArrayInCache(modelUrl, "webllm/model", cacheType);
+  return tvmjs.hasTensorInCache(modelUrl, "webllm/model", cacheType);
 }
 
 export async function deleteModelAllInfoInCache(
@@ -60,10 +60,10 @@ export async function deleteModelInCache(
   const modelUrl = cleanModelUrl(modelRecord.model);
   let modelCache: tvmjs.ArtifactCacheTemplate;
   if (appConfig.useIndexedDBCache) {
-    tvmjs.deleteNDArrayCache(modelUrl, "webllm/model", "indexeddb");
+    tvmjs.deleteTensorCache(modelUrl, "webllm/model", "indexeddb");
     modelCache = new tvmjs.ArtifactIndexedDBCache("webllm/model");
   } else {
-    tvmjs.deleteNDArrayCache(modelUrl, "webllm/model", "cache");
+    tvmjs.deleteTensorCache(modelUrl, "webllm/model", "cache");
     modelCache = new tvmjs.ArtifactCache("webllm/model");
   }
   await modelCache.deleteInCache(new URL("tokenizer.model", modelUrl).href);

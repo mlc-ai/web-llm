@@ -367,7 +367,7 @@ export class MLCEngine implements MLCEngineInterface {
       this.logger,
     );
     const cacheType = this.appConfig.useIndexedDBCache ? "indexeddb" : "cache";
-    await tvm.fetchNDArrayCache(
+    await tvm.fetchTensorCache(
       modelUrl,
       tvm.webgpu(),
       "webllm/model",
