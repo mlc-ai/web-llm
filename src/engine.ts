@@ -69,7 +69,11 @@ import {
   SpecifiedModelNotFoundError,
   ModelNotLoadedError,
 } from "./error";
-import { asyncLoadTokenizer } from "./cache_util";
+import {
+  asyncLoadTokenizer,
+  fetchModelArtifacts,
+  getArtifactCache,
+} from "./cache_util";
 import { EmbeddingPipeline } from "./embedding";
 
 /**
@@ -260,12 +264,7 @@ export class MLCEngine implements MLCEngineInterface {
     this.loadedModelIdToModelType.set(modelId, modelType);
 
     // instantiate cache
-    let configCache: tvmjs.ArtifactCacheTemplate;
-    if (this.appConfig.useIndexedDBCache) {
-      configCache = new tvmjs.ArtifactIndexedDBCache("webllm/config");
-    } else {
-      configCache = new tvmjs.ArtifactCache("webllm/config");
-    }
+    const configCache = getArtifactCache("webllm/config", this.appConfig);
 
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
@@ -281,12 +280,7 @@ export class MLCEngine implements MLCEngineInterface {
     this.loadedModelIdToChatConfig.set(modelId, curModelConfig);
 
     // load tvm wasm
-    let wasmCache: tvmjs.ArtifactCacheTemplate;
-    if (this.appConfig.useIndexedDBCache) {
-      wasmCache = new tvmjs.ArtifactIndexedDBCache("webllm/wasm");
-    } else {
-      wasmCache = new tvmjs.ArtifactCache("webllm/wasm");
-    }
+    const wasmCache = getArtifactCache("webllm/wasm", this.appConfig);
 
     const wasmUrl = modelRecord.model_lib;
     if (wasmUrl === undefined) {
@@ -367,12 +361,11 @@ export class MLCEngine implements MLCEngineInterface {
       this.appConfig,
       this.logger,
     );
-    const cacheType = this.appConfig.useIndexedDBCache ? "indexeddb" : "cache";
-    await tvm.fetchTensorCache(
+    await fetchModelArtifacts(
+      tvm,
       modelUrl,
       tvm.webgpu(),
-      "webllm/model",
-      cacheType,
+      this.appConfig,
       this.reloadController?.signal,
     );
 

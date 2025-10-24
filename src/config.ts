@@ -275,9 +275,19 @@ export interface ModelRecord {
  *
  * @note Note that the Cache API is more well-tested in WebLLM as of now.
  */
+export type CacheBackend = "cache" | "indexeddb" | "cross-origin";
+
 export interface AppConfig {
   model_list: Array<ModelRecord>;
   useIndexedDBCache?: boolean;
+  cacheBackend?: CacheBackend;
+}
+
+export function getCacheBackend(appConfig: AppConfig): CacheBackend {
+  if (appConfig.cacheBackend !== undefined) {
+    return appConfig.cacheBackend;
+  }
+  return appConfig.useIndexedDBCache ? "indexeddb" : "cache";
 }
 
 /**
