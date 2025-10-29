@@ -1,5 +1,17 @@
 const HASH_ALGORITHM = "SHA-256";
 const HASH_MATCH_REGEX = /[A-Fa-f0-9]{64}/;
+const AVAILABILITY_POLL_INTERVAL_MS = 100;
+const DEFAULT_AVAILABILITY_TIMEOUT_MS = 3000;
+const HASH_CACHE_SYMBOL = Symbol.for("mlc.crossOriginStorage.hashCache");
+
+const globalScope = globalThis as Record<PropertyKey, unknown>;
+if (!globalScope[HASH_CACHE_SYMBOL]) {
+  globalScope[HASH_CACHE_SYMBOL] = new Map<string, CrossOriginHashDescriptor>();
+}
+const GLOBAL_HASH_CACHE = globalScope[HASH_CACHE_SYMBOL] as Map<
+  string,
+  CrossOriginHashDescriptor
+>;
 
 export interface CrossOriginHashDescriptor {
   algorithm: string;
@@ -16,7 +28,6 @@ interface CrossOriginStorageAPI {
     descriptors: CrossOriginHashDescriptor[],
     options?: { create?: boolean },
   ): Promise<CrossOriginStorageHandle[]>;
-  removeFileHandles?(descriptors: CrossOriginHashDescriptor[]): Promise<void>;
 }
 
 type RequestLike = string | URL | Request | { url?: string };
@@ -25,13 +36,16 @@ declare global {
   interface Navigator {
     crossOriginStorage?: CrossOriginStorageAPI;
   }
+  interface WorkerNavigator {
+    crossOriginStorage?: CrossOriginStorageAPI;
+  }
 }
 
 export default class CrossOriginStorage {
   private hashCache: Map<string, CrossOriginHashDescriptor>;
 
   constructor() {
-    this.hashCache = new Map();
+    this.hashCache = GLOBAL_HASH_CACHE;
   }
 
   static isAvailable(): boolean {
@@ -40,6 +54,35 @@ export default class CrossOriginStorage {
       "crossOriginStorage" in navigator &&
       navigator.crossOriginStorage !== undefined
     );
+  }
+
+  static async waitForAvailability(
+    timeoutMs: number = DEFAULT_AVAILABILITY_TIMEOUT_MS,
+  ): Promise<boolean> {
+    if (CrossOriginStorage.isAvailable()) {
+      return true;
+    }
+    if (typeof navigator === "undefined") {
+      return false;
+    }
+    if (typeof setTimeout === "undefined") {
+      return false;
+    }
+    return new Promise((resolve) => {
+      const deadline = Date.now() + timeoutMs;
+      const tick = () => {
+        if (CrossOriginStorage.isAvailable()) {
+          resolve(true);
+          return;
+        }
+        if (Date.now() >= deadline) {
+          resolve(false);
+          return;
+        }
+        setTimeout(tick, AVAILABILITY_POLL_INTERVAL_MS);
+      };
+      setTimeout(tick, AVAILABILITY_POLL_INTERVAL_MS);
+    });
   }
 
   async match(request: RequestLike): Promise<Response | undefined> {
@@ -85,16 +128,8 @@ export default class CrossOriginStorage {
   }
 
   async delete(request: RequestLike): Promise<void> {
-    const url = this.normalizeRequest(request);
-    const hash = await this.resolveHashDescriptor(url);
-    if (!hash) {
-      return;
-    }
-    const api = this.getApi();
-    if (api && typeof api.removeFileHandles === "function") {
-      await api.removeFileHandles([hash]);
-    }
-    this.hashCache.delete(url);
+    // Currently no delete API provided by Cross-Origin Storage Extension
+    return;
   }
 
   private getApi(): CrossOriginStorageAPI | undefined {
@@ -145,7 +180,7 @@ export default class CrossOriginStorage {
     if (metadataHash) {
       return metadataHash;
     }
-    if (/\/resolve\/main\//.test(url)) {
+    if (/\/resolve\//.test(url)) {
       const pointerHash = await this.extractHashFromPointer(url);
       if (pointerHash) {
         return pointerHash;
