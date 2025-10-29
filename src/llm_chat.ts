@@ -65,7 +65,7 @@ export class LLMChatPipeline {
   // parameter states
   private params: tvmjs.TVMObject;
   private kvCache: tvmjs.TVMObject;
-  private logitsOnCPU?: tvmjs.NDArray = undefined;
+  private logitsOnCPU?: tvmjs.Tensor = undefined;
   private filledKVCacheLength = 0;
 
   // meta data
@@ -224,7 +224,7 @@ export class LLMChatPipeline {
     // 2. Get json stored in the vm's metadata function
     const fgetMetadata = this.vm.getFunction("_metadata");
     const ret_value = fgetMetadata();
-    const metadataStr = this.tvm.detachFromCurrentScope(ret_value).toString();
+    const metadataStr = ret_value.toString();
     const metadata = JSON.parse(metadataStr);
 
     // 3. Load parameters by name
@@ -671,7 +671,7 @@ export class LLMChatPipeline {
 
     // 2. Prefill each chunk
     this.tvm.beginScope();
-    let logits: tvmjs.NDArray;
+    let logits: tvmjs.Tensor;
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
       const chunkLen = chunkLens[i];
@@ -860,7 +860,7 @@ export class LLMChatPipeline {
    * @note precondition: inputTokens.length <= prefillChunkSize, since we take care of
    * chunking in `getChunkedPrefillInputData()`.
    */
-  private getTokensEmbeddings(inputTokens: number[]): tvmjs.NDArray {
+  private getTokensEmbeddings(inputTokens: number[]): tvmjs.Tensor {
     this.tvm.beginScope();
     if (inputTokens.length > this.prefillChunkSize) {
       throw new Error(
@@ -873,7 +873,7 @@ export class LLMChatPipeline {
       this.device,
     );
     inputData.copyFrom(inputTokens);
-    const embed: tvmjs.NDArray = this.tvm.detachFromCurrentScope(
+    const embed: tvmjs.Tensor = this.tvm.detachFromCurrentScope(
       this.embed!(inputData, this.params),
     );
     this.tvm.endScope();
@@ -886,9 +886,9 @@ export class LLMChatPipeline {
    */
   private async getImageEmbeddings(
     inputImage: ImageURL,
-  ): Promise<tvmjs.NDArray> {
+  ): Promise<tvmjs.Tensor> {
     this.tvm.beginScope();
-    // 1. Transform ImageURL into image input in NDArray
+    // 1. Transform ImageURL into image input in TVMArray
     const url = inputImage.url;
     // url starting with `data:image` and `http` share the same loading method
     const imgData: ImageData = await getImageDataFromURL(url);
@@ -900,7 +900,7 @@ export class LLMChatPipeline {
       .view([1, imgData.height, imgData.width, 3]); // NHWC
 
     // 2. Call image embed kernel
-    const embed: tvmjs.NDArray = this.tvm.detachFromCurrentScope(
+    const embed: tvmjs.Tensor = this.tvm.detachFromCurrentScope(
       this.image_embed!(pixelArray, this.params),
     );
     if (embed.shape[0] !== IMAGE_EMBED_SIZE) {
@@ -920,14 +920,14 @@ export class LLMChatPipeline {
    *
    * @param inputData data to embed and forward
    * @param inputDataLen length of this inputData, should smaller than prefill chunk size.
-   * @returns The logits returned by this forward as tvmjs.NDArray on GPU.
+   * @returns The logits returned by this forward as tvmjs.Tensor on GPU.
    *
    * @note Precondition: inputData's data length is smaller than prefill chunk size
    */
   private async embedAndForward(
     inputData: Array<Array<number> | ImageURL>,
     inputDataLen: number,
-  ): Promise<tvmjs.NDArray> {
+  ): Promise<tvmjs.Tensor> {
     if (inputDataLen > this.prefillChunkSize) {
       throw new Error(
         "InternalError: expect inputDataLen <= this.prefillChunkSize.",
@@ -938,18 +938,18 @@ export class LLMChatPipeline {
 
     // 1. Embed all inputData
     this.tvm.beginScope();
-    const embeddings: tvmjs.NDArray[] = [];
+    const embeddings: tvmjs.Tensor[] = [];
     for (let i = 0; i < inputData.length; i++) {
       const data = inputData[i];
       if (Array.isArray(data)) {
-        embeddings.push(this.getTokensEmbeddings(data));
+        embeddings.push(await this.getTokensEmbeddings(data));
       } else {
         embeddings.push(await this.getImageEmbeddings(data));
       }
     }
 
     // 2. Concatenate embeddings
-    let allEmbeddings: tvmjs.NDArray;
+    let allEmbeddings: tvmjs.Tensor;
     if (embeddings.length === 1) {
       allEmbeddings = embeddings[0];
     } else {
@@ -983,7 +983,7 @@ export class LLMChatPipeline {
   }
 
   // NOTE: caller must call device.sync()
-  private updateLogitsOnCPU(logits: tvmjs.NDArray): tvmjs.NDArray {
+  private updateLogitsOnCPU(logits: tvmjs.Tensor): tvmjs.Tensor {
     if (this.logitsOnCPU == undefined) {
       this.logitsOnCPU = this.tvm.detachFromCurrentScope(
         this.tvm.empty(logits.shape, logits.dtype, this.tvm.cpu()),
@@ -998,7 +998,7 @@ export class LLMChatPipeline {
   }
 
   private async sampleTokenFromLogits(
-    logitsOnGPU: tvmjs.NDArray,
+    logitsOnGPU: tvmjs.Tensor,
     genConfig?: GenerationConfig,
   ) {
     // 0. Get value of temperature, top_p, and various penalties, possibly overridden by genConfig
@@ -1160,7 +1160,7 @@ export class LLMChatPipeline {
       const logitBiasBegin = performance.now();
 
       const numTokens = Object.keys(logit_bias ?? {}).length;
-      const pos2seq_id = new Int32Array(numTokens).fill(0);
+      const pos2seqIds = new Int32Array(numTokens).fill(0);
       const tokenIds = new Int32Array(numTokens);
       const tokenLogitBias = new Float32Array(numTokens);
 
@@ -1173,23 +1173,23 @@ export class LLMChatPipeline {
 
       this.tvm.beginScope();
 
-      const pos2seqIdsArray = this.tvm
+      const pos2seqIdsDevice = this.tvm
         .empty([numTokens], "int32", this.device)
-        .copyFrom(pos2seq_id);
+        .copyFrom(pos2seqIds);
 
-      const tokenIdsArray = this.tvm
+      const tokenIdsDevice = this.tvm
         .empty([numTokens], "int32", this.device)
         .copyFrom(tokenIds);
 
-      const tokenLogitBiasArray = this.tvm
+      const tokenLogitBiasDevice = this.tvm
         .empty([numTokens], "float32", this.device)
         .copyFrom(tokenLogitBias);
 
       this.fapplyLogitBias(
         logitsOnGPU.view([1, this.fullVocabSize]),
-        pos2seqIdsArray,
-        tokenIdsArray,
-        tokenLogitBiasArray,
+        pos2seqIdsDevice,
+        tokenIdsDevice,
+        tokenLogitBiasDevice,
       );
 
       this.tvm.endScope();
@@ -1215,7 +1215,7 @@ export class LLMChatPipeline {
       if (numTokens > 0) {
         const penaltyBegin = performance.now();
 
-        const pos2seq_id = new Int32Array(numTokens).fill(0);
+        const pos2seqIds = new Int32Array(numTokens).fill(0);
         const tokenIds = new Int32Array(numTokens).fill(0);
         const tokenCnt = new Int32Array(numTokens).fill(0);
         const penalties = new Float32Array([
@@ -1232,29 +1232,29 @@ export class LLMChatPipeline {
           .empty([1], "int32", this.device)
           .copyFrom([0]);
 
-        const pos2seqIdsArray = this.tvm
+        const pos2seqIdsDevice = this.tvm
           .empty([numTokens], "int32", this.device)
-          .copyFrom(pos2seq_id);
+          .copyFrom(pos2seqIds);
 
-        const tokenIdsArray = this.tvm
+        const tokenIdsDevice = this.tvm
           .empty([numTokens], "int32", this.device)
           .copyFrom(tokenIds);
 
-        const tokenCntArray = this.tvm
+        const tokenCntDevice = this.tvm
           .empty([numTokens], "int32", this.device)
           .copyFrom(tokenCnt);
 
-        const penaltiesArray = this.tvm
+        const penaltiesDevice = this.tvm
           .empty([1, 3], "float32", this.device)
           .copyFrom(penalties);
 
         this.fapplyPenalty(
           logitsOnGPU.view([1, this.fullVocabSize]),
           seqIdsArray,
-          pos2seqIdsArray,
-          tokenIdsArray,
-          tokenCntArray,
-          penaltiesArray,
+          pos2seqIdsDevice,
+          tokenIdsDevice,
+          tokenCntDevice,
+          penaltiesDevice,
         );
 
         this.tvm.endScope();
@@ -1280,13 +1280,13 @@ export class LLMChatPipeline {
       const temperatures = new Float32Array([temperature]);
 
       this.tvm.beginScope();
-      const temperaturesArray = this.tvm
+      const temperaturesDevice = this.tvm
         .empty([numSeqs], "float32", this.device)
         .copyFrom(temperatures);
 
       const probs = this.fsoftmaxWithTemperature(
         logitsOnGPU.view([numSeqs, 1, this.fullVocabSize]),
-        temperaturesArray,
+        temperaturesDevice,
       );
       this.updateLogitsOnCPU(probs);
       this.tvm.endScope();
@@ -1458,7 +1458,7 @@ export class LLMChatPipeline {
     const chunkLens: Array<number> = retGetChunks[1];
 
     // 2. Prefill each chunk
-    let logitsOnGPU: tvmjs.NDArray;
+    let logitsOnGPU: tvmjs.Tensor;
     for (let i = 0; i < chunks.length; i++) {
       const chunk = chunks[i];
       const chunkLen = chunkLens[i];

@@ -204,7 +204,7 @@ export class EmbeddingPipeline {
       maskNDArray = maskNDArray.view([curBatchSize, maxInputSize]);
 
       // 3.5 Actual forwarding on GPU, logits of shape (curBatchSize, maxInputSize, hidden_size)
-      const logitsCurBatchOnGPU: tvmjs.NDArray = this.prefill(
+      const logitsCurBatchOnGPU: tvmjs.Tensor = this.prefill(
         inputNDArray,
         maskNDArray,
         this.params,
@@ -213,7 +213,7 @@ export class EmbeddingPipeline {
 
       // 3.6 Copy logits to CPU, flatten to curBatchSize * maxInputSize * hidden_size
       const hidden_size = logitsCurBatchOnGPU.shape[2];
-      let logitsCurBatchOnCPU: tvmjs.NDArray = this.tvm.empty(
+      let logitsCurBatchOnCPU: tvmjs.Tensor = this.tvm.empty(
         logitsCurBatchOnGPU.shape,
         logitsCurBatchOnGPU.dtype,
         this.tvm.cpu(),
