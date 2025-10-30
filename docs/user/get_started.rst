@@ -19,7 +19,7 @@ Installation
 
 WebLLM offers a minimalist and modular interface to access the chatbot in the browser. The package is designed in a modular way to hook to any of the UI components.
 
-WebLLM is available as an `npm package <https://www.npmjs.com/package/@mlc-ai/web-llm>`_ and is also CDN-delivered. Therefore, you can install WebLLM using Node.js pacakage managers like npm, yarn, or pnpm, or directly import the pacakge via CDN.
+WebLLM is available as an `npm package <https://www.npmjs.com/package/@mlc-ai/web-llm>`_ and is also CDN-delivered. Therefore, you can install WebLLM using Node.js package managers like npm, yarn, or pnpm, or directly import the pacakge via CDN.
 
 Using Package Managers
 ^^^^^^^^^^^^^^^^^^^^^^
