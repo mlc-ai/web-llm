@@ -288,7 +288,7 @@ export interface AppConfig {
  * @note The model version does not have to match the npm version, since not each npm update
  * requires an update of the model libraries.
  */
-export const modelVersion = "v0_2_48";
+export const modelVersion = "v0_2_80";
 export const modelLibURLPrefix =
   "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/";
 
