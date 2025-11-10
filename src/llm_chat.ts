@@ -1071,6 +1071,12 @@ export class LLMChatPipeline {
       if (_hasValue(presence_penalty) && !_hasValue(frequency_penalty)) {
         frequency_penalty = 0.0;
       }
+      if (!_hasValue(frequency_penalty)) {
+        frequency_penalty = 0.0;
+      }
+      if (!_hasValue(presence_penalty)) {
+        presence_penalty = 0.0;
+      }
       if (_hasValue(genConfig.logit_bias)) {
         logit_bias = genConfig.logit_bias!;
       }
