@@ -973,7 +973,7 @@ export class LLMChatPipeline {
     for (let i = 0; i < inputData.length; i++) {
       const data = inputData[i];
       if (Array.isArray(data)) {
-        embeddings.push(await this.getTokensEmbeddings(data));
+        embeddings.push(this.getTokensEmbeddings(data));
       } else {
         embeddings.push(await this.getImageEmbeddings(data));
       }
@@ -1054,6 +1054,10 @@ export class LLMChatPipeline {
       }
       if (_hasValue(genConfig.top_p)) {
         top_p = genConfig.top_p!;
+      }
+      // Set default top_p to 1.0 if not set
+      if (!_hasValue(top_p)) {
+        top_p = 1.0;
       }
       if (_hasValue(genConfig.repetition_penalty)) {
         repetition_penalty = genConfig.repetition_penalty!;
@@ -1305,80 +1309,65 @@ export class LLMChatPipeline {
     }
 
     // 4. Sample token from logits
-    // If logprobs, need the actual distribution via softmax, otherwise directly sample from logits
     const sampleBegin = performance.now();
-    let sampledToken: number;
-    let sampledTokensDevice: tvmjs.Tensor;
-    if (logprobs && _hasValue(top_p)) {
-      // Inplace transform logitsOnCPU to a distribution
-      temperature = Math.max(1e-6, temperature); // to prevent division by zero
 
-      const numSeqs = 1;
-      const numProbs = 1;
+    // Inplace transform logitsOnCPU to a distribution
+    temperature = Math.max(1e-6, temperature); // to prevent division by zero
 
-      const temperatures = new Float32Array([temperature]);
+    const numSeqs = 1;
+    const numProbs = 1;
 
-      this.tvm.beginScope();
-      const temperaturesDevice = this.tvm
-        .empty([numSeqs], "float32", this.device)
-        .copyFrom(temperatures);
+    const temperatures = new Float32Array([temperature]);
 
-      let probs = this.fsoftmaxWithTemperature(
-        logitsOnGPU.view([numSeqs, numProbs, this.fullVocabSize]),
-        temperaturesDevice,
-      );
-      probs = probs.view([numProbs, this.fullVocabSize]);
+    this.tvm.beginScope();
+    const temperaturesDevice = this.tvm
+      .empty([numSeqs], "float32", this.device)
+      .copyFrom(temperatures);
 
-      const argsortResults = this.fargsortProbs(probs);
-      const sortedProbsDevice = argsortResults.get(0);
-      const sortedIndicesDevice = argsortResults.get(1);
+    let probs = this.fsoftmaxWithTemperature(
+      logitsOnGPU.view([numSeqs, numProbs, this.fullVocabSize]),
+      temperaturesDevice,
+    );
+    probs = probs.view([numProbs, this.fullVocabSize]);
 
-      const uniformSamplesDevice = this.tvm.uniform([1], 0.0, 1.0, this.device);
+    const argsortResults = this.fargsortProbs(probs);
+    const sortedProbsDevice = argsortResults.get(0);
+    const sortedIndicesDevice = argsortResults.get(1);
 
-      const topPHost = new Float32Array(numProbs).fill(-1);
-      const topPValue = Math.max(top_p, 1e-5);
-      this.sampleIndices.forEach((row) => {
-        topPHost[row] = topPValue;
-      });
-      this.topPDevice.copyFrom(topPHost);
+    const uniformSamplesDevice = this.tvm.uniform([1], 0.0, 1.0, this.device);
 
-      sampledTokensDevice = this.tvm.detachFromCurrentScope(
-        this.fsampleWithTopP(
-          sortedProbsDevice,
-          sortedIndicesDevice,
-          uniformSamplesDevice,
-          this.sampleIndicesDevice,
-          this.topPDevice,
-        ),
-      );
-      const sampledTokensHost = this.tvm.detachFromCurrentScope(
-        this.tvm
-          .empty([numSeqs], "int32", this.tvm.cpu())
-          .copyFrom(sampledTokensDevice),
-      );
-      if (top_logprobs! > 0) {
-        this.updateLogitsOnCPU(probs);
-      }
-      this.tvm.endScope();
-      await this.device.sync();
+    const topPHost = new Float32Array(numProbs).fill(-1);
+    const topPValue = Math.max(top_p, 1e-5);
+    this.sampleIndices.forEach((row) => {
+      topPHost[row] = topPValue;
+    });
+    this.topPDevice.copyFrom(topPHost);
 
-      sampledToken = sampledTokensHost.toArray()[0];
+    const sampledTokensDevice = this.tvm.detachFromCurrentScope(
+      this.fsampleWithTopP(
+        sortedProbsDevice,
+        sortedIndicesDevice,
+        uniformSamplesDevice,
+        this.sampleIndicesDevice,
+        this.topPDevice,
+      ),
+    );
+    const sampledTokensHost = this.tvm.detachFromCurrentScope(
+      this.tvm
+        .empty([numSeqs], "int32", this.tvm.cpu())
+        .copyFrom(sampledTokensDevice),
+    );
+    if (logprobs && top_logprobs! > 0) {
+      this.updateLogitsOnCPU(probs);
+    }
+    this.tvm.endScope();
+    await this.device.sync();
 
-      if (top_logprobs! > 0) {
-        this.tokenLogprobArray.push(
-          this.getTokenLogprob(sampledToken, top_logprobs!),
-        );
-      }
-    } else {
-      // temperature being 0 is allowed here, equivalent to argmax
-      this.tvm.beginScope();
-      this.updateLogitsOnCPU(logitsOnGPU);
-      this.tvm.endScope();
-      await this.device.sync();
-      sampledToken = this.tvm.sampleTopPFromLogits(
-        this.logitsOnCPU!,
-        temperature,
-        top_p,
+    const sampledToken = sampledTokensHost.toArray()[0];
+
+    if (logprobs && top_logprobs! > 0) {
+      this.tokenLogprobArray.push(
+        this.getTokenLogprob(sampledToken, top_logprobs!),
       );
     }
 
