@@ -1308,6 +1308,8 @@ export class LLMChatPipeline {
       }
     }
 
+    // TODO: Explore usage of multinomial sampling kernel (currently blocked due to usage
+    // of i8) for cases where top_p is not set
     // 4. Sample token from logits
     const sampleBegin = performance.now();
 
