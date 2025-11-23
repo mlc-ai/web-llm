@@ -339,19 +339,20 @@ export const prebuiltAppConfig: AppConfig = {
         context_window_size: 4096,
       },
     },
-    {
-      model: "https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q0f32-MLC",
-      model_id: "Llama-3.2-1B-Instruct-q0f32-MLC",
-      model_lib:
-        modelLibURLPrefix +
-        modelVersion +
-        "/Llama-3.2-1B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
-      vram_required_MB: 5106.26,
-      low_resource_required: true,
-      overrides: {
-        context_window_size: 4096,
-      },
-    },
+    // TODO: temporarily commenting out q0f32 models due to correctness issues
+    // {
+    //   model: "https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q0f32-MLC",
+    //   model_id: "Llama-3.2-1B-Instruct-q0f32-MLC",
+    //   model_lib:
+    //     modelLibURLPrefix +
+    //     modelVersion +
+    //     "/Llama-3.2-1B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+    //   vram_required_MB: 5106.26,
+    //   low_resource_required: true,
+    //   overrides: {
+    //     context_window_size: 4096,
+    //   },
+    // },
     {
       model: "https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q0f16-MLC",
       model_id: "Llama-3.2-1B-Instruct-q0f16-MLC",
@@ -1093,19 +1094,20 @@ export const prebuiltAppConfig: AppConfig = {
         context_window_size: 4096,
       },
     },
-    {
-      model: "https://huggingface.co/mlc-ai/Qwen3-0.6B-q0f32-MLC",
-      model_id: "Qwen3-0.6B-q0f32-MLC",
-      model_lib:
-        modelLibURLPrefix +
-        modelVersion +
-        "/Qwen3-0.6B-q0f32-ctx4k_cs1k-webgpu.wasm",
-      vram_required_MB: 3843.25,
-      low_resource_required: true,
-      overrides: {
-        context_window_size: 4096,
-      },
-    },
+    // TODO: temporarily commenting out q0f32 models due to correctness issues
+    // {
+    //   model: "https://huggingface.co/mlc-ai/Qwen3-0.6B-q0f32-MLC",
+    //   model_id: "Qwen3-0.6B-q0f32-MLC",
+    //   model_lib:
+    //     modelLibURLPrefix +
+    //     modelVersion +
+    //     "/Qwen3-0.6B-q0f32-ctx4k_cs1k-webgpu.wasm",
+    //   vram_required_MB: 3843.25,
+    //   low_resource_required: true,
+    //   overrides: {
+    //     context_window_size: 4096,
+    //   },
+    // },
     {
       model: "https://huggingface.co/mlc-ai/Qwen3-1.7B-q4f16_1-MLC",
       model_id: "Qwen3-1.7B-q4f16_1-MLC",
@@ -1224,19 +1226,20 @@ export const prebuiltAppConfig: AppConfig = {
         context_window_size: 4096,
       },
     },
-    {
-      model: "https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q0f32-MLC",
-      model_id: "Qwen2.5-0.5B-Instruct-q0f32-MLC",
-      model_lib:
-        modelLibURLPrefix +
-        modelVersion +
-        "/Qwen2-0.5B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
-      low_resource_required: true,
-      vram_required_MB: 2654.75,
-      overrides: {
-        context_window_size: 4096,
-      },
-    },
+    // TODO: temporarily commenting out q0f32 models due to correctness issues
+    // {
+    //   model: "https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q0f32-MLC",
+    //   model_id: "Qwen2.5-0.5B-Instruct-q0f32-MLC",
+    //   model_lib:
+    //     modelLibURLPrefix +
+    //     modelVersion +
+    //     "/Qwen2-0.5B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+    //   low_resource_required: true,
+    //   vram_required_MB: 2654.75,
+    //   overrides: {
+    //     context_window_size: 4096,
+    //   },
+    // },
     {
       model: "https://huggingface.co/mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
       model_id: "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
@@ -1358,20 +1361,21 @@ export const prebuiltAppConfig: AppConfig = {
         context_window_size: 4096,
       },
     },
-    {
-      model:
-        "https://huggingface.co/mlc-ai/Qwen2.5-Coder-0.5B-Instruct-q0f32-MLC",
-      model_id: "Qwen2.5-Coder-0.5B-Instruct-q0f32-MLC",
-      model_lib:
-        modelLibURLPrefix +
-        modelVersion +
-        "/Qwen2-0.5B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
-      low_resource_required: true,
-      vram_required_MB: 2654.75,
-      overrides: {
-        context_window_size: 4096,
-      },
-    },
+    // TODO: temporarily commenting out q0f32 models due to correctness issues
+    // {
+    //   model:
+    //     "https://huggingface.co/mlc-ai/Qwen2.5-Coder-0.5B-Instruct-q0f32-MLC",
+    //   model_id: "Qwen2.5-Coder-0.5B-Instruct-q0f32-MLC",
+    //   model_lib:
+    //     modelLibURLPrefix +
+    //     modelVersion +
+    //     "/Qwen2-0.5B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+    //   low_resource_required: true,
+    //   vram_required_MB: 2654.75,
+    //   overrides: {
+    //     context_window_size: 4096,
+    //   },
+    // },
     {
       model:
         "https://huggingface.co/mlc-ai/Qwen2.5-Coder-1.5B-Instruct-q4f16_1-MLC",
@@ -1698,19 +1702,20 @@ export const prebuiltAppConfig: AppConfig = {
         context_window_size: 4096,
       },
     },
-    {
-      model: "https://huggingface.co/mlc-ai/Qwen2-0.5B-Instruct-q0f32-MLC",
-      model_id: "Qwen2-0.5B-Instruct-q0f32-MLC",
-      model_lib:
-        modelLibURLPrefix +
-        modelVersion +
-        "/Qwen2-0.5B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
-      low_resource_required: true,
-      vram_required_MB: 2654.75,
-      overrides: {
-        context_window_size: 4096,
-      },
-    },
+    // TODO: temporarily commenting out q0f32 models due to correctness issues
+    // {
+    //   model: "https://huggingface.co/mlc-ai/Qwen2-0.5B-Instruct-q0f32-MLC",
+    //   model_id: "Qwen2-0.5B-Instruct-q0f32-MLC",
+    //   model_lib:
+    //     modelLibURLPrefix +
+    //     modelVersion +
+    //     "/Qwen2-0.5B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+    //   low_resource_required: true,
+    //   vram_required_MB: 2654.75,
+    //   overrides: {
+    //     context_window_size: 4096,
+    //   },
+    // },
     {
       model: "https://huggingface.co/mlc-ai/Qwen2-1.5B-Instruct-q4f16_1-MLC",
       model_id: "Qwen2-1.5B-Instruct-q4f16_1-MLC",
