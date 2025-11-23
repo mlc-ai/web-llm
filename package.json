@@ -27,7 +27,7 @@
   "license": "Apache-2.0",
   "homepage": "https://github.com/mlc-ai/web-llm",
   "devDependencies": {
-    "@mlc-ai/web-runtime": "^0.23.0-dev0",
+    "@mlc-ai/web-runtime": "0.23.0-dev1",
     "@mlc-ai/web-tokenizers": "^0.1.6",
     "@mlc-ai/web-xgrammar": "0.1.0",
     "@next/eslint-plugin-next": "^14.2.3",
