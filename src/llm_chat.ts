@@ -1055,6 +1055,8 @@ export class LLMChatPipeline {
       if (_hasValue(genConfig.top_p)) {
         top_p = genConfig.top_p!;
       }
+      // TODO: setting top_p to 1.0 by default might run into issues since
+      // top_p masking in relax uses < instead of <=
       // Set default top_p to 1.0 if not set
       if (!_hasValue(top_p)) {
         top_p = 1.0;
@@ -1068,7 +1070,7 @@ export class LLMChatPipeline {
       if (_hasValue(genConfig.presence_penalty)) {
         presence_penalty = genConfig.presence_penalty!;
       }
-      // If only one of frequency or presence penatly is set, make the other one 0.0
+      // If only one of frequency or presence penalty is set, make the other one 0.0
       if (_hasValue(frequency_penalty) && !_hasValue(presence_penalty)) {
         presence_penalty = 0.0;
       }
