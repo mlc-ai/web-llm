@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
 import log from "loglevel";
 import { ResponseFormat } from "./openai_api_protocols";
 import { LogitProcessor, InitProgressCallback, LogLevel } from "./types";
@@ -96,7 +95,7 @@ export interface ChatConfig {
 /**
  * Custom options that can be used to override known config values.
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface ChatOptions extends Partial<ChatConfig> {}
 
 /**

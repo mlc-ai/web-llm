@@ -19,7 +19,6 @@ Due to the differences in command-line tools between Unix/Linux and Windows syst
 ### Steps for Windows Users
 
 1. **Create a Node.js Script File**:
-
    - In the `examples\simple-chat` directory, create a file named `copy-config.js`.
    - Add the following code to handle file copying:
      ```javascript
@@ -29,7 +28,6 @@ Due to the differences in command-line tools between Unix/Linux and Windows syst
      ```
 
 2. **Modify `package.json`**:
-
    - In the `scripts` section of your `package.json`, replace Unix-style `cp` commands with our new Node.js script. For example:
      ```json
      "scripts": {
