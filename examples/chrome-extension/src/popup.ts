@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
 "use strict";
 
 // This code is partially adapted from the openai-chatgpt-chrome-extension repo:

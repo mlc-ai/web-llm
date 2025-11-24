@@ -310,8 +310,9 @@ export class MLCEngine implements MLCEngineInterface {
     };
     const wasmSource = await fetchWasmSource();
 
+    const wasm = new Uint8Array(wasmSource);
     const tvm = await tvmjs.instantiate(
-      new Uint8Array(wasmSource),
+      wasm.buffer,
       tvmjs.createPolyfillWASI(),
       this.logger,
     );
@@ -511,7 +512,6 @@ export class MLCEngine implements MLCEngineInterface {
     }
 
     // 1. Helper function that generates the chunk
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     const created = Date.now();
     const id = crypto.randomUUID();
     this.interruptSignal = false;
@@ -868,7 +868,6 @@ export class MLCEngine implements MLCEngineInterface {
         }
 
         choices.push({
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           finish_reason: finish_reason,
           index: i,
           logprobs: request.logprobs
@@ -1031,7 +1030,6 @@ export class MLCEngine implements MLCEngineInterface {
         const finish_reason = selectedPipeline.getFinishReason()!;
 
         choices.push({
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
           finish_reason: finish_reason,
           index: i,
           logprobs: request.logprobs

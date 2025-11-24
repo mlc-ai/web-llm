@@ -1,8 +1,0 @@
-dist
-debug
-lib
-build
-node_modules
-3rdparty
-.eslintrc.cjs
-**/.next

@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
-/* eslint-disable no-prototype-builtins */
 import * as tvmjs from "@mlc-ai/web-runtime";
 import * as xgr from "@mlc-ai/web-xgrammar";
 import log from "loglevel";
