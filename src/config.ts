@@ -1192,7 +1192,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Qwen2-0.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+        "/Qwen2-0.5B-Instruct-testtokenizer-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 944.62,
       overrides: {
@@ -1325,7 +1325,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Qwen2-0.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+        "/Qwen2-0.5B-Instruct-testtokenizer-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 944.62,
       overrides: {
@@ -1681,7 +1681,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Qwen2-0.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+        "/Qwen2-0.5B-Instruct-testtokenizer-q4f16_1-ctx4k_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 944.62,
       overrides: {
