@@ -76,8 +76,8 @@ export function areAppConfigsEqual(
     return config1 === config2;
   }
 
-  // Check if both configurations have the same IndexedDB cache usage
-  if (config1.useIndexedDBCache !== config2.useIndexedDBCache) {
+  // Check if both configurations have the same cache backend
+  if (config1.cacheBackend !== config2.cacheBackend) {
     return false;
   }
 
