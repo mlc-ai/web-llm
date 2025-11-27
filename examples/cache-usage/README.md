@@ -1,8 +1,7 @@
 # WebLLM Cache Usage
 
 WebLLM supports multiple persistent cache backends. You can pick the classic Cache API, IndexedDB, or the experimental Chrome [Cross-Origin Storage](https://github.com/explainers-by-googlers/cross-origin-storage) extension by
-setting `AppConfig.cacheBackend` to `"cache"`, `"indexeddb"`, or `"cross-origin"`. (`AppConfig.useIndexedDBCache`
-is still honored for backward compatibility.)
+setting `AppConfig.cacheBackend` to `"cache"`, `"indexeddb"`, or `"cross-origin"`.
 This folder provides an example on how different caches are used in WebLLM. We also
 demonstrate the utility cache functions such as deleting models, checking if models are in cache, etc.
 

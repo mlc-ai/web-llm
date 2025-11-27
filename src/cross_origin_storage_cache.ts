@@ -67,8 +67,7 @@ export class CrossOriginStorageCache implements tvmjs.ArtifactCacheTemplate {
   }
 
   async deleteInCache(_url: string): Promise<void> {
-    // no delete API currently provided by Cross-Origin Storage
-    return;
+    await this.storage.delete(_url);
   }
 
   private async responseToStoreType(

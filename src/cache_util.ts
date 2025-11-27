@@ -15,6 +15,26 @@ import CrossOriginStorageCache from "./cross_origin_storage_cache";
 type CacheScope = "webllm/model" | "webllm/config" | "webllm/wasm";
 
 let crossOriginUnavailableLogged = false;
+let crossOriginAvailabilityWait: Promise<void> | null = null;
+
+function scheduleCrossOriginFallbackWarning(
+  logger: (msg: string) => void,
+): void {
+  if (crossOriginUnavailableLogged || crossOriginAvailabilityWait) {
+    return;
+  }
+  crossOriginAvailabilityWait = (async () => {
+    const availableSoon = await CrossOriginStorage.waitForAvailability();
+    crossOriginAvailabilityWait = null;
+    if (availableSoon || crossOriginUnavailableLogged) {
+      return;
+    }
+    logger(
+      "Cross-origin storage backend is not yet available; temporarily falling back to the Cache API.",
+    );
+    crossOriginUnavailableLogged = true;
+  })();
+}
 
 function shouldUseCrossOrigin(appConfig: AppConfig): boolean {
   return (
@@ -33,13 +53,7 @@ export function getArtifactCache(
     if (CrossOriginStorage.isAvailable()) {
       return new CrossOriginStorageCache(scope);
     }
-    // Fallback to Cache API
-    if (!crossOriginUnavailableLogged) {
-      logger(
-        "Cross-origin storage backend requested but unavailable; falling back to Cache API.",
-      );
-      crossOriginUnavailableLogged = true;
-    }
+    scheduleCrossOriginFallbackWarning(logger);
   }
   if (backend === "indexeddb") {
     return new tvmjs.ArtifactIndexedDBCache(scope);
@@ -81,6 +95,10 @@ async function deleteTensorCacheEntries(
   try {
     manifest = await cache.fetchWithCache(jsonUrl, "json");
   } catch (err) {
+    console.warn(
+      `Failed to load tensor cache manifest at ${jsonUrl}; skipping deletion.`,
+      err,
+    );
     return;
   }
   const records = manifest?.records ?? [];
