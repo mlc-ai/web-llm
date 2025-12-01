@@ -24,9 +24,9 @@ function scheduleCrossOriginFallbackWarning(
     return;
   }
   crossOriginAvailabilityWait = (async () => {
-    const availableSoon = await CrossOriginStorage.waitForAvailability();
+    const available = CrossOriginStorage.isAvailable();
     crossOriginAvailabilityWait = null;
-    if (availableSoon || crossOriginUnavailableLogged) {
+    if (available || crossOriginUnavailableLogged) {
       return;
     }
     logger(
@@ -36,7 +36,7 @@ function scheduleCrossOriginFallbackWarning(
   })();
 }
 
-function shouldUseCrossOrigin(appConfig: AppConfig): boolean {
+function useCrossOrigin(appConfig: AppConfig): boolean {
   return (
     getCacheBackend(appConfig) === "cross-origin" &&
     CrossOriginStorage.isAvailable()
@@ -121,7 +121,7 @@ export async function fetchModelArtifacts(
   appConfig: AppConfig,
   signal?: AbortSignal,
 ): Promise<any> {
-  if (!shouldUseCrossOrigin(appConfig)) {
+  if (!useCrossOrigin(appConfig)) {
     const backend = getCacheBackend(appConfig);
     const cacheType = backend === "indexeddb" ? "indexeddb" : "cache";
     return tvm.fetchTensorCache(
@@ -175,7 +175,7 @@ export async function hasModelInCache(
   }
   const modelRecord = findModelRecord(modelId, appConfig);
   const modelUrl = cleanModelUrl(modelRecord.model);
-  if (shouldUseCrossOrigin(appConfig)) {
+  if (useCrossOrigin(appConfig)) {
     const cache = getArtifactCache("webllm/model", appConfig);
     return hasTensorCache(cache, modelUrl);
   }
@@ -211,7 +211,7 @@ export async function deleteModelInCache(
   const modelRecord = findModelRecord(modelId, appConfig);
   const modelUrl = cleanModelUrl(modelRecord.model);
   const modelCache = getArtifactCache("webllm/model", appConfig);
-  if (shouldUseCrossOrigin(appConfig)) {
+  if (useCrossOrigin(appConfig)) {
     await deleteTensorCacheEntries(modelCache, modelUrl);
   } else {
     const backend = getCacheBackend(appConfig);
