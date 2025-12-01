@@ -1,5 +1,4 @@
 const HASH_ALGORITHM = "SHA-256";
-const HASH_MATCH_REGEX = /[A-Fa-f0-9]{64}/;
 const AVAILABILITY_POLL_INTERVAL_MS = 100;
 const DEFAULT_AVAILABILITY_TIMEOUT_MS = 3000;
 const HASH_CACHE_SYMBOL = Symbol.for("mlc.crossOriginStorage.hashCache");
@@ -23,10 +22,14 @@ interface CrossOriginStorageHandle {
   createWritable(): Promise<FileSystemWritableFileStream>;
 }
 
+interface CrossOriginStorageRequestFileHandleOptions {
+  create?: boolean;
+}
+
 interface CrossOriginStorageAPI {
   requestFileHandles(
     descriptors: CrossOriginHashDescriptor[],
-    options?: { create?: boolean },
+    options?: CrossOriginStorageRequestFileHandleOptions,
   ): Promise<CrossOriginStorageHandle[]>;
 }
 
@@ -177,10 +180,6 @@ export default class CrossOriginStorage {
 
   // Gets the SHA-256 hash for large resources using request metadata.
   private async getFileHash(url: string): Promise<string | null> {
-    const metadataHash = await this.extractHashFromHead(url);
-    if (metadataHash) {
-      return metadataHash;
-    }
     if (/\/resolve\//.test(url)) {
       const pointerHash = await this.extractHashFromPointer(url);
       if (pointerHash) {
@@ -190,43 +189,10 @@ export default class CrossOriginStorage {
     return null;
   }
 
-  private async extractHashFromHead(url: string): Promise<string | null> {
-    try {
-      const response = await fetch(url, { method: "HEAD" });
-      if (!response.ok) {
-        return null;
-      }
-      const headerNames = [
-        "x-linked-etag",
-        "x-linked-hash",
-        "x-amz-meta-sha256",
-        "x-oss-meta-sha256",
-        "x-sha256",
-        "etag",
-      ];
-      for (const name of headerNames) {
-        const value = response.headers.get(name);
-        const hash = this.extractSha256(value);
-        if (hash) {
-          return hash;
-        }
-      }
-    } catch {
-      // Swallow errors; fall back to other strategies.
-    }
-    return null;
-  }
-
   private async extractHashFromPointer(url: string): Promise<string | null> {
+    const rawUrl = url.replace(/\/resolve\//, "/raw/");
     try {
-      const rawUrl = url.replace(/\/resolve\//, "/raw/");
-      const response = await fetch(rawUrl, {
-        headers: { Range: "bytes=0-1023" },
-      });
-      if (!response.ok) {
-        return null;
-      }
-      const text = await response.text();
+      const text = await fetch(rawUrl).then((res) => res.text());
       if (!text.includes("oid sha256:")) {
         return null;
       }
@@ -235,14 +201,6 @@ export default class CrossOriginStorage {
     } catch {
       return null;
     }
-  }
-
-  private extractSha256(value: string | null): string | null {
-    if (!value) {
-      return null;
-    }
-    const match = value.match(HASH_MATCH_REGEX);
-    return match ? match[0].toLowerCase() : null;
   }
 
   private async getBlobHash(blob: Blob): Promise<CrossOriginHashDescriptor> {

@@ -14,17 +14,20 @@ const initProgressCallback = (report: webllm.InitProgressReport) => {
 
 async function main() {
   const appConfig = webllm.prebuiltAppConfig;
-  // CHANGE THIS TO SEE EFFECTS OF BOTH, CODE BELOW DO NOT NEED TO CHANGE
-  appConfig.useIndexedDBCache = true;
+  // CHANGE THIS TO SEE THE EFFECTS OF EACH, CODE BELOW DOES NOT NEED TO CHANGE
+  appConfig.cacheBackend = "cross-origin"; // "indexeddb" or "cache" or "cross-origin"
 
-  if (appConfig.useIndexedDBCache) {
+  const cacheBackend = appConfig.cacheBackend as string;
+  if (cacheBackend === "indexeddb") {
     console.log("Using IndexedDB Cache");
-  } else {
+  } else if (cacheBackend === "cache") {
     console.log("Using Cache API");
+  } else if (cacheBackend === "cross-origin") {
+    console.log("Using Cross-Origin Storage");
   }
 
   // 1. This triggers downloading and caching the model with either Cache or IndexedDB Cache
-  const selectedModel = "phi-2-q4f16_1-MLC";
+  const selectedModel = "Llama-3.2-1B-Instruct-q4f16_1-MLC";
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
     { initProgressCallback: initProgressCallback, appConfig: appConfig },
@@ -39,6 +42,7 @@ async function main() {
       },
     ],
     n: 1,
+    temperature: 0,
   };
   let reply = await engine.chat.completions.create(request);
   console.log(reply);
@@ -57,7 +61,12 @@ async function main() {
   reply = await engine.chat.completions.create(request);
   console.log(reply);
 
-  // 4. Delete every thing about this model from cache
+  // Cross-origin storage currently does not support deletion
+  if (cacheBackend === "cross-origin") {
+    return;
+  }
+
+  // 4. Delete everything about this model from cache
   // You can also delete only the model library wasm, only the model weights, or only the config file
   await webllm.deleteModelAllInfoInCache(selectedModel, appConfig);
   modelCached = await webllm.hasModelInCache(selectedModel, appConfig);
