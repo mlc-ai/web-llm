@@ -4,10 +4,157 @@ import {
   ChatConfig,
   ModelRecord,
   prebuiltAppConfig,
+  getCacheBackend,
 } from "./config";
 import { cleanModelUrl } from "./support";
 import { ModelNotFoundError, UnsupportedTokenizerFilesError } from "./error";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
+import CrossOriginStorage from "./cross_origin_storage";
+import CrossOriginStorageCache from "./cross_origin_storage_cache";
+
+type CacheScope = "webllm/model" | "webllm/config" | "webllm/wasm";
+
+let crossOriginUnavailableLogged = false;
+let crossOriginAvailabilityWait: Promise<void> | null = null;
+
+function scheduleCrossOriginFallbackWarning(
+  logger: (msg: string) => void,
+): void {
+  if (crossOriginUnavailableLogged || crossOriginAvailabilityWait) {
+    return;
+  }
+  crossOriginAvailabilityWait = (async () => {
+    const available = CrossOriginStorage.isAvailable();
+    crossOriginAvailabilityWait = null;
+    if (available || crossOriginUnavailableLogged) {
+      return;
+    }
+    logger(
+      "Cross-origin storage backend is not yet available; temporarily falling back to the Cache API.",
+    );
+    crossOriginUnavailableLogged = true;
+  })();
+}
+
+function useCrossOrigin(appConfig: AppConfig): boolean {
+  return (
+    getCacheBackend(appConfig) === "cross-origin" &&
+    CrossOriginStorage.isAvailable()
+  );
+}
+
+export function getArtifactCache(
+  scope: CacheScope,
+  appConfig: AppConfig,
+  logger: (msg: string) => void = console.warn,
+): tvmjs.ArtifactCacheTemplate {
+  const backend = getCacheBackend(appConfig);
+  if (backend === "cross-origin") {
+    if (CrossOriginStorage.isAvailable()) {
+      return new CrossOriginStorageCache(scope);
+    }
+    scheduleCrossOriginFallbackWarning(logger);
+  }
+  if (backend === "indexeddb") {
+    return new tvmjs.ArtifactIndexedDBCache(scope);
+  }
+  return new tvmjs.ArtifactCache(scope);
+}
+
+async function hasTensorCache(
+  cache: tvmjs.ArtifactCacheTemplate,
+  tensorCacheUrl: string,
+): Promise<boolean> {
+  const jsonUrl = new URL("tensor-cache.json", tensorCacheUrl).href;
+  const hasManifest = await cache.hasAllKeys([jsonUrl]);
+  if (!hasManifest) {
+    return false;
+  }
+  const manifest = await cache.fetchWithCache(jsonUrl, "json");
+  const records = manifest?.records ?? [];
+  if (!Array.isArray(records) || records.length === 0) {
+    return false;
+  }
+  const shardUrls = records.map(
+    (entry: { dataPath: string }) =>
+      new URL(entry.dataPath, tensorCacheUrl).href,
+  );
+  return cache.hasAllKeys(shardUrls);
+}
+
+async function deleteTensorCacheEntries(
+  cache: tvmjs.ArtifactCacheTemplate,
+  tensorCacheUrl: string,
+): Promise<void> {
+  const jsonUrl = new URL("tensor-cache.json", tensorCacheUrl).href;
+  const hasManifest = await cache.hasAllKeys([jsonUrl]);
+  if (!hasManifest) {
+    return;
+  }
+  let manifest: { records?: Array<{ dataPath: string }> };
+  try {
+    manifest = await cache.fetchWithCache(jsonUrl, "json");
+  } catch (err) {
+    console.warn(
+      `Failed to load tensor cache manifest at ${jsonUrl}; skipping deletion.`,
+      err,
+    );
+    return;
+  }
+  const records = manifest?.records ?? [];
+  await Promise.all(
+    records.map(async (entry) => {
+      if (!entry?.dataPath) {
+        return;
+      }
+      const dataUrl = new URL(entry.dataPath, tensorCacheUrl).href;
+      await cache.deleteInCache(dataUrl);
+    }),
+  );
+  await cache.deleteInCache(jsonUrl);
+}
+
+export async function fetchModelArtifacts(
+  tvm: tvmjs.Instance,
+  tensorCacheUrl: string,
+  device: tvmjs.DLDevice,
+  appConfig: AppConfig,
+  signal?: AbortSignal,
+): Promise<any> {
+  if (!useCrossOrigin(appConfig)) {
+    const backend = getCacheBackend(appConfig);
+    const cacheType = backend === "indexeddb" ? "indexeddb" : "cache";
+    return tvm.fetchTensorCache(
+      tensorCacheUrl,
+      device,
+      "webllm/model",
+      cacheType,
+      signal,
+    );
+  }
+
+  const artifactCache = getArtifactCache("webllm/model", appConfig);
+  const jsonUrl = new URL("tensor-cache.json", tensorCacheUrl).href;
+  const manifest = await artifactCache.fetchWithCache(jsonUrl, "json", signal);
+  const records = (
+    Array.isArray(manifest?.records) ? manifest.records : []
+  ) as Array<any>;
+  await (tvm as any).fetchTensorCacheInternal(
+    tensorCacheUrl,
+    records,
+    device,
+    artifactCache,
+    signal,
+  );
+  if (manifest?.metadata !== undefined) {
+    const runtime = tvm as any;
+    runtime.cacheMetadata = {
+      ...runtime.cacheMetadata,
+      ...(manifest.metadata as Record<string, unknown>),
+    };
+  }
+  return manifest;
+}
 
 function findModelRecord(modelId: string, appConfig?: AppConfig): ModelRecord {
   const matchedItem = appConfig?.model_list.find(
@@ -28,7 +175,12 @@ export async function hasModelInCache(
   }
   const modelRecord = findModelRecord(modelId, appConfig);
   const modelUrl = cleanModelUrl(modelRecord.model);
-  const cacheType = appConfig.useIndexedDBCache ? "indexeddb" : "cache";
+  if (useCrossOrigin(appConfig)) {
+    const cache = getArtifactCache("webllm/model", appConfig);
+    return hasTensorCache(cache, modelUrl);
+  }
+  const backend = getCacheBackend(appConfig);
+  const cacheType = backend === "indexeddb" ? "indexeddb" : "cache";
   return tvmjs.hasTensorInCache(modelUrl, "webllm/model", cacheType);
 }
 
@@ -58,13 +210,13 @@ export async function deleteModelInCache(
   }
   const modelRecord = findModelRecord(modelId, appConfig);
   const modelUrl = cleanModelUrl(modelRecord.model);
-  let modelCache: tvmjs.ArtifactCacheTemplate;
-  if (appConfig.useIndexedDBCache) {
-    tvmjs.deleteTensorCache(modelUrl, "webllm/model", "indexeddb");
-    modelCache = new tvmjs.ArtifactIndexedDBCache("webllm/model");
+  const modelCache = getArtifactCache("webllm/model", appConfig);
+  if (useCrossOrigin(appConfig)) {
+    await deleteTensorCacheEntries(modelCache, modelUrl);
   } else {
-    tvmjs.deleteTensorCache(modelUrl, "webllm/model", "cache");
-    modelCache = new tvmjs.ArtifactCache("webllm/model");
+    const backend = getCacheBackend(appConfig);
+    const cacheType = backend === "indexeddb" ? "indexeddb" : "cache";
+    await tvmjs.deleteTensorCache(modelUrl, "webllm/model", cacheType);
   }
   await modelCache.deleteInCache(new URL("tokenizer.model", modelUrl).href);
   await modelCache.deleteInCache(new URL("tokenizer.json", modelUrl).href);
@@ -79,12 +231,7 @@ export async function deleteChatConfigInCache(
     appConfig = prebuiltAppConfig;
   }
   const modelRecord = findModelRecord(modelId, appConfig);
-  let configCache: tvmjs.ArtifactCacheTemplate;
-  if (appConfig.useIndexedDBCache) {
-    configCache = new tvmjs.ArtifactIndexedDBCache("webllm/config");
-  } else {
-    configCache = new tvmjs.ArtifactCache("webllm/config");
-  }
+  const configCache = getArtifactCache("webllm/config", appConfig);
   const modelUrl = cleanModelUrl(modelRecord.model);
   const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
   await configCache.deleteInCache(configUrl);
@@ -99,12 +246,7 @@ export async function deleteModelWasmInCache(
     appConfig = prebuiltAppConfig;
   }
   const modelRecord = findModelRecord(modelId, appConfig);
-  let wasmCache: tvmjs.ArtifactCacheTemplate;
-  if (appConfig.useIndexedDBCache) {
-    wasmCache = new tvmjs.ArtifactIndexedDBCache("webllm/wasm");
-  } else {
-    wasmCache = new tvmjs.ArtifactCache("webllm/wasm");
-  }
+  const wasmCache = getArtifactCache("webllm/wasm", appConfig);
   await wasmCache.deleteInCache(modelRecord.model_lib);
 }
 
@@ -122,12 +264,7 @@ export async function asyncLoadTokenizer(
   appConfig: AppConfig,
   logger: (msg: string) => void = console.log,
 ): Promise<Tokenizer> {
-  let modelCache: tvmjs.ArtifactCacheTemplate;
-  if (appConfig.useIndexedDBCache) {
-    modelCache = new tvmjs.ArtifactIndexedDBCache("webllm/model");
-  } else {
-    modelCache = new tvmjs.ArtifactCache("webllm/model");
-  }
+  const modelCache = getArtifactCache("webllm/model", appConfig, logger);
 
   if (config.tokenizer_files.includes("tokenizer.json")) {
     const url = new URL("tokenizer.json", baseUrl).href;
