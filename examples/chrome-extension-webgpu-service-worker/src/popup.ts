@@ -15,13 +15,15 @@ import { ProgressBar, Line } from "progressbar.js";
 
 /***************** UI elements *****************/
 // Whether or not to use the content from the active tab as the context
-const useContext = false;
+const useContext = true;
+console.log('useContext value:', useContext);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const queryInput = document.getElementById("query-input")!;
 const submitButton = document.getElementById("submit-button")!;
 
 let isLoadingParams = false;
+let pageContext = ""; // Store the page context
 
 (<HTMLButtonElement>submitButton).disabled = true;
 
@@ -152,16 +154,32 @@ function fetchPageContents() {
       const port = chrome.tabs.connect(tabs[0].id, { name: "channelName" });
       port.postMessage({});
       port.onMessage.addListener(function (msg) {
-        console.log("Page contents:", msg.contents);
-        chrome.runtime.sendMessage({ context: msg.contents });
+        // Store the page context
+        pageContext = msg.contents;
+     
+        // Add page context to chat history as a system message
+        if (pageContext && chatHistory.length === 0) {
+          chatHistory.push({
+            role: "system",
+            content: `You are a helpful assistant. Here is the content of the current webpage the user is viewing:\n\n${pageContext}\n\nPlease answer questions about this webpage based on the content provided above.`
+          });
+        }
       });
     }
   });
 }
 
 // Grab the page contents when the popup is opened
-window.onload = function () {
+// Use DOMContentLoaded instead of window.onload to ensure it fires
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', function() {
+    if (useContext) {
+      fetchPageContents();
+    }
+  });
+} else {
+  // Document already loaded
   if (useContext) {
     fetchPageContents();
   }
-};
+}
