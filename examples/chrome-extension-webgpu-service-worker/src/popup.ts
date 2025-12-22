@@ -91,7 +91,7 @@ async function handleClick() {
   const message = (<HTMLInputElement>queryInput).value;
   console.log("message", message);
   chatHistory.push({ role: "user", content: message });
-
+  console.log(chatHistory)
   // Clear the answer
   document.getElementById("answer")!.innerHTML = "";
   // Hide the answer
@@ -149,23 +149,67 @@ function updateAnswer(answer: string) {
 }
 
 function fetchPageContents() {
-  chrome.tabs.query({ currentWindow: true, active: true }, function (tabs) {
-    if (tabs[0]?.id) {
-      const port = chrome.tabs.connect(tabs[0].id, { name: "channelName" });
-      port.postMessage({});
-      port.onMessage.addListener(function (msg) {
-        // Store the page context
-        pageContext = msg.contents;
-     
-        // Add page context to chat history as a system message
-        if (pageContext && chatHistory.length === 0) {
-          chatHistory.push({
-            role: "system",
-            content: `You are a helpful assistant. Here is the content of the current webpage the user is viewing:\n\n${pageContext}\n\nPlease answer questions about this webpage based on the content provided above.`
+  // Query all tabs in the current window instead of just the active one
+  chrome.tabs.query({ currentWindow: true }, function (tabs) {
+    const allTabContents: { title: string; url: string; content: string }[] = [];
+    let completedTabs = 0;
+    
+    if (tabs.length === 0) return;
+    
+    tabs.forEach((tab) => {
+      if (tab.id) {
+        try {
+          const port = chrome.tabs.connect(tab.id, { name: "channelName" });
+          port.postMessage({});
+          port.onMessage.addListener(function (msg) {
+            // Store each tab's content with metadata
+            allTabContents.push({
+              title: tab.title || "Untitled",
+              url: tab.url || "Unknown URL",
+              content: msg.contents
+            });
+            
+            completedTabs++;
+            
+            // When all tabs have been processed
+            if (completedTabs === tabs.length) {
+              // Combine all tab contents into a single context
+              pageContext = allTabContents
+                .map((tabInfo, index) =>
+                  `=== Tab ${index + 1}: ${tabInfo.title} ===\nURL: ${tabInfo.url}\n\n${tabInfo.content}\n\n`
+                )
+                .join("\n");
+              
+              // Add page context to chat history as a system message
+              if (pageContext && chatHistory.length === 0) {
+                chatHistory.push({
+                  role: "system",
+                  content: `You are a helpful assistant. Here is the content of all ${tabs.length} tabs currently open in the browser:\n\n${pageContext}\n\nPlease answer questions about these webpages based on the content provided above.`
+                });
+                console.log("content",pageContext);
+              }
+            }
           });
+          
+          // Handle connection errors (e.g., for chrome:// pages or pages without content script)
+          port.onDisconnect.addListener(() => {
+            completedTabs++;
+            if (completedTabs === tabs.length && chatHistory.length === 0 && pageContext) {
+              chatHistory.push({
+                role: "system",
+                content: `You are a helpful assistant. Here is the content of all ${allTabContents.length} accessible tabs currently open in the browser:\n\n${pageContext}\n\nPlease answer questions about these webpages based on the content provided above.`
+              });
+              // console.log("content",pageContext);
+            }
+          });
+        } catch (error) {
+          console.error(`Failed to connect to tab ${tab.id}:`, error);
+          completedTabs++;
         }
-      });
-    }
+      } else {
+        completedTabs++;
+      }
+    });
   });
 }
 
