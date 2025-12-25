@@ -119,10 +119,10 @@ export class LLMChatPipeline {
   // A grammar matcher for this current round if response_format is set. Reinitialized upon
   // each step regardless of whether the chat is multi-round or not.
   private grammarMatcher?: xgr.GrammarMatcher = undefined;
-  // The current schema or grammar string used for grammarMatcher; if undefined, grammarMatcher is
-  // simply using JSON mode. We use this field to determine whether we re-initiate a GrammarMatcher
-  // or simply reset the state during each round (i.e. during prefillStep).
-  private schemaOrGrammarStr?: string = undefined;
+  // Cache key of the current response_format (schema / grammar / structural tag). If undefined,
+  // grammarMatcher is simply using JSON mode. We use this field to determine whether we re-initiate
+  // a GrammarMatcher or simply reset during each round (i.e. during prefillStep).
+  private responseFormatCacheKey?: string = undefined;
   // A string list of tokens ordered by their token id, post-processed. Once initialized, will not
   // be reinitialized since `this.tokenizer` does not change throughout the lifetime of LLMChatPipeline.
   private xgTokenizerInfo?: xgr.TokenizerInfo = undefined;
@@ -521,6 +521,30 @@ export class LLMChatPipeline {
     this.tvm.setSeed(seed);
   }
 
+  private getResponseFormatKey(
+    responseFormat?: ResponseFormat | null,
+  ): string | undefined {
+    if (!responseFormat) {
+      return undefined;
+    }
+    if (responseFormat.type === "json_object") {
+      return responseFormat.schema ?? undefined;
+    }
+    if (responseFormat.type === "grammar") {
+      return responseFormat.grammar ?? undefined;
+    }
+    if (responseFormat.type === "structural_tag") {
+      const structuralTag = responseFormat.structural_tag;
+      if (structuralTag === undefined || structuralTag === null) {
+        return undefined;
+      }
+      return typeof structuralTag === "string"
+        ? structuralTag
+        : JSON.stringify(structuralTag);
+    }
+    return undefined;
+  }
+
   // Getters and setters for this.conversation.
   /**
    * @returns The conversation object (not a deep copy).
@@ -589,14 +613,15 @@ export class LLMChatPipeline {
     // -1. Instantiate grammar matcher according to generation config. This step is overlapped
     // with prefilling the prompt to hide overhead by using this promise.
     let grammarMatcherInitPromise: Promise<void> | undefined = undefined;
+    const responseFormat = genConfig?.response_format;
     if (
-      genConfig?.response_format?.type === "json_object" ||
-      genConfig?.response_format?.type === "grammar"
+      responseFormat?.type === "json_object" ||
+      responseFormat?.type === "grammar" ||
+      responseFormat?.type === "structural_tag"
     ) {
-      const curSchemaOrGrammarStr =
-        genConfig.response_format.schema || genConfig.response_format.grammar;
+      const curResponseFormatKey = this.getResponseFormatKey(responseFormat);
       if (
-        curSchemaOrGrammarStr === this.schemaOrGrammarStr &&
+        curResponseFormatKey === this.responseFormatCacheKey &&
         this.grammarMatcher
       ) {
         // If we did not change the schema and have instantiated a GrammarMatcher, we reuse it.
@@ -631,19 +656,21 @@ export class LLMChatPipeline {
               );
           }
           const grammar: xgr.CompiledGrammar =
-            curSchemaOrGrammarStr === undefined
-              ? await this.grammarCompiler!.compileBuiltinJSONGrammar()
-              : genConfig?.response_format?.type === "json_object"
-                ? await this.grammarCompiler!.compileJSONSchema(
-                    curSchemaOrGrammarStr,
+            responseFormat.type === "json_object"
+              ? await this.grammarCompiler!.compileJSONSchema(
+                  responseFormat.schema!,
+                )
+              : responseFormat.type === "grammar"
+                ? await this.grammarCompiler!.compileGrammar(
+                    responseFormat.grammar!,
                   )
-                : await this.grammarCompiler!.compileGrammar(
-                    curSchemaOrGrammarStr,
+                : await this.grammarCompiler!.compileStructuralTag(
+                    responseFormat.structural_tag!,
                   );
           this.grammarMatcher =
             await xgr.GrammarMatcher.createGrammarMatcher(grammar);
           grammar.dispose();
-          this.schemaOrGrammarStr = curSchemaOrGrammarStr;
+          this.responseFormatCacheKey = curResponseFormatKey;
           this.curRoundGrammarInitTotalTime =
             (performance.now() - tGrammarInitStart) / 1e3;
           resolve();
@@ -1175,12 +1202,13 @@ export class LLMChatPipeline {
     }
 
     const outputTokenBegin = performance.now();
+    const grammarConstrained =
+      response_format?.type === "json_object" ||
+      response_format?.type === "grammar" ||
+      response_format?.type === "structural_tag";
 
     // 0. Update logitsOnGPU with on-GPU grammar bitmasking
-    if (
-      response_format?.type === "json_object" ||
-      response_format?.type === "grammar"
-    ) {
+    if (grammarConstrained) {
       const grammarBitmaskBegin = performance.now();
 
       this.tvm.beginScope();
@@ -1440,10 +1468,7 @@ export class LLMChatPipeline {
     this.logitProcessor?.processSampledToken(sampledToken);
 
     // 6. Update grammar matcher with new token
-    if (
-      response_format?.type === "json_object" ||
-      response_format?.type === "grammar"
-    ) {
+    if (grammarConstrained) {
       if (this.grammarMatcher === undefined) {
         throw Error("Expect grammar matcher to be initialized.");
       }
@@ -1683,7 +1708,7 @@ export class LLMChatPipeline {
     }
 
     this.tvm.beginScope();
-    const prefillChunk: Array<Array<number>> = [tokens];
+    const prefillChunk: Array<Array<number>> = [tokens] as Array<Array<number>>;
     const prefillChunkLen = tokens.length;
     const prefillStart = performance.now();
     await this.embedAndForward(prefillChunk, prefillChunkLen);
