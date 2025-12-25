@@ -421,6 +421,16 @@ export class InvalidResponseFormatGrammarError extends Error {
   }
 }
 
+export class InvalidResponseFormatStructuralTagError extends Error {
+  constructor() {
+    super(
+      "When ResponseFormat.type is `structural_tag`, ResponseFormat.structural_tag needs to be specified.\n" +
+        "When ResponseFormat.structural_tag is specified, ResponseFormat.type needs to be structural_tag.",
+    );
+    this.name = "InvalidResponseFormatStructuralTagError";
+  }
+}
+
 export class CustomResponseFormatError extends Error {
   constructor(currentFormat: any) {
     super(
