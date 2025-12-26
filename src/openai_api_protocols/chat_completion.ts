@@ -30,6 +30,7 @@ import {
   CustomSystemPromptError,
   InvalidResponseFormatError,
   InvalidResponseFormatGrammarError,
+  InvalidResponseFormatStructuralTagError,
   InvalidStreamOptionsError,
   MessageOrderError,
   MultipleTextContentError,
@@ -42,6 +43,7 @@ import {
   UnsupportedModelIdError,
   UserMessageContentErrorForNonVLM,
 } from "../error";
+import type { StructuralTagLike } from "@mlc-ai/web-xgrammar";
 
 /* eslint-disable @typescript-eslint/no-namespace */
 
@@ -524,6 +526,24 @@ export function postInitAndCheckFields(
       request.response_format?.grammar === null
     ) {
       throw new InvalidResponseFormatGrammarError();
+    }
+  }
+
+  if (
+    request.response_format?.structural_tag !== undefined &&
+    request.response_format?.structural_tag !== null
+  ) {
+    if (request.response_format?.type !== "structural_tag") {
+      throw new InvalidResponseFormatStructuralTagError();
+    }
+  }
+
+  if (request.response_format?.type === "structural_tag") {
+    if (
+      request.response_format?.structural_tag === undefined ||
+      request.response_format?.structural_tag === null
+    ) {
+      throw new InvalidResponseFormatStructuralTagError();
     }
   }
 
@@ -1169,9 +1189,9 @@ export namespace ChatCompletionChunk {
  */
 export interface ResponseFormat {
   /**
-   * Must be one of `text`, `json_object`, or `grammar`.
+   * Must be one of `text`, `json_object`, `grammar`, or `structural_tag`.
    */
-  type?: "text" | "json_object" | "grammar";
+  type?: "text" | "json_object" | "grammar" | "structural_tag";
   /**
    * A schema string in the format of the schema of a JSON file. `type` needs to be `json_object`.
    */
@@ -1191,4 +1211,9 @@ export interface ResponseFormat {
       The assertion (=[a-z]) means a must be followed by [a-z].
    */
   grammar?: string;
+  /**
+   * A structural tag definition. Needs to be specified when, and only when,
+   * `type` is `structural_tag`.
+   */
+  structural_tag?: StructuralTagLike | string;
 }

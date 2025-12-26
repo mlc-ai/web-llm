@@ -4,6 +4,10 @@
 sed -e s/"const{createRequire:createRequire}=await import('module');"//g -i .backup lib/index.js
 sed -e s/"const{createRequire:createRequire}=await import('module');"//g -i .backup lib/index.js.map
 
+# Replace scriptDirectory init that Parcel cannot resolve ("new URL('./', import.meta.url)") with a plain relative string
+sed -e s~"require(\\\"url\\\").fileURLToPath(new URL(\\\"\\.\\/\\\",import.meta.url))"~"\\\"./\\\""~g -i .backup lib/index.js
+sed -e s~"require(\\\"url\\\").fileURLToPath(new URL(\\\"\\.\\/\\\",import.meta.url))"~'\\\".\\\"'~g -i .backup lib/index.js.map
+
 # Replace string "new (require('u' + 'rl').URL)('file:' + __filename).href" with "MLC_DUMMY_PATH"
 # This is required for building nextJS projects -- its compile time would complain about `require()`
 # See https://github.com/mlc-ai/web-llm/issues/383 and the fixing PR's description for more.
