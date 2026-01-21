@@ -325,3 +325,4 @@ lib
 .parcel-cache
 
 **/.next
+coverage
