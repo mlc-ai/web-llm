@@ -56,7 +56,7 @@ Configurations for a single generation task, primarily used in chat completions.
     - ``response_format``, ``enable_thinking``, ``enable_latency_breakdown``: Additional OpenAI-style request features.
 
 - **Usage**:
-    - Fields like ``repetition_penalty`` and ``ignore_eos`` give explicit control over repetition handling and whether the model stops at the EOS token, respectively.````
+    - Fields like ``repetition_penalty`` and ``ignore_eos`` give explicit control over repetition handling and whether the model stops at the EOS token, respectively.
     - Common parameters shared with OpenAI APIs (e.g., ``temperature``, ``top_p``) ensure compatibility while still falling back to the values configured during ``MLCEngine.reload()`` when omitted.
     - ``frequency_penalty`` and ``presence_penalty`` mirror OpenAI's bounds ``[-2, 2]``; providing only one will default the other to ``0``.
     - ``response_format`` (for JSON or other schema outputs), ``enable_thinking``, and ``enable_latency_breakdown`` pass through directly to the engine and surface enhanced telemetry or structured responses when the underlying model supports them.
