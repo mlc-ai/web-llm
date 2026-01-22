@@ -911,6 +911,43 @@ export class LLMChatPipeline {
   }
 
   /**
+   * Calculate resize dimensions for Phi3-V model.
+   * Based on vlm_utils.cc CalculateResizeShape
+   */
+  private calculateResizeShape(
+    imageHeight: number,
+    imageWidth: number,
+  ): [number, number] {
+    const hdNum = 16;
+    const ratio = imageWidth / imageHeight;
+    let scale = 1;
+    while (scale * Math.ceil(scale / ratio) <= hdNum) {
+      scale += 1;
+    }
+    scale -= 1;
+    const newW = scale * 336;
+    const newH = Math.floor(newW / ratio);
+    return [newH, newW];
+  }
+
+  /**
+   * Calculate crop dimensions for Phi3-V model.
+   * Based on vlm_utils.cc CalculateCropShape / CalculatePadShape
+   */
+  private calculateCropShape(
+    imageHeight: number,
+    imageWidth: number,
+  ): [number, number] {
+    const [resizedHeight, resizedWidth] = this.calculateResizeShape(
+      imageHeight,
+      imageWidth,
+    );
+    const padH = Math.ceil(resizedHeight / 336) * 336;
+    const padW = resizedWidth;
+    return [Math.floor(padH / 336), Math.floor(padW / 336)];
+  }
+
+  /**
    * Embed an image input.
    */
   private async getImageEmbeddings(
@@ -923,14 +960,34 @@ export class LLMChatPipeline {
     const imgData: ImageData = await getImageDataFromURL(url);
     const pixelValues: Uint8ClampedArray = getRGBArrayFromImageData(imgData);
     const pixelArray = this.tvm
-      // .empty([imgData.height, imgData.width, 3], "uint8", this.device)
       .empty([imgData.height, imgData.width, 3], "uint32", this.device)
       .copyFrom(pixelValues)
       .view([1, imgData.height, imgData.width, 3]); // NHWC
 
-    // 2. Call image embed kernel
+    // 2. Calculate resize and crop dimensions
+    const [resizeH, resizeW] = this.calculateResizeShape(
+      imgData.height,
+      imgData.width,
+    );
+    const [cropH, cropW] = this.calculateCropShape(
+      imgData.height,
+      imgData.width,
+    );
+    const resizeHeightShape = this.tvm.makeShapeTuple([resizeH]);
+    const resizeWidthShape = this.tvm.makeShapeTuple([resizeW]);
+    const cropHeightShape = this.tvm.makeShapeTuple([cropH]);
+    const cropWidthShape = this.tvm.makeShapeTuple([cropW]);
+
+    // 3. embed kernel
     const embed: tvmjs.Tensor = this.tvm.detachFromCurrentScope(
-      this.image_embed!(pixelArray, this.params),
+      this.image_embed!(
+        pixelArray,
+        resizeHeightShape,
+        resizeWidthShape,
+        cropHeightShape,
+        cropWidthShape,
+        this.params,
+      ),
     );
     if (embed.shape[0] !== IMAGE_EMBED_SIZE) {
       throw new Error(
