@@ -8,7 +8,7 @@
   "scripts": {
     "build": "rollup -c && ./cleanup-index-js.sh",
     "lint": "npx eslint ./src/ ./tests/ ./examples/ && npx prettier ./src/ ./tests/ ./examples/ --check",
-    "test": "yarn jest",
+    "test": "jest --coverage",
     "format": "prettier --write \"./src/\" \"./examples/\" \"./tests/\"",
     "prepare": "husky"
   },

@@ -216,7 +216,7 @@ export async function CreateServiceWorkerMLCEngine(
  * A client of MLCEngine that exposes the same interface
  */
 export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
-  missedHeatbeat = 0;
+  missedHeartbeat = 0;
 
   constructor(engineConfig?: MLCEngineConfig, keepAliveMs = 10000) {
     if (!("serviceWorker" in navigator)) {
@@ -227,8 +227,8 @@ export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
     // Keep alive through periodical heartbeat signals
     setInterval(() => {
       this.worker.postMessage({ kind: "keepAlive", uuid: crypto.randomUUID() });
-      this.missedHeatbeat += 1;
-      log.trace("missedHeatbeat", this.missedHeatbeat);
+      this.missedHeartbeat += 1;
+      log.trace("missedHeartbeat", this.missedHeartbeat);
     }, keepAliveMs);
   }
 
@@ -239,7 +239,7 @@ export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
     );
     try {
       if (msg.kind === "heartbeat") {
-        this.missedHeatbeat = 0;
+        this.missedHeartbeat = 0;
         return;
       }
       super.onmessage(msg);
