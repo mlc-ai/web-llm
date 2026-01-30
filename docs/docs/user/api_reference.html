@@ -179,6 +179,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#interfaces">Interfaces</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#mlcengineconfig">MLCEngineConfig</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#generationconfig">GenerationConfig</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#chatconfig">ChatConfig</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#chatcompletionrequest">ChatCompletionRequest</a></li>
 </ul>
 </li>
@@ -289,8 +290,8 @@
 <li><dl class="simple">
 <dt><strong>Fields</strong>:</dt><dd><ul>
 <li><p><code class="docutils literal notranslate"><span class="pre">appConfig</span></code>: Configure the app, including the list of models and whether to use IndexedDB cache.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">initProgressCallback</span></code>: A callback for showing the progress of loading the model.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">logitProcessorRegistry</span></code>: A register for stateful logit processors, see <code class="docutils literal notranslate"><span class="pre">webllm.LogitProcessor</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">initProgressCallback</span></code>: A callback for showing model loading progress.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">logitProcessorRegistry</span></code>: A registry for stateful logit processors (see <code class="docutils literal notranslate"><span class="pre">webllm.LogitProcessor</span></code>).</p></li>
 </ul>
 </dd>
 </dl>
@@ -314,7 +315,7 @@
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>All fields are optional, and <code class="docutils literal notranslate"><span class="pre">logitProcessorRegistry</span></code> is only used for <code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code>.</p>
+<p>All fields are optional, and <code class="docutils literal notranslate"><span class="pre">logitProcessorRegistry</span></code> is only used in <code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code>.</p>
 </div>
 <p>Example:</p>
 <div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">engine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">CreateMLCEngine</span><span class="p">(</span><span class="s2">&quot;Llama-3.1-8B-Instruct&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
@@ -330,17 +331,21 @@
 <ul class="simple">
 <li><dl class="simple">
 <dt><strong>Fields</strong>:</dt><dd><ul>
-<li><p><code class="docutils literal notranslate"><span class="pre">repetition_penalty</span></code>, <code class="docutils literal notranslate"><span class="pre">ignore_eos</span></code>: Specific to MLC models.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">top_p</span></code>, <code class="docutils literal notranslate"><span class="pre">temperature</span></code>, <code class="docutils literal notranslate"><span class="pre">max_tokens</span></code>, <code class="docutils literal notranslate"><span class="pre">stop</span></code>: Common with OpenAI APIs.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">logit_bias</span></code>, <code class="docutils literal notranslate"><span class="pre">n</span></code>: Additional parameters for sampling control.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">repetition_penalty</span></code>, <code class="docutils literal notranslate"><span class="pre">ignore_eos</span></code>: Parameters specific to MLC models.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">top_p</span></code>, <code class="docutils literal notranslate"><span class="pre">temperature</span></code>, <code class="docutils literal notranslate"><span class="pre">max_tokens</span></code>, <code class="docutils literal notranslate"><span class="pre">stop</span></code>: Common parameters shared with OpenAI APIs.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frequency_penalty</span></code>, <code class="docutils literal notranslate"><span class="pre">presence_penalty</span></code>: Tune repetition behavior following OpenAI semantics.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">logit_bias</span></code>, <code class="docutils literal notranslate"><span class="pre">n</span></code>, <code class="docutils literal notranslate"><span class="pre">logprobs</span></code>, <code class="docutils literal notranslate"><span class="pre">top_logprobs</span></code>: Advanced sampling controls.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">response_format</span></code>, <code class="docutils literal notranslate"><span class="pre">enable_thinking</span></code>, <code class="docutils literal notranslate"><span class="pre">enable_latency_breakdown</span></code>: Additional OpenAI-style request features.</p></li>
 </ul>
 </dd>
 </dl>
 </li>
 <li><dl class="simple">
 <dt><strong>Usage</strong>:</dt><dd><ul>
-<li><p>Fields like <code class="docutils literal notranslate"><span class="pre">repetition_penalty</span></code> and <code class="docutils literal notranslate"><span class="pre">ignore_eos</span></code> allow fine control over the output generation behavior.</p></li>
-<li><p>Common parameters shared with OpenAI APIs (e.g., <code class="docutils literal notranslate"><span class="pre">temperature</span></code>, <code class="docutils literal notranslate"><span class="pre">top_p</span></code>) ensure compatibility.</p></li>
+<li><p>Fields like <code class="docutils literal notranslate"><span class="pre">repetition_penalty</span></code> and <code class="docutils literal notranslate"><span class="pre">ignore_eos</span></code> give explicit control over repetition handling and whether the model stops at the EOS token, respectively.</p></li>
+<li><p>Common parameters shared with OpenAI APIs (e.g., <code class="docutils literal notranslate"><span class="pre">temperature</span></code>, <code class="docutils literal notranslate"><span class="pre">top_p</span></code>) ensure compatibility while still falling back to the values configured during <code class="docutils literal notranslate"><span class="pre">MLCEngine.reload()</span></code> when omitted.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frequency_penalty</span></code> and <code class="docutils literal notranslate"><span class="pre">presence_penalty</span></code> mirror OpenAI’s bounds <code class="docutils literal notranslate"><span class="pre">[-2,</span> <span class="pre">2]</span></code>; providing only one will default the other to <code class="docutils literal notranslate"><span class="pre">0</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">response_format</span></code> (for JSON or other schema outputs), <code class="docutils literal notranslate"><span class="pre">enable_thinking</span></code>, and <code class="docutils literal notranslate"><span class="pre">enable_latency_breakdown</span></code> pass through directly to the engine and surface enhanced telemetry or structured responses when the underlying model supports them.</p></li>
 </ul>
 </dd>
 </dl>
@@ -361,19 +366,51 @@
 </pre></div>
 </div>
 </section>
+<section id="chatconfig">
+<h3>ChatConfig<a class="headerlink" href="#chatconfig" title="Permalink to this heading">¶</a></h3>
+<p>Model’s baseline configuration loaded from <code class="docutils literal notranslate"><span class="pre">mlc-chat-config.json</span></code> when <code class="docutils literal notranslate"><span class="pre">MLCEngine.reload()</span></code> runs. <code class="docutils literal notranslate"><span class="pre">ChatOptions</span></code> (and therefore the <code class="docutils literal notranslate"><span class="pre">chatOpts</span></code> argument to <code class="docutils literal notranslate"><span class="pre">reload</span></code>) can override any subset of these fields.</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt><strong>Fields</strong> (subset):</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">tokenizer_files</span></code>, <code class="docutils literal notranslate"><span class="pre">tokenizer_info</span></code>: Files and parameters required to initialize the tokenizer.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">conv_template</span></code>, <code class="docutils literal notranslate"><span class="pre">conv_config</span></code>: Conversation templates that define prompts, separators, and role formatting.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">context_window_size</span></code>, <code class="docutils literal notranslate"><span class="pre">sliding_window_size</span></code>, <code class="docutils literal notranslate"><span class="pre">attention_sink_size</span></code>: KV-cache and memory settings.</p></li>
+<li><p>Default generation knobs such as <code class="docutils literal notranslate"><span class="pre">repetition_penalty</span></code>, <code class="docutils literal notranslate"><span class="pre">frequency_penalty</span></code>, <code class="docutils literal notranslate"><span class="pre">presence_penalty</span></code>, <code class="docutils literal notranslate"><span class="pre">top_p</span></code>, and <code class="docutils literal notranslate"><span class="pre">temperature</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><dl class="simple">
+<dt><strong>Usage</strong>:</dt><dd><ul>
+<li><p>Loaded automatically for each model; provides defaults that <code class="docutils literal notranslate"><span class="pre">GenerationConfig</span></code> falls back to when fields are omitted.</p></li>
+<li><p>Override selected values per model load by supplying <code class="docutils literal notranslate"><span class="pre">chatOpts</span></code> (<code class="docutils literal notranslate"><span class="pre">Partial&lt;ChatConfig&gt;</span></code>) to <code class="docutils literal notranslate"><span class="pre">MLCEngine.reload()</span></code>.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
+<p>Example:</p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="k">await</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">reload</span><span class="p">(</span><span class="s2">&quot;Llama-3.1-8B-Instruct&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">temperature</span><span class="o">:</span><span class="w"> </span><span class="kt">0.7</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">repetition_penalty</span><span class="o">:</span><span class="w"> </span><span class="kt">1.1</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">context_window_size</span><span class="o">:</span><span class="w"> </span><span class="kt">4096</span><span class="p">,</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+</section>
 <section id="chatcompletionrequest">
 <h3>ChatCompletionRequest<a class="headerlink" href="#chatcompletionrequest" title="Permalink to this heading">¶</a></h3>
 <p>Defines the structure for chat completion requests.</p>
 <ul class="simple">
 <li><dl class="simple">
 <dt><strong>Base Interface</strong>: <code class="docutils literal notranslate"><span class="pre">ChatCompletionRequestBase</span></code></dt><dd><ul>
-<li><p>Contains parameters like <code class="docutils literal notranslate"><span class="pre">messages</span></code>, <code class="docutils literal notranslate"><span class="pre">stream</span></code>, <code class="docutils literal notranslate"><span class="pre">frequency_penalty</span></code>, and <code class="docutils literal notranslate"><span class="pre">presence_penalty</span></code>.</p></li>
+<li><p>Contains parameters such as <code class="docutils literal notranslate"><span class="pre">messages</span></code>, <code class="docutils literal notranslate"><span class="pre">stream</span></code>, <code class="docutils literal notranslate"><span class="pre">frequency_penalty</span></code>, and <code class="docutils literal notranslate"><span class="pre">presence_penalty</span></code>.</p></li>
 </ul>
 </dd>
 </dl>
 </li>
 <li><dl class="simple">
-<dt><strong>Variants</strong>:</dt><dd><ul>
+<dt><strong>Sub-interfaces</strong>:</dt><dd><ul>
 <li><p><code class="docutils literal notranslate"><span class="pre">ChatCompletionRequestNonStreaming</span></code>: For non-streaming completions.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">ChatCompletionRequestStreaming</span></code>: For streaming completions.</p></li>
 </ul>
@@ -383,8 +420,8 @@
 <li><dl class="simple">
 <dt><strong>Usage</strong>:</dt><dd><ul>
 <li><p>Combines settings from <code class="docutils literal notranslate"><span class="pre">GenerationConfig</span></code> and <code class="docutils literal notranslate"><span class="pre">ChatCompletionRequestBase</span></code> to provide complete control over chat behavior.</p></li>
-<li><p>The <code class="docutils literal notranslate"><span class="pre">stream</span></code> parameter enables dynamic streaming responses, improving interactivity in conversational agents.</p></li>
-<li><p>The <code class="docutils literal notranslate"><span class="pre">logit_bias</span></code> feature allows fine-tuning of token generation probabilities, providing a mechanism to restrict or encourage specific outputs.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">stream</span></code> parameter enables streaming responses, improving interactivity in conversational agents.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">logit_bias</span></code> feature allows controlling token generation probabilities, providing a mechanism to restrict or encourage specific outputs.</p></li>
 </ul>
 </dd>
 </dl>
@@ -409,7 +446,7 @@
 <li><dl class="simple">
 <dt>Parameters:</dt><dd><ul>
 <li><p><code class="docutils literal notranslate"><span class="pre">modelId</span></code>: Identifier(s) for the model(s) to load.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">chatOpts</span></code>: Configuration for generation (see <code class="docutils literal notranslate"><span class="pre">GenerationConfig</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">chatOpts</span></code>: Configuration for generation (see <code class="docutils literal notranslate"><span class="pre">ChatConfig</span></code>).</p></li>
 </ul>
 </dd>
 </dl>
@@ -454,15 +491,34 @@
 <h3>Utility Methods<a class="headerlink" href="#utility-methods" title="Permalink to this heading">¶</a></h3>
 <p><code class="docutils literal notranslate"><span class="pre">MLCEngine.getMessage(modelId?:</span> <span class="pre">string):</span> <span class="pre">Promise&lt;string&gt;</span></code></p>
 <p>Retrieves the current output message from the specified model.</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt>Parameters:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">modelId</span></code>: (Optional) Identifier of model to query. Omitting modelId only works when the engine currently has a single model loaded.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
 <p><code class="docutils literal notranslate"><span class="pre">MLCEngine.resetChat(keepStats?:</span> <span class="pre">boolean,</span> <span class="pre">modelId?:</span> <span class="pre">string):</span> <span class="pre">Promise&lt;void&gt;</span></code></p>
 <p>Resets the chat history and optionally retains usage statistics.</p>
+<ul class="simple">
+<li><dl class="simple">
+<dt>Parameters:</dt><dd><ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">keepStats</span></code>: (Optional) If true, retains usage statistics.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">modelId</span></code>: (Optional) Identifier of the model to reset. Omitting modelId only works when the engine currently has a single model loaded.</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+</ul>
 </section>
 </section>
 <section id="gpu-information">
 <h2>GPU Information<a class="headerlink" href="#gpu-information" title="Permalink to this heading">¶</a></h2>
 <p>The following methods provide detailed information about the GPU used for WebLLM computations.</p>
 <p><code class="docutils literal notranslate"><span class="pre">MLCEngine.getGPUVendor():</span> <span class="pre">Promise&lt;string&gt;</span></code></p>
-<p>Retrieves the vendor name of the GPU used for computations. Useful for understanding the hardware capabilities during inference.</p>
+<p>Retrieves the vendor name of the GPU used for computations. This is useful for understanding hardware capabilities during inference.</p>
 <ul class="simple">
 <li><p><strong>Returns</strong>: A string indicating the GPU vendor (e.g., “Intel”, “NVIDIA”).</p></li>
 </ul>

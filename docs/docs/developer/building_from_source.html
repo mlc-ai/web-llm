@@ -291,10 +291,10 @@
 </section>
 <section id="test-changes">
 <h2>Test Changes<a class="headerlink" href="#test-changes" title="Permalink to this heading">¶</a></h2>
-<p>To test you changes, you can reuse any existing example or create a new example for your new functionality to test.</p>
-<p>Then, to test the effects of your code change in an example, inside <code class="docutils literal notranslate"><span class="pre">examples/&lt;example&gt;/package.json</span></code>, change from <code class="docutils literal notranslate"><span class="pre">&quot;&#64;mlc-ai/web-llm&quot;:</span> <span class="pre">&quot;^0.2.xx&quot;</span></code> to <code class="docutils literal notranslate"><span class="pre">&quot;&#64;mlc-ai/web-llm&quot;:</span> <span class="pre">../...</span></code> to let it reference you local code.</p>
+<p>To test your changes, you can reuse an existing example or create a new example that specifically tests the new functionality you wish to provide.</p>
+<p>To test the effects of your code change in an example, inside <code class="docutils literal notranslate"><span class="pre">examples/&lt;example&gt;/package.json</span></code>, change <code class="docutils literal notranslate"><span class="pre">&quot;&#64;mlc-ai/web-llm&quot;:</span> <span class="pre">&quot;^0.2.xx&quot;</span></code> to <code class="docutils literal notranslate"><span class="pre">&quot;&#64;mlc-ai/web-llm&quot;:</span> <span class="pre">&quot;../..&quot;</span></code> to let it reference your local code. Note that sometimes you may need to switch between <code class="docutils literal notranslate"><span class="pre">&quot;file:../..&quot;</span></code> and <code class="docutils literal notranslate"><span class="pre">&quot;../..&quot;</span></code> to trigger npm to recognize new changes.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>examples/&lt;example&gt;
-<span class="c1"># Modify the package.json</span>
+<span class="c1"># Modify package.json as described</span>
 npm<span class="w"> </span>install
 npm<span class="w"> </span>start
 </pre></div>

@@ -275,12 +275,12 @@
 <h2>Model Records in WebLLM<a class="headerlink" href="#model-records-in-webllm" title="Permalink to this heading">¶</a></h2>
 <p>Each of the model available WebLLM is registered as an instance of
 <code class="docutils literal notranslate"><span class="pre">ModelRecord</span></code> and can be accessed at
-<a class="reference external" href="https://github.com/mlc-ai/web-llm/blob/main/src/config.ts#L293">webllm.prebuiltAppConfig.model_list</a>.</p>
+<a class="reference external" href="https://github.com/mlc-ai/web-llm/blob/main/src/config.ts#L313">webllm.prebuiltAppConfig.model_list</a>.</p>
 </section>
 <section id="creating-an-mlcengine">
 <h2>Creating an MLCEngine<a class="headerlink" href="#creating-an-mlcengine" title="Permalink to this heading">¶</a></h2>
-<p>WebLLM APIs are exposed through the <code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code> interface. You can create an <code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code> instance and loading the model by calling the CreateMLCEngine() factory function.</p>
-<p>(Note that loading models requires downloading and it can take a significant amount of time for the very first run without caching previously. You should properly handle this asynchronous call.)</p>
+<p>WebLLM APIs are exposed through the <code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code> interface. You can create an <code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code> instance and load the model by calling the CreateMLCEngine() factory function.</p>
+<p>(Note that loading models requires downloading and it can take a significant amount of time for the very first run without previous caching. You should properly handle this asynchronous call.)</p>
 <p><code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code> can be instantiated in two ways:
 1. Using the factory function <code class="docutils literal notranslate"><span class="pre">CreateMLCEngine</span></code>.
 2. Instantiating the <code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code> class directly and using <code class="docutils literal notranslate"><span class="pre">reload()</span></code> to load models.</p>
@@ -314,8 +314,8 @@
 </section>
 <section id="chat-completion">
 <h2>Chat Completion<a class="headerlink" href="#chat-completion" title="Permalink to this heading">¶</a></h2>
-<p>Chat completions can be invoked using OpenAI style chat APIs through the <code class="docutils literal notranslate"><span class="pre">engine.chat.completions</span></code> interface of an initialized <code class="docutils literal notranslate"><span class="pre">MLCEgnine</span></code>. For the full list of parameters and their descriptions, check <a class="reference internal" href="api_reference.html#api-reference"><span class="std std-ref">WebLLM API Reference</span></a> for full list of parameters.</p>
-<p>(Note: As model is determined at the <code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code> initialization time, <code class="docutils literal notranslate"><span class="pre">model</span></code> parameter is not supported and will be <strong>ignored</strong>. Instead, call <code class="docutils literal notranslate"><span class="pre">CreateMLCEngine(model)</span></code> or <code class="docutils literal notranslate"><span class="pre">engine.reload(model)</span></code> to reinitialize the engine to use a specific model.)</p>
+<p>Chat completions can be invoked using OpenAI style chat APIs through the <code class="docutils literal notranslate"><span class="pre">engine.chat.completions</span></code> interface of an initialized <code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code>. For the full list of parameters and their descriptions, check <a class="reference internal" href="api_reference.html#api-reference"><span class="std std-ref">WebLLM API Reference</span></a> for full list of parameters.</p>
+<p>(Note: Since the model is determined during <code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code> instantiation, the <code class="docutils literal notranslate"><span class="pre">model</span></code> parameter is not supported and will be <strong>ignored</strong>. Instead, call <code class="docutils literal notranslate"><span class="pre">CreateMLCEngine(model)</span></code> or <code class="docutils literal notranslate"><span class="pre">engine.reload(model)</span></code> to reinitialize the engine to use a specific model.)</p>
 <div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">messages</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
 <span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">role</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;system&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">content</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;You are a helpful AI assistant.&quot;</span><span class="w"> </span><span class="p">},</span>
 <span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">role</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;user&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">content</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;Hello!&quot;</span><span class="w"> </span><span class="p">}</span>
@@ -338,7 +338,7 @@
 <span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">role</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;user&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">content</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;Hello!&quot;</span><span class="w"> </span><span class="p">},</span>
 <span class="p">]</span>
 
-<span class="c1">// Chunks is an AsyncGenerator object</span>
+<span class="c1">// chunks is an AsyncGenerator object</span>
 <span class="kd">const</span><span class="w"> </span><span class="nx">chunks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">completions</span><span class="p">.</span><span class="nx">create</span><span class="p">({</span>
 <span class="w">    </span><span class="nx">messages</span><span class="p">,</span>
 <span class="w">    </span><span class="nx">temperature</span><span class="o">:</span><span class="w"> </span><span class="kt">1</span><span class="p">,</span>
@@ -367,8 +367,8 @@
 <li><p><a class="reference external" href="https://jsfiddle.net/neetnestor/4nmgvsa2/">Example in JSFiddle</a></p></li>
 <li><p><a class="reference external" href="https://codepen.io/neetnestor/pen/vYwgZaG">Example in CodePen</a></p></li>
 </ul>
-<p>For an advanced example of a larger, more complicated project, check <a class="reference external" href="https://github.com/mlc-ai/web-llm-chat/blob/main/app/client/webllm.ts">WebLLM Chat</a>.</p>
-<p>More examples for different use cases are available in the examples folder.</p>
+<p>For an advanced example of a larger, more complicated project, look at <a class="reference external" href="https://github.com/mlc-ai/web-llm-chat/blob/main/app/client/webllm.ts">WebLLM Chat</a>.</p>
+<p>More examples for different use cases are available in the <a class="reference external" href="https://github.com/mlc-ai/web-llm/tree/main/examples">WebLLM examples folder</a>.</p>
 </section>
 </section>
 

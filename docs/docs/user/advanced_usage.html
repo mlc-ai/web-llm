@@ -181,7 +181,7 @@
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#chrome-extension">Chrome Extension</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#other-customization">Other Customization</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#additional-customization">Additional Customization</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#using-indexeddb-cache">Using IndexedDB Cache</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#customizing-token-behavior">Customizing Token Behavior</a></li>
 </ul>
@@ -281,12 +281,12 @@
 <h2>Using Workers<a class="headerlink" href="#using-workers" title="Permalink to this heading">¶</a></h2>
 <p>You can put the heavy computation in a worker script to optimize your application performance. To do so, you need to:</p>
 <p>Create a handler in the worker thread that communicates with the frontend while handling the requests.
-Create a Worker Engine in your main application, which under the hood sends messages to the handler in the worker thread.
-For detailed implementations of different kinds of Workers, check the following sections.</p>
+Create a worker engine in your main application that sends messages to the handler in the worker thread under the hood.
+For detailed implementations of different kinds of workers, look at the following sections.</p>
 <section id="using-web-workers">
 <h3>Using Web Workers<a class="headerlink" href="#using-web-workers" title="Permalink to this heading">¶</a></h3>
-<p>WebLLM comes with API support for <a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers">Web Workers</a> so you can offload the computation-heavy generation work into a separate worker thread. WebLLM has implemented the cross-thread communication through messages under the hood so you don’t need to manually implement it any more.</p>
-<p>In the worker script, import and instantiate <code class="docutils literal notranslate"><span class="pre">WebWorkerMLCEngineHandler</span></code>, which handles the communications with other scripts and processes incoming requests.</p>
+<p>WebLLM comes with API support for <a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Using_web_workers">Web Workers</a> so you can offload the computation-heavy generation work into a separate worker thread. WebLLM has implemented cross-thread communication through messages under the hood, so manual implementation is not required.</p>
+<p>In the worker script, import and instantiate a <code class="docutils literal notranslate"><span class="pre">WebWorkerMLCEngineHandler</span></code>, which handles communication with other scripts and processes incoming requests.</p>
 <div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="c1">// worker.ts</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">WebWorkerMLCEngineHandler</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@mlc-ai/web-llm&quot;</span><span class="p">;</span>
 
@@ -296,7 +296,7 @@ For detailed implementations of different kinds of Workers, check the following 
 <span class="p">};</span>
 </pre></div>
 </div>
-<p>In the main script, import and instantiate a <code class="docutils literal notranslate"><span class="pre">WebWorkerMLCEngine</span></code> that implements the same <code class="docutils literal notranslate"><span class="pre">MLCEngineInterface</span></code> and exposes the same APIs, then simply use it as how you would use a normal <code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code> in your application.</p>
+<p>In the main script, import and instantiate a <code class="docutils literal notranslate"><span class="pre">WebWorkerMLCEngine</span></code> that implements the same <code class="docutils literal notranslate"><span class="pre">MLCEngineInterface</span></code> and exposes the same APIs. Then, simply use it as you would a normal <code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code>.</p>
 <div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">CreateWebWorkerMLCEngine</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@mlc-ai/web-llm&quot;</span><span class="p">;</span>
 
 <span class="k">async</span><span class="w"> </span><span class="kd">function</span><span class="w"> </span><span class="nx">runWorker</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
@@ -313,13 +313,13 @@ For detailed implementations of different kinds of Workers, check the following 
 <span class="nx">runWorker</span><span class="p">();</span>
 </pre></div>
 </div>
-<p>Under the hood, <code class="docutils literal notranslate"><span class="pre">WebWorkerMLCEngine</span></code> does <strong>not</strong> actual doing any computation, but instead serves as a proxy to translate all calls into messages and send to the <code class="docutils literal notranslate"><span class="pre">WebWorkerMLCEngineHandler</span></code> to process. The worker thread will receive these messages and process the actual computation using a hidden engine, and return the result back to the main thread using messages.</p>
+<p>Under the hood, <code class="docutils literal notranslate"><span class="pre">WebWorkerMLCEngine</span></code> does <strong>not</strong> perform any computation. It translates all calls into messages and sends them to the <code class="docutils literal notranslate"><span class="pre">WebWorkerMLCEngineHandler</span></code> for processing. The worker thread receives these messages and processes the actual computation using a hidden engine, and returns the result to the main thread using messages.</p>
 </section>
 <section id="service-workers">
 <h3>Service Workers<a class="headerlink" href="#service-workers" title="Permalink to this heading">¶</a></h3>
-<p>WebLLM also support offloading the computation in <a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API">Service Workers</a> to avoid reloading the model between page refreshes and optimize your application’s offline experience.</p>
-<p>(Note, Service Worker’s life cycle is managed by the browser and can be killed any time without notifying the webapp. WebLLM’s <code class="docutils literal notranslate"><span class="pre">ServiceWorkerMLCEngine</span></code> will try to keep the service worker thread alive by periodically sending heartbeat events, but the script could still be killed any time by Chrome and your application should include proper error handling. Check <cite>keepAliveMs</cite> and <cite>missedHeatbeat</cite> in <a class="reference external" href="https://github.com/mlc-ai/web-llm/blob/main/src/service_worker.ts#L234">ServiceWorkerMLCEngine</a> for more details.)</p>
-<p>In the worker script, import and instantiate <code class="docutils literal notranslate"><span class="pre">ServiceWorkerMLCEngineHandler</span></code>, which handles the communications with page scripts and processes incoming requests.</p>
+<p>WebLLM also supports offloading computation using <a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API">Service Workers</a>. This allows you to avoid reloading the model between page refreshes and optimize your application’s offline experience.</p>
+<p>(Note, the lifecycle of a Service Worker is managed by the browser and can be killed any time without notifying the web application. WebLLM’s <code class="docutils literal notranslate"><span class="pre">ServiceWorkerMLCEngine</span></code> attempts to keep the service worker thread alive by periodically sending heartbeat events. However, the script could still be killed at any time by Chrome, and your application should include proper error handling. Check <cite>keepAliveMs</cite> and <cite>missedHeartbeat</cite> in <a class="reference external" href="https://github.com/mlc-ai/web-llm/blob/main/src/service_worker.ts#L218">ServiceWorkerMLCEngine</a> for more details.)</p>
+<p>In the worker script, import and instantiate <code class="docutils literal notranslate"><span class="pre">ServiceWorkerMLCEngineHandler</span></code>, which handles communication with page scripts and processes incoming requests.</p>
 <div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="c1">// sw.ts</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">ServiceWorkerMLCEngineHandler</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@mlc-ai/web-llm&quot;</span><span class="p">;</span>
 
@@ -329,7 +329,7 @@ For detailed implementations of different kinds of Workers, check the following 
 <span class="p">});</span>
 </pre></div>
 </div>
-<p>Then in the main page script, register the service worker and instantiate the engine using <code class="docutils literal notranslate"><span class="pre">CreateServiceWorkerMLCEngine</span></code> factory function. The Engine implements the same <code class="docutils literal notranslate"><span class="pre">MLCEngineInterface</span></code> and exposes the same APIs, then simply use it as how you would use a normal <code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code> in your application.</p>
+<p>Then, in the main page script, register the service worker and instantiate the engine using the <code class="docutils literal notranslate"><span class="pre">CreateServiceWorkerMLCEngine</span></code> factory function that implements the same <code class="docutils literal notranslate"><span class="pre">MLCEngineInterface</span></code> and exposes the same APIs. Then, simply use it as you would a normal <code class="docutils literal notranslate"><span class="pre">MLCEngine</span></code>.</p>
 <div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="c1">// main.ts</span>
 <span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">MLCEngineInterface</span><span class="p">,</span><span class="w"> </span><span class="nx">CreateServiceWorkerMLCEngine</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s2">&quot;@mlc-ai/web-llm&quot;</span><span class="p">;</span>
 
@@ -347,22 +347,22 @@ For detailed implementations of different kinds of Workers, check the following 
 <span class="p">);</span>
 </pre></div>
 </div>
-<p>Similar to the <code class="docutils literal notranslate"><span class="pre">WebWorkerMLCEngine</span></code> above, the <code class="docutils literal notranslate"><span class="pre">ServiceWorkerMLCEngine</span></code> is also a proxy and does not do any actual computation. Instead it sends all calls to the service worker thread to handle and receives the result back through messages.</p>
+<p>Similar to the <code class="docutils literal notranslate"><span class="pre">WebWorkerMLCEngine</span></code> above, the <code class="docutils literal notranslate"><span class="pre">ServiceWorkerMLCEngine</span></code> is also a proxy and does not perform any actual computation. Instead, it forwards all calls to the service worker thread and receives the result through messages.</p>
 </section>
 </section>
 <section id="chrome-extension">
 <h2>Chrome Extension<a class="headerlink" href="#chrome-extension" title="Permalink to this heading">¶</a></h2>
-<p>WebLLM can be used in Chrome extensions to empower local LLM inference. You can find examples of building Chrome extension using WebLLM in <a class="reference external" href="https://github.com/mlc-ai/web-llm/blob/main/examples/chrome-extension">examples/chrome-extension</a> and <a class="reference external" href="https://github.com/mlc-ai/web-llm/blob/main/examples/chrome-extension-webgpu-service-worker">examples/chrome-extension-webgpu-service-worker</a>. The latter one leverages service worker, so the extension is persistent in the background.</p>
-<p>Additionally, we have a full Chrome extension project, <a class="reference external" href="https://github.com/mlc-ai/web-llm-assistant">WebLLM Assistant</a>, which leverages WebLLM to provide personal web browsing copilot assistance experience. Free to to check it out and contribute if you are interested.</p>
+<p>WebLLM can be used in Chrome extensions to empower local LLM inference. You can find examples of building Chrome extension using WebLLM in <a class="reference external" href="https://github.com/mlc-ai/web-llm/blob/main/examples/chrome-extension">examples/chrome-extension</a> and <a class="reference external" href="https://github.com/mlc-ai/web-llm/blob/main/examples/chrome-extension-webgpu-service-worker">examples/chrome-extension-webgpu-service-worker</a>. The latter leverages Service Worker, so the extension is persistent in the background.</p>
+<p>Additionally, we have a full Chrome extension project, <a class="reference external" href="https://github.com/mlc-ai/web-llm-assistant">WebLLM Assistant</a>, which leverages WebLLM to provide a personal web browsing copilot assistant experience. Feel free to check it out and contribute if you are interested.</p>
 </section>
-<section id="other-customization">
-<h2>Other Customization<a class="headerlink" href="#other-customization" title="Permalink to this heading">¶</a></h2>
+<section id="additional-customization">
+<h2>Additional Customization<a class="headerlink" href="#additional-customization" title="Permalink to this heading">¶</a></h2>
 <section id="using-indexeddb-cache">
 <h3>Using IndexedDB Cache<a class="headerlink" href="#using-indexeddb-cache" title="Permalink to this heading">¶</a></h3>
-<p>Set <cite>appConfig</cite> in <cite>MLCEngineConfig</cite> to enable caching for faster subsequent model loads.</p>
+<p>By default, WebLLM caches model artifacts using the <a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/API/Cache">Cache API</a> for faster subsequent model loads. You can alternatively use <a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API">IndexedDB caching</a> by setting the <cite>useIndexedDBCache</cite> field in <cite>appConfig</cite> of <cite>MLCEngineConfig</cite> to <cite>true</cite>.</p>
 <div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">engine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">CreateMLCEngine</span><span class="p">(</span><span class="s2">&quot;Llama-3.1-8B-Instruct&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">appConfig</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="nx">useIndexedDB</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">useIndexedDBCache</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span>
 <span class="w">        </span><span class="nx">models</span><span class="o">:</span><span class="w"> </span><span class="p">[</span>
 <span class="w">            </span><span class="p">{</span><span class="w"> </span><span class="nx">model_id</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;Llama-3.1-8B&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">model_path</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;/models/llama3&quot;</span><span class="w"> </span><span class="p">},</span>
 <span class="w">        </span><span class="p">],</span>
@@ -373,7 +373,7 @@ For detailed implementations of different kinds of Workers, check the following 
 </section>
 <section id="customizing-token-behavior">
 <h3>Customizing Token Behavior<a class="headerlink" href="#customizing-token-behavior" title="Permalink to this heading">¶</a></h3>
-<p>Modify <cite>logit_bias</cite> in <cite>GenerationConfig</cite> to influence token likelihood:</p>
+<p>You can modify <cite>logit_bias</cite> in <cite>GenerationConfig</cite> to control token likelihood. Setting a token’s bias to a positive value increases its likelihood of being generated, while a negative value decreases it. A large negative value (e.g., -100) can effectively prevent the token from being generated.</p>
 <div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">messages</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span>
 <span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nx">role</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;user&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">content</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;Describe WebLLM in detail.&quot;</span><span class="w"> </span><span class="p">},</span>
 <span class="p">];</span>
