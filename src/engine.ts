@@ -270,30 +270,21 @@ export class MLCEngine implements MLCEngineInterface {
 
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
-    let configBase: Record<string, unknown>;
+    const configData = (await configCache.fetchWithCache(
+      configUrl,
+      "arraybuffer",
+      this.reloadController?.signal,
+    )) as ArrayBuffer;
     if (modelRecord.integrity?.config) {
-      // Fetch as arraybuffer for integrity verification
-      const configData = (await configCache.fetchWithCache(
-        configUrl,
-        "arraybuffer",
-        this.reloadController?.signal,
-      )) as ArrayBuffer;
       await verifyIntegrity(
         configData,
         modelRecord.integrity.config,
         configUrl,
         modelRecord.integrity.onFailure,
       );
-      configBase = JSON.parse(new TextDecoder().decode(configData));
-    } else {
-      configBase = (await configCache.fetchWithCache(
-        configUrl,
-        "json",
-        this.reloadController?.signal,
-      )) as Record<string, unknown>;
     }
     const curModelConfig: ChatConfig = {
-      ...configBase,
+      ...JSON.parse(new TextDecoder().decode(configData)),
       ...modelRecord.overrides,
       ...chatOpts,
     } as ChatConfig;
