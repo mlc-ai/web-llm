@@ -1,7 +1,7 @@
 # Awesome WebLLM
 
 This page contains a curated list of examples, tutorials, blogs about WebLLM usecases.
-Please send a pull request if you find things that belongs to here.
+Please send a pull request if you find things that belong here.
 
 ## Example Projects
 
