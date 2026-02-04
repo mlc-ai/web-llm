@@ -9,6 +9,7 @@ import {
 import { cleanModelUrl } from "./support";
 import { ModelNotFoundError, UnsupportedTokenizerFilesError } from "./error";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
+import { ModelIntegrity, verifyIntegrity } from "./integrity";
 
 type CacheScope = "webllm/model" | "webllm/config" | "webllm/wasm";
 
@@ -126,6 +127,7 @@ export async function deleteModelWasmInCache(
  * @param config A ChatConfig, usually loaded from `mlc-chat-config.json` in `baseUrl`.
  * @param appConfig An AppConfig, usually `webllm.prebuiltAppConfig` if not defined by user.
  * @param logger Logging function, console.log by default.
+ * @param integrity Optional integrity configuration for verifying tokenizer files.
  * @returns
  */
 export async function asyncLoadTokenizer(
@@ -133,12 +135,21 @@ export async function asyncLoadTokenizer(
   config: ChatConfig,
   appConfig: AppConfig,
   logger: (msg: string) => void = console.log,
+  integrity?: ModelIntegrity,
 ): Promise<Tokenizer> {
   const modelCache = createScopedArtifactCache("webllm/model", appConfig);
 
   if (config.tokenizer_files.includes("tokenizer.json")) {
     const url = new URL("tokenizer.json", baseUrl).href;
     const model = await modelCache.fetchWithCache(url, "arraybuffer");
+    if (integrity?.tokenizer?.["tokenizer.json"]) {
+      await verifyIntegrity(
+        model,
+        integrity.tokenizer["tokenizer.json"],
+        url,
+        integrity.onFailure,
+      );
+    }
     return Tokenizer.fromJSON(model);
   } else if (config.tokenizer_files.includes("tokenizer.model")) {
     logger(
@@ -150,6 +161,14 @@ export async function asyncLoadTokenizer(
     );
     const url = new URL("tokenizer.model", baseUrl).href;
     const model = await modelCache.fetchWithCache(url, "arraybuffer");
+    if (integrity?.tokenizer?.["tokenizer.model"]) {
+      await verifyIntegrity(
+        model,
+        integrity.tokenizer["tokenizer.model"],
+        url,
+        integrity.onFailure,
+      );
+    }
     return Tokenizer.fromSentencePiece(model);
   }
   throw new UnsupportedTokenizerFilesError(config.tokenizer_files);
