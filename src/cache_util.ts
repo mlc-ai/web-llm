@@ -10,6 +10,18 @@ import { ModelNotFoundError, UnsupportedTokenizerFilesError } from "./error";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
 import { ModelIntegrity, verifyIntegrity } from "./integrity";
 
+async function verifyTokenizerIfNeeded(
+  data: ArrayBuffer,
+  filename: string,
+  url: string,
+  integrity?: ModelIntegrity,
+): Promise<void> {
+  const hash = integrity?.tokenizer?.[filename];
+  if (hash) {
+    await verifyIntegrity(data, hash, url, integrity?.onFailure);
+  }
+}
+
 function findModelRecord(modelId: string, appConfig?: AppConfig): ModelRecord {
   const matchedItem = appConfig?.model_list.find(
     (item) => item.model_id == modelId,
@@ -135,14 +147,7 @@ export async function asyncLoadTokenizer(
   if (config.tokenizer_files.includes("tokenizer.json")) {
     const url = new URL("tokenizer.json", baseUrl).href;
     const model = await modelCache.fetchWithCache(url, "arraybuffer");
-    if (integrity?.tokenizer?.["tokenizer.json"]) {
-      await verifyIntegrity(
-        model,
-        integrity.tokenizer["tokenizer.json"],
-        url,
-        integrity.onFailure,
-      );
-    }
+    await verifyTokenizerIfNeeded(model, "tokenizer.json", url, integrity);
     return Tokenizer.fromJSON(model);
   } else if (config.tokenizer_files.includes("tokenizer.model")) {
     logger(
@@ -154,14 +159,7 @@ export async function asyncLoadTokenizer(
     );
     const url = new URL("tokenizer.model", baseUrl).href;
     const model = await modelCache.fetchWithCache(url, "arraybuffer");
-    if (integrity?.tokenizer?.["tokenizer.model"]) {
-      await verifyIntegrity(
-        model,
-        integrity.tokenizer["tokenizer.model"],
-        url,
-        integrity.onFailure,
-      );
-    }
+    await verifyTokenizerIfNeeded(model, "tokenizer.model", url, integrity);
     return Tokenizer.fromSentencePiece(model);
   }
   throw new UnsupportedTokenizerFilesError(config.tokenizer_files);

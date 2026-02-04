@@ -1,6 +1,7 @@
 <div align="center" id="top">
 
 # WebLLM
+
 [![NPM Package](https://img.shields.io/badge/NPM_Package-Published-cc3534)](https://www.npmjs.com/package/@mlc-ai/web-llm)
 [!["WebLLM Chat Deployed"](https://img.shields.io/badge/WebLLM_Chat-Deployed-%2332a852)](https://chat.webllm.ai/)
 [![Join Discord](https://img.shields.io/badge/Join-Discord-7289DA?logo=discord&logoColor=white)](https://discord.gg/9Xpy2HGBuD)
@@ -9,12 +10,12 @@
 
 **High-Performance In-Browser LLM Inference Engine.**
 
-
 [Documentation](https://webllm.mlc.ai/docs/) | [Blogpost](https://blog.mlc.ai/2024/06/13/webllm-a-high-performance-in-browser-llm-inference-engine) | [Paper](https://arxiv.org/abs/2412.15803) | [Examples](examples)
 
 </div>
 
 ## Overview
+
 WebLLM is a high-performance in-browser LLM inference engine that brings language model inference directly onto web browsers with hardware acceleration.
 Everything runs inside the browser with no server support and is accelerated with WebGPU.
 
@@ -33,6 +34,7 @@ You can use WebLLM as a base [npm package](https://www.npmjs.com/package/@mlc-ai
 </div>
 
 ## Key Features
+
 - **In-Browser Inference**: WebLLM is a high-performance, in-browser language model inference engine that leverages WebGPU for hardware acceleration, enabling powerful LLM operations directly within web browsers without server-side processing.
 
 - [**Full OpenAI API Compatibility**](#full-openai-compatibility): Seamlessly integrate your app with WebLLM using OpenAI API with functionalities such as streaming, JSON-mode, logit-level control, seeding, and more.
@@ -67,7 +69,7 @@ If you need more models, [request a new model via opening an issue](https://gith
 
 ## Jumpstart with Examples
 
-Learn how to use WebLLM to integrate large language models into your application and generate chat completions through this simple Chatbot example: 
+Learn how to use WebLLM to integrate large language models into your application and generate chat completions through this simple Chatbot example:
 
 [![Example Chatbot on JSFiddle](https://img.shields.io/badge/Example-JSFiddle-blue?logo=jsfiddle&logoColor=white)](https://jsfiddle.net/neetnestor/4nmgvsa2/)
 [![Example Chatbot on Codepen](https://img.shields.io/badge/Example-Codepen-gainsboro?logo=codepen)](https://codepen.io/neetnestor/pen/vYwgZaG)
@@ -110,9 +112,11 @@ Thanks to [jsdelivr.com](https://www.jsdelivr.com/package/npm/@mlc-ai/web-llm), 
 ```javascript
 import * as webllm from "https://esm.run/@mlc-ai/web-llm";
 ```
+
 It can also be dynamically imported as:
+
 ```javascript
-const webllm = await import ("https://esm.run/@mlc-ai/web-llm");
+const webllm = await import("https://esm.run/@mlc-ai/web-llm");
 ```
 
 ### Create MLCEngine
@@ -127,7 +131,7 @@ import { CreateMLCEngine } from "@mlc-ai/web-llm";
 // Callback function to update model loading progress
 const initProgressCallback = (initProgress) => {
   console.log(initProgress);
-}
+};
 const selectedModel = "Llama-3.1-8B-Instruct-q4f32_1-MLC";
 
 const engine = await CreateMLCEngine(
@@ -143,7 +147,7 @@ import { MLCEngine } from "@mlc-ai/web-llm";
 
 // This is a synchronous call that returns immediately
 const engine = new MLCEngine({
-  initProgressCallback: initProgressCallback
+  initProgressCallback: initProgressCallback,
 });
 
 // This is an asynchronous call and can take a long time to finish
@@ -151,16 +155,16 @@ await engine.reload(selectedModel);
 ```
 
 ### Chat Completion
+
 After successfully initializing the engine, you can now invoke chat completions using OpenAI style chat APIs through the `engine.chat.completions` interface. For the full list of parameters and their descriptions, check [section below](#full-openai-compatibility) and [OpenAI API reference](https://platform.openai.com/docs/api-reference/chat/create).
 
 (Note: The `model` parameter is not supported and will be ignored here. Instead, call `CreateMLCEngine(model)` or `engine.reload(model)` instead as shown in the [Create MLCEngine](#create-mlcengine) above.)
-
 
 ```typescript
 const messages = [
   { role: "system", content: "You are a helpful AI assistant." },
   { role: "user", content: "Hello!" },
-]
+];
 
 const reply = await engine.chat.completions.create({
   messages,
@@ -177,7 +181,7 @@ WebLLM also supports streaming chat completion generating. To use it, simply pas
 const messages = [
   { role: "system", content: "You are a helpful AI assistant." },
   { role: "user", content: "Hello!" },
-]
+];
 
 // Chunks is an AsyncGenerator object
 const chunks = await engine.chat.completions.create({
@@ -240,12 +244,9 @@ import { CreateWebWorkerMLCEngine } from "@mlc-ai/web-llm";
 async function main() {
   // Use a WebWorkerMLCEngine instead of MLCEngine here
   const engine = await CreateWebWorkerMLCEngine(
-    new Worker(
-      new URL("./worker.ts", import.meta.url), 
-      {
-        type: "module",
-      }
-    ),
+    new Worker(new URL("./worker.ts", import.meta.url), {
+      type: "module",
+    }),
     selectedModel,
     { initProgressCallback }, // engineConfig
   );
@@ -264,7 +265,6 @@ your application's offline experience.
 
 We create a handler in the worker thread that communicates with the frontend while handling the requests.
 
-
 ```typescript
 // sw.ts
 import { ServiceWorkerMLCEngineHandler } from "@mlc-ai/web-llm";
@@ -282,28 +282,32 @@ Then in the main logic, we register the service worker and create the engine usi
 
 ```typescript
 // main.ts
-import { MLCEngineInterface, CreateServiceWorkerMLCEngine } from "@mlc-ai/web-llm";
+import {
+  MLCEngineInterface,
+  CreateServiceWorkerMLCEngine,
+} from "@mlc-ai/web-llm";
 
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register(
-    new URL("sw.ts", import.meta.url),  // worker script
+    new URL("sw.ts", import.meta.url), // worker script
     { type: "module" },
   );
 }
 
-const engine: MLCEngineInterface =
-  await CreateServiceWorkerMLCEngine(
-    selectedModel,
-    { initProgressCallback }, // engineConfig
-  );
+const engine: MLCEngineInterface = await CreateServiceWorkerMLCEngine(
+  selectedModel,
+  { initProgressCallback }, // engineConfig
+);
 ```
 
 You can find a complete example on how to run WebLLM in service worker in [examples/service-worker](examples/service-worker/).
 
 ### Chrome Extension
+
 You can also find examples of building Chrome extension with WebLLM in [examples/chrome-extension](examples/chrome-extension/) and [examples/chrome-extension-webgpu-service-worker](examples/chrome-extension-webgpu-service-worker/). The latter one leverages service worker, so the extension is persistent in the background. Additionally, you can explore another full project of a Chrome extension, WebLLM Assistant, which leverages WebLLM [here](https://github.com/mlc-ai/web-llm-assistant).
 
 ## Full OpenAI Compatibility
+
 WebLLM is designed to be fully compatible with [OpenAI API](https://platform.openai.com/docs/api-reference/chat). Thus, besides building a simple chatbot, you can also have the following functionalities with WebLLM:
 
 - [streaming](examples/streaming): return output as chunks in real-time in the form of an AsyncGenerator
@@ -348,7 +352,18 @@ const engine = await CreateMLCEngine("Llama-3.2-1B-Instruct-q4f16_1-MLC", {
 You can generate SRI hashes for model files with:
 
 ```bash
+# SHA-256
 openssl dgst -sha256 -binary <file> | openssl base64 -A | sed 's/^/sha256-/'
+# SHA-384
+openssl dgst -sha384 -binary <file> | openssl base64 -A | sed 's/^/sha384-/'
+# SHA-512
+openssl dgst -sha512 -binary <file> | openssl base64 -A | sed 's/^/sha512-/'
+```
+
+Or use [`verifyfetch`](https://github.com/hamzaydia/verifyfetch) for a simpler workflow:
+
+```bash
+npx verifyfetch sign <file>
 ```
 
 If a hash does not match, an `IntegrityError` is thrown (or a warning is logged when `onFailure: "warn"`).
@@ -363,10 +378,10 @@ See the [integrity-verification example](examples/integrity-verification/) for a
 
 ## Custom Models
 
-WebLLM works as a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm) and it supports custom models in MLC format. 
+WebLLM works as a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm) and it supports custom models in MLC format.
 It reuses the model artifact and builds the flow of MLC LLM. To compile and use your own models with WebLLM, please check out
 [MLC LLM document](https://llm.mlc.ai/docs/deploy/webllm.html)
-on how to compile and deploy new model weights and libraries to WebLLM. 
+on how to compile and deploy new model weights and libraries to WebLLM.
 
 Here, we go over the high-level idea. There are two elements of the WebLLM package that enable new models and weight variants.
 
@@ -450,16 +465,17 @@ WebLLM's runtime largely depends on TVMjs: https://github.com/apache/tvm/tree/ma
 While it is also available as an npm package: https://www.npmjs.com/package/@mlc-ai/web-runtime, you can build it from source if needed by following the steps below.
 
 1. Install [emscripten](https://emscripten.org). It is an LLVM-based compiler that compiles C/C++ source code to WebAssembly.
-    - Follow the [installation instruction](https://emscripten.org/docs/getting_started/downloads.html#installation-instructions-using-the-emsdk-recommended) to install the latest emsdk.
-    - Source `emsdk_env.sh` by `source path/to/emsdk_env.sh`, so that `emcc` is reachable from PATH and the command `emcc` works.
+   - Follow the [installation instruction](https://emscripten.org/docs/getting_started/downloads.html#installation-instructions-using-the-emsdk-recommended) to install the latest emsdk.
+   - Source `emsdk_env.sh` by `source path/to/emsdk_env.sh`, so that `emcc` is reachable from PATH and the command `emcc` works.
 
-    We can verify the successful installation by trying out `emcc` terminal.
+   We can verify the successful installation by trying out `emcc` terminal.
 
-    Note: We recently found that using the latest `emcc` version may run into issues during runtime. Use `./emsdk install 3.1.56` instead of `./emsdk install latest` for now as a workaround. The error may look like
-    ```
-    Init error, LinkError: WebAssembly.instantiate(): Import #6 module="wasi_snapshot_preview1"
-    function="proc_exit": function import requires a callable
-    ```
+   Note: We recently found that using the latest `emcc` version may run into issues during runtime. Use `./emsdk install 3.1.56` instead of `./emsdk install latest` for now as a workaround. The error may look like
+
+   ```
+   Init error, LinkError: WebAssembly.instantiate(): Import #6 module="wasi_snapshot_preview1"
+   function="proc_exit": function import requires a callable
+   ```
 
 2. In `./package.json`, change from `"@mlc-ai/web-runtime": "0.18.0-dev2",` to `"@mlc-ai/web-runtime": "file:./tvm_home/web",`.
 
@@ -472,6 +488,7 @@ While it is also available as an npm package: https://www.npmjs.com/package/@mlc
    ```
 
    In this step, if `$TVM_SOURCE_DIR` is not defined in the environment, we will execute the following line to build `tvmjs` dependency:
+
    ```shell
    git clone https://github.com/mlc-ai/relax 3rdparty/tvm-unity --recursive
    ```
@@ -506,17 +523,18 @@ This project is initiated by members from CMU Catalyst, UW SAMPL, SJTU, OctoML, 
 This project is only possible thanks to the shoulders open-source ecosystems that we stand on. We want to thank the Apache TVM community and developers of the TVM Unity effort. The open-source ML community members made these models publicly available. PyTorch and Hugging Face communities make these models accessible. We would like to thank the teams behind Vicuna, SentencePiece, LLaMA, and Alpaca. We also would like to thank the WebAssembly, Emscripten, and WebGPU communities. Finally, thanks to Dawn and WebGPU developers.
 
 ## Citation
+
 If you find this project to be useful, please cite:
 
 ```
 @misc{ruan2024webllmhighperformanceinbrowserllm,
-      title={WebLLM: A High-Performance In-Browser LLM Inference Engine}, 
+      title={WebLLM: A High-Performance In-Browser LLM Inference Engine},
       author={Charlie F. Ruan and Yucheng Qin and Xun Zhou and Ruihang Lai and Hongyi Jin and Yixin Dong and Bohan Hou and Meng-Shiun Yu and Yiyan Zhai and Sudeep Agarwal and Hangrui Cao and Siyuan Feng and Tianqi Chen},
       year={2024},
       eprint={2412.15803},
       archivePrefix={arXiv},
       primaryClass={cs.LG},
-      url={https://arxiv.org/abs/2412.15803}, 
+      url={https://arxiv.org/abs/2412.15803},
 }
 ```
 

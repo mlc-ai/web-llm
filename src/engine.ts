@@ -270,7 +270,7 @@ export class MLCEngine implements MLCEngineInterface {
 
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
-    let curModelConfig: ChatConfig;
+    let configBase: Record<string, unknown>;
     if (modelRecord.integrity?.config) {
       // Fetch as arraybuffer for integrity verification
       const configData = (await configCache.fetchWithCache(
@@ -284,22 +284,19 @@ export class MLCEngine implements MLCEngineInterface {
         configUrl,
         modelRecord.integrity.onFailure,
       );
-      curModelConfig = {
-        ...JSON.parse(new TextDecoder().decode(configData)),
-        ...modelRecord.overrides,
-        ...chatOpts,
-      } as ChatConfig;
+      configBase = JSON.parse(new TextDecoder().decode(configData));
     } else {
-      curModelConfig = {
-        ...(await configCache.fetchWithCache(
-          configUrl,
-          "json",
-          this.reloadController?.signal,
-        )),
-        ...modelRecord.overrides,
-        ...chatOpts,
-      } as ChatConfig;
+      configBase = (await configCache.fetchWithCache(
+        configUrl,
+        "json",
+        this.reloadController?.signal,
+      )) as Record<string, unknown>;
     }
+    const curModelConfig: ChatConfig = {
+      ...configBase,
+      ...modelRecord.overrides,
+      ...chatOpts,
+    } as ChatConfig;
     this.loadedModelIdToChatConfig.set(modelId, curModelConfig);
 
     // load tvm wasm
