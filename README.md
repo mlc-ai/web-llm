@@ -311,6 +311,56 @@ WebLLM is designed to be fully compatible with [OpenAI API](https://platform.ope
 - [seed-to-reproduce](examples/seed-to-reproduce): use seeding to ensure a reproducible output with fields `seed`.
 - [function-calling](examples/function-calling) (WIP): function calling with fields `tools` and `tool_choice` (with preliminary support); or manual function calling without `tools` or `tool_choice` (keeps the most flexibility).
 
+## Integrity Verification
+
+WebLLM supports optional integrity verification for model artifacts using
+[SRI (Subresource Integrity)](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity) hashes.
+When the `integrity` field is set on a `ModelRecord`, WebLLM will verify the downloaded config,
+WASM, and tokenizer files against the provided hashes before loading.
+
+```typescript
+import { CreateMLCEngine } from "@mlc-ai/web-llm";
+
+const appConfig = {
+  model_list: [
+    {
+      model: "https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q4f16_1-MLC",
+      model_id: "Llama-3.2-1B-Instruct-q4f16_1-MLC",
+      model_lib:
+        "https://raw.githubusercontent.com/user/model-libs/main/model.wasm",
+      integrity: {
+        config: "sha256-<base64-hash-of-mlc-chat-config.json>",
+        model_lib: "sha256-<base64-hash-of-wasm-file>",
+        tokenizer: {
+          "tokenizer.json": "sha256-<base64-hash-of-tokenizer.json>",
+        },
+        onFailure: "error", // "error" (default) throws IntegrityError, "warn" logs and continues
+      },
+    },
+  ],
+};
+
+const engine = await CreateMLCEngine("Llama-3.2-1B-Instruct-q4f16_1-MLC", {
+  appConfig,
+});
+```
+
+You can generate SRI hashes for model files with:
+
+```bash
+openssl dgst -sha256 -binary <file> | openssl base64 -A | sed 's/^/sha256-/'
+```
+
+If a hash does not match, an `IntegrityError` is thrown (or a warning is logged when `onFailure: "warn"`).
+All fields in `integrity` are optional — only specified artifacts will be verified.
+When the `integrity` field is omitted entirely, WebLLM behaves exactly as before (no verification).
+
+For advanced integrity features including **model weight verification**, **resumable downloads**,
+**chunked verification**, and **progress reporting**, see
+[`@verifyfetch/webllm`](https://github.com/hamzaydia/verifyfetch/tree/main/packages/webllm).
+
+See the [integrity-verification example](examples/integrity-verification/) for a complete working demo.
+
 ## Custom Models
 
 WebLLM works as a companion project of [MLC LLM](https://github.com/mlc-ai/mlc-llm) and it supports custom models in MLC format. 

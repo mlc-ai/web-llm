@@ -71,6 +71,7 @@ import {
 } from "./error";
 import { asyncLoadTokenizer } from "./cache_util";
 import { EmbeddingPipeline } from "./embedding";
+import { verifyIntegrity } from "./integrity";
 
 /**
  * Creates `MLCEngine`, and loads `modelId` onto WebGPU.
@@ -269,15 +270,36 @@ export class MLCEngine implements MLCEngineInterface {
 
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
-    const curModelConfig = {
-      ...(await configCache.fetchWithCache(
+    let curModelConfig: ChatConfig;
+    if (modelRecord.integrity?.config) {
+      // Fetch as arraybuffer for integrity verification
+      const configData = (await configCache.fetchWithCache(
         configUrl,
-        "json",
+        "arraybuffer",
         this.reloadController?.signal,
-      )),
-      ...modelRecord.overrides,
-      ...chatOpts,
-    } as ChatConfig;
+      )) as ArrayBuffer;
+      await verifyIntegrity(
+        configData,
+        modelRecord.integrity.config,
+        configUrl,
+        modelRecord.integrity.onFailure,
+      );
+      curModelConfig = {
+        ...JSON.parse(new TextDecoder().decode(configData)),
+        ...modelRecord.overrides,
+        ...chatOpts,
+      } as ChatConfig;
+    } else {
+      curModelConfig = {
+        ...(await configCache.fetchWithCache(
+          configUrl,
+          "json",
+          this.reloadController?.signal,
+        )),
+        ...modelRecord.overrides,
+        ...chatOpts,
+      } as ChatConfig;
+    }
     this.loadedModelIdToChatConfig.set(modelId, curModelConfig);
 
     // load tvm wasm
@@ -309,6 +331,15 @@ export class MLCEngine implements MLCEngineInterface {
       }
     };
     const wasmSource = await fetchWasmSource();
+
+    if (modelRecord.integrity?.model_lib) {
+      await verifyIntegrity(
+        wasmSource,
+        modelRecord.integrity.model_lib,
+        wasmUrl,
+        modelRecord.integrity.onFailure,
+      );
+    }
 
     const wasm = new Uint8Array(wasmSource);
     const tvm = await tvmjs.instantiate(
@@ -366,6 +397,7 @@ export class MLCEngine implements MLCEngineInterface {
       curModelConfig,
       this.appConfig,
       this.logger,
+      modelRecord.integrity,
     );
     const cacheType = this.appConfig.useIndexedDBCache ? "indexeddb" : "cache";
     await tvm.fetchTensorCache(
