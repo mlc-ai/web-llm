@@ -2280,5 +2280,42 @@ export const prebuiltAppConfig: AppConfig = {
       vram_required_MB: 238.71,
       model_type: ModelType.embedding,
     },
+    // Ministral 3
+    {
+      model:
+        "https://huggingface.co/mlc-ai/Ministral-3-3B-Base-2512-q4f16_1-MLC",
+      model_id: "Ministral-3-3B-Base-2512-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Ministral-3-3B-Base-2512-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model:
+        "https://huggingface.co/mlc-ai/Ministral-3-3B-Reasoning-2512-q4f16_1-MLC",
+      model_id: "Ministral-3-3B-Reasoning-2512-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Ministral-3-3B-Reasoning-2512-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model:
+        "https://huggingface.co/mlc-ai/Ministral-3-3B-Instruct-2512-BF16-q4f16_1-MLC",
+      model_id: "Ministral-3-3B-Instruct-2512-BF16-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Ministral-3-3B-Instruct-2512-BF16-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
   ],
 };
