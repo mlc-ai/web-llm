@@ -31,7 +31,7 @@
     "@eslint/eslintrc": "^3.3.1",
     "@mlc-ai/web-runtime": "^0.24.0-dev1",
     "@mlc-ai/web-tokenizers": "^0.1.6",
-    "@mlc-ai/web-xgrammar": "0.1.0",
+    "@mlc-ai/web-xgrammar": "0.1.27",
     "@next/eslint-plugin-next": "^14.2.3",
     "@rollup/plugin-commonjs": "^29.0.0",
     "@rollup/plugin-node-resolve": "^16.0.3",

@@ -30,6 +30,7 @@ import {
   CustomSystemPromptError,
   InvalidResponseFormatError,
   InvalidResponseFormatGrammarError,
+  InvalidResponseFormatStructuralTagError,
   InvalidStreamOptionsError,
   MessageOrderError,
   MultipleTextContentError,
@@ -42,6 +43,7 @@ import {
   UnsupportedModelIdError,
   UserMessageContentErrorForNonVLM,
 } from "../error";
+import type { StructuralTagLike } from "@mlc-ai/web-xgrammar";
 
 /* eslint-disable @typescript-eslint/no-namespace */
 
@@ -524,6 +526,24 @@ export function postInitAndCheckFields(
       request.response_format?.grammar === null
     ) {
       throw new InvalidResponseFormatGrammarError();
+    }
+  }
+
+  if (
+    request.response_format?.structural_tag !== undefined &&
+    request.response_format?.structural_tag !== null
+  ) {
+    if (request.response_format?.type !== "structural_tag") {
+      throw new InvalidResponseFormatStructuralTagError();
+    }
+  }
+
+  if (request.response_format?.type === "structural_tag") {
+    if (
+      request.response_format?.structural_tag === undefined ||
+      request.response_format?.structural_tag === null
+    ) {
+      throw new InvalidResponseFormatStructuralTagError();
     }
   }
 
@@ -1157,6 +1177,10 @@ export namespace ChatCompletionChunk {
  * Setting to `{ "type": "grammar" }` requires you to also specify the `grammar` field, which
  * is a BNFGrammar string.
  *
+ * Setting to `{ "type": "structural_tag" }` requires a `structural_tag` definition that
+ * applies trigger-based constraints (e.g. tag-delimited blocks) while allowing free-form text
+ * outside the triggered spans.
+ *
  * Setting `schema` specifies the output format of the json object such as properties to include.
  *
  * **Important:** when using JSON mode, you **must** also instruct the model to produce JSON
@@ -1169,9 +1193,9 @@ export namespace ChatCompletionChunk {
  */
 export interface ResponseFormat {
   /**
-   * Must be one of `text`, `json_object`, or `grammar`.
+   * Must be one of `text`, `json_object`, `grammar`, or `structural_tag`.
    */
-  type?: "text" | "json_object" | "grammar";
+  type?: "text" | "json_object" | "grammar" | "structural_tag";
   /**
    * A schema string in the format of the schema of a JSON file. `type` needs to be `json_object`.
    */
@@ -1191,4 +1215,9 @@ export interface ResponseFormat {
       The assertion (=[a-z]) means a must be followed by [a-z].
    */
   grammar?: string;
+  /**
+   * A structural tag definition. Needs to be specified when, and only when,
+   * `type` is `structural_tag`.
+   */
+  structural_tag?: StructuralTagLike | string;
 }
