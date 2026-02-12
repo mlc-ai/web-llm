@@ -1177,6 +1177,10 @@ export namespace ChatCompletionChunk {
  * Setting to `{ "type": "grammar" }` requires you to also specify the `grammar` field, which
  * is a BNFGrammar string.
  *
+ * Setting to `{ "type": "structural_tag" }` requires a `structural_tag` definition that
+ * applies trigger-based constraints (e.g. tag-delimited blocks) while allowing free-form text
+ * outside the triggered spans.
+ *
  * Setting `schema` specifies the output format of the json object such as properties to include.
  *
  * **Important:** when using JSON mode, you **must** also instruct the model to produce JSON

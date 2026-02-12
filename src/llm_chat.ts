@@ -656,17 +656,19 @@ export class LLMChatPipeline {
               );
           }
           const grammar: xgr.CompiledGrammar =
-            responseFormat.type === "json_object"
-              ? await this.grammarCompiler!.compileJSONSchema(
-                  responseFormat.schema!,
-                )
-              : responseFormat.type === "grammar"
-                ? await this.grammarCompiler!.compileGrammar(
-                    responseFormat.grammar!,
+            responseFormat.type === undefined
+              ? await this.grammarCompiler!.compileBuiltinJSONGrammar()
+              : responseFormat.type === "json_object"
+                ? await this.grammarCompiler!.compileJSONSchema(
+                    responseFormat.schema!,
                   )
-                : await this.grammarCompiler!.compileStructuralTag(
-                    responseFormat.structural_tag!,
-                  );
+                : responseFormat.type === "grammar"
+                  ? await this.grammarCompiler!.compileGrammar(
+                      responseFormat.grammar!,
+                    )
+                  : await this.grammarCompiler!.compileStructuralTag(
+                      responseFormat.structural_tag!,
+                    );
           this.grammarMatcher =
             await xgr.GrammarMatcher.createGrammarMatcher(grammar);
           grammar.dispose();
