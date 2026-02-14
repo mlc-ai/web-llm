@@ -18,7 +18,7 @@ const replacements = [
     },
     {
         pattern: /import require\$\$3 from 'perf_hooks';/g,
-        replacement: 'const require$$3 = "MLC_DUMMY_REQUIRE_VAR"'
+        replacement: () => 'const require$$3 = "MLC_DUMMY_REQUIRE_VAR"'
     },
     {
         pattern: /require\("perf_hooks"\)/g,
@@ -26,7 +26,7 @@ const replacements = [
     },
     {
         pattern: /import require\$\$4 from 'ws';/g,
-        replacement: 'const require$$4 = "MLC_DUMMY_REQUIRE_VAR"'
+        replacement: () => 'const require$$4 = "MLC_DUMMY_REQUIRE_VAR"'
     },
     {
         pattern: /require\("ws"\)/g,
@@ -39,10 +39,22 @@ files.forEach(file => {
     if (fs.existsSync(filePath)) {
         console.log(`Cleaning up ${file}...`);
         let content = fs.readFileSync(filePath, 'utf8');
+        let changed = false;
+
         replacements.forEach(r => {
-            content = content.replace(r.pattern, r.replacement);
+            const newContent = content.replace(r.pattern, r.replacement);
+            if (newContent !== content) {
+                content = newContent;
+                changed = true;
+            }
         });
-        fs.writeFileSync(filePath, content, 'utf8');
+
+        if (changed) {
+            fs.writeFileSync(filePath, content, 'utf8');
+            console.log(`Successfully patched ${file}`);
+        } else {
+            console.log(`No changes needed for ${file}`);
+        }
     } else {
         console.warn(`File ${file} not found.`);
     }
