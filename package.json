@@ -11,7 +11,7 @@
     "test": "jest --coverage",
     "format": "prettier --write \"./src/\" \"./examples/\" \"./tests/\"",
     "prep-models": "./scripts/prep_model_hashes.sh",
-    "prepare": "husky"
+    "prepare": "npm run build"
   },
   "files": [
     "lib"
