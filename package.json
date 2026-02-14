@@ -6,7 +6,7 @@
   "types": "lib/index.d.ts",
   "type": "module",
   "scripts": {
-    "build": "rollup -c && sh cleanup-index-js.sh",
+    "build": "rollup -c && node cleanup.js",
     "prepare": "npm run build",
     "lint": "npx eslint ./src/ ./tests/ ./examples/ && npx prettier ./src/ ./tests/ ./examples/ --check",
     "test": "jest --coverage",
@@ -33,7 +33,7 @@
     "@mlc-ai/web-tokenizers": "^0.1.6",
     "@mlc-ai/web-xgrammar": "0.1.27",
     "@next/eslint-plugin-next": "^14.2.3",
-    "@rollup/plugin-commonjs": "^29.0.2",
+    "@rollup/plugin-commonjs": "^29.0.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@types/chrome": "^0.0.266",
     "@types/jest": "^30.0.0",
