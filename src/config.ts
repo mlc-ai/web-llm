@@ -96,7 +96,7 @@ export interface ChatConfig {
  * Custom options that can be used to override known config values.
  */
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
-export interface ChatOptions extends Partial<ChatConfig> {}
+export interface ChatOptions extends Partial<ChatConfig> { }
 
 /**
  * Optional configurations for `CreateMLCEngine()` and `CreateWebWorkerMLCEngine()`.
@@ -262,6 +262,19 @@ export interface ModelRecord {
   buffer_size_required_bytes?: number;
   required_features?: Array<string>;
   model_type?: ModelType;
+  /**
+   * Optional integrity hash (SRI format) for the model_lib WASM file.
+   * e.g. "sha384-..."
+   */
+  model_lib_integrity?: string;
+  /**
+   * Optional integrity hash for the mlc-chat-config.json file.
+   */
+  chat_config_integrity?: string;
+  /**
+   * Optional integrity hash for the tokenizer file.
+   */
+  tokenizer_integrity?: string;
 }
 
 /**
@@ -319,6 +332,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3.2-1B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-BFrCme074N4FiYBlegh4+zJfU69SO68xBY3zs2x/7YN8zKcokY65ZHMqvtesierq",
       vram_required_MB: 1128.82,
       low_resource_required: true,
       overrides: {
@@ -332,6 +346,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3.2-1B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-MvYm3ENaq2H8btVLPHOsxEYkchkJGQhYgof9ts3Bn8QPRXHphziyhaPjNJGsjGHW",
       vram_required_MB: 879.04,
       low_resource_required: true,
       overrides: {
@@ -346,6 +361,7 @@ export const prebuiltAppConfig: AppConfig = {
     //     modelLibURLPrefix +
     //     modelVersion +
     //     "/Llama-3.2-1B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+    //   model_lib_integrity: "sha384-grYApZPwSDjnyzXcVs+p55Go8/AkzmtilCQoBQmZnNsKU082O3Efq3ODHA1VbUSq",
     //   vram_required_MB: 5106.26,
     //   low_resource_required: true,
     //   overrides: {
@@ -359,6 +375,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3.2-1B-Instruct-q0f16-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-1euBfUBjDBIt1tBVuhqjp1DQqVItwzse2JOMNqqXBEmj3mKrjPP5ZXFXQPrbKYx/",
       vram_required_MB: 2573.13,
       low_resource_required: true,
       overrides: {
@@ -372,6 +389,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3.2-3B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-m+QBpJbnn7jnJbzBDHjgqVubNIguSXCpggiEt7GtA9MvPVvXm8ILWBqMEUAG0ZAH",
       vram_required_MB: 2951.51,
       low_resource_required: true,
       overrides: {
@@ -385,6 +403,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3.2-3B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-ShT5YGbMUT2q0buGkG0MSPa3Wd+Zvl09eV9qVCyXsnAvw0XY8J//wGcQulvdEEs9",
       vram_required_MB: 2263.69,
       low_resource_required: true,
       overrides: {
@@ -399,6 +418,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3_1-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-n0r/h5QCF7uAJu+xjKgG5bESf5JBhv0aRgvSbeR1BINz41xMJS9zciXPCOXpISvU",
       vram_required_MB: 5295.7,
       low_resource_required: true,
       overrides: {
@@ -412,6 +432,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3_1-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-7n01EBc6eYoFfoRyarD5Fi/2I2qQ15f9BJJzi7k9nbJ0sx2CytL/4dsWMZQKupXw",
       vram_required_MB: 4598.34,
       low_resource_required: true,
       overrides: {
@@ -425,6 +446,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3_1-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-n0r/h5QCF7uAJu+xjKgG5bESf5JBhv0aRgvSbeR1BINz41xMJS9zciXPCOXpISvU",
       vram_required_MB: 6101.01,
       low_resource_required: false,
       overrides: {
@@ -438,6 +460,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3_1-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-7n01EBc6eYoFfoRyarD5Fi/2I2qQ15f9BJJzi7k9nbJ0sx2CytL/4dsWMZQKupXw",
       vram_required_MB: 5001.0,
       low_resource_required: false,
       overrides: {
@@ -453,6 +476,7 @@ export const prebuiltAppConfig: AppConfig = {
     //     modelLibURLPrefix +
     //     modelVersion +
     //     "/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    //  model_lib_integrity: "sha384-tUvBdkCZfKI3hifJyU22yskmxl4nncy9D2Q0/SoyivltjrLiTtfdUixuI5MVVwjv",
     //   low_resource_required: true,
     //   vram_required_MB: 1629.75,
     //   overrides: {
@@ -466,6 +490,7 @@ export const prebuiltAppConfig: AppConfig = {
     //     modelLibURLPrefix +
     //     modelVersion +
     //     "/Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    //  model_lib_integrity: "sha384-6R5PN22rmAWcniwte3sSN1KA0F/66hCWNQjTPIbzS3tDzXIBsXM6Pj1yi85zUzlI",
     //   low_resource_required: true,
     //   vram_required_MB: 1888.97,
     //   overrides: {
@@ -480,6 +505,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-fUvfSFz4LzDBdo5f6fY+aMnQdqQi8YLsemFp29J4Aqac2whDeic7347Z+4pQFjLF",
       low_resource_required: false,
       vram_required_MB: 5106.67,
       overrides: {
@@ -494,6 +520,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-7B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-N9El8+hAYQhnAUOncdNjL20BIcUjp1P+KyIE4G/YjgRTVG8Ex9vjCy+gTZNrq5wG",
       low_resource_required: false,
       vram_required_MB: 5900.09,
       overrides: {
@@ -509,6 +536,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3_1-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-n0r/h5QCF7uAJu+xjKgG5bESf5JBhv0aRgvSbeR1BINz41xMJS9zciXPCOXpISvU",
       vram_required_MB: 6101.01,
       low_resource_required: false,
       overrides: {
@@ -523,6 +551,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3_1-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-7n01EBc6eYoFfoRyarD5Fi/2I2qQ15f9BJJzi7k9nbJ0sx2CytL/4dsWMZQKupXw",
       vram_required_MB: 5001.0,
       low_resource_required: false,
       overrides: {
@@ -538,6 +567,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-xouLeGICefO0QypvXdVQ+tWGtVsv7cuE9+8qg0/T9Pg47oN71YiB4l68XZ08kxTw",
       vram_required_MB: 4976.13,
       low_resource_required: false,
       overrides: {
@@ -552,6 +582,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-G7w37Ie2qdrRSxkpzsxKEc1vWeYfMVQuJZpoqXvm2wWWeuw7p820ROhWnXX0998j",
       vram_required_MB: 6051.27,
       low_resource_required: false,
       overrides: {
@@ -566,6 +597,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-xouLeGICefO0QypvXdVQ+tWGtVsv7cuE9+8qg0/T9Pg47oN71YiB4l68XZ08kxTw",
       vram_required_MB: 4976.13,
       low_resource_required: false,
       overrides: {
@@ -580,6 +612,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-G7w37Ie2qdrRSxkpzsxKEc1vWeYfMVQuJZpoqXvm2wWWeuw7p820ROhWnXX0998j",
       vram_required_MB: 6051.27,
       low_resource_required: false,
       overrides: {
@@ -593,6 +626,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3.2-3B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-m+QBpJbnn7jnJbzBDHjgqVubNIguSXCpggiEt7GtA9MvPVvXm8ILWBqMEUAG0ZAH",
       vram_required_MB: 2951.51,
       low_resource_required: true,
       overrides: {
@@ -606,6 +640,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3.2-3B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-ShT5YGbMUT2q0buGkG0MSPa3Wd+Zvl09eV9qVCyXsnAvw0XY8J//wGcQulvdEEs9",
       vram_required_MB: 2263.69,
       low_resource_required: true,
       overrides: {
@@ -619,6 +654,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3_1-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-n0r/h5QCF7uAJu+xjKgG5bESf5JBhv0aRgvSbeR1BINz41xMJS9zciXPCOXpISvU",
       vram_required_MB: 5779.27,
       low_resource_required: false,
       overrides: {
@@ -632,6 +668,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3_1-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-7n01EBc6eYoFfoRyarD5Fi/2I2qQ15f9BJJzi7k9nbJ0sx2CytL/4dsWMZQKupXw",
       vram_required_MB: 4876.13,
       low_resource_required: false,
       overrides: {
@@ -646,6 +683,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-xH7X3N0KW9xLgIbPoWegh0EDMXieAyuyZGMfRXoJ2Tzs54TIbtVBimUjRCmd4lOu",
       vram_required_MB: 4033.28,
       low_resource_required: false,
       required_features: ["shader-f16"],
@@ -662,6 +700,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Phi-3.5-mini-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-30QsgbLGyD/4gf/53mfEvOHsVT0a0Tw2CLUsmZyUeHa8T6q+J3vWztBpPWB1p8AX",
       vram_required_MB: 3672.07,
       low_resource_required: false,
       overrides: {
@@ -675,6 +714,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Phi-3.5-mini-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-VPPe8S+fQWK6lPjJYCB6Jcmt+bVY4vE4aM+mgb00x7X1xrlY7GmMeWDO1kbY0VfS",
       vram_required_MB: 5483.12,
       low_resource_required: false,
       overrides: {
@@ -688,6 +728,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Phi-3.5-mini-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-30QsgbLGyD/4gf/53mfEvOHsVT0a0Tw2CLUsmZyUeHa8T6q+J3vWztBpPWB1p8AX",
       vram_required_MB: 2520.07,
       low_resource_required: true,
       overrides: {
@@ -701,6 +742,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Phi-3.5-mini-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-VPPe8S+fQWK6lPjJYCB6Jcmt+bVY4vE4aM+mgb00x7X1xrlY7GmMeWDO1kbY0VfS",
       vram_required_MB: 3179.12,
       low_resource_required: true,
       overrides: {
@@ -716,6 +758,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Phi-3.5-vision-instruct-q4f16_1-ctx4k_cs2k-webgpu.wasm",
+      model_lib_integrity: "sha384-VYHekXC8zG6ebU30jqmQzPqqVGlWBZ8/5RBv3LU/GgCJ9Q6if1e1wV7RVpnW3035",
       vram_required_MB: 3952.18,
       low_resource_required: true,
       overrides: {
@@ -731,6 +774,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Phi-3.5-vision-instruct-q4f32_1-ctx4k_cs2k-webgpu.wasm",
+      model_lib_integrity: "sha384-HbPKCJK/xuxpRnKit8wC6Fn4aPAL3e/q5hxZYWAcDYVgsWJz5mmd/ZfDbLUqBHsP",
       vram_required_MB: 5879.84,
       low_resource_required: true,
       overrides: {
@@ -747,6 +791,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-xH7X3N0KW9xLgIbPoWegh0EDMXieAyuyZGMfRXoJ2Tzs54TIbtVBimUjRCmd4lOu",
       vram_required_MB: 4573.39,
       low_resource_required: false,
       required_features: ["shader-f16"],
@@ -763,6 +808,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Mistral-7B-Instruct-v0.3-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-6RtEm76THd0CKOGgYb3xxEPZgno0/aRglHP+DhRELes1vZoZK9tLvdQmsdIaSaeF",
       vram_required_MB: 5619.27,
       low_resource_required: false,
       overrides: {
@@ -778,6 +824,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-xH7X3N0KW9xLgIbPoWegh0EDMXieAyuyZGMfRXoJ2Tzs54TIbtVBimUjRCmd4lOu",
       vram_required_MB: 4573.39,
       low_resource_required: false,
       required_features: ["shader-f16"],
@@ -794,6 +841,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-xH7X3N0KW9xLgIbPoWegh0EDMXieAyuyZGMfRXoJ2Tzs54TIbtVBimUjRCmd4lOu",
       vram_required_MB: 4573.39,
       low_resource_required: false,
       required_features: ["shader-f16"],
@@ -810,6 +858,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-xH7X3N0KW9xLgIbPoWegh0EDMXieAyuyZGMfRXoJ2Tzs54TIbtVBimUjRCmd4lOu",
       vram_required_MB: 4573.39,
       low_resource_required: false,
       required_features: ["shader-f16"],
@@ -825,6 +874,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-xH7X3N0KW9xLgIbPoWegh0EDMXieAyuyZGMfRXoJ2Tzs54TIbtVBimUjRCmd4lOu",
       vram_required_MB: 4573.39,
       low_resource_required: false,
       required_features: ["shader-f16"],
@@ -841,6 +891,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/SmolLM2-1.7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-navrvwD1NLAq5aDZQZWsLtqWAjnRNUSOJw2N8auLGh1d593ia/s16jjS4i4r2E3L",
       vram_required_MB: 1774.19,
       low_resource_required: true,
       required_features: ["shader-f16"],
@@ -855,6 +906,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/SmolLM2-1.7B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-2BIDSQALDBtgh/N9y+5hp3FMy8eVbWCSlcnJlQJHucoNaAP/LeG0+2Ri9vRlHc3l",
       vram_required_MB: 2692.38,
       low_resource_required: true,
       overrides: {
@@ -869,6 +921,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/SmolLM2-360M-Instruct-q0f16-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-lbvfOVAfOrEsvjdqYnUfEYCnpfucwXlKMNuOgWgZRjTGemW4X9xaJwuD8wxq+//Z",
       vram_required_MB: 871.99,
       low_resource_required: true,
       required_features: ["shader-f16"],
@@ -883,6 +936,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/SmolLM2-360M-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-InOus20aiprBSZkxki93ByRP44f4lL+NFG1NbZs8zR00EDFX49i6zvuagyCgoWdw",
       vram_required_MB: 1743.99,
       low_resource_required: true,
       overrides: {
@@ -896,6 +950,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/SmolLM2-360M-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-qUcbV3kOHIVTNNoBM6GDd5DrBx77FbBRY7FzrdDMdMPnlCzz0ifWjZx+K3syvOZq",
       vram_required_MB: 376.06,
       low_resource_required: true,
       required_features: ["shader-f16"],
@@ -910,6 +965,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/SmolLM2-360M-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-W06B7gc+JQELqAEpklVLj16sOWmtHyILRNBtquQ5KbyMl0xdyuW+X6ZCRXM6E5U7",
       vram_required_MB: 579.61,
       low_resource_required: true,
       overrides: {
@@ -923,6 +979,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/SmolLM2-135M-Instruct-q0f16-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-o5KOsp5xuwCups6W/nUiUO7c9g+06zc3PGtXIwKmIynufson9jS/4G2XLneRw4pz",
       vram_required_MB: 359.69,
       low_resource_required: true,
       required_features: ["shader-f16"],
@@ -937,6 +994,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/SmolLM2-135M-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-dkitycsGA4QpDhgad4+2uQxmesRg/YQ/EBj37JvktwUaCGEfySTFZ/R7eg92FYL0",
       vram_required_MB: 719.38,
       low_resource_required: true,
       overrides: {
@@ -951,6 +1009,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/gemma-2-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-UWOiXqZ3Wn9TVdfrmvjzASth1+ierJ3/VOFG4PrMuH+rNJp/l0kqRqpeOc7vLXAG",
       vram_required_MB: 1895.3,
       low_resource_required: false,
       required_features: ["shader-f16"],
@@ -965,6 +1024,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/gemma-2-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-YQHyUakrA8NxB08sLeM7dVjRISc8gcHXxnWyosk6WrM+sdFDmVaS4BDOmYxnK4XF",
       vram_required_MB: 2508.75,
       low_resource_required: false,
       overrides: {
@@ -978,6 +1038,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/gemma-2-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-UWOiXqZ3Wn9TVdfrmvjzASth1+ierJ3/VOFG4PrMuH+rNJp/l0kqRqpeOc7vLXAG",
       vram_required_MB: 1583.3,
       low_resource_required: true,
       required_features: ["shader-f16"],
@@ -992,6 +1053,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/gemma-2-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-YQHyUakrA8NxB08sLeM7dVjRISc8gcHXxnWyosk6WrM+sdFDmVaS4BDOmYxnK4XF",
       vram_required_MB: 1884.75,
       low_resource_required: true,
       overrides: {
@@ -1005,6 +1067,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/gemma-2-9b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-nxc75VPFmiFo2JriHOYj7QQp0cHBVbR1QozrBdsOfzWesQlTMpn4uZwzD9GpCII9",
       vram_required_MB: 6422.01,
       low_resource_required: false,
       required_features: ["shader-f16"],
@@ -1019,6 +1082,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/gemma-2-9b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-t5jJl9QJtugvP4V4f8KF3ms69fZ9nWmi8bg/9B2irFaxqQPSNt33R8OuX17ZhNCn",
       vram_required_MB: 8383.33,
       low_resource_required: false,
       overrides: {
@@ -1033,6 +1097,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/gemma-2-2b-jpn-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-UWOiXqZ3Wn9TVdfrmvjzASth1+ierJ3/VOFG4PrMuH+rNJp/l0kqRqpeOc7vLXAG",
       vram_required_MB: 1895.3,
       low_resource_required: true,
       required_features: ["shader-f16"],
@@ -1047,6 +1112,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/gemma-2-2b-jpn-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-YQHyUakrA8NxB08sLeM7dVjRISc8gcHXxnWyosk6WrM+sdFDmVaS4BDOmYxnK4XF",
       vram_required_MB: 2508.75,
       low_resource_required: true,
       overrides: {
@@ -1061,6 +1127,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen3-0.6B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-RAfeU34SlXXb8HKRYwNDhboSvMULq/rvOILLMr8gUhTi2Tn+zh43nbSeFqgOyLSP",
       vram_required_MB: 1403.34,
       low_resource_required: true,
       overrides: {
@@ -1074,6 +1141,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen3-0.6B-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-Bp46CQgKaJ20J6IecL4OyL1ml79ejtHiQroVoQRmLDKOhs26wATclIRbCg0oTr+M",
       vram_required_MB: 1924.98,
       low_resource_required: true,
       overrides: {
@@ -1087,6 +1155,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen3-0.6B-q0f16-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-/5M1d19/pPZpKB64FAw7+imTdponnqTKy4oErASwY9GTZXhlCvgjJ9jf1TQw3e5/",
       vram_required_MB: 2220.38,
       low_resource_required: true,
       overrides: {
@@ -1101,6 +1170,7 @@ export const prebuiltAppConfig: AppConfig = {
     //     modelLibURLPrefix +
     //     modelVersion +
     //     "/Qwen3-0.6B-q0f32-ctx4k_cs1k-webgpu.wasm",
+    //  model_lib_integrity: "sha384-2hLiV047WGJZmv2lhkmmAAsbXlvWb9nDwtWGP+bWPhs0QdkEFAPc64yQ9sIl9/Mn",
     //   vram_required_MB: 3843.25,
     //   low_resource_required: true,
     //   overrides: {
@@ -1114,6 +1184,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen3-1.7B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-Kq59NBHnouqYI/XCVCkGZFcHE3SipWQuvbv0NiOWFKbfOdlfMNkCd37fETFKr0WL",
       vram_required_MB: 2036.66,
       low_resource_required: true,
       overrides: {
@@ -1127,6 +1198,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen3-1.7B-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-XIpMf49w1jyEWcYoZdREjxQOYKtVt+AbWxvRlDEEBOI/I/QakcNFhFmrch7nD5Po",
       vram_required_MB: 2635.44,
       low_resource_required: true,
       overrides: {
@@ -1140,6 +1212,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen3-4B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-d1MqzoNJBz9VmvzfrsF4KihWxTUs/cG0yknymc1fpsiL25YjeLvVk6rL861xCxRX",
       vram_required_MB: 3431.59,
       low_resource_required: true,
       overrides: {
@@ -1153,6 +1226,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen3-4B-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-lr8kPijzbrc45AWnRj22H4bwp8OOE1fIs17mvq06bQea28Xjk+Fy6BWt+EQ/dTlc",
       vram_required_MB: 4327.71,
       low_resource_required: true,
       overrides: {
@@ -1166,6 +1240,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen3-8B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-bUyvGP/P+t4njbE6PGczt3ReA/2IDCM0W5V3+6GCukfYqN5VREXAtX08R92nBb1Z",
       vram_required_MB: 5695.78,
       low_resource_required: false,
       overrides: {
@@ -1179,6 +1254,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen3-8B-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-GoDhb1xLlSM1qzAgD5YLOhXOKni4SukpFQtKZgUAHdmw79pjFOy1JjfmXg6V8p90",
       vram_required_MB: 6852.55,
       low_resource_required: false,
       overrides: {
@@ -1193,6 +1269,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-0.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-/xMBTdY/Kcw7qFeo5I+TTwFsoT6oOrFZAzcrFopmoh/XwM57RSEjLMWDF2czRKdE",
       low_resource_required: true,
       vram_required_MB: 944.62,
       overrides: {
@@ -1206,6 +1283,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-0.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-Y7q/J/pvH/AEo+/9vcr/vpUWxE9z/mENKCn6DUonaawCUdFaadwpYrhTsPnREMo8",
       low_resource_required: true,
       vram_required_MB: 1060.2,
       overrides: {
@@ -1219,6 +1297,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-0.5B-Instruct-q0f16-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-0IGDIz8iAjSlJnCX2dF+8hVxL/rBrDh+I5LZXJoAoE/Vvf99LZ31A/8B2gkDBGQp",
       low_resource_required: true,
       vram_required_MB: 1624.12,
       overrides: {
@@ -1233,6 +1312,7 @@ export const prebuiltAppConfig: AppConfig = {
     //     modelLibURLPrefix +
     //     modelVersion +
     //     "/Qwen2-0.5B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+    //   model_lib_integrity: "sha384-96n5MlZKk4reIBBogHvZNkpi8S/kUG27j4l81pgUg8NRamqBk56prIHeLm9xlstF",
     //   low_resource_required: true,
     //   vram_required_MB: 2654.75,
     //   overrides: {
@@ -1246,6 +1326,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-tUvBdkCZfKI3hifJyU22yskmxl4nncy9D2Q0/SoyivltjrLiTtfdUixuI5MVVwjv",
       low_resource_required: true,
       vram_required_MB: 1629.75,
       overrides: {
@@ -1259,6 +1340,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-6R5PN22rmAWcniwte3sSN1KA0F/66hCWNQjTPIbzS3tDzXIBsXM6Pj1yi85zUzlI",
       low_resource_required: true,
       vram_required_MB: 1888.97,
       overrides: {
@@ -1272,6 +1354,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2.5-3B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-4kuDYHr9rYzrONbgiGHh6gf3AIwbaT+nSw3iT6OYrJ+iSmE0w7WSkWK1Rv/RTsvx",
       low_resource_required: true,
       vram_required_MB: 2504.76,
       overrides: {
@@ -1285,6 +1368,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2.5-3B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-lXfkwKfW3l9PIVIYu+rKeIDdEgfqaOYvBJ6A1Zn1kYjOp859Xb5wB08QxP4CnBRr",
       low_resource_required: true,
       vram_required_MB: 2893.64,
       overrides: {
@@ -1298,6 +1382,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-fUvfSFz4LzDBdo5f6fY+aMnQdqQi8YLsemFp29J4Aqac2whDeic7347Z+4pQFjLF",
       low_resource_required: false,
       vram_required_MB: 5106.67,
       overrides: {
@@ -1311,6 +1396,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-7B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-N9El8+hAYQhnAUOncdNjL20BIcUjp1P+KyIE4G/YjgRTVG8Ex9vjCy+gTZNrq5wG",
       low_resource_required: false,
       vram_required_MB: 5900.09,
       overrides: {
@@ -1326,6 +1412,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-0.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-/xMBTdY/Kcw7qFeo5I+TTwFsoT6oOrFZAzcrFopmoh/XwM57RSEjLMWDF2czRKdE",
       low_resource_required: true,
       vram_required_MB: 944.62,
       overrides: {
@@ -1340,6 +1427,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-0.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-Y7q/J/pvH/AEo+/9vcr/vpUWxE9z/mENKCn6DUonaawCUdFaadwpYrhTsPnREMo8",
       low_resource_required: true,
       vram_required_MB: 1060.2,
       overrides: {
@@ -1354,6 +1442,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-0.5B-Instruct-q0f16-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-0IGDIz8iAjSlJnCX2dF+8hVxL/rBrDh+I5LZXJoAoE/Vvf99LZ31A/8B2gkDBGQp",
       low_resource_required: true,
       vram_required_MB: 1624.12,
       overrides: {
@@ -1369,6 +1458,7 @@ export const prebuiltAppConfig: AppConfig = {
     //     modelLibURLPrefix +
     //     modelVersion +
     //     "/Qwen2-0.5B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+    //   model_lib_integrity: "sha384-96n5MlZKk4reIBBogHvZNkpi8S/kUG27j4l81pgUg8NRamqBk56prIHeLm9xlstF",
     //   low_resource_required: true,
     //   vram_required_MB: 2654.75,
     //   overrides: {
@@ -1383,6 +1473,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-tUvBdkCZfKI3hifJyU22yskmxl4nncy9D2Q0/SoyivltjrLiTtfdUixuI5MVVwjv",
       low_resource_required: false,
       vram_required_MB: 1629.75,
       overrides: {
@@ -1397,6 +1488,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-6R5PN22rmAWcniwte3sSN1KA0F/66hCWNQjTPIbzS3tDzXIBsXM6Pj1yi85zUzlI",
       low_resource_required: false,
       vram_required_MB: 1888.97,
       overrides: {
@@ -1411,6 +1503,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2.5-3B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-4kuDYHr9rYzrONbgiGHh6gf3AIwbaT+nSw3iT6OYrJ+iSmE0w7WSkWK1Rv/RTsvx",
       low_resource_required: true,
       vram_required_MB: 2504.76,
       overrides: {
@@ -1425,6 +1518,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2.5-3B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-lXfkwKfW3l9PIVIYu+rKeIDdEgfqaOYvBJ6A1Zn1kYjOp859Xb5wB08QxP4CnBRr",
       low_resource_required: true,
       vram_required_MB: 2893.64,
       overrides: {
@@ -1439,6 +1533,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-fUvfSFz4LzDBdo5f6fY+aMnQdqQi8YLsemFp29J4Aqac2whDeic7347Z+4pQFjLF",
       low_resource_required: false,
       vram_required_MB: 5106.67,
       overrides: {
@@ -1453,6 +1548,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-7B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-N9El8+hAYQhnAUOncdNjL20BIcUjp1P+KyIE4G/YjgRTVG8Ex9vjCy+gTZNrq5wG",
       low_resource_required: false,
       vram_required_MB: 5900.09,
       overrides: {
@@ -1468,6 +1564,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-tUvBdkCZfKI3hifJyU22yskmxl4nncy9D2Q0/SoyivltjrLiTtfdUixuI5MVVwjv",
       low_resource_required: true,
       vram_required_MB: 1629.75,
       overrides: {
@@ -1482,6 +1579,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-6R5PN22rmAWcniwte3sSN1KA0F/66hCWNQjTPIbzS3tDzXIBsXM6Pj1yi85zUzlI",
       low_resource_required: true,
       vram_required_MB: 1888.97,
       overrides: {
@@ -1496,6 +1594,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/stablelm-2-zephyr-1_6b-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-TmytXQlBbMM37T+9y60oqssJ/OEzqQidcIjEfWP88z6x+71ROUiQTxGD8cFerD1G",
       vram_required_MB: 2087.66,
       low_resource_required: false,
       overrides: {
@@ -1509,6 +1608,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/stablelm-2-zephyr-1_6b-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-sbKm2D5ulVrYAPQeokBKUNbe/4dLEgY3MU2D2f4jVoZX5AlypeHYALGPt4zMo9wV",
       vram_required_MB: 2999.33,
       low_resource_required: false,
       overrides: {
@@ -1522,6 +1622,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/stablelm-2-zephyr-1_6b-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-TmytXQlBbMM37T+9y60oqssJ/OEzqQidcIjEfWP88z6x+71ROUiQTxGD8cFerD1G",
       vram_required_MB: 1511.66,
       low_resource_required: true,
       overrides: {
@@ -1535,6 +1636,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/stablelm-2-zephyr-1_6b-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-sbKm2D5ulVrYAPQeokBKUNbe/4dLEgY3MU2D2f4jVoZX5AlypeHYALGPt4zMo9wV",
       vram_required_MB: 1847.33,
       low_resource_required: true,
       overrides: {
@@ -1550,6 +1652,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/RedPajama-INCITE-Chat-3B-v1-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-USfcOsjXPxK0pS7bNM+xq73O9HYxlgHsZQFRrhyEnvtjXg3sICujEgaCX20KQleS",
       vram_required_MB: 2972.09,
       low_resource_required: false,
       required_features: ["shader-f16"],
@@ -1565,6 +1668,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/RedPajama-INCITE-Chat-3B-v1-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-vYGYz0rbJuNpM2UjoQyQWl07aja1HUXr9DueL+J9bXkxjlA1bZdWUFWOJxkAAGzi",
       vram_required_MB: 3928.09,
       low_resource_required: false,
       overrides: {
@@ -1579,6 +1683,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/RedPajama-INCITE-Chat-3B-v1-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-USfcOsjXPxK0pS7bNM+xq73O9HYxlgHsZQFRrhyEnvtjXg3sICujEgaCX20KQleS",
       vram_required_MB: 2041.09,
       low_resource_required: true,
       required_features: ["shader-f16"],
@@ -1594,6 +1699,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/RedPajama-INCITE-Chat-3B-v1-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-vYGYz0rbJuNpM2UjoQyQWl07aja1HUXr9DueL+J9bXkxjlA1bZdWUFWOJxkAAGzi",
       vram_required_MB: 2558.09,
       low_resource_required: true,
       overrides: {
@@ -1609,6 +1715,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/TinyLlama-1.1B-Chat-v1.0-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-eTTWjfa0QQcTGWzr8zqIzAxTSeEnG0aX/RUUDu8PaVP13PrRyFJ5GbHZG3pjNKTA",
       vram_required_MB: 697.24,
       low_resource_required: true,
       required_features: ["shader-f16"],
@@ -1624,6 +1731,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/TinyLlama-1.1B-Chat-v1.0-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-+Zon0GHoU0z8+6eqBVSAfFH/LtCFGpRXl1Wu0LA2EFgslGkqziPL2FkvAkS7tAVi",
       vram_required_MB: 839.98,
       low_resource_required: true,
       overrides: {
@@ -1638,6 +1746,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/TinyLlama-1.1B-Chat-v1.0-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-eTTWjfa0QQcTGWzr8zqIzAxTSeEnG0aX/RUUDu8PaVP13PrRyFJ5GbHZG3pjNKTA",
       vram_required_MB: 675.24,
       low_resource_required: true,
       required_features: ["shader-f16"],
@@ -1653,6 +1762,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/TinyLlama-1.1B-Chat-v1.0-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-+Zon0GHoU0z8+6eqBVSAfFH/LtCFGpRXl1Wu0LA2EFgslGkqziPL2FkvAkS7tAVi",
       vram_required_MB: 795.98,
       low_resource_required: true,
       overrides: {
@@ -1668,6 +1778,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3_1-70B-Instruct-q3f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-AifaZ2IMYgpUymdqJkifaqHz4zpysJyecaXCJX+BwHUDVBHuMyU56GZ5qwQGqC7H",
       vram_required_MB: 31153.13,
       low_resource_required: false,
       overrides: {
@@ -1682,6 +1793,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-0.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-/xMBTdY/Kcw7qFeo5I+TTwFsoT6oOrFZAzcrFopmoh/XwM57RSEjLMWDF2czRKdE",
       low_resource_required: true,
       vram_required_MB: 944.62,
       overrides: {
@@ -1695,6 +1807,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-0.5B-Instruct-q0f16-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-0IGDIz8iAjSlJnCX2dF+8hVxL/rBrDh+I5LZXJoAoE/Vvf99LZ31A/8B2gkDBGQp",
       low_resource_required: true,
       vram_required_MB: 1624.12,
       overrides: {
@@ -1709,6 +1822,7 @@ export const prebuiltAppConfig: AppConfig = {
     //     modelLibURLPrefix +
     //     modelVersion +
     //     "/Qwen2-0.5B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+    //   model_lib_integrity: "sha384-96n5MlZKk4reIBBogHvZNkpi8S/kUG27j4l81pgUg8NRamqBk56prIHeLm9xlstF",
     //   low_resource_required: true,
     //   vram_required_MB: 2654.75,
     //   overrides: {
@@ -1722,6 +1836,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-tUvBdkCZfKI3hifJyU22yskmxl4nncy9D2Q0/SoyivltjrLiTtfdUixuI5MVVwjv",
       low_resource_required: true,
       vram_required_MB: 1629.75,
       overrides: {
@@ -1735,6 +1850,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-6R5PN22rmAWcniwte3sSN1KA0F/66hCWNQjTPIbzS3tDzXIBsXM6Pj1yi85zUzlI",
       low_resource_required: true,
       vram_required_MB: 1888.97,
       overrides: {
@@ -1748,6 +1864,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-fUvfSFz4LzDBdo5f6fY+aMnQdqQi8YLsemFp29J4Aqac2whDeic7347Z+4pQFjLF",
       low_resource_required: false,
       vram_required_MB: 5106.67,
       overrides: {
@@ -1761,6 +1878,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-7B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-N9El8+hAYQhnAUOncdNjL20BIcUjp1P+KyIE4G/YjgRTVG8Ex9vjCy+gTZNrq5wG",
       low_resource_required: false,
       vram_required_MB: 5900.09,
       overrides: {
@@ -1776,6 +1894,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-tUvBdkCZfKI3hifJyU22yskmxl4nncy9D2Q0/SoyivltjrLiTtfdUixuI5MVVwjv",
       low_resource_required: true,
       vram_required_MB: 1629.75,
       overrides: {
@@ -1790,6 +1909,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-6R5PN22rmAWcniwte3sSN1KA0F/66hCWNQjTPIbzS3tDzXIBsXM6Pj1yi85zUzlI",
       low_resource_required: true,
       vram_required_MB: 1888.97,
       overrides: {
@@ -1803,6 +1923,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-fUvfSFz4LzDBdo5f6fY+aMnQdqQi8YLsemFp29J4Aqac2whDeic7347Z+4pQFjLF",
       low_resource_required: false,
       vram_required_MB: 5106.67,
       overrides: {
@@ -1816,6 +1937,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen2-7B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-N9El8+hAYQhnAUOncdNjL20BIcUjp1P+KyIE4G/YjgRTVG8Ex9vjCy+gTZNrq5wG",
       low_resource_required: false,
       vram_required_MB: 5900.09,
       overrides: {
@@ -1830,6 +1952,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-G7w37Ie2qdrRSxkpzsxKEc1vWeYfMVQuJZpoqXvm2wWWeuw7p820ROhWnXX0998j",
       vram_required_MB: 5295.7,
       low_resource_required: true,
       overrides: {
@@ -1843,6 +1966,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-xouLeGICefO0QypvXdVQ+tWGtVsv7cuE9+8qg0/T9Pg47oN71YiB4l68XZ08kxTw",
       vram_required_MB: 4598.34,
       low_resource_required: true,
       overrides: {
@@ -1856,6 +1980,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-G7w37Ie2qdrRSxkpzsxKEc1vWeYfMVQuJZpoqXvm2wWWeuw7p820ROhWnXX0998j",
       vram_required_MB: 6101.01,
       low_resource_required: false,
       overrides: {
@@ -1869,6 +1994,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-xouLeGICefO0QypvXdVQ+tWGtVsv7cuE9+8qg0/T9Pg47oN71YiB4l68XZ08kxTw",
       vram_required_MB: 5001.0,
       low_resource_required: false,
       overrides: {
@@ -1882,6 +2008,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-3-70B-Instruct-q3f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-QpTlygYu6RdsO/i6v3uwpphEd/t0K7u60c23XEdVtDzFCIDL3tUPeNRgpmz03xVe",
       vram_required_MB: 31153.13,
       low_resource_required: false,
       overrides: {
@@ -1896,6 +2023,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Phi-3-mini-4k-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-CdnwCPliH45ODotGIetrbpvZMutbaio6OX7PRkmFSex4xwJjK0h96+tkg4IXFSNP",
       vram_required_MB: 3672.07,
       low_resource_required: false,
       overrides: {
@@ -1909,6 +2037,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Phi-3-mini-4k-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-z6UpYW4yNB97rzVfVRWwna0ZRNKEFblpvbPIAjly/YpzRpKDSTMfp2LZAHkxLX1u",
       vram_required_MB: 5483.12,
       low_resource_required: false,
       overrides: {
@@ -1922,6 +2051,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Phi-3-mini-4k-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-CdnwCPliH45ODotGIetrbpvZMutbaio6OX7PRkmFSex4xwJjK0h96+tkg4IXFSNP",
       vram_required_MB: 2520.07,
       low_resource_required: true,
       overrides: {
@@ -1935,6 +2065,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Phi-3-mini-4k-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-z6UpYW4yNB97rzVfVRWwna0ZRNKEFblpvbPIAjly/YpzRpKDSTMfp2LZAHkxLX1u",
       vram_required_MB: 3179.12,
       low_resource_required: true,
       overrides: {
@@ -1949,6 +2080,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-2-7b-chat-hf-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-qtoHk4cd8tKdzbpZF0RNVL6iBGFrsfgyJxbZNHInZqlwxVgtUsauwJdTqxTEoQ+6",
       vram_required_MB: 5284.01,
       low_resource_required: false,
       overrides: {
@@ -1962,6 +2094,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-2-7b-chat-hf-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-yjkChQQRWgTW9VFjJVw/XyOQGA+VEeLeVovxu4zo1p7gnxjEkbEdyfN48JmCmZIC",
       vram_required_MB: 4618.52,
       low_resource_required: false,
       required_features: ["shader-f16"],
@@ -1976,6 +2109,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-2-7b-chat-hf-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-qtoHk4cd8tKdzbpZF0RNVL6iBGFrsfgyJxbZNHInZqlwxVgtUsauwJdTqxTEoQ+6",
       vram_required_MB: 9109.03,
       low_resource_required: false,
       overrides: {
@@ -1989,6 +2123,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-2-7b-chat-hf-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-yjkChQQRWgTW9VFjJVw/XyOQGA+VEeLeVovxu4zo1p7gnxjEkbEdyfN48JmCmZIC",
       vram_required_MB: 6749.02,
       low_resource_required: false,
       required_features: ["shader-f16"],
@@ -2003,6 +2138,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Llama-2-13b-chat-hf-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-xhWrR4DRmm+Ynp8PM5E3NVFIHZr2e351QPxNutcOyafhRNqOGlv8ZIgYZaSgyrPC",
       vram_required_MB: 11814.09,
       low_resource_required: false,
       required_features: ["shader-f16"],
@@ -2018,6 +2154,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/gemma-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-enkhv1U/c6ifxFLptgbf5pyRJF/J554vv6B49eVMLRFrN+EZidPTAa0rz0Nr7bB+",
       vram_required_MB: 1476.52,
       low_resource_required: false,
       buffer_size_required_bytes: 262144000,
@@ -2033,6 +2170,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/gemma-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-Y+iNSjvc9HC5Bx54R1ixkmPkJjO3JDYY++IsSaM1CHRs82vCYDBbCgeYPqvjctO8",
       vram_required_MB: 1750.66,
       low_resource_required: false,
       buffer_size_required_bytes: 262144000,
@@ -2047,6 +2185,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/gemma-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-enkhv1U/c6ifxFLptgbf5pyRJF/J554vv6B49eVMLRFrN+EZidPTAa0rz0Nr7bB+",
       vram_required_MB: 1476.52,
       low_resource_required: true,
       buffer_size_required_bytes: 262144000,
@@ -2062,6 +2201,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/gemma-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-Y+iNSjvc9HC5Bx54R1ixkmPkJjO3JDYY++IsSaM1CHRs82vCYDBbCgeYPqvjctO8",
       vram_required_MB: 1750.66,
       low_resource_required: true,
       buffer_size_required_bytes: 262144000,
@@ -2077,6 +2217,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/phi-2-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-+ig0TZHmdO7kCAMYkL+JbJEv1iPLCvXh2sekG3yVb6Trfc++JHnH5lFgNV1ma1z2",
       vram_required_MB: 3053.97,
       low_resource_required: false,
       required_features: ["shader-f16"],
@@ -2091,6 +2232,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/phi-2-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-aqfcRNer23gjDtDgYkXdDctlVqea4CDnlQ73fp0yyNOmNCDRkCrjeMt3+AsnlUAv",
       vram_required_MB: 4032.48,
       low_resource_required: false,
       overrides: {
@@ -2104,6 +2246,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/phi-2-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-+ig0TZHmdO7kCAMYkL+JbJEv1iPLCvXh2sekG3yVb6Trfc++JHnH5lFgNV1ma1z2",
       vram_required_MB: 2131.97,
       low_resource_required: true,
       required_features: ["shader-f16"],
@@ -2118,6 +2261,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/phi-2-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-aqfcRNer23gjDtDgYkXdDctlVqea4CDnlQ73fp0yyNOmNCDRkCrjeMt3+AsnlUAv",
       vram_required_MB: 2740.48,
       low_resource_required: true,
       overrides: {
@@ -2132,6 +2276,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/phi-1_5-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-fWDqzYLhTWy9VfqCwjKvvbQJUf45hGU34cdgND82wbX3fv4ZV/rRmT2zjY0xN24Z",
       vram_required_MB: 1210.09,
       low_resource_required: true,
       required_features: ["shader-f16"],
@@ -2146,6 +2291,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/phi-1_5-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-uzmFPeA+TazL9V/Zqq0YCb57yFxslhnm3RH/LoxxmGnNcRE8Hx+RBmWWvKYIbPB9",
       vram_required_MB: 1682.09,
       low_resource_required: true,
       overrides: {
@@ -2159,6 +2305,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/phi-1_5-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-fWDqzYLhTWy9VfqCwjKvvbQJUf45hGU34cdgND82wbX3fv4ZV/rRmT2zjY0xN24Z",
       vram_required_MB: 1210.09,
       low_resource_required: true,
       required_features: ["shader-f16"],
@@ -2173,6 +2320,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/phi-1_5-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-uzmFPeA+TazL9V/Zqq0YCb57yFxslhnm3RH/LoxxmGnNcRE8Hx+RBmWWvKYIbPB9",
       vram_required_MB: 1682.09,
       low_resource_required: true,
       overrides: {
@@ -2188,6 +2336,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/TinyLlama-1.1B-Chat-v0.4-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-eTTWjfa0QQcTGWzr8zqIzAxTSeEnG0aX/RUUDu8PaVP13PrRyFJ5GbHZG3pjNKTA",
       vram_required_MB: 697.24,
       low_resource_required: true,
       required_features: ["shader-f16"],
@@ -2203,6 +2352,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/TinyLlama-1.1B-Chat-v0.4-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-+Zon0GHoU0z8+6eqBVSAfFH/LtCFGpRXl1Wu0LA2EFgslGkqziPL2FkvAkS7tAVi",
       vram_required_MB: 839.98,
       low_resource_required: true,
       overrides: {
@@ -2217,6 +2367,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/TinyLlama-1.1B-Chat-v0.4-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-eTTWjfa0QQcTGWzr8zqIzAxTSeEnG0aX/RUUDu8PaVP13PrRyFJ5GbHZG3pjNKTA",
       vram_required_MB: 675.24,
       low_resource_required: true,
       required_features: ["shader-f16"],
@@ -2232,6 +2383,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/TinyLlama-1.1B-Chat-v0.4-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+      model_lib_integrity: "sha384-+Zon0GHoU0z8+6eqBVSAfFH/LtCFGpRXl1Wu0LA2EFgslGkqziPL2FkvAkS7tAVi",
       vram_required_MB: 795.98,
       low_resource_required: true,
       overrides: {
@@ -2247,6 +2399,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/snowflake-arctic-embed-m-q0f32-ctx512_cs512_batch32-webgpu.wasm",
+      model_lib_integrity: "sha384-GW+3L4ZDseMAGxdbk22pqRfWFCCooOgqggqYizaTMrcb9JVFgKXma/BPY3kY5qq+",
       vram_required_MB: 1407.51,
       model_type: ModelType.embedding,
     },
@@ -2257,6 +2410,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/snowflake-arctic-embed-m-q0f32-ctx512_cs512_batch4-webgpu.wasm",
+      model_lib_integrity: "sha384-eyZK0vXk+9vr5S1TGESEoC5yJDlLqNQMCLUVGnGHFDmOznfTJIs7c+lv7dMwfbjz",
       vram_required_MB: 539.4,
       model_type: ModelType.embedding,
     },
@@ -2267,6 +2421,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/snowflake-arctic-embed-s-q0f32-ctx512_cs512_batch32-webgpu.wasm",
+      model_lib_integrity: "sha384-WFta59rZl+7efGQirzhPo6BS1iY/l0RuIe+Sd96dgzwivdysPEZl9bRm8wdbsM8T",
       vram_required_MB: 1022.82,
       model_type: ModelType.embedding,
     },
@@ -2277,45 +2432,9 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/snowflake-arctic-embed-s-q0f32-ctx512_cs512_batch4-webgpu.wasm",
+      model_lib_integrity: "sha384-RSpFNIKEaz5t+JfasLbvS85tZb8GlaeCNyDUKgAKkuaZ76XVZltASsnBxxbfJdVZ",
       vram_required_MB: 238.71,
       model_type: ModelType.embedding,
-    },
-    // Ministral 3
-    {
-      model:
-        "https://huggingface.co/mlc-ai/Ministral-3-3B-Base-2512-q4f16_1-MLC",
-      model_id: "Ministral-3-3B-Base-2512-q4f16_1-MLC",
-      model_lib:
-        modelLibURLPrefix +
-        modelVersion +
-        "/Ministral-3-3B-Base-2512-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-      overrides: {
-        context_window_size: 4096,
-      },
-    },
-    {
-      model:
-        "https://huggingface.co/mlc-ai/Ministral-3-3B-Reasoning-2512-q4f16_1-MLC",
-      model_id: "Ministral-3-3B-Reasoning-2512-q4f16_1-MLC",
-      model_lib:
-        modelLibURLPrefix +
-        modelVersion +
-        "/Ministral-3-3B-Reasoning-2512-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-      overrides: {
-        context_window_size: 4096,
-      },
-    },
-    {
-      model:
-        "https://huggingface.co/mlc-ai/Ministral-3-3B-Instruct-2512-BF16-q4f16_1-MLC",
-      model_id: "Ministral-3-3B-Instruct-2512-BF16-q4f16_1-MLC",
-      model_lib:
-        modelLibURLPrefix +
-        modelVersion +
-        "/Ministral-3-3B-Instruct-2512-BF16-q4f16_1-ctx4k_cs1k-webgpu.wasm",
-      overrides: {
-        context_window_size: 4096,
-      },
     },
   ],
 };
