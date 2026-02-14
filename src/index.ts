@@ -12,6 +12,16 @@ export {
 } from "./config";
 
 export {
+  verifyIntegrity,
+  isValidSRI,
+  type ModelIntegrity,
+  type SRIString,
+  type FileIntegrityMap,
+} from "./integrity";
+
+export { IntegrityError } from "./error";
+
+export {
   InitProgressCallback,
   InitProgressReport,
   MLCEngineInterface,

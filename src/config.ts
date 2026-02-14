@@ -8,6 +8,7 @@ import {
   NonNegativeError,
   RangeError,
 } from "./error";
+import { ModelIntegrity } from "./integrity";
 
 /**
  * Conversation template config
@@ -251,6 +252,7 @@ export enum ModelType {
  * @param buffer_size_required_bytes: required `maxStorageBufferBindingSize`, different for each device.
  * @param required_features: feature needed to run this model (e.g. shader-f16).
  * @param model_type: the intended usecase for the model, if unspecified, default to LLM.
+ * @param integrity: optional SRI hashes to verify downloaded artifacts. See {@link ModelIntegrity}.
  */
 export interface ModelRecord {
   model: string;
@@ -262,6 +264,7 @@ export interface ModelRecord {
   buffer_size_required_bytes?: number;
   required_features?: Array<string>;
   model_type?: ModelType;
+  integrity?: ModelIntegrity;
 }
 
 /**
