@@ -1,0 +1,860 @@
+[
+  {
+    "model_id": "Llama-3.2-1B-Instruct-q4f32_1-MLC",
+    "wasm_file": "Llama-3.2-1B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3.2-1B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-BFrCme074N4FiYBlegh4+zJfU69SO68xBY3zs2x/7YN8zKcokY65ZHMqvtesierq"
+  },
+  {
+    "model_id": "Llama-3.2-1B-Instruct-q4f16_1-MLC",
+    "wasm_file": "Llama-3.2-1B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3.2-1B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-MvYm3ENaq2H8btVLPHOsxEYkchkJGQhYgof9ts3Bn8QPRXHphziyhaPjNJGsjGHW"
+  },
+  {
+    "model_id": "Llama-3.2-1B-Instruct-q0f32-MLC",
+    "wasm_file": "Llama-3.2-1B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3.2-1B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-grYApZPwSDjnyzXcVs+p55Go8/AkzmtilCQoBQmZnNsKU082O3Efq3ODHA1VbUSq"
+  },
+  {
+    "model_id": "Llama-3.2-1B-Instruct-q0f16-MLC",
+    "wasm_file": "Llama-3.2-1B-Instruct-q0f16-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3.2-1B-Instruct-q0f16-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-1euBfUBjDBIt1tBVuhqjp1DQqVItwzse2JOMNqqXBEmj3mKrjPP5ZXFXQPrbKYx/"
+  },
+  {
+    "model_id": "Llama-3.2-3B-Instruct-q4f32_1-MLC",
+    "wasm_file": "Llama-3.2-3B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3.2-3B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-m+QBpJbnn7jnJbzBDHjgqVubNIguSXCpggiEt7GtA9MvPVvXm8ILWBqMEUAG0ZAH"
+  },
+  {
+    "model_id": "Llama-3.2-3B-Instruct-q4f16_1-MLC",
+    "wasm_file": "Llama-3.2-3B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3.2-3B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-ShT5YGbMUT2q0buGkG0MSPa3Wd+Zvl09eV9qVCyXsnAvw0XY8J//wGcQulvdEEs9"
+  },
+  {
+    "model_id": "Llama-3.1-8B-Instruct-q4f32_1-MLC-1k",
+    "wasm_file": "Llama-3_1-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3_1-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-n0r/h5QCF7uAJu+xjKgG5bESf5JBhv0aRgvSbeR1BINz41xMJS9zciXPCOXpISvU"
+  },
+  {
+    "model_id": "Llama-3.1-8B-Instruct-q4f16_1-MLC-1k",
+    "wasm_file": "Llama-3_1-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3_1-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-7n01EBc6eYoFfoRyarD5Fi/2I2qQ15f9BJJzi7k9nbJ0sx2CytL/4dsWMZQKupXw"
+  },
+  {
+    "model_id": "Llama-3.1-8B-Instruct-q4f32_1-MLC",
+    "wasm_file": "Llama-3_1-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3_1-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-n0r/h5QCF7uAJu+xjKgG5bESf5JBhv0aRgvSbeR1BINz41xMJS9zciXPCOXpISvU"
+  },
+  {
+    "model_id": "Llama-3.1-8B-Instruct-q4f16_1-MLC",
+    "wasm_file": "Llama-3_1-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3_1-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-7n01EBc6eYoFfoRyarD5Fi/2I2qQ15f9BJJzi7k9nbJ0sx2CytL/4dsWMZQKupXw"
+  },
+  {
+    "model_id": "DeepSeek-R1-Distill-Qwen-1.5B-q4f16_1-MLC",
+    "wasm_file": "Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-tUvBdkCZfKI3hifJyU22yskmxl4nncy9D2Q0/SoyivltjrLiTtfdUixuI5MVVwjv"
+  },
+  {
+    "model_id": "DeepSeek-R1-Distill-Qwen-1.5B-q4f32_1-MLC",
+    "wasm_file": "Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-6R5PN22rmAWcniwte3sSN1KA0F/66hCWNQjTPIbzS3tDzXIBsXM6Pj1yi85zUzlI"
+  },
+  {
+    "model_id": "DeepSeek-R1-Distill-Qwen-7B-q4f16_1-MLC",
+    "wasm_file": "Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-fUvfSFz4LzDBdo5f6fY+aMnQdqQi8YLsemFp29J4Aqac2whDeic7347Z+4pQFjLF"
+  },
+  {
+    "model_id": "DeepSeek-R1-Distill-Qwen-7B-q4f32_1-MLC",
+    "wasm_file": "Qwen2-7B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-7B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-N9El8+hAYQhnAUOncdNjL20BIcUjp1P+KyIE4G/YjgRTVG8Ex9vjCy+gTZNrq5wG"
+  },
+  {
+    "model_id": "DeepSeek-R1-Distill-Llama-8B-q4f32_1-MLC",
+    "wasm_file": "Llama-3_1-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3_1-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-n0r/h5QCF7uAJu+xjKgG5bESf5JBhv0aRgvSbeR1BINz41xMJS9zciXPCOXpISvU"
+  },
+  {
+    "model_id": "DeepSeek-R1-Distill-Llama-8B-q4f16_1-MLC",
+    "wasm_file": "Llama-3_1-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3_1-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-7n01EBc6eYoFfoRyarD5Fi/2I2qQ15f9BJJzi7k9nbJ0sx2CytL/4dsWMZQKupXw"
+  },
+  {
+    "model_id": "Hermes-2-Theta-Llama-3-8B-q4f16_1-MLC",
+    "wasm_file": "Llama-3-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-xouLeGICefO0QypvXdVQ+tWGtVsv7cuE9+8qg0/T9Pg47oN71YiB4l68XZ08kxTw"
+  },
+  {
+    "model_id": "Hermes-2-Theta-Llama-3-8B-q4f32_1-MLC",
+    "wasm_file": "Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-G7w37Ie2qdrRSxkpzsxKEc1vWeYfMVQuJZpoqXvm2wWWeuw7p820ROhWnXX0998j"
+  },
+  {
+    "model_id": "Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC",
+    "wasm_file": "Llama-3-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-xouLeGICefO0QypvXdVQ+tWGtVsv7cuE9+8qg0/T9Pg47oN71YiB4l68XZ08kxTw"
+  },
+  {
+    "model_id": "Hermes-2-Pro-Llama-3-8B-q4f32_1-MLC",
+    "wasm_file": "Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-G7w37Ie2qdrRSxkpzsxKEc1vWeYfMVQuJZpoqXvm2wWWeuw7p820ROhWnXX0998j"
+  },
+  {
+    "model_id": "Hermes-3-Llama-3.2-3B-q4f32_1-MLC",
+    "wasm_file": "Llama-3.2-3B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3.2-3B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-m+QBpJbnn7jnJbzBDHjgqVubNIguSXCpggiEt7GtA9MvPVvXm8ILWBqMEUAG0ZAH"
+  },
+  {
+    "model_id": "Hermes-3-Llama-3.2-3B-q4f16_1-MLC",
+    "wasm_file": "Llama-3.2-3B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3.2-3B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-ShT5YGbMUT2q0buGkG0MSPa3Wd+Zvl09eV9qVCyXsnAvw0XY8J//wGcQulvdEEs9"
+  },
+  {
+    "model_id": "Hermes-3-Llama-3.1-8B-q4f32_1-MLC",
+    "wasm_file": "Llama-3_1-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3_1-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-n0r/h5QCF7uAJu+xjKgG5bESf5JBhv0aRgvSbeR1BINz41xMJS9zciXPCOXpISvU"
+  },
+  {
+    "model_id": "Hermes-3-Llama-3.1-8B-q4f16_1-MLC",
+    "wasm_file": "Llama-3_1-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3_1-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-7n01EBc6eYoFfoRyarD5Fi/2I2qQ15f9BJJzi7k9nbJ0sx2CytL/4dsWMZQKupXw"
+  },
+  {
+    "model_id": "Hermes-2-Pro-Mistral-7B-q4f16_1-MLC",
+    "wasm_file": "Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-xH7X3N0KW9xLgIbPoWegh0EDMXieAyuyZGMfRXoJ2Tzs54TIbtVBimUjRCmd4lOu"
+  },
+  {
+    "model_id": "Phi-3.5-mini-instruct-q4f16_1-MLC",
+    "wasm_file": "Phi-3.5-mini-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Phi-3.5-mini-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-30QsgbLGyD/4gf/53mfEvOHsVT0a0Tw2CLUsmZyUeHa8T6q+J3vWztBpPWB1p8AX"
+  },
+  {
+    "model_id": "Phi-3.5-mini-instruct-q4f32_1-MLC",
+    "wasm_file": "Phi-3.5-mini-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Phi-3.5-mini-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-VPPe8S+fQWK6lPjJYCB6Jcmt+bVY4vE4aM+mgb00x7X1xrlY7GmMeWDO1kbY0VfS"
+  },
+  {
+    "model_id": "Phi-3.5-mini-instruct-q4f16_1-MLC-1k",
+    "wasm_file": "Phi-3.5-mini-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Phi-3.5-mini-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-30QsgbLGyD/4gf/53mfEvOHsVT0a0Tw2CLUsmZyUeHa8T6q+J3vWztBpPWB1p8AX"
+  },
+  {
+    "model_id": "Phi-3.5-mini-instruct-q4f32_1-MLC-1k",
+    "wasm_file": "Phi-3.5-mini-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Phi-3.5-mini-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-VPPe8S+fQWK6lPjJYCB6Jcmt+bVY4vE4aM+mgb00x7X1xrlY7GmMeWDO1kbY0VfS"
+  },
+  {
+    "model_id": "Phi-3.5-vision-instruct-q4f16_1-MLC",
+    "wasm_file": "Phi-3.5-vision-instruct-q4f16_1-ctx4k_cs2k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Phi-3.5-vision-instruct-q4f16_1-ctx4k_cs2k-webgpu.wasm",
+    "hash": "sha384-VYHekXC8zG6ebU30jqmQzPqqVGlWBZ8/5RBv3LU/GgCJ9Q6if1e1wV7RVpnW3035"
+  },
+  {
+    "model_id": "Phi-3.5-vision-instruct-q4f32_1-MLC",
+    "wasm_file": "Phi-3.5-vision-instruct-q4f32_1-ctx4k_cs2k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Phi-3.5-vision-instruct-q4f32_1-ctx4k_cs2k-webgpu.wasm",
+    "hash": "sha384-HbPKCJK/xuxpRnKit8wC6Fn4aPAL3e/q5hxZYWAcDYVgsWJz5mmd/ZfDbLUqBHsP"
+  },
+  {
+    "model_id": "Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
+    "wasm_file": "Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-xH7X3N0KW9xLgIbPoWegh0EDMXieAyuyZGMfRXoJ2Tzs54TIbtVBimUjRCmd4lOu"
+  },
+  {
+    "model_id": "Mistral-7B-Instruct-v0.3-q4f32_1-MLC",
+    "wasm_file": "Mistral-7B-Instruct-v0.3-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Mistral-7B-Instruct-v0.3-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-6RtEm76THd0CKOGgYb3xxEPZgno0/aRglHP+DhRELes1vZoZK9tLvdQmsdIaSaeF"
+  },
+  {
+    "model_id": "Mistral-7B-Instruct-v0.2-q4f16_1-MLC",
+    "wasm_file": "Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-xH7X3N0KW9xLgIbPoWegh0EDMXieAyuyZGMfRXoJ2Tzs54TIbtVBimUjRCmd4lOu"
+  },
+  {
+    "model_id": "OpenHermes-2.5-Mistral-7B-q4f16_1-MLC",
+    "wasm_file": "Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-xH7X3N0KW9xLgIbPoWegh0EDMXieAyuyZGMfRXoJ2Tzs54TIbtVBimUjRCmd4lOu"
+  },
+  {
+    "model_id": "NeuralHermes-2.5-Mistral-7B-q4f16_1-MLC",
+    "wasm_file": "Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-xH7X3N0KW9xLgIbPoWegh0EDMXieAyuyZGMfRXoJ2Tzs54TIbtVBimUjRCmd4lOu"
+  },
+  {
+    "model_id": "WizardMath-7B-V1.1-q4f16_1-MLC",
+    "wasm_file": "Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Mistral-7B-Instruct-v0.3-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-xH7X3N0KW9xLgIbPoWegh0EDMXieAyuyZGMfRXoJ2Tzs54TIbtVBimUjRCmd4lOu"
+  },
+  {
+    "model_id": "SmolLM2-1.7B-Instruct-q4f16_1-MLC",
+    "wasm_file": "SmolLM2-1.7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/SmolLM2-1.7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-navrvwD1NLAq5aDZQZWsLtqWAjnRNUSOJw2N8auLGh1d593ia/s16jjS4i4r2E3L"
+  },
+  {
+    "model_id": "SmolLM2-1.7B-Instruct-q4f32_1-MLC",
+    "wasm_file": "SmolLM2-1.7B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/SmolLM2-1.7B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-2BIDSQALDBtgh/N9y+5hp3FMy8eVbWCSlcnJlQJHucoNaAP/LeG0+2Ri9vRlHc3l"
+  },
+  {
+    "model_id": "SmolLM2-360M-Instruct-q0f16-MLC",
+    "wasm_file": "SmolLM2-360M-Instruct-q0f16-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/SmolLM2-360M-Instruct-q0f16-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-lbvfOVAfOrEsvjdqYnUfEYCnpfucwXlKMNuOgWgZRjTGemW4X9xaJwuD8wxq+//Z"
+  },
+  {
+    "model_id": "SmolLM2-360M-Instruct-q0f32-MLC",
+    "wasm_file": "SmolLM2-360M-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/SmolLM2-360M-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-InOus20aiprBSZkxki93ByRP44f4lL+NFG1NbZs8zR00EDFX49i6zvuagyCgoWdw"
+  },
+  {
+    "model_id": "SmolLM2-360M-Instruct-q4f16_1-MLC",
+    "wasm_file": "SmolLM2-360M-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/SmolLM2-360M-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-qUcbV3kOHIVTNNoBM6GDd5DrBx77FbBRY7FzrdDMdMPnlCzz0ifWjZx+K3syvOZq"
+  },
+  {
+    "model_id": "SmolLM2-360M-Instruct-q4f32_1-MLC",
+    "wasm_file": "SmolLM2-360M-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/SmolLM2-360M-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-W06B7gc+JQELqAEpklVLj16sOWmtHyILRNBtquQ5KbyMl0xdyuW+X6ZCRXM6E5U7"
+  },
+  {
+    "model_id": "SmolLM2-135M-Instruct-q0f16-MLC",
+    "wasm_file": "SmolLM2-135M-Instruct-q0f16-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/SmolLM2-135M-Instruct-q0f16-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-o5KOsp5xuwCups6W/nUiUO7c9g+06zc3PGtXIwKmIynufson9jS/4G2XLneRw4pz"
+  },
+  {
+    "model_id": "SmolLM2-135M-Instruct-q0f32-MLC",
+    "wasm_file": "SmolLM2-135M-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/SmolLM2-135M-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-dkitycsGA4QpDhgad4+2uQxmesRg/YQ/EBj37JvktwUaCGEfySTFZ/R7eg92FYL0"
+  },
+  {
+    "model_id": "gemma-2-2b-it-q4f16_1-MLC",
+    "wasm_file": "gemma-2-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-UWOiXqZ3Wn9TVdfrmvjzASth1+ierJ3/VOFG4PrMuH+rNJp/l0kqRqpeOc7vLXAG"
+  },
+  {
+    "model_id": "gemma-2-2b-it-q4f32_1-MLC",
+    "wasm_file": "gemma-2-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-YQHyUakrA8NxB08sLeM7dVjRISc8gcHXxnWyosk6WrM+sdFDmVaS4BDOmYxnK4XF"
+  },
+  {
+    "model_id": "gemma-2-2b-it-q4f16_1-MLC-1k",
+    "wasm_file": "gemma-2-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-UWOiXqZ3Wn9TVdfrmvjzASth1+ierJ3/VOFG4PrMuH+rNJp/l0kqRqpeOc7vLXAG"
+  },
+  {
+    "model_id": "gemma-2-2b-it-q4f32_1-MLC-1k",
+    "wasm_file": "gemma-2-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-YQHyUakrA8NxB08sLeM7dVjRISc8gcHXxnWyosk6WrM+sdFDmVaS4BDOmYxnK4XF"
+  },
+  {
+    "model_id": "gemma-2-9b-it-q4f16_1-MLC",
+    "wasm_file": "gemma-2-9b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2-9b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-nxc75VPFmiFo2JriHOYj7QQp0cHBVbR1QozrBdsOfzWesQlTMpn4uZwzD9GpCII9"
+  },
+  {
+    "model_id": "gemma-2-9b-it-q4f32_1-MLC",
+    "wasm_file": "gemma-2-9b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2-9b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-t5jJl9QJtugvP4V4f8KF3ms69fZ9nWmi8bg/9B2irFaxqQPSNt33R8OuX17ZhNCn"
+  },
+  {
+    "model_id": "gemma-2-2b-jpn-it-q4f16_1-MLC",
+    "wasm_file": "gemma-2-2b-jpn-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2-2b-jpn-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-UWOiXqZ3Wn9TVdfrmvjzASth1+ierJ3/VOFG4PrMuH+rNJp/l0kqRqpeOc7vLXAG"
+  },
+  {
+    "model_id": "gemma-2-2b-jpn-it-q4f32_1-MLC",
+    "wasm_file": "gemma-2-2b-jpn-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2-2b-jpn-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-YQHyUakrA8NxB08sLeM7dVjRISc8gcHXxnWyosk6WrM+sdFDmVaS4BDOmYxnK4XF"
+  },
+  {
+    "model_id": "Qwen3-0.6B-q4f16_1-MLC",
+    "wasm_file": "Qwen3-0.6B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-0.6B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-RAfeU34SlXXb8HKRYwNDhboSvMULq/rvOILLMr8gUhTi2Tn+zh43nbSeFqgOyLSP"
+  },
+  {
+    "model_id": "Qwen3-0.6B-q4f32_1-MLC",
+    "wasm_file": "Qwen3-0.6B-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-0.6B-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-Bp46CQgKaJ20J6IecL4OyL1ml79ejtHiQroVoQRmLDKOhs26wATclIRbCg0oTr+M"
+  },
+  {
+    "model_id": "Qwen3-0.6B-q0f16-MLC",
+    "wasm_file": "Qwen3-0.6B-q0f16-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-0.6B-q0f16-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-/5M1d19/pPZpKB64FAw7+imTdponnqTKy4oErASwY9GTZXhlCvgjJ9jf1TQw3e5/"
+  },
+  {
+    "model_id": "Qwen3-0.6B-q0f32-MLC",
+    "wasm_file": "Qwen3-0.6B-q0f32-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-0.6B-q0f32-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-2hLiV047WGJZmv2lhkmmAAsbXlvWb9nDwtWGP+bWPhs0QdkEFAPc64yQ9sIl9/Mn"
+  },
+  {
+    "model_id": "Qwen3-1.7B-q4f16_1-MLC",
+    "wasm_file": "Qwen3-1.7B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-1.7B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-Kq59NBHnouqYI/XCVCkGZFcHE3SipWQuvbv0NiOWFKbfOdlfMNkCd37fETFKr0WL"
+  },
+  {
+    "model_id": "Qwen3-1.7B-q4f32_1-MLC",
+    "wasm_file": "Qwen3-1.7B-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-1.7B-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-XIpMf49w1jyEWcYoZdREjxQOYKtVt+AbWxvRlDEEBOI/I/QakcNFhFmrch7nD5Po"
+  },
+  {
+    "model_id": "Qwen3-4B-q4f16_1-MLC",
+    "wasm_file": "Qwen3-4B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-4B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-d1MqzoNJBz9VmvzfrsF4KihWxTUs/cG0yknymc1fpsiL25YjeLvVk6rL861xCxRX"
+  },
+  {
+    "model_id": "Qwen3-4B-q4f32_1-MLC",
+    "wasm_file": "Qwen3-4B-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-4B-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-lr8kPijzbrc45AWnRj22H4bwp8OOE1fIs17mvq06bQea28Xjk+Fy6BWt+EQ/dTlc"
+  },
+  {
+    "model_id": "Qwen3-8B-q4f16_1-MLC",
+    "wasm_file": "Qwen3-8B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-8B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-bUyvGP/P+t4njbE6PGczt3ReA/2IDCM0W5V3+6GCukfYqN5VREXAtX08R92nBb1Z"
+  },
+  {
+    "model_id": "Qwen3-8B-q4f32_1-MLC",
+    "wasm_file": "Qwen3-8B-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen3-8B-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-GoDhb1xLlSM1qzAgD5YLOhXOKni4SukpFQtKZgUAHdmw79pjFOy1JjfmXg6V8p90"
+  },
+  {
+    "model_id": "Qwen2.5-0.5B-Instruct-q4f16_1-MLC",
+    "wasm_file": "Qwen2-0.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-0.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-/xMBTdY/Kcw7qFeo5I+TTwFsoT6oOrFZAzcrFopmoh/XwM57RSEjLMWDF2czRKdE"
+  },
+  {
+    "model_id": "Qwen2.5-0.5B-Instruct-q4f32_1-MLC",
+    "wasm_file": "Qwen2-0.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-0.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-Y7q/J/pvH/AEo+/9vcr/vpUWxE9z/mENKCn6DUonaawCUdFaadwpYrhTsPnREMo8"
+  },
+  {
+    "model_id": "Qwen2.5-0.5B-Instruct-q0f16-MLC",
+    "wasm_file": "Qwen2-0.5B-Instruct-q0f16-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-0.5B-Instruct-q0f16-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-0IGDIz8iAjSlJnCX2dF+8hVxL/rBrDh+I5LZXJoAoE/Vvf99LZ31A/8B2gkDBGQp"
+  },
+  {
+    "model_id": "Qwen2.5-0.5B-Instruct-q0f32-MLC",
+    "wasm_file": "Qwen2-0.5B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-0.5B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-96n5MlZKk4reIBBogHvZNkpi8S/kUG27j4l81pgUg8NRamqBk56prIHeLm9xlstF"
+  },
+  {
+    "model_id": "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
+    "wasm_file": "Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-tUvBdkCZfKI3hifJyU22yskmxl4nncy9D2Q0/SoyivltjrLiTtfdUixuI5MVVwjv"
+  },
+  {
+    "model_id": "Qwen2.5-1.5B-Instruct-q4f32_1-MLC",
+    "wasm_file": "Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-6R5PN22rmAWcniwte3sSN1KA0F/66hCWNQjTPIbzS3tDzXIBsXM6Pj1yi85zUzlI"
+  },
+  {
+    "model_id": "Qwen2.5-3B-Instruct-q4f16_1-MLC",
+    "wasm_file": "Qwen2.5-3B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2.5-3B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-4kuDYHr9rYzrONbgiGHh6gf3AIwbaT+nSw3iT6OYrJ+iSmE0w7WSkWK1Rv/RTsvx"
+  },
+  {
+    "model_id": "Qwen2.5-3B-Instruct-q4f32_1-MLC",
+    "wasm_file": "Qwen2.5-3B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2.5-3B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-lXfkwKfW3l9PIVIYu+rKeIDdEgfqaOYvBJ6A1Zn1kYjOp859Xb5wB08QxP4CnBRr"
+  },
+  {
+    "model_id": "Qwen2.5-7B-Instruct-q4f16_1-MLC",
+    "wasm_file": "Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-fUvfSFz4LzDBdo5f6fY+aMnQdqQi8YLsemFp29J4Aqac2whDeic7347Z+4pQFjLF"
+  },
+  {
+    "model_id": "Qwen2.5-7B-Instruct-q4f32_1-MLC",
+    "wasm_file": "Qwen2-7B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-7B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-N9El8+hAYQhnAUOncdNjL20BIcUjp1P+KyIE4G/YjgRTVG8Ex9vjCy+gTZNrq5wG"
+  },
+  {
+    "model_id": "Qwen2.5-Coder-0.5B-Instruct-q4f16_1-MLC",
+    "wasm_file": "Qwen2-0.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-0.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-/xMBTdY/Kcw7qFeo5I+TTwFsoT6oOrFZAzcrFopmoh/XwM57RSEjLMWDF2czRKdE"
+  },
+  {
+    "model_id": "Qwen2.5-Coder-0.5B-Instruct-q4f32_1-MLC",
+    "wasm_file": "Qwen2-0.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-0.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-Y7q/J/pvH/AEo+/9vcr/vpUWxE9z/mENKCn6DUonaawCUdFaadwpYrhTsPnREMo8"
+  },
+  {
+    "model_id": "Qwen2.5-Coder-0.5B-Instruct-q0f16-MLC",
+    "wasm_file": "Qwen2-0.5B-Instruct-q0f16-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-0.5B-Instruct-q0f16-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-0IGDIz8iAjSlJnCX2dF+8hVxL/rBrDh+I5LZXJoAoE/Vvf99LZ31A/8B2gkDBGQp"
+  },
+  {
+    "model_id": "Qwen2.5-Coder-0.5B-Instruct-q0f32-MLC",
+    "wasm_file": "Qwen2-0.5B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-0.5B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-96n5MlZKk4reIBBogHvZNkpi8S/kUG27j4l81pgUg8NRamqBk56prIHeLm9xlstF"
+  },
+  {
+    "model_id": "Qwen2.5-Coder-1.5B-Instruct-q4f16_1-MLC",
+    "wasm_file": "Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-tUvBdkCZfKI3hifJyU22yskmxl4nncy9D2Q0/SoyivltjrLiTtfdUixuI5MVVwjv"
+  },
+  {
+    "model_id": "Qwen2.5-Coder-1.5B-Instruct-q4f32_1-MLC",
+    "wasm_file": "Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-6R5PN22rmAWcniwte3sSN1KA0F/66hCWNQjTPIbzS3tDzXIBsXM6Pj1yi85zUzlI"
+  },
+  {
+    "model_id": "Qwen2.5-Coder-3B-Instruct-q4f16_1-MLC",
+    "wasm_file": "Qwen2.5-3B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2.5-3B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-4kuDYHr9rYzrONbgiGHh6gf3AIwbaT+nSw3iT6OYrJ+iSmE0w7WSkWK1Rv/RTsvx"
+  },
+  {
+    "model_id": "Qwen2.5-Coder-3B-Instruct-q4f32_1-MLC",
+    "wasm_file": "Qwen2.5-3B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2.5-3B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-lXfkwKfW3l9PIVIYu+rKeIDdEgfqaOYvBJ6A1Zn1kYjOp859Xb5wB08QxP4CnBRr"
+  },
+  {
+    "model_id": "Qwen2.5-Coder-7B-Instruct-q4f16_1-MLC",
+    "wasm_file": "Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-fUvfSFz4LzDBdo5f6fY+aMnQdqQi8YLsemFp29J4Aqac2whDeic7347Z+4pQFjLF"
+  },
+  {
+    "model_id": "Qwen2.5-Coder-7B-Instruct-q4f32_1-MLC",
+    "wasm_file": "Qwen2-7B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-7B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-N9El8+hAYQhnAUOncdNjL20BIcUjp1P+KyIE4G/YjgRTVG8Ex9vjCy+gTZNrq5wG"
+  },
+  {
+    "model_id": "Qwen2.5-Math-1.5B-Instruct-q4f16_1-MLC",
+    "wasm_file": "Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-tUvBdkCZfKI3hifJyU22yskmxl4nncy9D2Q0/SoyivltjrLiTtfdUixuI5MVVwjv"
+  },
+  {
+    "model_id": "Qwen2.5-Math-1.5B-Instruct-q4f32_1-MLC",
+    "wasm_file": "Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-6R5PN22rmAWcniwte3sSN1KA0F/66hCWNQjTPIbzS3tDzXIBsXM6Pj1yi85zUzlI"
+  },
+  {
+    "model_id": "stablelm-2-zephyr-1_6b-q4f16_1-MLC",
+    "wasm_file": "stablelm-2-zephyr-1_6b-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/stablelm-2-zephyr-1_6b-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-TmytXQlBbMM37T+9y60oqssJ/OEzqQidcIjEfWP88z6x+71ROUiQTxGD8cFerD1G"
+  },
+  {
+    "model_id": "stablelm-2-zephyr-1_6b-q4f32_1-MLC",
+    "wasm_file": "stablelm-2-zephyr-1_6b-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/stablelm-2-zephyr-1_6b-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-sbKm2D5ulVrYAPQeokBKUNbe/4dLEgY3MU2D2f4jVoZX5AlypeHYALGPt4zMo9wV"
+  },
+  {
+    "model_id": "stablelm-2-zephyr-1_6b-q4f16_1-MLC-1k",
+    "wasm_file": "stablelm-2-zephyr-1_6b-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/stablelm-2-zephyr-1_6b-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-TmytXQlBbMM37T+9y60oqssJ/OEzqQidcIjEfWP88z6x+71ROUiQTxGD8cFerD1G"
+  },
+  {
+    "model_id": "stablelm-2-zephyr-1_6b-q4f32_1-MLC-1k",
+    "wasm_file": "stablelm-2-zephyr-1_6b-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/stablelm-2-zephyr-1_6b-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-sbKm2D5ulVrYAPQeokBKUNbe/4dLEgY3MU2D2f4jVoZX5AlypeHYALGPt4zMo9wV"
+  },
+  {
+    "model_id": "RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC",
+    "wasm_file": "RedPajama-INCITE-Chat-3B-v1-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/RedPajama-INCITE-Chat-3B-v1-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+    "hash": "sha384-USfcOsjXPxK0pS7bNM+xq73O9HYxlgHsZQFRrhyEnvtjXg3sICujEgaCX20KQleS"
+  },
+  {
+    "model_id": "RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC",
+    "wasm_file": "RedPajama-INCITE-Chat-3B-v1-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/RedPajama-INCITE-Chat-3B-v1-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+    "hash": "sha384-vYGYz0rbJuNpM2UjoQyQWl07aja1HUXr9DueL+J9bXkxjlA1bZdWUFWOJxkAAGzi"
+  },
+  {
+    "model_id": "RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC-1k",
+    "wasm_file": "RedPajama-INCITE-Chat-3B-v1-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/RedPajama-INCITE-Chat-3B-v1-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+    "hash": "sha384-USfcOsjXPxK0pS7bNM+xq73O9HYxlgHsZQFRrhyEnvtjXg3sICujEgaCX20KQleS"
+  },
+  {
+    "model_id": "RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC-1k",
+    "wasm_file": "RedPajama-INCITE-Chat-3B-v1-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/RedPajama-INCITE-Chat-3B-v1-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+    "hash": "sha384-vYGYz0rbJuNpM2UjoQyQWl07aja1HUXr9DueL+J9bXkxjlA1bZdWUFWOJxkAAGzi"
+  },
+  {
+    "model_id": "TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC",
+    "wasm_file": "TinyLlama-1.1B-Chat-v1.0-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/TinyLlama-1.1B-Chat-v1.0-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+    "hash": "sha384-eTTWjfa0QQcTGWzr8zqIzAxTSeEnG0aX/RUUDu8PaVP13PrRyFJ5GbHZG3pjNKTA"
+  },
+  {
+    "model_id": "TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC",
+    "wasm_file": "TinyLlama-1.1B-Chat-v1.0-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/TinyLlama-1.1B-Chat-v1.0-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+    "hash": "sha384-+Zon0GHoU0z8+6eqBVSAfFH/LtCFGpRXl1Wu0LA2EFgslGkqziPL2FkvAkS7tAVi"
+  },
+  {
+    "model_id": "TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC-1k",
+    "wasm_file": "TinyLlama-1.1B-Chat-v1.0-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/TinyLlama-1.1B-Chat-v1.0-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+    "hash": "sha384-eTTWjfa0QQcTGWzr8zqIzAxTSeEnG0aX/RUUDu8PaVP13PrRyFJ5GbHZG3pjNKTA"
+  },
+  {
+    "model_id": "TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC-1k",
+    "wasm_file": "TinyLlama-1.1B-Chat-v1.0-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/TinyLlama-1.1B-Chat-v1.0-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+    "hash": "sha384-+Zon0GHoU0z8+6eqBVSAfFH/LtCFGpRXl1Wu0LA2EFgslGkqziPL2FkvAkS7tAVi"
+  },
+  {
+    "model_id": "Llama-3.1-70B-Instruct-q3f16_1-MLC",
+    "wasm_file": "Llama-3_1-70B-Instruct-q3f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3_1-70B-Instruct-q3f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-AifaZ2IMYgpUymdqJkifaqHz4zpysJyecaXCJX+BwHUDVBHuMyU56GZ5qwQGqC7H"
+  },
+  {
+    "model_id": "Qwen2-0.5B-Instruct-q4f16_1-MLC",
+    "wasm_file": "Qwen2-0.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-0.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-/xMBTdY/Kcw7qFeo5I+TTwFsoT6oOrFZAzcrFopmoh/XwM57RSEjLMWDF2czRKdE"
+  },
+  {
+    "model_id": "Qwen2-0.5B-Instruct-q0f16-MLC",
+    "wasm_file": "Qwen2-0.5B-Instruct-q0f16-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-0.5B-Instruct-q0f16-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-0IGDIz8iAjSlJnCX2dF+8hVxL/rBrDh+I5LZXJoAoE/Vvf99LZ31A/8B2gkDBGQp"
+  },
+  {
+    "model_id": "Qwen2-0.5B-Instruct-q0f32-MLC",
+    "wasm_file": "Qwen2-0.5B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-0.5B-Instruct-q0f32-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-96n5MlZKk4reIBBogHvZNkpi8S/kUG27j4l81pgUg8NRamqBk56prIHeLm9xlstF"
+  },
+  {
+    "model_id": "Qwen2-1.5B-Instruct-q4f16_1-MLC",
+    "wasm_file": "Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-tUvBdkCZfKI3hifJyU22yskmxl4nncy9D2Q0/SoyivltjrLiTtfdUixuI5MVVwjv"
+  },
+  {
+    "model_id": "Qwen2-1.5B-Instruct-q4f32_1-MLC",
+    "wasm_file": "Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-6R5PN22rmAWcniwte3sSN1KA0F/66hCWNQjTPIbzS3tDzXIBsXM6Pj1yi85zUzlI"
+  },
+  {
+    "model_id": "Qwen2-7B-Instruct-q4f16_1-MLC",
+    "wasm_file": "Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-fUvfSFz4LzDBdo5f6fY+aMnQdqQi8YLsemFp29J4Aqac2whDeic7347Z+4pQFjLF"
+  },
+  {
+    "model_id": "Qwen2-7B-Instruct-q4f32_1-MLC",
+    "wasm_file": "Qwen2-7B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-7B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-N9El8+hAYQhnAUOncdNjL20BIcUjp1P+KyIE4G/YjgRTVG8Ex9vjCy+gTZNrq5wG"
+  },
+  {
+    "model_id": "Qwen2-Math-1.5B-Instruct-q4f16_1-MLC",
+    "wasm_file": "Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-tUvBdkCZfKI3hifJyU22yskmxl4nncy9D2Q0/SoyivltjrLiTtfdUixuI5MVVwjv"
+  },
+  {
+    "model_id": "Qwen2-Math-1.5B-Instruct-q4f32_1-MLC",
+    "wasm_file": "Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-1.5B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-6R5PN22rmAWcniwte3sSN1KA0F/66hCWNQjTPIbzS3tDzXIBsXM6Pj1yi85zUzlI"
+  },
+  {
+    "model_id": "Qwen2-Math-7B-Instruct-q4f16_1-MLC",
+    "wasm_file": "Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-7B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-fUvfSFz4LzDBdo5f6fY+aMnQdqQi8YLsemFp29J4Aqac2whDeic7347Z+4pQFjLF"
+  },
+  {
+    "model_id": "Qwen2-Math-7B-Instruct-q4f32_1-MLC",
+    "wasm_file": "Qwen2-7B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Qwen2-7B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-N9El8+hAYQhnAUOncdNjL20BIcUjp1P+KyIE4G/YjgRTVG8Ex9vjCy+gTZNrq5wG"
+  },
+  {
+    "model_id": "Llama-3-8B-Instruct-q4f32_1-MLC-1k",
+    "wasm_file": "Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-G7w37Ie2qdrRSxkpzsxKEc1vWeYfMVQuJZpoqXvm2wWWeuw7p820ROhWnXX0998j"
+  },
+  {
+    "model_id": "Llama-3-8B-Instruct-q4f16_1-MLC-1k",
+    "wasm_file": "Llama-3-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-xouLeGICefO0QypvXdVQ+tWGtVsv7cuE9+8qg0/T9Pg47oN71YiB4l68XZ08kxTw"
+  },
+  {
+    "model_id": "Llama-3-8B-Instruct-q4f32_1-MLC",
+    "wasm_file": "Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-G7w37Ie2qdrRSxkpzsxKEc1vWeYfMVQuJZpoqXvm2wWWeuw7p820ROhWnXX0998j"
+  },
+  {
+    "model_id": "Llama-3-8B-Instruct-q4f16_1-MLC",
+    "wasm_file": "Llama-3-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3-8B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-xouLeGICefO0QypvXdVQ+tWGtVsv7cuE9+8qg0/T9Pg47oN71YiB4l68XZ08kxTw"
+  },
+  {
+    "model_id": "Llama-3-70B-Instruct-q3f16_1-MLC",
+    "wasm_file": "Llama-3-70B-Instruct-q3f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-3-70B-Instruct-q3f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-QpTlygYu6RdsO/i6v3uwpphEd/t0K7u60c23XEdVtDzFCIDL3tUPeNRgpmz03xVe"
+  },
+  {
+    "model_id": "Phi-3-mini-4k-instruct-q4f16_1-MLC",
+    "wasm_file": "Phi-3-mini-4k-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Phi-3-mini-4k-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-CdnwCPliH45ODotGIetrbpvZMutbaio6OX7PRkmFSex4xwJjK0h96+tkg4IXFSNP"
+  },
+  {
+    "model_id": "Phi-3-mini-4k-instruct-q4f32_1-MLC",
+    "wasm_file": "Phi-3-mini-4k-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Phi-3-mini-4k-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-z6UpYW4yNB97rzVfVRWwna0ZRNKEFblpvbPIAjly/YpzRpKDSTMfp2LZAHkxLX1u"
+  },
+  {
+    "model_id": "Phi-3-mini-4k-instruct-q4f16_1-MLC-1k",
+    "wasm_file": "Phi-3-mini-4k-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Phi-3-mini-4k-instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-CdnwCPliH45ODotGIetrbpvZMutbaio6OX7PRkmFSex4xwJjK0h96+tkg4IXFSNP"
+  },
+  {
+    "model_id": "Phi-3-mini-4k-instruct-q4f32_1-MLC-1k",
+    "wasm_file": "Phi-3-mini-4k-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Phi-3-mini-4k-instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-z6UpYW4yNB97rzVfVRWwna0ZRNKEFblpvbPIAjly/YpzRpKDSTMfp2LZAHkxLX1u"
+  },
+  {
+    "model_id": "Llama-2-7b-chat-hf-q4f32_1-MLC-1k",
+    "wasm_file": "Llama-2-7b-chat-hf-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-2-7b-chat-hf-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-qtoHk4cd8tKdzbpZF0RNVL6iBGFrsfgyJxbZNHInZqlwxVgtUsauwJdTqxTEoQ+6"
+  },
+  {
+    "model_id": "Llama-2-7b-chat-hf-q4f16_1-MLC-1k",
+    "wasm_file": "Llama-2-7b-chat-hf-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-2-7b-chat-hf-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-yjkChQQRWgTW9VFjJVw/XyOQGA+VEeLeVovxu4zo1p7gnxjEkbEdyfN48JmCmZIC"
+  },
+  {
+    "model_id": "Llama-2-7b-chat-hf-q4f32_1-MLC",
+    "wasm_file": "Llama-2-7b-chat-hf-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-2-7b-chat-hf-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-qtoHk4cd8tKdzbpZF0RNVL6iBGFrsfgyJxbZNHInZqlwxVgtUsauwJdTqxTEoQ+6"
+  },
+  {
+    "model_id": "Llama-2-7b-chat-hf-q4f16_1-MLC",
+    "wasm_file": "Llama-2-7b-chat-hf-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-2-7b-chat-hf-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-yjkChQQRWgTW9VFjJVw/XyOQGA+VEeLeVovxu4zo1p7gnxjEkbEdyfN48JmCmZIC"
+  },
+  {
+    "model_id": "Llama-2-13b-chat-hf-q4f16_1-MLC",
+    "wasm_file": "Llama-2-13b-chat-hf-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/Llama-2-13b-chat-hf-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-xhWrR4DRmm+Ynp8PM5E3NVFIHZr2e351QPxNutcOyafhRNqOGlv8ZIgYZaSgyrPC"
+  },
+  {
+    "model_id": "gemma-2b-it-q4f16_1-MLC",
+    "wasm_file": "gemma-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-enkhv1U/c6ifxFLptgbf5pyRJF/J554vv6B49eVMLRFrN+EZidPTAa0rz0Nr7bB+"
+  },
+  {
+    "model_id": "gemma-2b-it-q4f32_1-MLC",
+    "wasm_file": "gemma-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-Y+iNSjvc9HC5Bx54R1ixkmPkJjO3JDYY++IsSaM1CHRs82vCYDBbCgeYPqvjctO8"
+  },
+  {
+    "model_id": "gemma-2b-it-q4f16_1-MLC-1k",
+    "wasm_file": "gemma-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2b-it-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-enkhv1U/c6ifxFLptgbf5pyRJF/J554vv6B49eVMLRFrN+EZidPTAa0rz0Nr7bB+"
+  },
+  {
+    "model_id": "gemma-2b-it-q4f32_1-MLC-1k",
+    "wasm_file": "gemma-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/gemma-2b-it-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+    "hash": "sha384-Y+iNSjvc9HC5Bx54R1ixkmPkJjO3JDYY++IsSaM1CHRs82vCYDBbCgeYPqvjctO8"
+  },
+  {
+    "model_id": "phi-2-q4f16_1-MLC",
+    "wasm_file": "phi-2-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/phi-2-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+    "hash": "sha384-+ig0TZHmdO7kCAMYkL+JbJEv1iPLCvXh2sekG3yVb6Trfc++JHnH5lFgNV1ma1z2"
+  },
+  {
+    "model_id": "phi-2-q4f32_1-MLC",
+    "wasm_file": "phi-2-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/phi-2-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+    "hash": "sha384-aqfcRNer23gjDtDgYkXdDctlVqea4CDnlQ73fp0yyNOmNCDRkCrjeMt3+AsnlUAv"
+  },
+  {
+    "model_id": "phi-2-q4f16_1-MLC-1k",
+    "wasm_file": "phi-2-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/phi-2-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+    "hash": "sha384-+ig0TZHmdO7kCAMYkL+JbJEv1iPLCvXh2sekG3yVb6Trfc++JHnH5lFgNV1ma1z2"
+  },
+  {
+    "model_id": "phi-2-q4f32_1-MLC-1k",
+    "wasm_file": "phi-2-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/phi-2-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+    "hash": "sha384-aqfcRNer23gjDtDgYkXdDctlVqea4CDnlQ73fp0yyNOmNCDRkCrjeMt3+AsnlUAv"
+  },
+  {
+    "model_id": "phi-1_5-q4f16_1-MLC",
+    "wasm_file": "phi-1_5-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/phi-1_5-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+    "hash": "sha384-fWDqzYLhTWy9VfqCwjKvvbQJUf45hGU34cdgND82wbX3fv4ZV/rRmT2zjY0xN24Z"
+  },
+  {
+    "model_id": "phi-1_5-q4f32_1-MLC",
+    "wasm_file": "phi-1_5-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/phi-1_5-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+    "hash": "sha384-uzmFPeA+TazL9V/Zqq0YCb57yFxslhnm3RH/LoxxmGnNcRE8Hx+RBmWWvKYIbPB9"
+  },
+  {
+    "model_id": "phi-1_5-q4f16_1-MLC-1k",
+    "wasm_file": "phi-1_5-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/phi-1_5-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+    "hash": "sha384-fWDqzYLhTWy9VfqCwjKvvbQJUf45hGU34cdgND82wbX3fv4ZV/rRmT2zjY0xN24Z"
+  },
+  {
+    "model_id": "phi-1_5-q4f32_1-MLC-1k",
+    "wasm_file": "phi-1_5-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/phi-1_5-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+    "hash": "sha384-uzmFPeA+TazL9V/Zqq0YCb57yFxslhnm3RH/LoxxmGnNcRE8Hx+RBmWWvKYIbPB9"
+  },
+  {
+    "model_id": "TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC",
+    "wasm_file": "TinyLlama-1.1B-Chat-v0.4-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/TinyLlama-1.1B-Chat-v0.4-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+    "hash": "sha384-eTTWjfa0QQcTGWzr8zqIzAxTSeEnG0aX/RUUDu8PaVP13PrRyFJ5GbHZG3pjNKTA"
+  },
+  {
+    "model_id": "TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC",
+    "wasm_file": "TinyLlama-1.1B-Chat-v0.4-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/TinyLlama-1.1B-Chat-v0.4-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+    "hash": "sha384-+Zon0GHoU0z8+6eqBVSAfFH/LtCFGpRXl1Wu0LA2EFgslGkqziPL2FkvAkS7tAVi"
+  },
+  {
+    "model_id": "TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC-1k",
+    "wasm_file": "TinyLlama-1.1B-Chat-v0.4-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/TinyLlama-1.1B-Chat-v0.4-q4f16_1-ctx2k_cs1k-webgpu.wasm",
+    "hash": "sha384-eTTWjfa0QQcTGWzr8zqIzAxTSeEnG0aX/RUUDu8PaVP13PrRyFJ5GbHZG3pjNKTA"
+  },
+  {
+    "model_id": "TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC-1k",
+    "wasm_file": "TinyLlama-1.1B-Chat-v0.4-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/TinyLlama-1.1B-Chat-v0.4-q4f32_1-ctx2k_cs1k-webgpu.wasm",
+    "hash": "sha384-+Zon0GHoU0z8+6eqBVSAfFH/LtCFGpRXl1Wu0LA2EFgslGkqziPL2FkvAkS7tAVi"
+  },
+  {
+    "model_id": "snowflake-arctic-embed-m-q0f32-MLC-b32",
+    "wasm_file": "snowflake-arctic-embed-m-q0f32-ctx512_cs512_batch32-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/snowflake-arctic-embed-m-q0f32-ctx512_cs512_batch32-webgpu.wasm",
+    "hash": "sha384-GW+3L4ZDseMAGxdbk22pqRfWFCCooOgqggqYizaTMrcb9JVFgKXma/BPY3kY5qq+"
+  },
+  {
+    "model_id": "snowflake-arctic-embed-m-q0f32-MLC-b4",
+    "wasm_file": "snowflake-arctic-embed-m-q0f32-ctx512_cs512_batch4-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/snowflake-arctic-embed-m-q0f32-ctx512_cs512_batch4-webgpu.wasm",
+    "hash": "sha384-eyZK0vXk+9vr5S1TGESEoC5yJDlLqNQMCLUVGnGHFDmOznfTJIs7c+lv7dMwfbjz"
+  },
+  {
+    "model_id": "snowflake-arctic-embed-s-q0f32-MLC-b32",
+    "wasm_file": "snowflake-arctic-embed-s-q0f32-ctx512_cs512_batch32-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/snowflake-arctic-embed-s-q0f32-ctx512_cs512_batch32-webgpu.wasm",
+    "hash": "sha384-WFta59rZl+7efGQirzhPo6BS1iY/l0RuIe+Sd96dgzwivdysPEZl9bRm8wdbsM8T"
+  },
+  {
+    "model_id": "snowflake-arctic-embed-s-q0f32-MLC-b4",
+    "wasm_file": "snowflake-arctic-embed-s-q0f32-ctx512_cs512_batch4-webgpu.wasm",
+    "url": "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_80/snowflake-arctic-embed-s-q0f32-ctx512_cs512_batch4-webgpu.wasm",
+    "hash": "sha384-RSpFNIKEaz5t+JfasLbvS85tZb8GlaeCNyDUKgAKkuaZ76XVZltASsnBxxbfJdVZ"
+  }
+]
