@@ -11,12 +11,14 @@ export default {
             exports: 'named',
             format: 'es',
             sourcemap: true,
-            globals: {'ws': 'ws',
-                      'perf_hooks': 'perf_hooks'}
+            globals: {
+                'ws': 'ws',
+                'perf_hooks': 'perf_hooks'
+            }
         }
     ],
     plugins: [
-        ignore(["fs", "path", "crypto"]),
+        ignore(["fs", "path", "crypto", "ws", "perf_hooks"]),
         nodeResolve({ browser: true }),
         commonjs({
             ignoreDynamicRequires: true,

@@ -145,3 +145,100 @@ export function areChatOptionsListEqual(
     return false;
   }
 }
+
+/**
+ * Compute the SHA-384 hash of an ArrayBuffer and return it as a base64 string.
+ */
+async function computeSHA384(buffer: ArrayBuffer): Promise<string> {
+  const hashBuffer = await crypto.subtle.digest("SHA-384", buffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashBase64 = btoa(String.fromCharCode(...hashArray));
+  return `sha384-${hashBase64}`;
+}
+
+/**
+ * Verify if the buffer matches the expected integrity hash.
+ * @param buffer The content to verify.
+ * @param expectedIntegrity The expected SRI hash (e.g. "sha384-xyz...").
+ * @returns Resolves if valid or no expectation provided; throws Error if invalid.
+ */
+export async function verifyIntegrity(
+  buffer: ArrayBuffer,
+  expectedIntegrity?: string,
+): Promise<void> {
+  if (!expectedIntegrity) {
+    return;
+  }
+  const computedIntegrity = await computeSHA384(buffer);
+  if (computedIntegrity !== expectedIntegrity) {
+    throw new Error(
+      `Integrity check failed. Expected ${expectedIntegrity}, but got ${computedIntegrity}.`,
+    );
+  }
+}
+
+/**
+ * Deep merge objects safely, preventing prototype pollution.
+ * Returns a new object if target is empty, or mutates target.
+ */
+export function safeDeepMerge(target: any, source: any): any {
+  const isObject = (item: any) =>
+    item && typeof item === "object" && !Array.isArray(item);
+
+  if (isObject(target) && isObject(source)) {
+    for (const key in source) {
+      if (Object.prototype.hasOwnProperty.call(source, key)) {
+        if (
+          key === "__proto__" ||
+          key === "constructor" ||
+          key === "prototype"
+        ) {
+          continue;
+        }
+        if (isObject(source[key])) {
+          if (!target[key]) {
+            Object.assign(target, { [key]: {} });
+          }
+          safeDeepMerge(target[key], source[key]);
+        } else {
+          Object.assign(target, { [key]: source[key] });
+        }
+      }
+    }
+  }
+  return target;
+}
+
+/**
+ * Basic string sanitization to prevent common XSS vectors while preserving 
+ * text content.
+ */
+export function sanitizeString(str: any): any {
+  if (typeof str !== 'string') return str;
+  // Strip <script> tags and onXXX event handlers
+  return str
+    .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
+    .replace(/on\w+="[^"]*"/gim, "")
+    .replace(/on\w+='[^']*'/gim, "")
+    .replace(/on\w+=[^\s>]+/gim, "");
+}
+
+/**
+ * Sanitize a ChatConfig or any object by cleaning known sensitive string fields.
+ */
+export function sanitizeConfig(config: any): any {
+  if (!config || typeof config !== 'object') return config;
+
+  const fieldsToSanitize = ['system_message', 'name', 'description', 'model_id'];
+
+  for (const key in config) {
+    if (Object.prototype.hasOwnProperty.call(config, key)) {
+      if (fieldsToSanitize.includes(key)) {
+        config[key] = sanitizeString(config[key]);
+      } else if (typeof config[key] === 'object') {
+        sanitizeConfig(config[key]);
+      }
+    }
+  }
+  return config;
+}

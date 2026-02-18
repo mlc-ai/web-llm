@@ -70,6 +70,7 @@ import {
   ModelNotLoadedError,
 } from "./error";
 import { asyncLoadTokenizer } from "./cache_util";
+import { verifyIntegrity, safeDeepMerge, sanitizeConfig } from "./utils";
 import { EmbeddingPipeline } from "./embedding";
 
 /**
@@ -269,15 +270,18 @@ export class MLCEngine implements MLCEngineInterface {
 
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
-    const curModelConfig = {
-      ...(await configCache.fetchWithCache(
-        configUrl,
-        "json",
-        this.reloadController?.signal,
-      )),
-      ...modelRecord.overrides,
-      ...chatOpts,
-    } as ChatConfig;
+    const fetchedConfig = await configCache.fetchWithCache(
+      configUrl,
+      "json",
+      this.reloadController?.signal,
+    );
+    // Use safeDeepMerge to prevent prototype pollution and allow granular overrides
+    const curModelConfig = sanitizeConfig(
+      safeDeepMerge(
+        safeDeepMerge(safeDeepMerge({}, fetchedConfig), modelRecord.overrides),
+        chatOpts,
+      ),
+    ) as ChatConfig;
     this.loadedModelIdToChatConfig.set(modelId, curModelConfig);
 
     // load tvm wasm
@@ -309,6 +313,9 @@ export class MLCEngine implements MLCEngineInterface {
       }
     };
     const wasmSource = await fetchWasmSource();
+
+    // Verify WASM integrity if hash is provided
+    await verifyIntegrity(wasmSource, modelRecord.model_lib_integrity);
 
     const wasm = new Uint8Array(wasmSource);
     const tvm = await tvmjs.instantiate(
@@ -353,7 +360,7 @@ export class MLCEngine implements MLCEngineInterface {
       if (this.deviceLostIsError) {
         log.error(
           `Device was lost. This can happen due to insufficient memory or other GPU constraints. ` +
-            `Detailed error: ${info}. Please try to reload WebLLM with a less resource-intensive model.`,
+          `Detailed error: ${info}. Please try to reload WebLLM with a less resource-intensive model.`,
         );
         this.unload();
         deviceLostInReload = true;
@@ -547,8 +554,8 @@ export class MLCEngine implements MLCEngineInterface {
       prevMessageLength = curMessage.length;
       const logprobs = request.logprobs
         ? ({
-            content: selectedPipeline.getTokenLogprobArray().slice(-1), // always the last entry
-          } as ChatCompletionChunk.Choice.Logprobs)
+          content: selectedPipeline.getTokenLogprobArray().slice(-1), // always the last entry
+        } as ChatCompletionChunk.Choice.Logprobs)
         : null;
       if (isChatCompletion) {
         const chunk: ChatCompletionChunk = {
@@ -650,9 +657,9 @@ export class MLCEngine implements MLCEngineInterface {
           {
             delta: isFunctionCalling
               ? {
-                  role: "assistant",
-                  tool_calls: tool_calls,
-                }
+                role: "assistant",
+                tool_calls: tool_calls,
+              }
               : {},
             finish_reason: finish_reason,
             index: 0,
@@ -714,12 +721,12 @@ export class MLCEngine implements MLCEngineInterface {
         total_tokens: completion_tokens + prompt_tokens,
         extra: usedGrammar
           ? {
-              ...defaultExtra,
-              ...{
-                grammar_init_s: grammar_init_s,
-                grammar_per_token_s: grammar_per_token_s / completion_tokens,
-              },
-            }
+            ...defaultExtra,
+            ...{
+              grammar_init_s: grammar_init_s,
+              grammar_per_token_s: grammar_per_token_s / completion_tokens,
+            },
+          }
           : defaultExtra,
       };
       if (isChatCompletion) {
@@ -872,19 +879,19 @@ export class MLCEngine implements MLCEngineInterface {
           index: i,
           logprobs: request.logprobs
             ? ({
-                content: selectedPipeline.getTokenLogprobArray(),
-              } as ChatCompletion.Choice.Logprobs)
+              content: selectedPipeline.getTokenLogprobArray(),
+            } as ChatCompletion.Choice.Logprobs)
             : null,
           message: isFunctionCalling
             ? {
-                content: null,
-                tool_calls: tool_calls,
-                role: "assistant",
-              }
+              content: null,
+              tool_calls: tool_calls,
+              role: "assistant",
+            }
             : {
-                content: outputMessage,
-                role: "assistant",
-              },
+              content: outputMessage,
+              role: "assistant",
+            },
         });
         completion_tokens += selectedPipeline.getCurRoundDecodingTotalTokens();
         prompt_tokens += selectedPipeline.getCurRoundPrefillTotalTokens();
@@ -924,12 +931,12 @@ export class MLCEngine implements MLCEngineInterface {
           total_tokens: completion_tokens + prompt_tokens,
           extra: usedGrammar
             ? {
-                ...defaultExtra,
-                ...{
-                  grammar_init_s: grammar_init_s,
-                  grammar_per_token_s: grammar_per_token_s / completion_tokens,
-                },
-              }
+              ...defaultExtra,
+              ...{
+                grammar_init_s: grammar_init_s,
+                grammar_per_token_s: grammar_per_token_s / completion_tokens,
+              },
+            }
             : defaultExtra,
         } as CompletionUsage,
       };
@@ -1034,8 +1041,8 @@ export class MLCEngine implements MLCEngineInterface {
           index: i,
           logprobs: request.logprobs
             ? ({
-                content: selectedPipeline.getTokenLogprobArray(),
-              } as ChatCompletion.Choice.Logprobs)
+              content: selectedPipeline.getTokenLogprobArray(),
+            } as ChatCompletion.Choice.Logprobs)
             : null,
           text: request.echo ? request.prompt + outputMessage : outputMessage,
         });
@@ -1149,14 +1156,14 @@ export class MLCEngine implements MLCEngineInterface {
     if (maxStorageBufferBindingSize < defaultMaxStorageBufferBindingSize) {
       log.warn(
         `WARNING: the current maxStorageBufferBindingSize ` +
-          `(${computeMB(maxStorageBufferBindingSize)}) ` +
-          `may only work for a limited number of models, e.g.: \n` +
-          `- Llama-3.1-8B-Instruct-q4f16_1-MLC-1k \n` +
-          `- Llama-2-7b-chat-hf-q4f16_1-MLC-1k \n` +
-          `- RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC-1k \n` +
-          `- RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC-1k \n` +
-          `- TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC-1k \n` +
-          `- TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC-1k`,
+        `(${computeMB(maxStorageBufferBindingSize)}) ` +
+        `may only work for a limited number of models, e.g.: \n` +
+        `- Llama-3.1-8B-Instruct-q4f16_1-MLC-1k \n` +
+        `- Llama-2-7b-chat-hf-q4f16_1-MLC-1k \n` +
+        `- RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC-1k \n` +
+        `- RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC-1k \n` +
+        `- TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC-1k \n` +
+        `- TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC-1k`,
       );
     }
     return maxStorageBufferBindingSize;
@@ -1295,9 +1302,9 @@ export class MLCEngine implements MLCEngineInterface {
   async runtimeStatsText(modelId?: string): Promise<string> {
     log.warn(
       "WARNING: `runtimeStatsText()` will soon be deprecated. " +
-        "Please use `ChatCompletion.usage` for non-streaming requests, or " +
-        "`ChatCompletionChunk.usage` for streaming requests, enabled by `stream_options`. " +
-        "The only flow that expects to use `runtimeStatsText()` as of now is `forwardTokensAndSample()`.",
+      "Please use `ChatCompletion.usage` for non-streaming requests, or " +
+      "`ChatCompletionChunk.usage` for streaming requests, enabled by `stream_options`. " +
+      "The only flow that expects to use `runtimeStatsText()` as of now is `forwardTokensAndSample()`.",
     );
     const [, selectedPipeline] = this.getLLMStates("runtimeStatsText", modelId);
     return selectedPipeline.runtimeStatsText();
