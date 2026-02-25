@@ -14,6 +14,7 @@ import {
   ToolCallOutputMissingFieldsError,
   ToolCallOutputParseError,
   UnclearModelToUseError,
+  PrefillChunkSizeSmallerThanImageError,
 } from "./error";
 
 /**
@@ -294,6 +295,12 @@ export function getChunkedPrefillInputData(
     const curDataLen = Array.isArray(curData)
       ? curData.length
       : getImageEmbedSize(curData);
+    if (!Array.isArray(curData) && curDataLen > prefillChunkSize) {
+      throw new PrefillChunkSizeSmallerThanImageError(
+        prefillChunkSize,
+        curDataLen,
+      );
+    }
     // 1. curData can fit into this chunk
     if (curChunkLen + curDataLen <= prefillChunkSize) {
       curChunk.push(curData);

@@ -1566,19 +1566,22 @@ export class LLMChatPipeline {
 
     // 1.5. Preload image dimensions to compute per-image embed sizes
     const imageDimensions = new Map<string, [number, number]>();
+    const uniqueImageUrls = new Set<string>();
     for (const prompt of prompts) {
       if (typeof prompt !== "string") {
         for (const content of prompt) {
-          if (
-            typeof content !== "string" &&
-            !imageDimensions.has(content.url)
-          ) {
-            const imgData = await getImageDataFromURL(content.url);
-            imageDimensions.set(content.url, [imgData.height, imgData.width]);
+          if (typeof content !== "string") {
+            uniqueImageUrls.add(content.url);
           }
         }
       }
     }
+    await Promise.all(
+      Array.from(uniqueImageUrls).map(async (url) => {
+        const imgData = await getImageDataFromURL(url);
+        imageDimensions.set(url, [imgData.height, imgData.width]);
+      }),
+    );
     const getEmbedSize = (image: ImageURL): number => {
       const dims = imageDimensions.get(image.url);
       if (!dims) {
