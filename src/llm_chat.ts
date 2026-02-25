@@ -11,7 +11,6 @@ import {
   getRGBArrayFromImageData,
   getTokenTableFromTokenizer,
   getTopProbs,
-  IMAGE_EMBED_SIZE,
 } from "./support";
 import {
   ChatCompletionFinishReason,
@@ -29,7 +28,6 @@ import {
   WindowSizeSpecificationError,
   MessageOrderError,
   TextCompletionExpectsKVEmptyError,
-  PrefillChunkSizeSmallerThanImageError,
   CannotFindImageEmbedError,
 } from "./error";
 
@@ -252,7 +250,6 @@ export class LLMChatPipeline {
     if (this.prefillChunkSize <= 0) {
       throw new MinValueError("prefill_chunk_size", 0);
     }
-
     // 5. Consolidate KVCache settings: context window, sliding window, attention sink
     this.slidingWindowSize = config.sliding_window_size;
     this.contextWindowSize = config.context_window_size;
@@ -698,23 +695,10 @@ export class LLMChatPipeline {
         conversation.appendReplyHeader(Role.assistant);
       }
     }
-    const retGetInputData = this.getInputData();
-    const inputData: Array<Array<number> | ImageURL> = retGetInputData[0];
-    const promptLen: number = retGetInputData[1];
+    const [inputData, promptLen, getEmbedSize] = await this.getInputData();
 
     // Check if LLMChatPipeline fits for forwarding image input
-    let hasImageInput = false;
-    inputData.forEach((data) => {
-      if (!Array.isArray(data)) {
-        hasImageInput = true;
-      }
-    });
-    if (hasImageInput && this.prefillChunkSize < IMAGE_EMBED_SIZE) {
-      throw new PrefillChunkSizeSmallerThanImageError(
-        this.prefillChunkSize,
-        IMAGE_EMBED_SIZE,
-      );
-    }
+    const hasImageInput = inputData.some((data) => !Array.isArray(data));
     if (hasImageInput && this.image_embed === undefined) {
       throw new CannotFindImageEmbedError();
     }
@@ -723,6 +707,7 @@ export class LLMChatPipeline {
     const retGetChunks = getChunkedPrefillInputData(
       inputData,
       this.prefillChunkSize,
+      getEmbedSize,
     );
     const chunks: Array<Array<number> | ImageURL>[] = retGetChunks[0];
     const chunkLens: Array<number> = retGetChunks[1];
@@ -940,6 +925,33 @@ export class LLMChatPipeline {
   }
 
   /**
+   * Compute the number of embedding tokens an image will produce.
+   * Must match the model's image_embed output size.
+   * Based on mlc_llm/serve/data.py _compute_embed_size.
+   */
+  private computeImageEmbedSize(
+    imageHeight: number,
+    imageWidth: number,
+  ): number {
+    const modelType = this.config.model_type;
+    if (modelType === "phi3_v") {
+      const [cropH, cropW] = this.calculateCropShape(imageHeight, imageWidth);
+      const subTokens = cropH * 12 * (cropW * 12 + 1);
+      const glbTokens = 12 * (12 + 1);
+      return subTokens + 1 + glbTokens;
+    }
+    // For models with fixed embed size (e.g. Gemma3V)
+    const mmTokens = this.config.model_config?.mm_tokens_per_image;
+    if (mmTokens !== undefined) {
+      return mmTokens;
+    }
+    throw new Error(
+      "Cannot determine image embed size. " +
+        "Please add mm_tokens_per_image to model_config in mlc-chat-config.json.",
+    );
+  }
+
+  /**
    * Calculate resize dimensions for Phi3-V model.
    * Based on vlm_utils.cc CalculateResizeShape
    */
@@ -1018,9 +1030,13 @@ export class LLMChatPipeline {
         this.params,
       ),
     );
-    if (embed.shape[0] !== IMAGE_EMBED_SIZE) {
+    const expectedSize = this.computeImageEmbedSize(
+      imgData.height,
+      imgData.width,
+    );
+    if (embed.shape[0] !== expectedSize) {
       throw new Error(
-        `InternalError: expect embed.shape[0] to be ${IMAGE_EMBED_SIZE}, ` +
+        `InternalError: expect embed.shape[0] to be ${expectedSize}, ` +
           `but got ${embed.shape[0]}`,
       );
     }
@@ -1519,7 +1535,9 @@ export class LLMChatPipeline {
    *   imageUrl2,
    *   token array for "\nSome user input<|end|>\n"
    */
-  private getInputData(): [Array<Array<number> | ImageURL>, number] {
+  private async getInputData(): Promise<
+    [Array<Array<number> | ImageURL>, number, (image: ImageURL) => number]
+  > {
     const ret: Array<Array<number> | ImageURL> = [];
     let curTokens: Array<number> = [];
     let prompts: Array<string | Array<string | ImageURL>>;
@@ -1546,6 +1564,29 @@ export class LLMChatPipeline {
       }
     }
 
+    // 1.5. Preload image dimensions to compute per-image embed sizes
+    const imageDimensions = new Map<string, [number, number]>();
+    for (const prompt of prompts) {
+      if (typeof prompt !== "string") {
+        for (const content of prompt) {
+          if (
+            typeof content !== "string" &&
+            !imageDimensions.has(content.url)
+          ) {
+            const imgData = await getImageDataFromURL(content.url);
+            imageDimensions.set(content.url, [imgData.height, imgData.width]);
+          }
+        }
+      }
+    }
+    const getEmbedSize = (image: ImageURL): number => {
+      const dims = imageDimensions.get(image.url);
+      if (!dims) {
+        throw new Error("InternalError: image dimensions not preloaded");
+      }
+      return this.computeImageEmbedSize(dims[0], dims[1]);
+    };
+
     // 2. Encode all prompts. Iterate through each message in the prompt array, where each
     // prompt can either be a string, or an array of a mixture of string and ImageURLs.
     let numPromptTokens = 0;
@@ -1563,11 +1604,25 @@ export class LLMChatPipeline {
             numPromptTokens += encoded.length;
             curTokens.push(...encoded);
           } else {
+            // Insert BOI wrapping if configured (e.g. Gemma3V: \n + BOI token before image)
+            const boiToken = this.config.model_config?.boi_token_index;
+            if (boiToken !== undefined) {
+              const nlTokens = this.tokenizer.encode("\n");
+              curTokens.push(...nlTokens);
+              curTokens.push(boiToken);
+              numPromptTokens += nlTokens.length + 1;
+            }
             // push curTokens to ret, push imageUrl, create a new curTokens
             ret.push([...curTokens]);
             ret.push(curPromptContent);
-            numPromptTokens += IMAGE_EMBED_SIZE;
+            numPromptTokens += getEmbedSize(curPromptContent);
             curTokens = [];
+            // Insert EOI token after image if configured
+            const eoiToken = this.config.model_config?.eoi_token_index;
+            if (eoiToken !== undefined) {
+              curTokens.push(eoiToken);
+              numPromptTokens += 1;
+            }
           }
         }
       }
@@ -1587,7 +1642,7 @@ export class LLMChatPipeline {
         this.contextWindowSize,
       );
     }
-    return [ret, numPromptTokens];
+    return [ret, numPromptTokens, getEmbedSize];
   }
 
   async forwardTokensAndSample(
@@ -1601,6 +1656,7 @@ export class LLMChatPipeline {
     const retGetChunks = getChunkedPrefillInputData(
       inputData,
       this.prefillChunkSize,
+      () => 0, // text-only path, no images
     );
     const chunks: Array<Array<number> | ImageURL>[] = retGetChunks[0];
     const chunkLens: Array<number> = retGetChunks[1];

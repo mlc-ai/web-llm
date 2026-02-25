@@ -278,11 +278,12 @@ export function getModelIdToUse(
  * Chunk the inputData such that each chunk's total input length is smaller than prefill
  * chunk size.
  * @returns [the data chunks, the input length of each chunk]
- * @note precondition: if inputData has image in it, then prefillChunkSize >= IMAGE_EMBED_SIZE.
+ * @note precondition: if inputData has image in it, then prefillChunkSize >= imageEmbedSize.
  */
 export function getChunkedPrefillInputData(
   inputData: Array<Array<number> | ImageURL>,
   prefillChunkSize: number,
+  getImageEmbedSize: (image: ImageURL) => number,
 ): [Array<Array<number> | ImageURL>[], Array<number>] {
   const chunks: Array<Array<number> | ImageURL>[] = [];
   const chunkLens: Array<number> = [];
@@ -292,7 +293,7 @@ export function getChunkedPrefillInputData(
     let curData: Array<number> | ImageURL = inputData[i];
     const curDataLen = Array.isArray(curData)
       ? curData.length
-      : IMAGE_EMBED_SIZE;
+      : getImageEmbedSize(curData);
     // 1. curData can fit into this chunk
     if (curChunkLen + curDataLen <= prefillChunkSize) {
       curChunk.push(curData);
@@ -338,7 +339,7 @@ export function getChunkedPrefillInputData(
       chunkLens.push(curChunkLen);
       // 2.2.2. Then push image to the new chunk
       curChunk = [curData];
-      curChunkLen = IMAGE_EMBED_SIZE;
+      curChunkLen = curDataLen;
       if (curChunkLen === prefillChunkSize) {
         chunks.push([...curChunk]);
         chunkLens.push(curChunkLen);
@@ -404,9 +405,6 @@ export class CustomLock {
 
 // Image related
 type ImageURL = ChatCompletionContentPartImage.ImageURL;
-
-// TODO(Charlie): currently hardcoded for phi3.5-vision num_crops 16
-export const IMAGE_EMBED_SIZE = 1921;
 
 /**
  * Given a url, get the image data. The url can either start with `http` or `data:image`.
