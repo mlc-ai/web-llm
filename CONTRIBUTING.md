@@ -35,7 +35,7 @@ Additional reference: Apache TVM community guidelines
 
 ### Prerequisites
 
-- Node.js `v24.11.1` (see `.nvmrc`)
+- Node.js (see `.nvmrc` for the required version)
 - npm
 - Git
 
