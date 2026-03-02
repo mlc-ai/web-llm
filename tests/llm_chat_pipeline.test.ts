@@ -1,6 +1,7 @@
 import { LLMChatPipeline } from "../src/llm_chat";
 import { MinValueError } from "../src/error";
 import { Role } from "../src/config";
+import { jest, test, expect, beforeEach } from "@jest/globals";
 
 jest.mock("@mlc-ai/web-xgrammar", () => {
   const grammarMatcherInstances: any[] = [];
@@ -38,13 +39,26 @@ jest.mock("@mlc-ai/web-xgrammar", () => {
   };
 });
 
-const xgrammar = jest.requireMock("@mlc-ai/web-xgrammar");
-const grammarMatcherInstances: any[] = (xgrammar.GrammarMatcher as any)
-  .__instances;
-const compileGrammarMock: jest.Mock = (xgrammar.GrammarCompiler as any)
-  .__compileGrammar;
-const compileJSONSchemaMock: jest.Mock = (xgrammar.GrammarCompiler as any)
-  .__compileJSONSchema;
+type XGrammarMock = {
+  TokenizerInfo: {
+    createTokenizerInfo: jest.Mock;
+  };
+  GrammarCompiler: {
+    createGrammarCompiler: jest.Mock;
+    __compileBuiltinJSONGrammar: jest.Mock;
+    __compileJSONSchema: jest.Mock;
+    __compileGrammar: jest.Mock;
+  };
+  GrammarMatcher: {
+    createGrammarMatcher: jest.Mock;
+    __instances: any[];
+  };
+};
+
+const xgrammar = jest.requireMock<XGrammarMock>("@mlc-ai/web-xgrammar");
+const grammarMatcherInstances = xgrammar.GrammarMatcher.__instances;
+const compileGrammarMock = xgrammar.GrammarCompiler.__compileGrammar;
+const compileJSONSchemaMock = xgrammar.GrammarCompiler.__compileJSONSchema;
 
 beforeEach(() => {
   grammarMatcherInstances.length = 0;
@@ -102,7 +116,7 @@ function createPipeline(): PipelineLike {
     detachFromCurrentScope: jest.fn((x: any) => x),
   } as any;
   pipeline["device"] = {
-    sync: jest.fn().mockResolvedValue(undefined),
+    sync: jest.fn(async () => undefined),
   } as any;
   pipeline["embedAndForward"] = jest.fn(
     async (_chunk: any, chunkLen: number) => {
@@ -144,7 +158,7 @@ test("processNextToken appends tokens until stop string reached", () => {
   const pipeline = createPipeline();
   pipeline["stopStr"] = ["<stop>"];
   pipeline["tokenizer"].decode = jest
-    .fn()
+    .fn<(ids: Int32Array) => string>()
     .mockReturnValueOnce("partial")
     .mockReturnValueOnce("partial<stop>");
   (pipeline as any).processNextToken(1, {
@@ -187,7 +201,10 @@ function preparePrefillPipeline(): PipelineLike {
   const pipeline = createPipeline();
   pipeline["prefillTotalTime"] = 0;
   pipeline["prefillTotalTokens"] = 0;
-  pipeline["getInputData"] = jest.fn(() => [[[0]], 1]);
+  pipeline["getInputData"] = jest.fn<() => [number[][], number]>(() => [
+    [[0]],
+    1,
+  ]);
   pipeline["processNextToken"] = jest.fn();
   return pipeline;
 }
@@ -222,7 +239,7 @@ test("prefillStep reuses grammar matcher when schema unchanged", async () => {
   const pipeline = preparePrefillPipeline();
   const matcher = { reset: jest.fn(), dispose: jest.fn() };
   pipeline["grammarMatcher"] = matcher as any;
-  pipeline["schemaOrGrammarStr"] = "schema_v1";
+  pipeline["responseFormatCacheKey"] = "schema_v1";
   await pipeline.prefillStep("hello", Role.user, undefined, {
     response_format: { type: "grammar", grammar: "schema_v1" },
   });
@@ -232,7 +249,7 @@ test("prefillStep reuses grammar matcher when schema unchanged", async () => {
 test("prefillStep instantiates new grammar matcher when schema changes", async () => {
   const pipeline = preparePrefillPipeline();
   pipeline["grammarMatcher"] = undefined;
-  pipeline["schemaOrGrammarStr"] = undefined;
+  pipeline["responseFormatCacheKey"] = undefined;
   pipeline["xgTokenizerInfo"] = undefined;
   pipeline["grammarCompiler"] = undefined;
   await pipeline.prefillStep("hello", Role.user, undefined, {
@@ -240,13 +257,13 @@ test("prefillStep instantiates new grammar matcher when schema changes", async (
   });
   expect(xgrammar.TokenizerInfo.createTokenizerInfo).toHaveBeenCalled();
   expect(xgrammar.GrammarMatcher.createGrammarMatcher).toHaveBeenCalled();
-  expect(pipeline["schemaOrGrammarStr"]).toBe("{}");
+  expect(pipeline["responseFormatCacheKey"]).toBe("{}");
 });
 
 test("prefillStep compiles custom grammar when response type is grammar", async () => {
   const pipeline = preparePrefillPipeline();
   pipeline["grammarMatcher"] = undefined;
-  pipeline["schemaOrGrammarStr"] = undefined;
+  pipeline["responseFormatCacheKey"] = undefined;
   pipeline["xgTokenizerInfo"] = undefined;
   pipeline["grammarCompiler"] = undefined;
   await pipeline.prefillStep("hello", Role.user, undefined, {

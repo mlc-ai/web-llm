@@ -4,17 +4,20 @@ import {
   WebWorkerMLCEngine,
   WebWorkerMLCEngineHandler,
 } from "../src/web_worker";
+import { jest, test, expect, beforeEach } from "@jest/globals";
 
-const reloadMock = jest.fn();
-const forwardMock = jest.fn();
-const chatCompletionMock = jest.fn();
-const completionMock = jest.fn();
-const embeddingMock = jest.fn();
-const setLogitRegistryMock = jest.fn();
-const setAppConfigMock = jest.fn();
+const reloadMock = jest.fn<(...args: any[]) => Promise<void>>(
+  async () => undefined,
+);
+const forwardMock = jest.fn<(...args: any[]) => Promise<any>>();
+const chatCompletionMock = jest.fn<(...args: any[]) => Promise<any>>();
+const completionMock = jest.fn<(...args: any[]) => Promise<any>>();
+const embeddingMock = jest.fn<(...args: any[]) => Promise<any>>();
+const setLogitRegistryMock = jest.fn<(...args: any[]) => void>();
+const setAppConfigMock = jest.fn<(...args: any[]) => void>();
 
 const mockEngineInstance: Record<string, any> = {
-  reload: reloadMock.mockResolvedValue(undefined),
+  reload: reloadMock,
   forwardTokensAndSample: forwardMock,
   chatCompletion: chatCompletionMock,
   completion: completionMock,
@@ -45,7 +48,7 @@ beforeEach(() => {
 });
 
 function flushMicrotasks() {
-  return new Promise((resolve) => setImmediate(resolve));
+  return new Promise<void>((resolve) => setTimeout(resolve, 0));
 }
 
 test("constructor registers init progress callback and posts updates", () => {
@@ -206,10 +209,10 @@ class MockWorker {
     if (!responder) {
       return;
     }
-    setImmediate(async () => {
+    setTimeout(async () => {
       const content = await responder(msg);
       this.onmessage?.({ kind: "return", uuid: msg.uuid, content });
-    });
+    }, 0);
   };
 }
 
