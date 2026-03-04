@@ -455,6 +455,7 @@ export class MLCEngine implements MLCEngineInterface {
       }
       await this.decode(pipeline, genConfig);
     }
+    await pipeline.flushDeferredTokens?.(genConfig);
     return pipeline.getMessage();
   }
 
@@ -616,6 +617,9 @@ export class MLCEngine implements MLCEngineInterface {
         yield curChunk;
       }
     }
+
+    // Flush any remaining deferred tokens
+    await pipeline.flushDeferredTokens?.(genConfig);
 
     // Reset seed -- we do not want this seed to affect future requests
     if (request.seed !== null && request.seed !== undefined) {
