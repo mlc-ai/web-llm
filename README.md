@@ -150,6 +150,29 @@ const engine = new MLCEngine({
 await engine.reload(selectedModel);
 ```
 
+### Cache Backend Policy
+
+WebLLM supports three cache backends through `AppConfig.cacheBackend`:
+
+- `"cache"`: browser [Cache API](https://developer.mozilla.org/en-US/docs/Web/API/Cache) (default).
+- `"indexeddb"`: browser [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API).
+- `"cross-origin"`: experimental Chrome [Cross-Origin Storage](https://github.com/explainers-by-googlers/cross-origin-storage) extension backend.
+
+Example:
+
+```typescript
+import { CreateMLCEngine, prebuiltAppConfig } from "@mlc-ai/web-llm";
+
+const appConfig = { ...prebuiltAppConfig, cacheBackend: "cross-origin" };
+const engine = await CreateMLCEngine("Llama-3.1-8B-Instruct-q4f32_1-MLC", {
+  appConfig,
+});
+```
+
+Notes:
+- The `"cross-origin"` backend requires installing and enabling a compatible browser extension.
+- Cross-origin backend currently does not support programmatic tensor-cache deletion; clearing is extension-managed.
+
 ### Chat Completion
 After successfully initializing the engine, you can now invoke chat completions using OpenAI style chat APIs through the `engine.chat.completions` interface. For the full list of parameters and their descriptions, check [section below](#full-openai-compatibility) and [OpenAI API reference](https://platform.openai.com/docs/api-reference/chat/create).
 

@@ -272,6 +272,10 @@ export interface ModelRecord {
  * @param cacheBackend: the backend to use for caching models and other artifacts.
  * If unspecified, will use the Cache API. For more information, see:
  * https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria#what_technologies_store_data_in_the_browser
+ * Supported values are:
+ * - "cache": browser Cache API.
+ * - "indexeddb": IndexedDB-backed cache.
+ * - "cross-origin": Chrome Cross-Origin Storage extension-backed cache.
  *
  * @note Note that the Cache API is more well-tested in WebLLM as of now.
  */

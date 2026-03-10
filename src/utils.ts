@@ -1,4 +1,4 @@
-import { AppConfig, ChatOptions, ModelRecord } from "./config";
+import { AppConfig, ChatOptions, ModelRecord, getCacheBackend } from "./config";
 
 // Helper function to compare two arrays
 export function areArraysEqual(arr1?: Array<any>, arr2?: Array<any>): boolean {
@@ -77,7 +77,7 @@ export function areAppConfigsEqual(
   }
 
   // Check if both configurations have the same cache backend
-  if (config1.cacheBackend !== config2.cacheBackend) {
+  if (getCacheBackend(config1) !== getCacheBackend(config2)) {
     return false;
   }
 

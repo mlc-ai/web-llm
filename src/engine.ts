@@ -5,6 +5,7 @@ import {
   ChatOptions,
   AppConfig,
   prebuiltAppConfig,
+  getCacheBackend,
   GenerationConfig,
   postInitAndCheckGenerationConfigValues,
   Role,
@@ -69,11 +70,7 @@ import {
   SpecifiedModelNotFoundError,
   ModelNotLoadedError,
 } from "./error";
-import {
-  asyncLoadTokenizer,
-  fetchModelArtifacts,
-  getArtifactCache,
-} from "./cache_util";
+import { asyncLoadTokenizer } from "./cache_util";
 import { EmbeddingPipeline } from "./embedding";
 
 /**
@@ -263,8 +260,12 @@ export class MLCEngine implements MLCEngineInterface {
         : modelRecord.model_type;
     this.loadedModelIdToModelType.set(modelId, modelType);
 
+    const cacheType = getCacheBackend(this.appConfig);
+
     // instantiate cache
-    const configCache = getArtifactCache("webllm/config", this.appConfig);
+    const configCache = tvmjs.createArtifactCache("webllm/config", {
+      cacheType,
+    });
 
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
@@ -280,7 +281,9 @@ export class MLCEngine implements MLCEngineInterface {
     this.loadedModelIdToChatConfig.set(modelId, curModelConfig);
 
     // load tvm wasm
-    const wasmCache = getArtifactCache("webllm/wasm", this.appConfig);
+    const wasmCache = tvmjs.createArtifactCache("webllm/wasm", {
+      cacheType,
+    });
 
     const wasmUrl = modelRecord.model_lib;
     if (wasmUrl === undefined) {
@@ -361,13 +364,11 @@ export class MLCEngine implements MLCEngineInterface {
       this.appConfig,
       this.logger,
     );
-    await fetchModelArtifacts(
-      tvm,
-      modelUrl,
-      tvm.webgpu(),
-      this.appConfig,
-      this.reloadController?.signal,
-    );
+    await tvm.fetchTensorCache(modelUrl, tvm.webgpu(), {
+      cacheScope: "webllm/model",
+      cacheType,
+      signal: this.reloadController?.signal,
+    });
 
     // Instantiate pipeline
     // TODO: would be good to somehow check for error when LLMChatPipeline is loaded for an
