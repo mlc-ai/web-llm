@@ -1,0 +1,505 @@
+---
+layout: default
+title: Built-in Models
+notitle: true
+---
+
+<style>
+  .models-page {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 60px 24px 80px;
+  }
+
+  .models-page h1 {
+    font-size: 2.25rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+
+  .models-subtitle {
+    color: #666;
+    font-size: 1.05rem;
+    margin-bottom: 2rem;
+    line-height: 1.6;
+  }
+
+  .models-subtitle a {
+    color: inherit;
+    text-decoration: underline;
+  }
+
+  .models-meta-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 2rem;
+  }
+
+  .models-total {
+    font-size: 0.8rem;
+    color: #999;
+    white-space: nowrap;
+    line-height: 1;
+    padding-bottom: 0;
+  }
+
+  /* Filter tabs */
+  .filter-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .filter-tab {
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1.5px solid #e0e0e0;
+    background: white;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+
+  .filter-tab:hover {
+    border-color: #aaa;
+    color: #333;
+  }
+  .filter-tab.active {
+    background: #111;
+    border-color: #111;
+    color: white;
+  }
+
+  /* Search */
+  .model-search-wrap {
+    position: relative;
+    max-width: 360px;
+    margin-bottom: 0;
+  }
+
+  .model-search-wrap svg {
+    position: absolute;
+    left: 11px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 15px;
+    height: 15px;
+    opacity: 0.35;
+    pointer-events: none;
+  }
+
+  #model-search {
+    width: 100%;
+    padding: 9px 12px 9px 34px;
+    border: 1.5px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+  }
+
+  #model-search:focus {
+    border-color: #555;
+  }
+
+  /* Family sections */
+  .family-section {
+    margin-bottom: 2.5rem;
+  }
+
+  .family-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.6rem;
+    border-bottom: 2px solid #f0f0f0;
+  }
+
+  .family-emoji {
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  .family-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .family-count {
+    font-size: 0.75rem;
+    color: #bbb;
+    margin-left: auto;
+  }
+
+  /* Model rows */
+  .model-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .model-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid #ebebeb;
+    border-radius: 7px;
+    background: #fff;
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s;
+  }
+
+  .model-row:hover {
+    border-color: #ccc;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  }
+
+  .model-row-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-width: 0;
+  }
+
+  .model-row-name {
+    font-family: "SFMono-Regular", "Consolas", monospace;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #111;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .model-row-tags {
+    display: flex;
+    gap: 0.35rem;
+    flex-shrink: 0;
+    flex-wrap: wrap;
+  }
+
+  .tag {
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  .tag-vram {
+    background: #f3f4f6;
+    color: #555;
+  }
+  .tag-ctx {
+    background: #f3f4f6;
+    color: #555;
+  }
+  .tag-low {
+    background: #f0fdf4;
+    color: #15803d;
+  }
+  .tag-vlm {
+    background: #ede9fe;
+    color: #6d28d9;
+  }
+  .tag-embed {
+    background: #fff7ed;
+    color: #c2410c;
+  }
+  .tag-f16 {
+    background: #fef9c3;
+    color: #854d0e;
+  }
+
+  .model-row-right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
+
+  .hf-link {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #555;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+  }
+
+  .hf-link:hover {
+    opacity: 1;
+    color: #111;
+  }
+  .hf-link svg {
+    width: 11px;
+    height: 11px;
+  }
+
+  /* Loading / empty */
+  .models-loading,
+  .models-empty {
+    text-align: center;
+    padding: 60px 0;
+    color: #bbb;
+    font-size: 0.9rem;
+  }
+
+  /* CTA */
+  .models-cta {
+    margin-top: 3rem;
+    padding: 1.75rem 2rem;
+    border: 1.5px dashed #ddd;
+    border-radius: 10px;
+    text-align: center;
+  }
+
+  .models-cta p {
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+  }
+
+  .models-cta a {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 16px;
+    background: #111;
+    color: #fff;
+    border-radius: 6px;
+    font-size: 0.825rem;
+    font-weight: 600;
+    text-decoration: none;
+    margin: 3px;
+    transition: opacity 0.15s;
+  }
+
+  .models-cta a:hover {
+    opacity: 0.75;
+  }
+  .models-cta a.secondary {
+    background: transparent;
+    color: #111;
+    border: 1.5px solid #ddd;
+  }
+
+  @media (max-width: 640px) {
+    .model-row {
+      grid-template-columns: 1fr;
+    }
+    .model-row-name {
+      white-space: normal;
+      word-break: break-all;
+    }
+    .model-row-right {
+      justify-content: flex-start;
+    }
+  }
+</style>
+
+<div class="models-page">
+  <h1>Built-in Models</h1>
+  <p class="models-subtitle">
+    All models supported by WebLLM via
+    <code>prebuiltAppConfig.model_list</code>. This page is generated directly
+    from the source — always up to date. Need something not listed?
+    <a href="https://github.com/mlc-ai/web-llm/issues/new" target="_blank"
+      >Open an issue</a
+    >
+    or see
+    <a href="https://github.com/mlc-ai/web-llm?tab=readme-ov-file#custom-models"
+      >Custom Models</a
+    >.
+  </p>
+
+  <div id="models-loading" class="models-loading">Loading model list…</div>
+
+  <div id="models-ui" style="display: none">
+    <div class="models-meta-bar">
+      <div class="model-search-wrap">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.35-4.35" />
+        </svg>
+        <input
+          type="text"
+          id="model-search"
+          placeholder="Search models…"
+          autocomplete="off"
+        />
+      </div>
+      <span class="models-total" id="models-total"></span>
+    </div>
+
+    <div class="filter-tabs" id="filter-tabs"></div>
+    <div id="models-container"></div>
+    <div class="models-empty" id="models-empty" style="display: none">
+      No models match your search.
+    </div>
+  </div>
+
+  <div class="models-cta">
+    <p>Don't see what you need?</p>
+    <a href="https://github.com/mlc-ai/web-llm/issues/new" target="_blank"
+      >Request a Model</a
+    >
+    <a
+      href="https://github.com/mlc-ai/web-llm?tab=readme-ov-file#custom-models"
+      class="secondary"
+      >Custom Models →</a
+    >
+  </div>
+</div>
+
+<script>
+  const arrowSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17L17 7M17 7H7M17 7v10"/></svg>`;
+
+  let ALL_FAMILIES = [];
+  let activeFilter = "all";
+
+  function tagsForModel(m) {
+    const tags = [];
+    if (m.vram) tags.push(`<span class="tag tag-vram">${m.vram}</span>`);
+    if (m.context_window)
+      tags.push(`<span class="tag tag-ctx">${m.context_window} ctx</span>`);
+    if (m.model_type === "vlm")
+      tags.push(`<span class="tag tag-vlm">Vision</span>`);
+    if (m.model_type === "embedding")
+      tags.push(`<span class="tag tag-embed">Embed</span>`);
+    if (m.low_resource) tags.push(`<span class="tag tag-low">Low VRAM</span>`);
+    if (m.required_features && m.required_features.includes("shader-f16"))
+      tags.push(`<span class="tag tag-f16">shader-f16</span>`);
+    return tags.join("");
+  }
+
+  function renderFamilies(query) {
+    const container = document.getElementById("models-container");
+    const empty = document.getElementById("models-empty");
+    const total = document.getElementById("models-total");
+    container.innerHTML = "";
+    let count = 0;
+
+    const families =
+      activeFilter === "all"
+        ? ALL_FAMILIES
+        : ALL_FAMILIES.filter((f) => f.id === activeFilter);
+
+    for (const family of families) {
+      const filtered = query
+        ? family.models.filter((m) => m.model_id.toLowerCase().includes(query))
+        : family.models;
+
+      if (!filtered.length) continue;
+      count += filtered.length;
+
+      const section = document.createElement("div");
+      section.className = "family-section";
+      section.innerHTML = `
+      <div class="family-header">
+        <span class="family-emoji">${family.emoji}</span>
+        <h2 class="family-title">${family.label}</h2>
+        <span class="family-count">${filtered.length}</span>
+      </div>
+      <div class="model-list">
+        ${filtered
+          .map(
+            (m) => `
+          <div class="model-row">
+            <div class="model-row-left">
+              <div class="model-row-name" title="${m.model_id}">${m.model_id}</div>
+              <div class="model-row-tags">${tagsForModel(m)}</div>
+            </div>
+            <div class="model-row-right">
+              <a class="hf-link" href="${m.hf_url}" target="_blank" rel="noopener">
+                HF ${arrowSvg}
+              </a>
+            </div>
+          </div>
+        `,
+          )
+          .join("")}
+      </div>
+    `;
+      container.appendChild(section);
+    }
+
+    total.textContent = `${count} model${count !== 1 ? "s" : ""}`;
+    empty.style.display = count === 0 ? "block" : "none";
+  }
+
+  function buildFilterTabs(families) {
+    const wrap = document.getElementById("filter-tabs");
+    const all = document.createElement("button");
+    all.className = "filter-tab active";
+    all.dataset.id = "all";
+    all.textContent = "All";
+    wrap.appendChild(all);
+
+    for (const f of families) {
+      const btn = document.createElement("button");
+      btn.className = "filter-tab";
+      btn.dataset.id = f.id;
+      btn.textContent = `${f.emoji} ${f.label}`;
+      wrap.appendChild(btn);
+    }
+
+    wrap.addEventListener("click", (e) => {
+      const btn = e.target.closest(".filter-tab");
+      if (!btn) return;
+      wrap
+        .querySelectorAll(".filter-tab")
+        .forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      activeFilter = btn.dataset.id;
+      renderFamilies(
+        document.getElementById("model-search").value.trim().toLowerCase(),
+      );
+    });
+  }
+
+  // Load data from generated JSON
+  fetch("/models-data.json")
+    .then((r) => r.json())
+    .then((data) => {
+      ALL_FAMILIES = data.families;
+      document.getElementById("models-loading").style.display = "none";
+      document.getElementById("models-ui").style.display = "block";
+      buildFilterTabs(ALL_FAMILIES);
+      renderFamilies("");
+    })
+    .catch(() => {
+      document.getElementById("models-loading").textContent =
+        "⚠️ Could not load model data. Run generate-models-json.mjs first.";
+    });
+
+  document.addEventListener("input", (e) => {
+    if (e.target.id === "model-search") {
+      renderFamilies(e.target.value.trim().toLowerCase());
+    }
+  });
+</script>
