@@ -15,20 +15,38 @@ const listEnd = src.indexOf("\n  ],\n};");
 const listSrc = src.slice(listStart, listEnd);
 
 const entries = [];
-const blockRe =
-  /\{\s*model:\s*"([^"]+)",\s*model_id:\s*"([^"]+)"([\s\S]*?)\},?\s*(?=\{|$)/g;
-let match;
+const modelListContent = listSrc.substring(listSrc.indexOf("[") + 1);
 
-while ((match = blockRe.exec(listSrc)) !== null) {
-  const hf_url = match[1];
-  const model_id = match[2];
-  const rest = match[3];
+let braceLevel = 0;
+let currentBlockStart = -1;
+const modelBlocks = [];
 
-  const vramMatch = rest.match(/vram_required_MB:\s*([\d.]+)/);
-  const lowMatch = rest.match(/low_resource_required:\s*(true|false)/);
-  const ctxMatch = rest.match(/context_window_size:\s*(\d+)/);
-  const typeMatch = rest.match(/model_type:\s*ModelType\.(\w+)/);
-  const featMatch = rest.match(/required_features:\s*\[([^\]]+)\]/);
+for (let i = 0; i < modelListContent.length; i++) {
+  if (modelListContent[i] === "{") {
+    if (braceLevel === 0) currentBlockStart = i;
+    braceLevel++;
+  } else if (modelListContent[i] === "}") {
+    braceLevel--;
+    if (braceLevel === 0 && currentBlockStart !== -1) {
+      modelBlocks.push(modelListContent.slice(currentBlockStart, i + 1));
+      currentBlockStart = -1;
+    }
+  }
+}
+
+for (const block of modelBlocks) {
+  const modelMatch = block.match(/model:\s*"([^"]+)"/);
+  const modelIdMatch = block.match(/model_id:\s*"([^"]+)"/);
+  if (!modelMatch || !modelIdMatch) continue;
+
+  const hf_url = modelMatch[1];
+  const model_id = modelIdMatch[1];
+
+  const vramMatch = block.match(/vram_required_MB:\s*([\d.]+)/);
+  const lowMatch = block.match(/low_resource_required:\s*(true|false)/);
+  const ctxMatch = block.match(/context_window_size:\s*(\d+)/);
+  const typeMatch = block.match(/model_type:\s*ModelType\.(\w+)/);
+  const featMatch = block.match(/required_features:\s*\[([^\]]+)\]/);
 
   const vramMB = vramMatch ? parseFloat(vramMatch[1]) : null;
   const ctx = ctxMatch ? parseInt(ctxMatch[1]) : null;

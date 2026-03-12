@@ -1,12 +1,30 @@
 {
-  "generated_at": "2026-03-12T14:48:22.547Z",
-  "total_models": 111,
+  "generated_at": "2026-03-12T15:12:33.561Z",
+  "total_models": 145,
   "families": [
     {
       "id": "deepseek",
       "label": "DeepSeek",
       "emoji": "🧠",
       "models": [
+        {
+          "model_id": "DeepSeek-R1-Distill-Qwen-1.5B-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/DeepSeek-R1-Distill-Qwen-1.5B-q4f16_1-MLC",
+          "vram": "1.6 GB",
+          "low_resource": true,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": []
+        },
+        {
+          "model_id": "DeepSeek-R1-Distill-Qwen-1.5B-q4f32_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/DeepSeek-R1-Distill-Qwen-1.5B-q4f32_1-MLC",
+          "vram": "1.8 GB",
+          "low_resource": true,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": []
+        },
         {
           "model_id": "DeepSeek-R1-Distill-Qwen-7B-q4f16_1-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/DeepSeek-R1-Distill-Qwen-7B-q4f16_1-MLC",
@@ -20,6 +38,15 @@
           "model_id": "DeepSeek-R1-Distill-Qwen-7B-q4f32_1-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/DeepSeek-R1-Distill-Qwen-7B-q4f32_1-MLC",
           "vram": "5.8 GB",
+          "low_resource": false,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": []
+        },
+        {
+          "model_id": "DeepSeek-R1-Distill-Llama-8B-q4f32_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/DeepSeek-R1-Distill-Llama-8B-q4f32_1-MLC",
+          "vram": "6.0 GB",
           "low_resource": false,
           "context_window": "4K",
           "model_type": "llm",
@@ -60,6 +87,15 @@
           "required_features": []
         },
         {
+          "model_id": "Llama-3.2-1B-Instruct-q0f32-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q0f32-MLC",
+          "vram": "5.0 GB",
+          "low_resource": true,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": []
+        },
+        {
           "model_id": "Llama-3.2-1B-Instruct-q0f16-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q0f16-MLC",
           "vram": "2.5 GB",
@@ -87,6 +123,15 @@
           "required_features": []
         },
         {
+          "model_id": "Llama-3.1-8B-Instruct-q4f32_1-MLC-1k",
+          "hf_url": "https://huggingface.co/mlc-ai/Llama-3.1-8B-Instruct-q4f32_1-MLC",
+          "vram": "5.2 GB",
+          "low_resource": true,
+          "context_window": "1K",
+          "model_type": "llm",
+          "required_features": []
+        },
+        {
           "model_id": "Llama-3.1-8B-Instruct-q4f16_1-MLC-1k",
           "hf_url": "https://huggingface.co/mlc-ai/Llama-3.1-8B-Instruct-q4f16_1-MLC",
           "vram": "4.5 GB",
@@ -107,6 +152,15 @@
         {
           "model_id": "Llama-3.1-8B-Instruct-q4f16_1-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/Llama-3.1-8B-Instruct-q4f16_1-MLC",
+          "vram": "4.9 GB",
+          "low_resource": false,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": []
+        },
+        {
+          "model_id": "Hermes-2-Theta-Llama-3-8B-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/Hermes-2-Theta-Llama-3-8B-q4f16_1-MLC",
           "vram": "4.9 GB",
           "low_resource": false,
           "context_window": "4K",
@@ -188,6 +242,24 @@
           ]
         },
         {
+          "model_id": "Llama-3.1-70B-Instruct-q3f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/Llama-3.1-70B-Instruct-q3f16_1-MLC",
+          "vram": "30.4 GB",
+          "low_resource": false,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": []
+        },
+        {
+          "model_id": "Llama-3-8B-Instruct-q4f32_1-MLC-1k",
+          "hf_url": "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f32_1-MLC",
+          "vram": "5.2 GB",
+          "low_resource": true,
+          "context_window": "1K",
+          "model_type": "llm",
+          "required_features": []
+        },
+        {
           "model_id": "Llama-3-8B-Instruct-q4f16_1-MLC-1k",
           "hf_url": "https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f16_1-MLC",
           "vram": "4.5 GB",
@@ -230,6 +302,15 @@
       "label": "Llama 2",
       "emoji": "🦙",
       "models": [
+        {
+          "model_id": "Llama-2-7b-chat-hf-q4f32_1-MLC-1k",
+          "hf_url": "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f32_1-MLC",
+          "vram": "5.2 GB",
+          "low_resource": false,
+          "context_window": "1K",
+          "model_type": "llm",
+          "required_features": []
+        },
         {
           "model_id": "Llama-2-7b-chat-hf-q4f16_1-MLC-1k",
           "hf_url": "https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f16_1-MLC",
@@ -280,6 +361,15 @@
       "emoji": "🌊",
       "models": [
         {
+          "model_id": "Qwen3-0.6B-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/Qwen3-0.6B-q4f16_1-MLC",
+          "vram": "1.4 GB",
+          "low_resource": true,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": []
+        },
+        {
           "model_id": "Qwen3-0.6B-q4f32_1-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/Qwen3-0.6B-q4f32_1-MLC",
           "vram": "1.9 GB",
@@ -292,6 +382,15 @@
           "model_id": "Qwen3-0.6B-q0f16-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/Qwen3-0.6B-q0f16-MLC",
           "vram": "2.2 GB",
+          "low_resource": true,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": []
+        },
+        {
+          "model_id": "Qwen3-0.6B-q0f32-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/Qwen3-0.6B-q0f32-MLC",
+          "vram": "3.8 GB",
           "low_resource": true,
           "context_window": "4K",
           "model_type": "llm",
@@ -359,6 +458,15 @@
       "emoji": "🌊",
       "models": [
         {
+          "model_id": "Qwen2.5-0.5B-Instruct-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q4f16_1-MLC",
+          "vram": "945 MB",
+          "low_resource": true,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": []
+        },
+        {
           "model_id": "Qwen2.5-0.5B-Instruct-q4f32_1-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q4f32_1-MLC",
           "vram": "1.0 GB",
@@ -371,6 +479,15 @@
           "model_id": "Qwen2.5-0.5B-Instruct-q0f16-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q0f16-MLC",
           "vram": "1.6 GB",
+          "low_resource": true,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": []
+        },
+        {
+          "model_id": "Qwen2.5-0.5B-Instruct-q0f32-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q0f32-MLC",
+          "vram": "2.6 GB",
           "low_resource": true,
           "context_window": "4K",
           "model_type": "llm",
@@ -426,6 +543,15 @@
           "hf_url": "https://huggingface.co/mlc-ai/Qwen2.5-7B-Instruct-q4f32_1-MLC",
           "vram": "5.8 GB",
           "low_resource": false,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": []
+        },
+        {
+          "model_id": "Qwen2.5-Coder-0.5B-Instruct-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/Qwen2.5-Coder-0.5B-Instruct-q4f16_1-MLC",
+          "vram": "945 MB",
+          "low_resource": true,
           "context_window": "4K",
           "model_type": "llm",
           "required_features": []
@@ -503,6 +629,15 @@
           "required_features": []
         },
         {
+          "model_id": "Qwen2.5-Math-1.5B-Instruct-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/Qwen2.5-Math-1.5B-Instruct-q4f16_1-MLC",
+          "vram": "1.6 GB",
+          "low_resource": true,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": []
+        },
+        {
           "model_id": "Qwen2.5-Math-1.5B-Instruct-q4f32_1-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/Qwen2.5-Math-1.5B-Instruct-q4f32_1-MLC",
           "vram": "1.8 GB",
@@ -519,9 +654,27 @@
       "emoji": "🌊",
       "models": [
         {
+          "model_id": "Qwen2-0.5B-Instruct-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/Qwen2-0.5B-Instruct-q4f16_1-MLC",
+          "vram": "945 MB",
+          "low_resource": true,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": []
+        },
+        {
           "model_id": "Qwen2-0.5B-Instruct-q0f16-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/Qwen2-0.5B-Instruct-q0f16-MLC",
           "vram": "1.6 GB",
+          "low_resource": true,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": []
+        },
+        {
+          "model_id": "Qwen2-0.5B-Instruct-q0f32-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/Qwen2-0.5B-Instruct-q0f32-MLC",
+          "vram": "2.6 GB",
           "low_resource": true,
           "context_window": "4K",
           "model_type": "llm",
@@ -564,6 +717,15 @@
           "required_features": []
         },
         {
+          "model_id": "Qwen2-Math-1.5B-Instruct-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/Qwen2-Math-1.5B-Instruct-q4f16_1-MLC",
+          "vram": "1.6 GB",
+          "low_resource": true,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": []
+        },
+        {
           "model_id": "Qwen2-Math-1.5B-Instruct-q4f32_1-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/Qwen2-Math-1.5B-Instruct-q4f32_1-MLC",
           "vram": "1.8 GB",
@@ -598,6 +760,15 @@
       "emoji": "🔷",
       "models": [
         {
+          "model_id": "Phi-3.5-mini-instruct-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/Phi-3.5-mini-instruct-q4f16_1-MLC",
+          "vram": "3.6 GB",
+          "low_resource": false,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": []
+        },
+        {
           "model_id": "Phi-3.5-mini-instruct-q4f32_1-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/Phi-3.5-mini-instruct-q4f32_1-MLC",
           "vram": "5.4 GB",
@@ -621,6 +792,15 @@
           "vram": "3.1 GB",
           "low_resource": true,
           "context_window": "1K",
+          "model_type": "llm",
+          "required_features": []
+        },
+        {
+          "model_id": "Phi-3.5-vision-instruct-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/Phi-3.5-vision-instruct-q4f16_1-MLC",
+          "vram": "3.9 GB",
+          "low_resource": true,
+          "context_window": "4K",
           "model_type": "vlm",
           "required_features": []
         },
@@ -631,9 +811,16 @@
           "low_resource": true,
           "context_window": "4K",
           "model_type": "vlm",
-          "required_features": [
-            "shader-f16"
-          ]
+          "required_features": []
+        },
+        {
+          "model_id": "Phi-3-mini-4k-instruct-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC",
+          "vram": "3.6 GB",
+          "low_resource": false,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": []
         },
         {
           "model_id": "Phi-3-mini-4k-instruct-q4f32_1-MLC",
@@ -663,6 +850,17 @@
           "required_features": []
         },
         {
+          "model_id": "phi-2-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/phi-2-q4f16_1-MLC",
+          "vram": "3.0 GB",
+          "low_resource": false,
+          "context_window": "2K",
+          "model_type": "llm",
+          "required_features": [
+            "shader-f16"
+          ]
+        },
+        {
           "model_id": "phi-2-q4f32_1-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/phi-2-q4f32_1-MLC",
           "vram": "3.9 GB",
@@ -688,6 +886,15 @@
           "vram": "2.7 GB",
           "low_resource": true,
           "context_window": "1K",
+          "model_type": "llm",
+          "required_features": []
+        },
+        {
+          "model_id": "phi-1_5-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/phi-1_5-q4f16_1-MLC",
+          "vram": "1.2 GB",
+          "low_resource": true,
+          "context_window": "2K",
           "model_type": "llm",
           "required_features": [
             "shader-f16"
@@ -720,9 +927,7 @@
           "low_resource": true,
           "context_window": "1K",
           "model_type": "llm",
-          "required_features": [
-            "shader-f16"
-          ]
+          "required_features": []
         }
       ]
     },
@@ -731,6 +936,17 @@
       "label": "Gemma",
       "emoji": "💎",
       "models": [
+        {
+          "model_id": "gemma-2-2b-it-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/gemma-2-2b-it-q4f16_1-MLC",
+          "vram": "1.9 GB",
+          "low_resource": false,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": [
+            "shader-f16"
+          ]
+        },
         {
           "model_id": "gemma-2-2b-it-q4f32_1-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/gemma-2-2b-it-q4f32_1-MLC",
@@ -778,6 +994,15 @@
           "low_resource": false,
           "context_window": "4K",
           "model_type": "llm",
+          "required_features": []
+        },
+        {
+          "model_id": "gemma-2-2b-jpn-it-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/gemma-2-2b-jpn-it-q4f16_1-MLC",
+          "vram": "1.9 GB",
+          "low_resource": true,
+          "context_window": "4K",
+          "model_type": "llm",
           "required_features": [
             "shader-f16"
           ]
@@ -790,6 +1015,17 @@
           "context_window": "4K",
           "model_type": "llm",
           "required_features": []
+        },
+        {
+          "model_id": "gemma-2b-it-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC",
+          "vram": "1.4 GB",
+          "low_resource": false,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": [
+            "shader-f16"
+          ]
         },
         {
           "model_id": "gemma-2b-it-q4f32_1-MLC",
@@ -818,9 +1054,7 @@
           "low_resource": true,
           "context_window": "1K",
           "model_type": "llm",
-          "required_features": [
-            "shader-f16"
-          ]
+          "required_features": []
         }
       ]
     },
@@ -829,6 +1063,17 @@
       "label": "Mistral & Friends",
       "emoji": "💨",
       "models": [
+        {
+          "model_id": "Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/Mistral-7B-Instruct-v0.3-q4f16_1-MLC",
+          "vram": "4.5 GB",
+          "low_resource": false,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": [
+            "shader-f16"
+          ]
+        },
         {
           "model_id": "Mistral-7B-Instruct-v0.3-q4f32_1-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/Mistral-7B-Instruct-v0.3-q4f32_1-MLC",
@@ -883,6 +1128,15 @@
           ]
         },
         {
+          "model_id": "Ministral-3-3B-Base-2512-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/Ministral-3-3B-Base-2512-q4f16_1-MLC",
+          "vram": null,
+          "low_resource": false,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": []
+        },
+        {
           "model_id": "Ministral-3-3B-Reasoning-2512-q4f16_1-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/Ministral-3-3B-Reasoning-2512-q4f16_1-MLC",
           "vram": null,
@@ -907,6 +1161,17 @@
       "label": "SmolLM2",
       "emoji": "🔬",
       "models": [
+        {
+          "model_id": "SmolLM2-1.7B-Instruct-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/SmolLM2-1.7B-Instruct-q4f16_1-MLC",
+          "vram": "1.7 GB",
+          "low_resource": true,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": [
+            "shader-f16"
+          ]
+        },
         {
           "model_id": "SmolLM2-1.7B-Instruct-q4f32_1-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/SmolLM2-1.7B-Instruct-q4f32_1-MLC",
@@ -974,9 +1239,7 @@
           "low_resource": true,
           "context_window": "4K",
           "model_type": "llm",
-          "required_features": [
-            "shader-f16"
-          ]
+          "required_features": []
         }
       ]
     },
@@ -985,6 +1248,15 @@
       "label": "StableLM",
       "emoji": "🔩",
       "models": [
+        {
+          "model_id": "stablelm-2-zephyr-1_6b-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f16_1-MLC",
+          "vram": "2.0 GB",
+          "low_resource": false,
+          "context_window": "4K",
+          "model_type": "llm",
+          "required_features": []
+        },
         {
           "model_id": "stablelm-2-zephyr-1_6b-q4f32_1-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f32_1-MLC",
@@ -1010,9 +1282,7 @@
           "low_resource": true,
           "context_window": "1K",
           "model_type": "llm",
-          "required_features": [
-            "shader-f16"
-          ]
+          "required_features": []
         }
       ]
     },
@@ -1021,6 +1291,17 @@
       "label": "TinyLlama",
       "emoji": "🐣",
       "models": [
+        {
+          "model_id": "TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC",
+          "vram": "697 MB",
+          "low_resource": true,
+          "context_window": "2K",
+          "model_type": "llm",
+          "required_features": [
+            "shader-f16"
+          ]
+        },
         {
           "model_id": "TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC",
@@ -1051,6 +1332,17 @@
           "required_features": []
         },
         {
+          "model_id": "TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC",
+          "vram": "697 MB",
+          "low_resource": true,
+          "context_window": "2K",
+          "model_type": "llm",
+          "required_features": [
+            "shader-f16"
+          ]
+        },
+        {
           "model_id": "TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC",
           "vram": "840 MB",
@@ -1076,7 +1368,7 @@
           "vram": "796 MB",
           "low_resource": true,
           "context_window": "1K",
-          "model_type": "embedding",
+          "model_type": "llm",
           "required_features": []
         }
       ]
@@ -1086,6 +1378,17 @@
       "label": "RedPajama",
       "emoji": "🟥",
       "models": [
+        {
+          "model_id": "RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC",
+          "hf_url": "https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC",
+          "vram": "2.9 GB",
+          "low_resource": false,
+          "context_window": "2K",
+          "model_type": "llm",
+          "required_features": [
+            "shader-f16"
+          ]
+        },
         {
           "model_id": "RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC",
           "hf_url": "https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC",
@@ -1113,9 +1416,7 @@
           "low_resource": true,
           "context_window": "1K",
           "model_type": "llm",
-          "required_features": [
-            "shader-f16"
-          ]
+          "required_features": []
         }
       ]
     },
@@ -1124,6 +1425,15 @@
       "label": "Embedding",
       "emoji": "📐",
       "models": [
+        {
+          "model_id": "snowflake-arctic-embed-m-q0f32-MLC-b32",
+          "hf_url": "https://huggingface.co/mlc-ai/snowflake-arctic-embed-m-q0f32-MLC",
+          "vram": "1.4 GB",
+          "low_resource": false,
+          "context_window": null,
+          "model_type": "embedding",
+          "required_features": []
+        },
         {
           "model_id": "snowflake-arctic-embed-m-q0f32-MLC-b4",
           "hf_url": "https://huggingface.co/mlc-ai/snowflake-arctic-embed-m-q0f32-MLC",
@@ -1147,7 +1457,7 @@
           "hf_url": "https://huggingface.co/mlc-ai/snowflake-arctic-embed-s-q0f32-MLC",
           "vram": "239 MB",
           "low_resource": false,
-          "context_window": "4K",
+          "context_window": null,
           "model_type": "embedding",
           "required_features": []
         }
