@@ -6,8 +6,11 @@ import { ChatConfig, GenerationConfig, Role } from "./config";
 import { getConversation, Conversation } from "./conversation";
 import { LogitProcessor, LatencyBreakdown } from "./types";
 import {
+  getAudioEmbedSize,
   getChunkedPrefillInputData,
   getImageDataFromURL,
+  isImageInput,
+  MultimodalInput,
   getRGBArrayFromImageData,
   getTokenTableFromTokenizer,
   getTopProbs,
@@ -19,9 +22,11 @@ import {
   TopLogprob,
   ResponseFormat,
   ChatCompletionContentPartImage,
+  ChatCompletionContentPartInputAudio,
 } from "./openai_api_protocols/index";
 import {
   AttentionSinkSizeError,
+  CannotFindAudioEmbedError,
   ContextWindowSizeExceededError,
   MinValueError,
   RangeError,
@@ -29,11 +34,13 @@ import {
   WindowSizeSpecificationError,
   MessageOrderError,
   TextCompletionExpectsKVEmptyError,
+  PrefillChunkSizeSmallerThanAudioError,
   PrefillChunkSizeSmallerThanImageError,
   CannotFindImageEmbedError,
 } from "./error";
 
 type ImageURL = ChatCompletionContentPartImage.ImageURL;
+type InputAudio = ChatCompletionContentPartInputAudio.InputAudio;
 
 export class LLMChatPipeline {
   private config: ChatConfig;
@@ -46,6 +53,7 @@ export class LLMChatPipeline {
   private prefill: tvmjs.PackedFunc;
   private decoding: tvmjs.PackedFunc;
   private image_embed: tvmjs.PackedFunc | undefined;
+  private audio_embed: tvmjs.PackedFunc | undefined;
   private embed: tvmjs.PackedFunc;
   private fapplyBitmask: tvmjs.PackedFunc;
   private fapplyPenalty: tvmjs.PackedFunc;
@@ -230,6 +238,13 @@ export class LLMChatPipeline {
     } catch {
       log.info("Cannot find function image_embed.");
     }
+    try {
+      this.audio_embed = this.tvm.detachFromCurrentScope(
+        this.vm.getFunction("audio_embed"),
+      );
+    } catch {
+      log.info("Cannot find function audio_embed.");
+    }
 
     // 2. Get json stored in the vm's metadata function
     const fgetMetadata = this.vm.getFunction("_metadata");
@@ -350,6 +365,7 @@ export class LLMChatPipeline {
     this.prefill.dispose();
     this.embed.dispose();
     this.image_embed?.dispose();
+    this.audio_embed?.dispose();
     this.vm.dispose();
     this.kvCache.dispose();
     this.fclearKVCaches.dispose();
@@ -699,24 +715,40 @@ export class LLMChatPipeline {
       }
     }
     const retGetInputData = this.getInputData();
-    const inputData: Array<Array<number> | ImageURL> = retGetInputData[0];
+    const inputData: Array<Array<number> | MultimodalInput> =
+      retGetInputData[0];
     const promptLen: number = retGetInputData[1];
 
-    // Check if LLMChatPipeline fits for forwarding image input
+    // Check if LLMChatPipeline fits for forwarding multimodal input
     let hasImageInput = false;
+    let hasAudioInput = false;
     inputData.forEach((data) => {
       if (!Array.isArray(data)) {
-        hasImageInput = true;
+        if (isImageInput(data)) {
+          hasImageInput = true;
+          if (this.prefillChunkSize < IMAGE_EMBED_SIZE) {
+            throw new PrefillChunkSizeSmallerThanImageError(
+              this.prefillChunkSize,
+              IMAGE_EMBED_SIZE,
+            );
+          }
+        } else {
+          hasAudioInput = true;
+          const audioEmbedSize = getAudioEmbedSize(data);
+          if (this.prefillChunkSize < audioEmbedSize) {
+            throw new PrefillChunkSizeSmallerThanAudioError(
+              this.prefillChunkSize,
+              audioEmbedSize,
+            );
+          }
+        }
       }
     });
-    if (hasImageInput && this.prefillChunkSize < IMAGE_EMBED_SIZE) {
-      throw new PrefillChunkSizeSmallerThanImageError(
-        this.prefillChunkSize,
-        IMAGE_EMBED_SIZE,
-      );
-    }
     if (hasImageInput && this.image_embed === undefined) {
       throw new CannotFindImageEmbedError();
+    }
+    if (hasAudioInput && this.audio_embed === undefined) {
+      throw new CannotFindAudioEmbedError();
     }
 
     // 1. Chunk inputData to embed and forward in one shot for each, minimize intermediate data
@@ -724,7 +756,7 @@ export class LLMChatPipeline {
       inputData,
       this.prefillChunkSize,
     );
-    const chunks: Array<Array<number> | ImageURL>[] = retGetChunks[0];
+    const chunks: Array<Array<number> | MultimodalInput>[] = retGetChunks[0];
     const chunkLens: Array<number> = retGetChunks[1];
 
     // 2. Prefill each chunk
@@ -1030,7 +1062,45 @@ export class LLMChatPipeline {
   }
 
   /**
-   * Embed and forward input data, that can be either array of tokens, or an image.
+   * Embed an audio input (log-mel features).
+   */
+  private getAudioEmbeddings(inputAudio: InputAudio): tvmjs.Tensor {
+    this.tvm.beginScope();
+    const [numMelBins, featureSize] = inputAudio.shape;
+    const expectedFeatureLen = numMelBins * featureSize;
+    const inputFeatures =
+      inputAudio.data instanceof Float32Array
+        ? inputAudio.data
+        : new Float32Array(inputAudio.data);
+    if (inputFeatures.length !== expectedFeatureLen) {
+      throw new Error(
+        `InternalError: expect input_audio.data length to be ${expectedFeatureLen}, ` +
+          `but got ${inputFeatures.length}`,
+      );
+    }
+
+    const inputArray = this.tvm
+      .empty([numMelBins, featureSize], "float32", this.device)
+      .copyFrom(inputFeatures)
+      .view([1, numMelBins, featureSize]);
+    const embed: tvmjs.Tensor = this.tvm.detachFromCurrentScope(
+      this.audio_embed!(inputArray, this.params),
+    );
+
+    const expectedEmbedSize = getAudioEmbedSize(inputAudio);
+    if (embed.shape[0] !== expectedEmbedSize) {
+      throw new Error(
+        `InternalError: expect audio embed length ${expectedEmbedSize}, ` +
+          `but got ${embed.shape[0]}`,
+      );
+    }
+    this.tvm.endScope();
+    this.tvm.attachToCurrentScope(embed); // tracked by scope of embedAndForward
+    return embed;
+  }
+
+  /**
+   * Embed and forward input data, that can be either array of tokens or modal payload.
    * This will increment `this.filledKVCacheLength`.
    *
    * @param inputData data to embed and forward
@@ -1040,7 +1110,7 @@ export class LLMChatPipeline {
    * @note Precondition: inputData's data length is smaller than prefill chunk size
    */
   private async embedAndForward(
-    inputData: Array<Array<number> | ImageURL>,
+    inputData: Array<Array<number> | MultimodalInput>,
     inputDataLen: number,
   ): Promise<tvmjs.Tensor> {
     if (inputDataLen > this.prefillChunkSize) {
@@ -1049,7 +1119,7 @@ export class LLMChatPipeline {
       );
     }
     // TODO: we should combine string data to embed once, then rearrange the embeddings; currently
-    // ["hi", imageUrl, "hi"] would call embed kernels 3 times, while 2 would suffice.
+    // ["hi", modal, "hi"] would call embed kernels 3 times, while 2 would suffice.
 
     // 1. Embed all inputData
     this.tvm.beginScope();
@@ -1058,8 +1128,10 @@ export class LLMChatPipeline {
       const data = inputData[i];
       if (Array.isArray(data)) {
         embeddings.push(this.getTokensEmbeddings(data));
-      } else {
+      } else if (isImageInput(data)) {
         embeddings.push(await this.getImageEmbeddings(data));
+      } else {
+        embeddings.push(this.getAudioEmbeddings(data));
       }
     }
 
@@ -1493,11 +1565,11 @@ export class LLMChatPipeline {
   }
 
   /**
-   * Return the an array of a mixture of token arrays and imageURLs (which cannot be represented
-   * as tokens). Also return the number of tokens this represents.
+   * Return an array of token arrays and modal payloads (which cannot be represented as tokens).
+   * Also return the number of tokens this represents.
    *
    * We first convert the Conversation into a prompt array to be prefilled. Then we encode the
-   * text parts, leaving the imageURLs as it is.
+   * text parts, leaving multimodal payloads as-is.
    * Example prompts:
    * [
    *   "<|system|>\nSome system prompt\n",
@@ -1514,15 +1586,15 @@ export class LLMChatPipeline {
    * Expected output:
    * [
    *   token array for "<|system|>\nSome system prompt\n<|user|>\n",
-   *   imageUrl1,
+   *   media1,
    *   token array for "\n",
-   *   imageUrl2,
+   *   media2,
    *   token array for "\nSome user input<|end|>\n"
    */
-  private getInputData(): [Array<Array<number> | ImageURL>, number] {
-    const ret: Array<Array<number> | ImageURL> = [];
+  private getInputData(): [Array<Array<number> | MultimodalInput>, number] {
+    const ret: Array<Array<number> | MultimodalInput> = [];
     let curTokens: Array<number> = [];
-    let prompts: Array<string | Array<string | ImageURL>>;
+    let prompts: Array<string | Array<string | MultimodalInput>>;
 
     // 1. Get prompts
     if (this.conversation.isTextCompletion) {
@@ -1547,7 +1619,7 @@ export class LLMChatPipeline {
     }
 
     // 2. Encode all prompts. Iterate through each message in the prompt array, where each
-    // prompt can either be a string, or an array of a mixture of string and ImageURLs.
+    // prompt can either be a string, or an array of a mixture of string and modal payloads.
     let numPromptTokens = 0;
     for (let i = 0; i < prompts.length; i++) {
       const curPrompt = prompts[i];
@@ -1557,16 +1629,18 @@ export class LLMChatPipeline {
         curTokens.push(...encoded);
       } else {
         for (let j = 0; j < curPrompt.length; j++) {
-          const curPromptContent: string | ImageURL = curPrompt[j];
+          const curPromptContent: string | MultimodalInput = curPrompt[j];
           if (typeof curPromptContent === "string") {
             const encoded = this.tokenizer.encode(curPromptContent);
             numPromptTokens += encoded.length;
             curTokens.push(...encoded);
           } else {
-            // push curTokens to ret, push imageUrl, create a new curTokens
+            // push curTokens to ret, push modal payload, create a new curTokens
             ret.push([...curTokens]);
             ret.push(curPromptContent);
-            numPromptTokens += IMAGE_EMBED_SIZE;
+            numPromptTokens += isImageInput(curPromptContent)
+              ? IMAGE_EMBED_SIZE
+              : getAudioEmbedSize(curPromptContent);
             curTokens = [];
           }
         }
@@ -1602,7 +1676,7 @@ export class LLMChatPipeline {
       inputData,
       this.prefillChunkSize,
     );
-    const chunks: Array<Array<number> | ImageURL>[] = retGetChunks[0];
+    const chunks: Array<Array<number> | MultimodalInput>[] = retGetChunks[0];
     const chunkLens: Array<number> = retGetChunks[1];
 
     // 2. Prefill each chunk

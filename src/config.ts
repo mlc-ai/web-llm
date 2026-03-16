@@ -233,6 +233,7 @@ export enum ModelType {
   "LLM",
   "embedding",
   "VLM", // vision-language model
+  "ALM", // audio-language model
 }
 
 /**

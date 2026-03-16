@@ -28,6 +28,7 @@ import {
 import {
   CustomResponseFormatError,
   CustomSystemPromptError,
+  InvalidInputAudioError,
   InvalidResponseFormatError,
   InvalidResponseFormatGrammarError,
   InvalidResponseFormatStructuralTagError,
@@ -437,8 +438,11 @@ export function postInitAndCheckFields(
     (message: ChatCompletionMessageParam, index: number) => {
       // Check content array messages (that are not simple string)
       if (message.role === "user" && typeof message.content !== "string") {
-        if (currentModelType !== ModelType.VLM) {
-          // Only VLM can handle non-string content (i.e. message with image)
+        if (
+          currentModelType !== ModelType.VLM &&
+          currentModelType !== ModelType.ALM
+        ) {
+          // Only multimodal models can handle non-string content.
           throw new UserMessageContentErrorForNonVLM(
             currentModelId,
             ModelType[currentModelType],
@@ -458,6 +462,42 @@ export function postInitAndCheckFields(
             const url = curContent.image_url.url;
             if (!url.startsWith("data:image") && !url.startsWith("http")) {
               throw new UnsupportedImageURLError(url);
+            }
+          } else if (curContent.type === "input_audio") {
+            const shape = curContent.input_audio.shape;
+            if (shape.length !== 2) {
+              throw new InvalidInputAudioError(
+                `shape must have length 2, but got: ${shape.length}`,
+              );
+            }
+            const [numMelBins, featureSize] = shape;
+            if (
+              !Number.isInteger(numMelBins) ||
+              !Number.isInteger(featureSize) ||
+              numMelBins <= 0 ||
+              featureSize <= 0
+            ) {
+              throw new InvalidInputAudioError(
+                `shape must be positive integers, but got: [${numMelBins}, ${featureSize}]`,
+              );
+            }
+
+            const dataLength = curContent.input_audio.data.length;
+            if (dataLength !== numMelBins * featureSize) {
+              throw new InvalidInputAudioError(
+                `data length (${dataLength}) does not match shape product ` +
+                  `(${numMelBins * featureSize})`,
+              );
+            }
+
+            const embedSize = curContent.input_audio.embed_size;
+            if (
+              embedSize !== undefined &&
+              (!Number.isInteger(embedSize) || embedSize <= 0)
+            ) {
+              throw new InvalidInputAudioError(
+                `embed_size must be a positive integer, but got: ${embedSize}`,
+              );
             }
           } else {
             numTextContent += 1;
@@ -608,7 +648,8 @@ export function postInitAndCheckFields(
 
 export type ChatCompletionContentPart =
   | ChatCompletionContentPartText
-  | ChatCompletionContentPartImage;
+  | ChatCompletionContentPartImage
+  | ChatCompletionContentPartInputAudio;
 
 export interface ChatCompletionContentPartText {
   /**
@@ -642,6 +683,33 @@ export interface ChatCompletionContentPartImage {
    * The type of the content part.
    */
   type: "image_url";
+}
+
+export namespace ChatCompletionContentPartInputAudio {
+  export interface InputAudio {
+    /**
+     * Flattened log-mel audio features.
+     */
+    data: Array<number> | Float32Array;
+
+    /**
+     * Shape of `data` as [num_mel_bins, feature_size].
+     */
+    shape: [number, number];
+
+    /**
+     * Optional explicit output embed size. If omitted, runtime infers from shape.
+     */
+    embed_size?: number;
+  }
+}
+
+export interface ChatCompletionContentPartInputAudio {
+  input_audio: ChatCompletionContentPartInputAudio.InputAudio;
+  /**
+   * The type of the content part.
+   */
+  type: "input_audio";
 }
 
 //////////////////////////////// 1.2. MESSAGE TOOL CALL ////////////////////////////////

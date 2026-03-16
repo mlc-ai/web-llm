@@ -134,7 +134,8 @@ export class UnsupportedRoleError extends Error {
 export class UserMessageContentErrorForNonVLM extends Error {
   constructor(modelId: string, modelType: string, content: any) {
     super(
-      `The model loaded is not of type ModelType.VLM (vision-language model). ` +
+      `The model loaded is not a multimodal model (` +
+        `ModelType.VLM / ModelType.ALM). ` +
         `Therefore, user message only supports string content, but received: ${content}\n` +
         `Loaded modelId: ${modelId}, modelType: ${modelType}`,
     );
@@ -178,6 +179,34 @@ export class UnsupportedImageURLError extends Error {
       `image_url.url should start with "data:image" for base64, or with "http", but got: ${url}`,
     );
     this.name = "UnsupportedImageURLError";
+  }
+}
+
+export class PrefillChunkSizeSmallerThanAudioError extends Error {
+  constructor(prefillChunkSize: number, audioEmbedSize: number) {
+    super(
+      `prefillChunkSize needs to be greater than audioEmbedSize because a single audio's ` +
+        `prefill cannot be chunked. Got prefillChunkSize: ` +
+        `${prefillChunkSize}, audioEmbedSize: ${audioEmbedSize}`,
+    );
+    this.name = "PrefillChunkSizeSmallerThanAudioError";
+  }
+}
+
+export class CannotFindAudioEmbedError extends Error {
+  constructor() {
+    super(
+      `Received audio input but model does not have kernel audio_embed. ` +
+        `Make sure to only pass in audio to an audio-conditioned model.`,
+    );
+    this.name = "CannotFindAudioEmbedError";
+  }
+}
+
+export class InvalidInputAudioError extends Error {
+  constructor(reason: string) {
+    super(`Invalid input_audio payload: ${reason}`);
+    this.name = "InvalidInputAudioError";
   }
 }
 

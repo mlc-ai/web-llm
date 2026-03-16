@@ -13,7 +13,10 @@ import {
 } from "../src/support";
 import { areChatOptionsListEqual } from "../src/utils";
 import { MLCEngine } from "../src/engine";
-import { ChatCompletionContentPartImage } from "../src/openai_api_protocols";
+import {
+  ChatCompletionContentPartImage,
+  ChatCompletionContentPartInputAudio,
+} from "../src/openai_api_protocols";
 import { test, expect, describe } from "@jest/globals";
 
 describe("Check getTopLogprobs correctness", () => {
@@ -326,9 +329,14 @@ describe("Test getChunkedPrefillInputData", () => {
   const rangeArr = (start: number, end: number) =>
     Array.from({ length: end - start }, (v, k) => k + start);
   type ImageURL = ChatCompletionContentPartImage.ImageURL;
+  type InputAudio = ChatCompletionContentPartInputAudio.InputAudio;
   const prefillChunkSize = 2048;
   const image1 = { url: "url1" } as ImageURL;
   const image2 = { url: "url2" } as ImageURL;
+  const audio1 = {
+    data: new Float32Array(128 * 3000).fill(0),
+    shape: [128, 3000],
+  } as InputAudio;
 
   test("With image data", async () => {
     const inputData = [
@@ -403,6 +411,15 @@ describe("Test getChunkedPrefillInputData", () => {
     const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
     const expectedChunks = [[image1, rangeArr(0, 127)], [image2]];
     const expectedChunkLens = [2048, 1921];
+    expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
+  });
+
+  test("Audio data respects inferred audio embed size in chunking", async () => {
+    const inputData = [rangeArr(0, 1500), audio1];
+    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const expectedChunks = [[rangeArr(0, 1500)], [audio1]];
+    // audio embed size for shape [128, 3000]: floor(floor((3000 + 1) / 2) / 2) = 750
+    const expectedChunkLens = [1500, 750];
     expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
   });
 });

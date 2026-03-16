@@ -28,6 +28,7 @@ export {
   ChatCompletionContentPart,
   ChatCompletionContentPartText,
   ChatCompletionContentPartImage,
+  ChatCompletionContentPartInputAudio,
   ChatCompletionMessageToolCall,
   ChatCompletionRole,
   ChatCompletionSystemMessageParam,

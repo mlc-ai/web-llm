@@ -7,6 +7,7 @@ import {
 import {
   ChatCompletionContentPart,
   ChatCompletionContentPartImage,
+  ChatCompletionContentPartInputAudio,
   ChatCompletionMessageParam,
   ChatCompletionRequest,
 } from "./openai_api_protocols/index";
@@ -25,6 +26,8 @@ import {
 } from "./error";
 
 type ImageURL = ChatCompletionContentPartImage.ImageURL;
+type InputAudio = ChatCompletionContentPartInputAudio.InputAudio;
+type MultimodalInput = ImageURL | InputAudio;
 
 /**
  * Helper to keep track of history conversations.
@@ -67,7 +70,7 @@ export class Conversation {
   private getPromptArrayInternal(
     addSystem: boolean,
     startPos: number,
-  ): Array<string | Array<string | ImageURL>> {
+  ): Array<string | Array<string | MultimodalInput>> {
     if (this.config.seps.length == 0) {
       throw Error("Need seps to work");
     }
@@ -82,7 +85,7 @@ export class Conversation {
       MessagePlaceholders.system,
       system_message,
     );
-    const ret: Array<string | Array<string | ImageURL>> =
+    const ret: Array<string | Array<string | MultimodalInput>> =
       addSystem && system_prompt !== "" ? [system_prompt] : [];
 
     // Process each message in this.messages
@@ -126,7 +129,7 @@ export class Conversation {
       // 3. Each messageContent consists of one textPart, and >= 0 imageParts, regardless whether
       // it is Array<ChatCompletionContentPart> or text message. So we extract out each.
       let textContentPart = ""; // if no textPart, use an empty string
-      const imageContentParts: ImageURL[] = [];
+      const multimodalContentParts: MultimodalInput[] = [];
       if (Array.isArray(messageContent)) {
         // 2.1 content is Array<ChatCompletionContentPart>
         // Iterate through the contentParts, get the text and list of images. There should
@@ -140,8 +143,10 @@ export class Conversation {
             }
             textContentPart = curContentPart.text;
             seenText = true;
+          } else if (curContentPart.type === "image_url") {
+            multimodalContentParts.push(curContentPart.image_url);
           } else {
-            imageContentParts.push(curContentPart.image_url);
+            multimodalContentParts.push(curContentPart.input_audio);
           }
         }
       } else {
@@ -185,7 +190,7 @@ export class Conversation {
       }
 
       // 4. Combine everything together
-      if (imageContentParts.length === 0) {
+      if (multimodalContentParts.length === 0) {
         // If no image, just a single string to represent this message
         ret.push(
           role_prefix +
@@ -193,13 +198,12 @@ export class Conversation {
             this.config.seps[i % this.config.seps.length],
         );
       } else {
-        // If has image input, currently we hard code it to Phi3.5-vision's format:
-        // `<|user|>\n<|image_1|>\n<|image_2|>\n{prompt}<|end|>\n`
+        // If has multimodal input, format as role prefix + alternating media/newline + text.
         // So we will return a list for this:
-        // [`<|user|>\n`, imageUrl1, `\n`, imageUrl2, `\n`, `{prompt}<|end|>\n`]
-        const curMessageList: Array<string | ImageURL> = [role_prefix];
-        imageContentParts.forEach((curImage: ImageURL) => {
-          curMessageList.push(curImage);
+        // [`<|user|>\n`, media1, `\n`, media2, `\n`, `{prompt}<|end|>\n`]
+        const curMessageList: Array<string | MultimodalInput> = [role_prefix];
+        multimodalContentParts.forEach((curMedia: MultimodalInput) => {
+          curMessageList.push(curMedia);
           curMessageList.push("\n");
         });
         curMessageList.push(
@@ -214,10 +218,11 @@ export class Conversation {
   /**
    * Get prompt arrays with the first one as system.
    *
-   * It is returned as an array of `string | Array<string | ImageURL>`, where each element of
+   * It is returned as an array of `string | Array<string | MultimodalInput>`, where each element of
    * the array represents the formatted message of a role/turn. If the message only contains text,
    * it will be a string that concatenates the role string, message, and separators. If the
-   * message contains image(s), it will be an array of string and ImageURL in the order of which
+   * message contains multimodal input(s), it will be an array of string and media payloads
+   * in the order of which
    * they will be prefilled into the model. e.g. it can be something like
    * [
    *   "<|system|>\nSome system prompt\n",
@@ -233,7 +238,7 @@ export class Conversation {
    *
    * @returns The prompt array.
    */
-  getPromptArray(): Array<string | Array<string | ImageURL>> {
+  getPromptArray(): Array<string | Array<string | MultimodalInput>> {
     if (this.isTextCompletion) {
       throw new TextCompletionConversationError("getPromptArray");
     }
@@ -440,8 +445,36 @@ export function compareConversationObject(
             ) {
               return false;
             }
+          } else if (
+            entryA_k.type === "input_audio" &&
+            entryB_k.type === "input_audio"
+          ) {
+            // Case 3.3: both are input_audio
+            const shapeA = entryA_k.input_audio.shape;
+            const shapeB = entryB_k.input_audio.shape;
+            if (shapeA[0] !== shapeB[0] || shapeA[1] !== shapeB[1]) {
+              return false;
+            }
+
+            if (
+              entryA_k.input_audio.embed_size !==
+              entryB_k.input_audio.embed_size
+            ) {
+              return false;
+            }
+
+            const dataA = entryA_k.input_audio.data;
+            const dataB = entryB_k.input_audio.data;
+            if (dataA.length !== dataB.length) {
+              return false;
+            }
+            for (let t = 0; t < dataA.length; ++t) {
+              if (dataA[t] !== dataB[t]) {
+                return false;
+              }
+            }
           } else {
-            // Case 3.3: of different type
+            // Case 3.4: of different type
             return false;
           }
         }

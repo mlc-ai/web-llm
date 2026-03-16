@@ -12,6 +12,7 @@ import {
 } from "./constants";
 import {
   ChatCompletionContentPartImage,
+  ChatCompletionContentPartInputAudio,
   ChatCompletionMessageParam,
   ChatCompletionRequest,
 } from "../src/openai_api_protocols";
@@ -300,6 +301,47 @@ describe("Test getConversationFromChatCompletionRequest with image", () => {
         `${dummyRequestStr}<|end|>\n`,
       ],
       `<|assistant|>\n`,
+    ]);
+  });
+});
+
+describe("Test getConversationFromChatCompletionRequest with input_audio", () => {
+  type InputAudio = ChatCompletionContentPartInputAudio.InputAudio;
+  const dummySystemPromptStr = "dummy system prompt.";
+  const dummyRequestStr = "dummy request.";
+  const audioFeatures: InputAudio = {
+    data: [0, 1, 2, 3],
+    shape: [2, 2],
+  };
+
+  test("Prompt array keeps input_audio payload in-order", () => {
+    const config_json = JSON.parse(phi3_5VisionChatConfigJSONString);
+    const config = { ...config_json } as ChatConfig;
+    const messages: ChatCompletionMessageParam[] = [
+      {
+        role: "system",
+        content: dummySystemPromptStr,
+      },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: dummyRequestStr },
+          {
+            type: "input_audio",
+            input_audio: audioFeatures,
+          },
+        ],
+      },
+    ];
+    const request: ChatCompletionRequest = { messages };
+    const conv = getConversationFromChatCompletionRequest(
+      request,
+      config,
+      true,
+    );
+    expect(conv.getPromptArray()).toEqual([
+      dummySystemPromptStr,
+      [`<|user|>\n`, audioFeatures, `\n`, `${dummyRequestStr}<|end|>\n`],
     ]);
   });
 });
