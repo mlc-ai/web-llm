@@ -383,21 +383,11 @@ openssl dgst -sha384 -binary <file> | openssl base64 -A | sed 's/^/sha384-/'
 openssl dgst -sha512 -binary <file> | openssl base64 -A | sed 's/^/sha512-/'
 ```
 
-Or use [`verifyfetch`](https://github.com/hamzaydia/verifyfetch) for a simpler, cross-platform workflow:
-
-```bash
-npx verifyfetch sign <file>
-```
-
-> The `openssl` commands require a Unix-like shell (macOS/Linux). On Windows, use `npx verifyfetch sign` or run `openssl` via [Git Bash](https://gitforwindows.org/) or [WSL](https://learn.microsoft.com/en-us/windows/wsl/).
+> The `openssl` commands require a Unix-like shell (macOS/Linux). On Windows, run `openssl` via [Git Bash](https://gitforwindows.org/) or [WSL](https://learn.microsoft.com/en-us/windows/wsl/).
 
 If a hash does not match, an `IntegrityError` is thrown (or a warning is logged when `onFailure: "warn"`).
 All fields in `integrity` are optional — only specified artifacts will be verified.
 When the `integrity` field is omitted entirely, WebLLM behaves exactly as before (no verification).
-
-For advanced integrity features including **model weight verification**, **resumable downloads**,
-**chunked verification**, and **progress reporting**, see
-[`@verifyfetch/webllm`](https://github.com/hamzaydia/verifyfetch/tree/main/packages/webllm).
 
 See the [integrity-verification example](examples/integrity-verification/) for a complete working demo.
 
