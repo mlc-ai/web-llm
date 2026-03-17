@@ -614,14 +614,14 @@ export class ReloadModelIdNotUniqueError extends Error {
 
 export class IntegrityError extends Error {
   constructor(
-    public readonly url: string,
-    public readonly expected: string,
-    public readonly actual: string,
+    readonly url: string,
+    readonly expected: string,
+    readonly actual: string,
   ) {
     super(
       `Integrity verification failed for ${url}\n` +
         `  Expected: ${expected}\n` +
-        `  Got:      ${actual}\n` +
+        `  Actual: ${actual}\n` +
         `This may indicate file corruption or tampering.`,
     );
     this.name = "IntegrityError";
