@@ -30,13 +30,67 @@ export interface ModelIntegrity {
   onFailure?: "error" | "warn";
 }
 
+type SRIAlgorithm = "sha256" | "sha384" | "sha512";
+
 const SRI_REGEX = /^(sha256|sha384|sha512)-([A-Za-z0-9+/]+={0,2})$/;
 
-const ALGO_MAP: Record<string, string> = {
+const SRI_HASH_BYTE_LENGTH: Record<SRIAlgorithm, number> = {
+  sha256: 32,
+  sha384: 48,
+  sha512: 64,
+};
+
+const ALGO_MAP: Record<SRIAlgorithm, string> = {
   sha256: "SHA-256",
   sha384: "SHA-384",
   sha512: "SHA-512",
 };
+
+function getDecodedBase64ByteLength(base64: string): number | null {
+  const length = base64.length;
+  const remainder = length % 4;
+  if (remainder === 1) {
+    return null;
+  }
+
+  const paddingMatch = base64.match(/=+$/);
+  const padding = paddingMatch ? paddingMatch[0].length : 0;
+  if (padding > 2) {
+    return null;
+  }
+  if (padding > 0 && remainder !== 0) {
+    return null;
+  }
+
+  const fullQuartets = Math.floor(length / 4);
+  let decodedLength = fullQuartets * 3;
+
+  if (padding > 0) {
+    decodedLength -= padding;
+  } else if (remainder === 2) {
+    decodedLength += 1;
+  } else if (remainder === 3) {
+    decodedLength += 2;
+  }
+
+  return decodedLength;
+}
+
+function parseSRI(sri: string): { algo: SRIAlgorithm; hash: string } | null {
+  const match = sri.match(SRI_REGEX);
+  if (!match) {
+    return null;
+  }
+
+  const algo = match[1] as SRIAlgorithm;
+  const hash = match[2];
+  const decodedLength = getDecodedBase64ByteLength(hash);
+  if (decodedLength !== SRI_HASH_BYTE_LENGTH[algo]) {
+    return null;
+  }
+
+  return { algo, hash };
+}
 
 /**
  * Verify an ArrayBuffer against an SRI hash using the Web Crypto API.
@@ -53,15 +107,15 @@ export async function verifyIntegrity(
   url: string,
   onFailure: "error" | "warn" = "error",
 ): Promise<void> {
-  const match = expectedSRI.match(SRI_REGEX);
-  if (!match) {
+  const parsed = parseSRI(expectedSRI);
+  if (!parsed) {
     throw new Error(
       `Invalid SRI hash format: "${expectedSRI}". ` +
         `Expected format: "sha256-BASE64", "sha384-BASE64", or "sha512-BASE64".`,
     );
   }
 
-  const [, algo, expectedHash] = match;
+  const { algo, hash: expectedHash } = parsed;
   const hashBuffer = await crypto.subtle.digest(ALGO_MAP[algo], data);
   const hashArray = new Uint8Array(hashBuffer);
 
@@ -92,5 +146,5 @@ export async function verifyIntegrity(
  * @returns `true` if `sri` matches the SRI format.
  */
 export function isValidSRI(sri: string): boolean {
-  return SRI_REGEX.test(sri);
+  return parseSRI(sri) !== null;
 }

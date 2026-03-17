@@ -1,5 +1,6 @@
 import { verifyIntegrity, isValidSRI } from "../src/integrity";
 import { IntegrityError } from "../src/error";
+import { describe, test, expect, jest } from "@jest/globals";
 
 // Helper: compute an SRI hash for a given string
 async function computeSRI(
@@ -19,6 +20,14 @@ async function computeSRI(
   return `${algoPrefix}-${base64}`;
 }
 
+function base64ForByteLength(byteLength: number): string {
+  let binary = "";
+  for (let i = 0; i < byteLength; i++) {
+    binary += String.fromCharCode(0);
+  }
+  return btoa(binary);
+}
+
 describe("isValidSRI", () => {
   test("accepts valid sha256 SRI", () => {
     expect(
@@ -34,12 +43,9 @@ describe("isValidSRI", () => {
     ).toBe(true);
   });
 
-  test("accepts valid sha512 SRI", () => {
-    expect(
-      isValidSRI(
-        "sha512-wVJ82JPBJHc9gRkRlwyP5uhX1t9dySJr2KFgYUwM2WOk3eorlLt9NgIe+dhl1c2goJO2nQE1hOwRs0AN/Y30Q==",
-      ),
-    ).toBe(true);
+  test("accepts valid sha512 SRI", async () => {
+    const sri = await computeSRI("WebLLM", "SHA-512");
+    expect(isValidSRI(sri)).toBe(true);
   });
 
   test("rejects invalid algorithm", () => {
@@ -64,6 +70,15 @@ describe("isValidSRI", () => {
     // Valid base64 has at most 2 padding characters
     expect(isValidSRI("sha256-abc===")).toBe(false);
     expect(isValidSRI("sha256-abc====")).toBe(false);
+  });
+
+  test("rejects algorithm/hash decoded-length mismatch", () => {
+    const sha512Hash = base64ForByteLength(64);
+    expect(isValidSRI(`sha256-${sha512Hash}`)).toBe(false);
+  });
+
+  test("rejects invalid padded base64 quantum", () => {
+    expect(isValidSRI("sha256-A=")).toBe(false);
   });
 });
 
@@ -222,6 +237,17 @@ describe("verifyIntegrity", () => {
     ).rejects.toThrow("Invalid SRI hash format");
   });
 
+  test("throws on algorithm/hash decoded-length mismatch", async () => {
+    const sha512Hash = base64ForByteLength(64);
+    await expect(
+      verifyIntegrity(
+        testBuffer,
+        `sha256-${sha512Hash}`,
+        "https://example.com/file",
+      ),
+    ).rejects.toThrow("Invalid SRI hash format");
+  });
+
   test("throws on sha1 (unsupported algorithm)", async () => {
     await expect(
       verifyIntegrity(testBuffer, "sha1-abc123", "https://example.com/file"),
@@ -256,15 +282,13 @@ describe("verifyIntegrity", () => {
   });
 
   test("rejects when data is modified after hash computation", async () => {
-    // Compute hash of original data, then modify data and verify it fails
     const originalData = new Uint8Array([1, 2, 3, 4, 5]);
     const sri = await computeSRI(
       String.fromCharCode(...originalData),
       "SHA-256",
     );
 
-    // Modify the data
-    const modifiedData = new Uint8Array([1, 2, 3, 4, 6]); // changed last byte
+    const modifiedData = new Uint8Array([1, 2, 3, 4, 6]);
     await expect(
       verifyIntegrity(
         modifiedData.buffer,
@@ -297,9 +321,7 @@ describe("verifyIntegrity", () => {
       actual2 = (err as IntegrityError).actual;
     }
 
-    // The actual hashes should be different because the data is different
     expect(actual1).not.toBe(actual2);
-    // Both should be valid sha256 SRIs
     expect(isValidSRI(actual1) && isValidSRI(actual2)).toBe(true);
   });
 });
