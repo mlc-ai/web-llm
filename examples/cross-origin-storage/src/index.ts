@@ -75,7 +75,7 @@ async function checkStatus() {
       );
     } else {
       cosStatus.className = "status-card status-warn";
-      cosStatus.querySelector(".text")!.textContent = "Not Found (Using Mock)";
+      cosStatus.querySelector(".text")!.textContent = "Not Found";
       log("Cross-Origin Storage API not found.", "warn");
     }
   }
@@ -96,7 +96,7 @@ async function initEngine() {
   const appConfig: webllm.AppConfig = {
     ...webllm.prebuiltAppConfig,
     useCrossOriginStorageCache: true,
-    useIndexedDBCache: true, // Primary cache fallback
+    useIndexedDBCache: false, // Primary cache fallback
   };
 
   try {

@@ -1,224 +1,278 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>WebLLM - Cross-Origin Storage Demo</title>
     <style>
-        :root {
-            --primary: #6366f1;
-            --primary-hover: #4f46e5;
-            --bg: #0f172a;
-            --card-bg: #1e293b;
-            --text: #f8fafc;
-            --text-muted: #94a3b8;
-            --border: #334155;
-            --success: #22c55e;
-            --error: #ef4444;
-            --warning: #f59e0b;
-        }
+      :root {
+        --primary: #6366f1;
+        --primary-hover: #4f46e5;
+        --bg: #0f172a;
+        --card-bg: #1e293b;
+        --text: #f8fafc;
+        --text-muted: #94a3b8;
+        --border: #334155;
+        --success: #22c55e;
+        --error: #ef4444;
+        --warning: #f59e0b;
+      }
 
-        body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-            padding: 2rem;
-        }
+      body {
+        font-family:
+          "Inter",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        background-color: var(--bg);
+        color: var(--text);
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        padding: 2rem;
+      }
 
-        .container {
-            max-width: 800px;
-            width: 100%;
-        }
+      .container {
+        max-width: 800px;
+        width: 100%;
+      }
 
-        header {
-            text-align: center;
-            margin-bottom: 3rem;
-        }
+      header {
+        text-align: center;
+        margin-bottom: 3rem;
+      }
 
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
-            background: linear-gradient(to right, #818cf8, #c084fc);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+      h1 {
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+        background: linear-gradient(to right, #818cf8, #c084fc);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
 
-        .status-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
+      .status-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin-bottom: 2rem;
+      }
 
-        .status-card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border);
-            padding: 1.5rem;
-            border-radius: 1rem;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
+      .status-card {
+        background-color: var(--card-bg);
+        border: 1px solid var(--border);
+        padding: 1.5rem;
+        border-radius: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
 
-        .status-label {
-            font-size: 0.875rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
+      .status-label {
+        font-size: 0.875rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
 
-        .status-value {
-            font-weight: 600;
-            font-size: 1.125rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
+      .status-value {
+        font-weight: 600;
+        font-size: 1.125rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
 
-        .status-indicator {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background-color: var(--border);
-        }
+      .status-indicator {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background-color: var(--border);
+      }
 
-        .status-ok .status-indicator { background-color: var(--success); }
-        .status-error .status-indicator { background-color: var(--error); }
-        .status-warn .status-indicator { background-color: var(--warning); }
+      .status-ok .status-indicator {
+        background-color: var(--success);
+      }
+      .status-error .status-indicator {
+        background-color: var(--error);
+      }
+      .status-warn .status-indicator {
+        background-color: var(--warning);
+      }
 
-        .control-panel {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border);
-            padding: 2rem;
-            border-radius: 1rem;
-            margin-bottom: 2rem;
-        }
+      .control-panel {
+        background-color: var(--card-bg);
+        border: 1px solid var(--border);
+        padding: 2rem;
+        border-radius: 1rem;
+        margin-bottom: 2rem;
+      }
 
-        .button-group {
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
+      .button-group {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
 
-        button {
-            background-color: var(--primary);
-            color: white;
-            border: none;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.5rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 1rem;
-        }
+      button {
+        background-color: var(--primary);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 1rem;
+      }
 
-        button:hover {
-            background-color: var(--primary-hover);
-            transform: translateY(-1px);
-        }
+      button:hover {
+        background-color: var(--primary-hover);
+        transform: translateY(-1px);
+      }
 
-        button:disabled {
-            background-color: var(--border);
-            cursor: not-allowed;
-            transform: none;
-        }
+      button:disabled {
+        background-color: var(--border);
+        cursor: not-allowed;
+        transform: none;
+      }
 
-        button.secondary {
-            background-color: transparent;
-            border: 1px solid var(--border);
-            color: var(--text);
-        }
+      button.secondary {
+        background-color: transparent;
+        border: 1px solid var(--border);
+        color: var(--text);
+      }
 
-        button.secondary:hover {
-            background-color: var(--border);
-        }
+      button.secondary:hover {
+        background-color: var(--border);
+      }
 
-        .log-container {
-            background-color: #000;
-            color: #00ff00;
-            font-family: 'Fira Code', 'Courier New', monospace;
-            padding: 1rem;
-            border-radius: 0.5rem;
-            height: 300px;
-            overflow-y: auto;
-            font-size: 0.875rem;
-            border: 1px solid var(--border);
-        }
+      .log-container {
+        background-color: #000;
+        color: #00ff00;
+        font-family: "Fira Code", "Courier New", monospace;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        height: 300px;
+        overflow-y: auto;
+        font-size: 0.875rem;
+        border: 1px solid var(--border);
+      }
 
-        .log-entry { margin-bottom: 0.25rem; }
-        .log-cos { color: #818cf8; }
-        .log-error { color: var(--error); }
-        .log-warn { color: var(--warning); }
+      .log-entry {
+        margin-bottom: 0.25rem;
+      }
+      .log-cos {
+        color: #818cf8;
+      }
+      .log-error {
+        color: var(--error);
+      }
+      .log-warn {
+        color: var(--warning);
+      }
 
-        .info-text {
-            margin-top: 2rem;
-            color: var(--text-muted);
-            font-size: 0.875rem;
-            line-height: 1.5;
-        }
+      .info-text {
+        margin-top: 2rem;
+        color: var(--text-muted);
+        font-size: 0.875rem;
+        line-height: 1.5;
+      }
 
-        code {
-            background-color: var(--border);
-            padding: 0.2rem 0.4rem;
-            border-radius: 0.25rem;
-            font-family: monospace;
-            color: #e2e8f0;
-        }
+      code {
+        background-color: var(--border);
+        padding: 0.2rem 0.4rem;
+        border-radius: 0.25rem;
+        font-family: monospace;
+        color: #e2e8f0;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <header>
-            <h1>WebLLM COS Demo</h1>
-            <p>Testing Cross-Origin Storage Integration</p>
-        </header>
+      <header>
+        <h1>WebLLM COS Demo</h1>
+        <p>Testing Cross-Origin Storage Integration</p>
+      </header>
 
-        <div class="status-grid">
-            <div id="webgpu-status" class="status-card">
-                <span class="status-label">WebGPU Support</span>
-                <span class="status-value">
-                    <div class="status-indicator"></div>
-                    <span class="text">Checking...</span>
-                </span>
-            </div>
-            <div id="cos-status" class="status-card">
-                <span class="status-label">COS Integration</span>
-                <span class="status-value">
-                    <div class="status-indicator"></div>
-                    <span class="text">Checking...</span>
-                </span>
-            </div>
+      <div class="status-grid">
+        <div id="webgpu-status" class="status-card">
+          <span class="status-label">WebGPU Support</span>
+          <span class="status-value">
+            <div class="status-indicator"></div>
+            <span class="text">Checking...</span>
+          </span>
         </div>
+        <div id="cos-status" class="status-card">
+          <span class="status-label">COS Integration</span>
+          <span class="status-value">
+            <div class="status-indicator"></div>
+            <span class="text">Checking...</span>
+          </span>
+        </div>
+      </div>
 
-        <div class="control-panel">
-            <div style="margin-bottom: 1rem;">
-                <label for="model-select" style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem; color: var(--text-muted);">Model</label>
-                <select id="model-select" style="width: 100%; padding: 0.5rem; border-radius: 0.25rem; background: var(--bg); color: white; border: 1px solid var(--border);">
-                    <option value="Qwen2-0.5B-Instruct-q4f16_1-MLC">Qwen2-0.5B-Instruct-q4f16_1-MLC (Smallest)</option>
-                    <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama-3.2-1B-Instruct-q4f16_1-MLC</option>
-                </select>
-            </div>
-            <div class="button-group">
-                <button id="init-btn">Initialize Engine</button>
-                <button id="chat-btn" disabled>Run Simple Chat</button>
-                <button id="clear-cache-btn" class="secondary">Clear Cache</button>
-            </div>
+      <div class="control-panel">
+        <div style="margin-bottom: 1rem">
+          <label
+            for="model-select"
+            style="
+              display: block;
+              margin-bottom: 0.5rem;
+              font-size: 0.875rem;
+              color: var(--text-muted);
+            "
+            >Model</label
+          >
+          <select
+            id="model-select"
+            style="
+              width: 100%;
+              padding: 0.5rem;
+              border-radius: 0.25rem;
+              background: var(--bg);
+              color: white;
+              border: 1px solid var(--border);
+            "
+          >
+            <option value="Qwen2-0.5B-Instruct-q4f16_1-MLC">
+              Qwen2-0.5B-Instruct-q4f16_1-MLC (Smallest)
+            </option>
+            <option value="Llama-3.2-1B-Instruct-q4f16_1-MLC">
+              Llama-3.2-1B-Instruct-q4f16_1-MLC
+            </option>
+          </select>
         </div>
+        <div class="button-group">
+          <button id="init-btn">Initialize Engine</button>
+          <button id="chat-btn" disabled>Run Simple Chat</button>
+          <button id="clear-cache-btn" class="secondary">Clear Cache</button>
+        </div>
+      </div>
 
-        <div id="logs" class="log-container">
-            <div class="log-entry">System initialized. Click "Initialize Engine" to start.</div>
+      <div id="logs" class="log-container">
+        <div class="log-entry">
+          System initialized. Click "Initialize Engine" to start.
         </div>
+      </div>
 
-        <div class="info-text">
-            <p><strong>How it works:</strong> When <code>useCrossOriginStorageCache</code> is enabled, WebLLM will attempt to store and retrieve model shards using the experimental Cross-Origin Storage API. This allows multiple domains to share the same cached model files, significantly reducing download times.</p>
-            <p>Look for <code>[COS]</code> prefixes in the logs to see the integration in action.</p>
-        </div>
+      <div class="info-text">
+        <p>
+          <strong>How it works:</strong> When
+          <code>useCrossOriginStorageCache</code> is enabled, WebLLM will
+          attempt to store and retrieve model shards using the experimental
+          Cross-Origin Storage API. This allows multiple domains to share the
+          same cached model files, significantly reducing download times.
+        </p>
+        <p>
+          Look for <code>[COS]</code> prefixes in the logs to see the
+          integration in action.
+        </p>
+      </div>
     </div>
     <script type="module" src="./index.ts"></script>
-</body>
+  </body>
 </html>
