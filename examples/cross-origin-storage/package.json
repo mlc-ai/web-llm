@@ -1,0 +1,35 @@
+{
+  "name": "cross-origin-storage-example",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "rm -rf .parcel-cache && parcel src/index.html --port 1234",
+    "build": "rm -rf .parcel-cache && parcel build src/index.html --dist-dir dist"
+  },
+  "devDependencies": {
+    "buffer": "^6.0.3",
+    "parcel": "^2.16.4",
+    "process": "^0.11.10",
+    "tslib": "^2.8.1",
+    "typescript": "^5.9.3",
+    "url": "^0.11.4"
+  },
+  "alias": {
+    "ws": false,
+    "crypto": false,
+    "fs": false,
+    "path": false,
+    "vm": false,
+    "perf_hooks": false,
+    "url": false,
+    "@mlc-ai/web-tokenizers": "@mlc-ai/web-tokenizers/lib/index.js",
+    "@mlc-ai/web-xgrammar": "@mlc-ai/web-xgrammar/lib/index.js",
+    "@mlc-ai/web-runtime": "@mlc-ai/web-runtime/lib/index.js"
+  },
+  "dependencies": {
+    "@mlc-ai/web-llm": "file:../..",
+    "@mlc-ai/web-runtime": "^0.24.0-dev1",
+    "@mlc-ai/web-tokenizers": "^0.1.6",
+    "@mlc-ai/web-xgrammar": "^0.1.27"
+  }
+}

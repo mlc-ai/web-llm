@@ -69,7 +69,7 @@ import {
   SpecifiedModelNotFoundError,
   ModelNotLoadedError,
 } from "./error";
-import { asyncLoadTokenizer } from "./cache_util";
+import { asyncLoadTokenizer, getArtifactCache } from "./cache_util";
 import { EmbeddingPipeline } from "./embedding";
 
 /**
@@ -260,12 +260,7 @@ export class MLCEngine implements MLCEngineInterface {
     this.loadedModelIdToModelType.set(modelId, modelType);
 
     // instantiate cache
-    let configCache: tvmjs.ArtifactCacheTemplate;
-    if (this.appConfig.useIndexedDBCache) {
-      configCache = new tvmjs.ArtifactIndexedDBCache("webllm/config");
-    } else {
-      configCache = new tvmjs.ArtifactCache("webllm/config");
-    }
+    const configCache = getArtifactCache("webllm/config", this.appConfig);
 
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
@@ -281,12 +276,7 @@ export class MLCEngine implements MLCEngineInterface {
     this.loadedModelIdToChatConfig.set(modelId, curModelConfig);
 
     // load tvm wasm
-    let wasmCache: tvmjs.ArtifactCacheTemplate;
-    if (this.appConfig.useIndexedDBCache) {
-      wasmCache = new tvmjs.ArtifactIndexedDBCache("webllm/wasm");
-    } else {
-      wasmCache = new tvmjs.ArtifactCache("webllm/wasm");
-    }
+    const wasmCache = getArtifactCache("webllm/wasm", this.appConfig);
 
     const wasmUrl = modelRecord.model_lib;
     if (wasmUrl === undefined) {
@@ -367,14 +357,51 @@ export class MLCEngine implements MLCEngineInterface {
       this.appConfig,
       this.logger,
     );
-    const cacheType = this.appConfig.useIndexedDBCache ? "indexeddb" : "cache";
-    await tvm.fetchTensorCache(
-      modelUrl,
-      tvm.webgpu(),
-      "webllm/model",
-      cacheType,
-      this.reloadController?.signal,
-    );
+
+    // Pre-fetch shard manifest to populate COS hash cache if enabled
+    let ndarrayCacheJson: any;
+    if (this.appConfig.useCrossOriginStorageCache) {
+      const modelCache = getArtifactCache("webllm/model", this.appConfig);
+      const ndarrayCacheUrl = new URL("ndarray-cache.json", modelUrl).href;
+      ndarrayCacheJson = await modelCache
+        .fetchWithCache(ndarrayCacheUrl, "json", this.reloadController?.signal)
+        .catch((err) => {
+          console.warn("[COS] Failed to pre-fetch ndarray-cache.json:", err);
+        });
+    }
+
+    const modelCache = getArtifactCache("webllm/model", this.appConfig);
+
+    // If COS is enabled, pass our custom artifact cache directly to bypass standard IndexedDB fetching
+    if (
+      this.appConfig.useCrossOriginStorageCache &&
+      ndarrayCacheJson?.records
+    ) {
+      await (tvm as any).fetchTensorCacheInternal(
+        modelUrl,
+        ndarrayCacheJson.records,
+        tvm.webgpu(),
+        modelCache,
+        this.reloadController?.signal,
+      );
+      if (ndarrayCacheJson.metadata) {
+        (tvm as any).cacheMetadata = {
+          ...(tvm as any).cacheMetadata,
+          ...ndarrayCacheJson.metadata,
+        };
+      }
+    } else {
+      const cacheType = this.appConfig.useIndexedDBCache
+        ? "indexeddb"
+        : "cache";
+      await tvm.fetchTensorCache(
+        modelUrl,
+        tvm.webgpu(),
+        "webllm/model",
+        cacheType,
+        this.reloadController?.signal,
+      );
+    }
 
     // Instantiate pipeline
     // TODO: would be good to somehow check for error when LLMChatPipeline is loaded for an

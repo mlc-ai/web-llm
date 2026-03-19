@@ -278,6 +278,7 @@ export interface ModelRecord {
 export interface AppConfig {
   model_list: Array<ModelRecord>;
   useIndexedDBCache?: boolean;
+  useCrossOriginStorageCache?: boolean;
 }
 
 /**
