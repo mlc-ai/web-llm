@@ -1,6 +1,6 @@
 # WebLLM - Cross-Origin Storage Integration Example
 
-This example demonstrates how to use the experimental [Cross-Origin Storage (COS) API](https://github.com/tomayac/cross-origin-storage) with WebLLM.
+This example demonstrates how to use the experimental [Cross-Origin Storage (COS) API](https://github.com/WICG/cross-origin-storage) with WebLLM.
 
 ## Overview
 
@@ -29,7 +29,7 @@ The Cross-Origin Storage API allows decentralized storage of model shards across
 
 ## Using the COS Extension
 
-For the best experience (and to see real cross-origin benefits), you should have the **Cross-Origin Storage Browser Extension** installed. If the extension is not found, this demo will use a mock to show the console logs of how the integration communicates with the API.
+For the best experience (and to see real cross-origin benefits), you should have the [Cross-Origin Storage Browser Extension](https://chromewebstore.google.com/detail/cross-origin-storage/denpnpcgjgikjpoglpjefakmdcbmlgih) installed. If the extension is not found, this demo will fall back to using the default cache.
 
 ## Verifying Integration
 
@@ -38,7 +38,3 @@ Open the browser's developer console. Look for logs prefixed with `[COS]`:
 - `[COS] Resolved hash for ... via HF LFS` - Searching for the content hash on Hugging Face.
 - `[COS] Match found in COS for ...` - Successfully retrieving a file from the shared storage.
 - `[COS] Background storing ... in COS` - Saving a newly downloaded model file to the shared storage.
-
-## Smallest Model Recommendation
-
-For quick testing, we recommend using **Qwen2-0.5B-Instruct-q4f16_1-MLC**. It is the smallest prebuilt model currently supported, allowing for rapid iteration and testing of the caching mechanism.
