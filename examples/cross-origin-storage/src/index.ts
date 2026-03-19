@@ -76,28 +76,9 @@ async function checkStatus() {
     } else {
       cosStatus.className = "status-card status-warn";
       cosStatus.querySelector(".text")!.textContent = "Not Found (Using Mock)";
-      log(
-        "Cross-Origin Storage API not found. Mocking for demonstration purposes...",
-        "warn",
-      );
-      mockCOS();
+      log("Cross-Origin Storage API not found.", "warn");
     }
   }
-}
-
-function mockCOS() {
-  // Provide a simple mock for navigator.crossOriginStorage to show the protocol
-  (navigator as any).crossOriginStorage = {
-    async requestFileHandles(hashes: any[], options: any = {}) {
-      log(
-        `MOCK: requestFileHandles called for ${hashes.length} hashes (create: ${!!options.create})`,
-        "cos",
-      );
-      // In a real environment, this would talk to the extension.
-      // Here we just simulate a miss to let WebLLM fall back to standard cache.
-      return hashes.map(() => null);
-    },
-  };
 }
 
 let engine: webllm.MLCEngineInterface | null = null;
