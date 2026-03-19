@@ -11,6 +11,10 @@ The Cross-Origin Storage API allows decentralized storage of model shards across
 3.  **Falls back** to standard indexedDB or Cache API if COS is unavailable or a shard is missing.
 4.  **Auto-populates** COS in the background after a successful fetch.
 
+## Installing the COS Extension
+
+For the best experience (and to see real cross-origin benefits), you should have the [Cross-Origin Storage Browser Extension](https://chromewebstore.google.com/detail/cross-origin-storage/denpnpcgjgikjpoglpjefakmdcbmlgih) installed. If the extension is not found, this demo will fall back to using the default cache.
+
 ## Getting Started
 
 1.  Navigate to this directory:
@@ -25,11 +29,16 @@ The Cross-Origin Storage API allows decentralized storage of model shards across
     ```bash
     npm start
     ```
-4.  Open the link in your browser.
-
-## Using the COS Extension
-
-For the best experience (and to see real cross-origin benefits), you should have the [Cross-Origin Storage Browser Extension](https://chromewebstore.google.com/detail/cross-origin-storage/denpnpcgjgikjpoglpjefakmdcbmlgih) installed. If the extension is not found, this demo will fall back to using the default cache.
+4.  Open `http://localhost:8888` and open the DevTools Console.
+5.  Wait for the model resources to be loaded and stored in COS.
+6.  Reload the app.
+7.  With the [COS extension](https://chromewebstore.google.com/detail/cross-origin-storage/denpnpcgjgikjpoglpjefakmdcbmlgih) installed, the model resources should now be served from COS.
+8.  Start the example on a different origin:
+    ```bash
+    npx parcel src/cross_origin_storage.html --port 1234
+    ```
+9.  Open `http://localhost:1234` and open the Console.
+10. With the COS extension installed, the model resources should now be served from COS—cross-origin 🚀!
 
 ## Verifying Integration
 
