@@ -17,6 +17,7 @@ async function main() {
 
   const appConfig: webllm.AppConfig = {
     ...webllm.prebuiltAppConfig,
+    // 👇 Enable cross-origin storage cache.
     useCrossOriginStorageCache: true,
   };
 

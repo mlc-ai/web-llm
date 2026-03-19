@@ -116,6 +116,19 @@ By default, WebLLM caches model artifacts using the `Cache API <https://develope
        },
    });
 
+Using Cross-Origin Storage Cache
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+WebLLM also supports caching model artifacts across different origins using the experimental Cross-Origin Storage API. You can enable this by setting the `useCrossOriginStorageCache` field in `appConfig` of `MLCEngineConfig` to `true`. See the `Cross-Origin Storage example <https://github.com/mlc-ai/web-llm/tree/main/examples/cross-origin-storage>`_ for more details. If Cross-Origin Storage isn't available, WebLLM will automatically fall back to using the default cache.
+
+.. code-block:: typescript
+
+   const engine = await CreateMLCEngine("Llama-3.1-8B-Instruct", {
+       appConfig: {
+           useCrossOriginStorageCache: true,
+       },
+   });
+
 Customizing Token Behavior
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
