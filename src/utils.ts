@@ -210,17 +210,28 @@ export function safeDeepMerge(target: any, source: any): any {
 }
 
 /**
- * Basic string sanitization to prevent common XSS vectors while preserving 
- * text content.
+ * Robust string sanitization to prevent common XSS vectors while preserving 
+ * text content and valid custom tags (like ChatML).
  */
 export function sanitizeString(str: any): any {
   if (typeof str !== 'string') return str;
-  // Strip <script> tags and onXXX event handlers
-  return str
-    .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
-    .replace(/on\w+="[^"]*"/gim, "")
-    .replace(/on\w+='[^']*'/gim, "")
-    .replace(/on\w+=[^\s>]+/gim, "");
+  
+  let sanitized = str;
+  let previous;
+
+  do {
+    previous = sanitized;
+    // Remove inherently dangerous tags and their contents
+    sanitized = sanitized.replace(/<(script|iframe|object|embed|svg|math|applet|meta|base|link)\b[^>]*>[\s\S]*?(<\/\1>)?/gi, '');
+    
+    // Remove javascript:, vbscript:, data: URIs
+    sanitized = sanitized.replace(/(javascript|vbscript|data\s*:\s*text\/html)\s*:/gi, 'blocked:');
+    
+    // Remove inline event handlers (e.g., <b onmouseover="...">)
+    sanitized = sanitized.replace(/(<\w+[^>]+?)\bon[a-z]+\s*=\s*(?:(['"]).*?\2|[^>\s]+)/gi, '$1');
+  } while (sanitized !== previous);
+
+  return sanitized;
 }
 
 /**

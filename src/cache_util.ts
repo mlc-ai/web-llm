@@ -8,6 +8,7 @@ import {
 import { cleanModelUrl } from "./support";
 import { ModelNotFoundError, UnsupportedTokenizerFilesError } from "./error";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
+import { verifyIntegrity } from "./utils";
 
 function findModelRecord(modelId: string, appConfig?: AppConfig): ModelRecord {
   const matchedItem = appConfig?.model_list.find(
@@ -121,6 +122,7 @@ export async function asyncLoadTokenizer(
   config: ChatConfig,
   appConfig: AppConfig,
   logger: (msg: string) => void = console.log,
+  tokenizerIntegrity?: string,
 ): Promise<Tokenizer> {
   let modelCache: tvmjs.ArtifactCacheTemplate;
   if (appConfig.useIndexedDBCache) {
@@ -132,17 +134,19 @@ export async function asyncLoadTokenizer(
   if (config.tokenizer_files.includes("tokenizer.json")) {
     const url = new URL("tokenizer.json", baseUrl).href;
     const model = await modelCache.fetchWithCache(url, "arraybuffer");
+    await verifyIntegrity(model, tokenizerIntegrity);
     return Tokenizer.fromJSON(model);
   } else if (config.tokenizer_files.includes("tokenizer.model")) {
     logger(
       "Using `tokenizer.model` since we cannot locate `tokenizer.json`.\n" +
-        "It is recommended to use `tokenizer.json` to ensure all token mappings are included, " +
-        "since currently, files like `added_tokens.json`, `tokenizer_config.json` are ignored.\n" +
-        "Consider converting `tokenizer.model` to `tokenizer.json` by compiling the model " +
-        "with MLC again, or see if MLC's huggingface provides this file.",
+      "It is recommended to use `tokenizer.json` to ensure all token mappings are included, " +
+      "since currently, files like `added_tokens.json`, `tokenizer_config.json` are ignored.\n" +
+      "Consider converting `tokenizer.model` to `tokenizer.json` by compiling the model " +
+      "with MLC again, or see if MLC's huggingface provides this file.",
     );
     const url = new URL("tokenizer.model", baseUrl).href;
     const model = await modelCache.fetchWithCache(url, "arraybuffer");
+    await verifyIntegrity(model, tokenizerIntegrity);
     return Tokenizer.fromSentencePiece(model);
   }
   throw new UnsupportedTokenizerFilesError(config.tokenizer_files);

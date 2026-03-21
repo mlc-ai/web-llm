@@ -270,11 +270,16 @@ export class MLCEngine implements MLCEngineInterface {
 
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
-    const fetchedConfig = await configCache.fetchWithCache(
+    const configSource = await configCache.fetchWithCache(
       configUrl,
-      "json",
+      "arraybuffer",
       this.reloadController?.signal,
     );
+
+    // Verify config integrity if hash is provided
+    await verifyIntegrity(configSource, modelRecord.chat_config_integrity);
+
+    const fetchedConfig = JSON.parse(new TextDecoder().decode(configSource));
     // Use safeDeepMerge to prevent prototype pollution and allow granular overrides
     const curModelConfig = sanitizeConfig(
       safeDeepMerge(
@@ -373,6 +378,7 @@ export class MLCEngine implements MLCEngineInterface {
       curModelConfig,
       this.appConfig,
       this.logger,
+      modelRecord.tokenizer_integrity,
     );
     const cacheType = this.appConfig.useIndexedDBCache ? "indexeddb" : "cache";
     await tvm.fetchTensorCache(
