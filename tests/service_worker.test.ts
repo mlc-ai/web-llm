@@ -4,6 +4,11 @@ import {
   ServiceWorkerMLCEngine,
   ServiceWorkerMLCEngineHandler,
 } from "../src/service_worker";
+import { jest, test, expect, afterEach } from "@jest/globals";
+
+type ServiceWorkerHandlerEvent = Parameters<
+  ServiceWorkerMLCEngineHandler["onmessage"]
+>[0];
 
 jest.mock("@mlc-ai/web-runtime", () => ({
   detectGPUDevice: jest.fn(async () => ({
@@ -104,7 +109,7 @@ test("ServiceWorker handler responds to keepAlive message", () => {
   (handler as any).clientRegistry = new Map([["keep", client]]);
   const onComplete = jest.fn();
   handler.onmessage(
-    { data: { kind: "keepAlive", uuid: "keep" } } as ExtendableMessageEvent,
+    { data: { kind: "keepAlive", uuid: "keep" } } as ServiceWorkerHandlerEvent,
     onComplete,
   );
   expect(client.postMessage).toHaveBeenCalledWith({
@@ -124,7 +129,7 @@ test("reload with the same model skips engine reload", async () => {
       uuid: "reload-same",
       content: { modelId: ["demo"], chatOpts: [] },
     },
-  } as ExtendableMessageEvent);
+  } as ServiceWorkerHandlerEvent);
   await handleTaskMock.mock.results[0].value;
   expect(reloadMock).not.toHaveBeenCalled();
   expect(initCallback).toHaveBeenCalledWith(
@@ -142,7 +147,7 @@ test("reload with new parameters calls engine reload", async () => {
       uuid: "reload-new",
       content: { modelId: ["fresh"], chatOpts: [] },
     },
-  } as ExtendableMessageEvent);
+  } as ServiceWorkerHandlerEvent);
   await handleTaskMock.mock.results[0].value;
   expect(reloadMock).toHaveBeenCalledWith(["fresh"], []);
 });

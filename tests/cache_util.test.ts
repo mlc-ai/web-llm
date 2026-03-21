@@ -6,10 +6,13 @@ import {
 import { AppConfig } from "../src/config";
 import * as tvmMockImport from "@mlc-ai/web-runtime";
 import * as tokenizerMockImport from "@mlc-ai/web-tokenizers";
+import { jest, test, expect, beforeEach } from "@jest/globals";
 
 jest.mock("@mlc-ai/web-runtime", () => {
   const state = {
-    hasTensorInCache: jest.fn().mockResolvedValue(false),
+    hasTensorInCache: jest
+      .fn<() => Promise<boolean>>()
+      .mockResolvedValue(false),
     deleteTensorCache: jest.fn(),
     deletes: [] as Array<{ cache: string; url: string }>,
     fetches: [] as Array<{ cache: string; url: string; format: string }>,

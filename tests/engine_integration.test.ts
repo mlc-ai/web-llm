@@ -15,6 +15,7 @@ import { LLMChatPipeline } from "../src/llm_chat";
 import { EmbeddingPipeline } from "../src/embedding";
 import { CustomLock } from "../src/support";
 import { UnclearModelToUseError } from "../src/error";
+import { jest, test, expect, describe } from "@jest/globals";
 
 type ChatConfig = import("../src/config").ChatConfig;
 type Conversation = import("../src/conversation").Conversation;
