@@ -3,6 +3,14 @@ import {
   ServiceWorkerMLCEngine,
   ServiceWorkerMLCEngineHandler,
 } from "../src/extension_service_worker";
+import {
+  jest,
+  test,
+  expect,
+  describe,
+  beforeEach,
+  afterEach,
+} from "@jest/globals";
 
 jest.mock("@mlc-ai/web-runtime", () => ({
   detectGPUDevice: jest.fn(async () => ({
@@ -86,7 +94,7 @@ test("reload with new model calls engine reload", async () => {
 });
 
 function mockChromeRuntime(port: MockPort = createPort()) {
-  const connect = jest.fn(() => port);
+  const connect = jest.fn<(...args: any[]) => MockPort>(() => port);
   (globalThis as any).chrome = {
     runtime: {
       connect,

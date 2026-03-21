@@ -3,6 +3,7 @@ import {
   EmbeddingExceedContextWindowSizeError,
   EmbeddingInputEmptyError,
 } from "../src/error";
+import { jest, test, expect } from "@jest/globals";
 
 type EmbeddingLike = EmbeddingPipeline & Record<string, any>;
 
@@ -17,21 +18,22 @@ test("embedding pipeline performance getters", () => {
 
 test("sync and asyncLoadWebGPUPipelines delegate to tvm/device", async () => {
   const pipeline = Object.create(EmbeddingPipeline.prototype) as EmbeddingLike;
+  const internalModule = { tag: "module" } as any;
   pipeline["device"] = {
-    sync: jest.fn().mockResolvedValue(undefined),
+    sync: jest.fn(async () => undefined),
   } as any;
   pipeline["tvm"] = {
     asyncLoadWebGPUPipelines: jest.fn(),
   } as any;
   pipeline["vm"] = {
-    getInternalModule: jest.fn(() => ({ tag: "module" }) as any),
+    getInternalModule: jest.fn(() => internalModule),
   } as any;
   await pipeline.sync();
   expect(pipeline["device"].sync).toHaveBeenCalled();
   await pipeline.asyncLoadWebGPUPipelines();
-  expect(pipeline["tvm"].asyncLoadWebGPUPipelines).toHaveBeenCalledWith({
-    tag: "module",
-  });
+  expect(pipeline["tvm"].asyncLoadWebGPUPipelines).toHaveBeenCalledWith(
+    internalModule,
+  );
 });
 
 function createEmbeddingPipelineBase(): EmbeddingLike {
@@ -50,7 +52,7 @@ function createEmbeddingPipelineBase(): EmbeddingLike {
   pipeline["prefillChunkSize"] = 8;
   pipeline["maxBatchSize"] = 2;
   pipeline["device"] = {
-    sync: jest.fn().mockResolvedValue(undefined),
+    sync: jest.fn(async () => undefined),
     deviceType: "cpu",
     deviceId: 0,
     lib: {},

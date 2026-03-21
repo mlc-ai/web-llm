@@ -177,37 +177,6 @@ export async function verifyIntegrity(
   }
 }
 
-/**
- * Deep merge objects safely, preventing prototype pollution.
- * Returns a new object if target is empty, or mutates target.
- */
-export function safeDeepMerge(target: any, source: any): any {
-  const isObject = (item: any) =>
-    item && typeof item === "object" && !Array.isArray(item);
-
-  if (isObject(target) && isObject(source)) {
-    for (const key in source) {
-      if (Object.prototype.hasOwnProperty.call(source, key)) {
-        if (
-          key === "__proto__" ||
-          key === "constructor" ||
-          key === "prototype"
-        ) {
-          continue;
-        }
-        if (isObject(source[key])) {
-          if (!target[key]) {
-            Object.assign(target, { [key]: {} });
-          }
-          safeDeepMerge(target[key], source[key]);
-        } else {
-          Object.assign(target, { [key]: source[key] });
-        }
-      }
-    }
-  }
-  return target;
-}
 
 /**
  * Robust string sanitization to prevent common XSS vectors while preserving 
