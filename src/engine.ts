@@ -5,6 +5,7 @@ import {
   ChatOptions,
   AppConfig,
   prebuiltAppConfig,
+  getCacheBackend,
   GenerationConfig,
   postInitAndCheckGenerationConfigValues,
   Role,
@@ -259,13 +260,12 @@ export class MLCEngine implements MLCEngineInterface {
         : modelRecord.model_type;
     this.loadedModelIdToModelType.set(modelId, modelType);
 
+    const cacheType = getCacheBackend(this.appConfig);
+
     // instantiate cache
-    let configCache: tvmjs.ArtifactCacheTemplate;
-    if (this.appConfig.useIndexedDBCache) {
-      configCache = new tvmjs.ArtifactIndexedDBCache("webllm/config");
-    } else {
-      configCache = new tvmjs.ArtifactCache("webllm/config");
-    }
+    const configCache = tvmjs.createArtifactCache("webllm/config", {
+      cacheType,
+    });
 
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
@@ -281,12 +281,9 @@ export class MLCEngine implements MLCEngineInterface {
     this.loadedModelIdToChatConfig.set(modelId, curModelConfig);
 
     // load tvm wasm
-    let wasmCache: tvmjs.ArtifactCacheTemplate;
-    if (this.appConfig.useIndexedDBCache) {
-      wasmCache = new tvmjs.ArtifactIndexedDBCache("webllm/wasm");
-    } else {
-      wasmCache = new tvmjs.ArtifactCache("webllm/wasm");
-    }
+    const wasmCache = tvmjs.createArtifactCache("webllm/wasm", {
+      cacheType,
+    });
 
     const wasmUrl = modelRecord.model_lib;
     if (wasmUrl === undefined) {
@@ -367,14 +364,11 @@ export class MLCEngine implements MLCEngineInterface {
       this.appConfig,
       this.logger,
     );
-    const cacheType = this.appConfig.useIndexedDBCache ? "indexeddb" : "cache";
-    await tvm.fetchTensorCache(
-      modelUrl,
-      tvm.webgpu(),
-      "webllm/model",
+    await tvm.fetchTensorCache(modelUrl, tvm.webgpu(), {
+      cacheScope: "webllm/model",
       cacheType,
-      this.reloadController?.signal,
-    );
+      signal: this.reloadController?.signal,
+    });
 
     // Instantiate pipeline
     // TODO: would be good to somehow check for error when LLMChatPipeline is loaded for an

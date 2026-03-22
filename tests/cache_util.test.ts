@@ -14,6 +14,8 @@ jest.mock("@mlc-ai/web-runtime", () => {
       .fn<() => Promise<boolean>>()
       .mockResolvedValue(false),
     deleteTensorCache: jest.fn(),
+    createArtifactCache:
+      jest.fn<(scope: string, options: unknown) => BaseCache>(),
     deletes: [] as Array<{ cache: string; url: string }>,
     fetches: [] as Array<{ cache: string; url: string; format: string }>,
   };
@@ -27,11 +29,13 @@ jest.mock("@mlc-ai/web-runtime", () => {
       return new ArrayBuffer(4);
     }
   }
+  state.createArtifactCache.mockImplementation(
+    (scope: string) => new BaseCache(scope),
+  );
   return {
     hasTensorInCache: state.hasTensorInCache,
     deleteTensorCache: state.deleteTensorCache,
-    ArtifactCache: BaseCache,
-    ArtifactIndexedDBCache: BaseCache,
+    createArtifactCache: state.createArtifactCache,
     __cacheState: state,
   };
 });
@@ -49,7 +53,7 @@ const tvmMock = tvmMockImport as any;
 const tokenizerMock = tokenizerMockImport as any;
 
 const baseAppConfig: AppConfig = {
-  useIndexedDBCache: false,
+  cacheBackend: "cache",
   model_list: [
     {
       model: "https://huggingface.co/mlc-ai/demo-model",
@@ -64,6 +68,7 @@ beforeEach(() => {
   tvmMock.__cacheState.fetches.length = 0;
   tvmMock.__cacheState.hasTensorInCache.mockClear();
   tvmMock.__cacheState.deleteTensorCache.mockClear();
+  tvmMock.__cacheState.createArtifactCache.mockClear();
   tokenizerMock.Tokenizer.fromJSON.mockClear();
   tokenizerMock.Tokenizer.fromSentencePiece.mockClear();
 });
@@ -74,21 +79,25 @@ test("hasModelInCache delegates to tvm cache helpers", async () => {
   expect(result).toBe(true);
   expect(tvmMock.__cacheState.hasTensorInCache).toHaveBeenCalledWith(
     "https://huggingface.co/mlc-ai/demo-model/resolve/main/",
-    "webllm/model",
-    "cache",
+    {
+      cacheScope: "webllm/model",
+      cacheType: "cache",
+    },
   );
 });
 
 test("deleteModelInCache clears tensors and tokenizer assets for indexeddb cache", async () => {
   const indexedConfig: AppConfig = {
     ...baseAppConfig,
-    useIndexedDBCache: true,
+    cacheBackend: "indexeddb",
   };
   await deleteModelInCache("demo-model", indexedConfig);
   expect(tvmMock.__cacheState.deleteTensorCache).toHaveBeenCalledWith(
     "https://huggingface.co/mlc-ai/demo-model/resolve/main/",
-    "webllm/model",
-    "indexeddb",
+    {
+      cacheScope: "webllm/model",
+      cacheType: "indexeddb",
+    },
   );
   expect(tvmMock.__cacheState.deletes).toEqual(
     expect.arrayContaining([

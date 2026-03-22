@@ -157,7 +157,7 @@ async function testLogprobs(modelId: string, appConfig: webllm.AppConfig) {
 async function main() {
   const modelId = "Qwen3-0.6B-q0f32-MLC";
   const appConfig = webllm.prebuiltAppConfig;
-  appConfig.useIndexedDBCache = true;
+  appConfig.cacheBackend = "indexeddb";
   setLabel("gpu-test-label", "Running tests...");
   let passed = 0,
     total = 0;

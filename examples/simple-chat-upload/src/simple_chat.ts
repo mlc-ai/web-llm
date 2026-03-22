@@ -395,7 +395,7 @@ async function uploadFiles(): Promise<void> {
     alert("No files selected.");
     return;
   }
-  if (appConfig.useIndexedDBCache) {
+  if (appConfig.cacheBackend === "indexeddb") {
     for (const file of input.files) {
       uploadToIndexedDB(file);
     }

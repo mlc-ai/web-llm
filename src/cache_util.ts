@@ -4,10 +4,33 @@ import {
   ChatConfig,
   ModelRecord,
   prebuiltAppConfig,
+  getCacheBackend,
 } from "./config";
 import { cleanModelUrl } from "./support";
 import { ModelNotFoundError, UnsupportedTokenizerFilesError } from "./error";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
+
+type CacheScope = "webllm/model" | "webllm/config" | "webllm/wasm";
+
+function getCacheAccessOptions(
+  scope: CacheScope,
+  appConfig: AppConfig,
+): tvmjs.TensorCacheAccessOptions {
+  return {
+    cacheScope: scope,
+    cacheType: getCacheBackend(appConfig),
+  };
+}
+
+function createScopedArtifactCache(
+  scope: CacheScope,
+  appConfig: AppConfig,
+): tvmjs.ArtifactCacheTemplate {
+  return tvmjs.createArtifactCache(
+    scope,
+    getCacheAccessOptions(scope, appConfig),
+  );
+}
 
 function findModelRecord(modelId: string, appConfig?: AppConfig): ModelRecord {
   const matchedItem = appConfig?.model_list.find(
@@ -28,8 +51,10 @@ export async function hasModelInCache(
   }
   const modelRecord = findModelRecord(modelId, appConfig);
   const modelUrl = cleanModelUrl(modelRecord.model);
-  const cacheType = appConfig.useIndexedDBCache ? "indexeddb" : "cache";
-  return tvmjs.hasTensorInCache(modelUrl, "webllm/model", cacheType);
+  return tvmjs.hasTensorInCache(
+    modelUrl,
+    getCacheAccessOptions("webllm/model", appConfig),
+  );
 }
 
 export async function deleteModelAllInfoInCache(
@@ -58,14 +83,11 @@ export async function deleteModelInCache(
   }
   const modelRecord = findModelRecord(modelId, appConfig);
   const modelUrl = cleanModelUrl(modelRecord.model);
-  let modelCache: tvmjs.ArtifactCacheTemplate;
-  if (appConfig.useIndexedDBCache) {
-    tvmjs.deleteTensorCache(modelUrl, "webllm/model", "indexeddb");
-    modelCache = new tvmjs.ArtifactIndexedDBCache("webllm/model");
-  } else {
-    tvmjs.deleteTensorCache(modelUrl, "webllm/model", "cache");
-    modelCache = new tvmjs.ArtifactCache("webllm/model");
-  }
+  const modelCache = createScopedArtifactCache("webllm/model", appConfig);
+  await tvmjs.deleteTensorCache(
+    modelUrl,
+    getCacheAccessOptions("webllm/model", appConfig),
+  );
   await modelCache.deleteInCache(new URL("tokenizer.model", modelUrl).href);
   await modelCache.deleteInCache(new URL("tokenizer.json", modelUrl).href);
 }
@@ -79,12 +101,7 @@ export async function deleteChatConfigInCache(
     appConfig = prebuiltAppConfig;
   }
   const modelRecord = findModelRecord(modelId, appConfig);
-  let configCache: tvmjs.ArtifactCacheTemplate;
-  if (appConfig.useIndexedDBCache) {
-    configCache = new tvmjs.ArtifactIndexedDBCache("webllm/config");
-  } else {
-    configCache = new tvmjs.ArtifactCache("webllm/config");
-  }
+  const configCache = createScopedArtifactCache("webllm/config", appConfig);
   const modelUrl = cleanModelUrl(modelRecord.model);
   const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
   await configCache.deleteInCache(configUrl);
@@ -99,12 +116,7 @@ export async function deleteModelWasmInCache(
     appConfig = prebuiltAppConfig;
   }
   const modelRecord = findModelRecord(modelId, appConfig);
-  let wasmCache: tvmjs.ArtifactCacheTemplate;
-  if (appConfig.useIndexedDBCache) {
-    wasmCache = new tvmjs.ArtifactIndexedDBCache("webllm/wasm");
-  } else {
-    wasmCache = new tvmjs.ArtifactCache("webllm/wasm");
-  }
+  const wasmCache = createScopedArtifactCache("webllm/wasm", appConfig);
   await wasmCache.deleteInCache(modelRecord.model_lib);
 }
 
@@ -122,12 +134,7 @@ export async function asyncLoadTokenizer(
   appConfig: AppConfig,
   logger: (msg: string) => void = console.log,
 ): Promise<Tokenizer> {
-  let modelCache: tvmjs.ArtifactCacheTemplate;
-  if (appConfig.useIndexedDBCache) {
-    modelCache = new tvmjs.ArtifactIndexedDBCache("webllm/model");
-  } else {
-    modelCache = new tvmjs.ArtifactCache("webllm/model");
-  }
+  const modelCache = createScopedArtifactCache("webllm/model", appConfig);
 
   if (config.tokenizer_files.includes("tokenizer.json")) {
     const url = new URL("tokenizer.json", baseUrl).href;
