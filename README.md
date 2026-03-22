@@ -156,7 +156,7 @@ WebLLM supports three cache backends through `AppConfig.cacheBackend`:
 
 - `"cache"`: browser [Cache API](https://developer.mozilla.org/en-US/docs/Web/API/Cache) (default).
 - `"indexeddb"`: browser [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API).
-- `"cross-origin"`: experimental Chrome [Cross-Origin Storage](https://github.com/explainers-by-googlers/cross-origin-storage) extension backend.
+- `"cross-origin"`: experimental Chrome [Cross-Origin Storage API](https://github.com/WICG/cross-origin-storage) extension backend. Install the [Cross-Origin Storage extension](https://chromewebstore.google.com/detail/cross-origin-storage/denpnpcgjgikjpoglpjefakmdcbmlgih) to use it. (If the extension isn't installed, WebLLM falls back to the default cache automatically.)
 
 Example:
 
