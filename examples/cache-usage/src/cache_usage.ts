@@ -61,7 +61,7 @@ async function main() {
   reply = await engine.chat.completions.create(request);
   console.log(reply);
 
-  // Cross-origin storage currently does not support deletion
+  // Cross-Origin Storage does not support deletion
   if (cacheBackend === "cross-origin") {
     return;
   }
