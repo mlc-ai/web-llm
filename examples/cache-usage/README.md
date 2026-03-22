@@ -5,7 +5,7 @@ setting `AppConfig.cacheBackend` to `"cache"`, `"indexeddb"`, or `"cross-origin"
 This folder provides an example on how different caches are used in WebLLM. We also
 demonstrate the utility cache functions such as deleting models, checking if models are in cache, etc.
 
-> **Note:** The cross-origin backend requires installation of the [cross-origin storage browser extension](https://github.com/web-ai-community/cross-origin-storage-extension). This does not currently support programmatic tensor-cache deletion; deletion is extension-managed.
+> **Note:** The cross-origin backend requires installation of the [Cross-Origin Storage browser extension](https://chromewebstore.google.com/detail/cross-origin-storage/denpnpcgjgikjpoglpjefakmdcbmlgih) ([source code](https://github.com/web-ai-community/cross-origin-storage-extension)). This does not currently support programmatic tensor-cache deletion; deletion is extension-managed.
 
 For more information about Cache API and IndexedDB, see:
 https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria#what_technologies_store_data_in_the_browser.
