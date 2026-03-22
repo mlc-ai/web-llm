@@ -72,6 +72,7 @@ import {
 } from "./error";
 import { asyncLoadTokenizer } from "./cache_util";
 import { EmbeddingPipeline } from "./embedding";
+import { verifyIntegrity } from "./integrity";
 
 /**
  * Creates `MLCEngine`, and loads `modelId` onto WebGPU.
@@ -269,12 +270,21 @@ export class MLCEngine implements MLCEngineInterface {
 
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
-    const curModelConfig = {
-      ...(await configCache.fetchWithCache(
+    const configData = (await configCache.fetchWithCache(
+      configUrl,
+      "arraybuffer",
+      this.reloadController?.signal,
+    )) as ArrayBuffer;
+    if (modelRecord.integrity?.config) {
+      await verifyIntegrity(
+        configData,
+        modelRecord.integrity.config,
         configUrl,
-        "json",
-        this.reloadController?.signal,
-      )),
+        modelRecord.integrity.onFailure,
+      );
+    }
+    const curModelConfig: ChatConfig = {
+      ...JSON.parse(new TextDecoder().decode(configData)),
       ...modelRecord.overrides,
       ...chatOpts,
     } as ChatConfig;
@@ -306,6 +316,15 @@ export class MLCEngine implements MLCEngineInterface {
       }
     };
     const wasmSource = await fetchWasmSource();
+
+    if (modelRecord.integrity?.model_lib) {
+      await verifyIntegrity(
+        wasmSource,
+        modelRecord.integrity.model_lib,
+        wasmUrl,
+        modelRecord.integrity.onFailure,
+      );
+    }
 
     const wasm = new Uint8Array(wasmSource);
     const tvm = await tvmjs.instantiate(
@@ -363,6 +382,7 @@ export class MLCEngine implements MLCEngineInterface {
       curModelConfig,
       this.appConfig,
       this.logger,
+      modelRecord.integrity,
     );
     await tvm.fetchTensorCache(modelUrl, tvm.webgpu(), {
       cacheScope: "webllm/model",

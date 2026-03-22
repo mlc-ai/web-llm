@@ -611,3 +611,19 @@ export class ReloadModelIdNotUniqueError extends Error {
     this.name = "ReloadModelIdNotUniqueError";
   }
 }
+
+export class IntegrityError extends Error {
+  constructor(
+    readonly url: string,
+    readonly expected: string,
+    readonly actual: string,
+  ) {
+    super(
+      `Integrity verification failed for ${url}\n` +
+        `  Expected: ${expected}\n` +
+        `  Actual: ${actual}\n` +
+        `This may indicate file corruption or tampering.`,
+    );
+    this.name = "IntegrityError";
+  }
+}
