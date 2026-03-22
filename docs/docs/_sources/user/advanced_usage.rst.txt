@@ -103,16 +103,29 @@ Additional Customization
 Using IndexedDB Cache
 ^^^^^^^^^^^^^^^^^^^^^
 
-By default, WebLLM caches model artifacts using the `Cache API <https://developer.mozilla.org/en-US/docs/Web/API/Cache>`_ for faster subsequent model loads. You can alternatively use `IndexedDB caching <https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API>`_ by setting the `useIndexedDBCache` field in `appConfig` of `MLCEngineConfig` to `true`.
+By default, WebLLM caches model artifacts using the `Cache API <https://developer.mozilla.org/en-US/docs/Web/API/Cache>`_ for faster subsequent model loads. You can alternatively use `IndexedDB caching <https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API>`_ by setting ``appConfig.cacheBackend = "indexeddb"``.
 
 .. code-block:: typescript
 
    const engine = await CreateMLCEngine("Llama-3.1-8B-Instruct", {
        appConfig: {
-           useIndexedDBCache: true,
+           cacheBackend: "indexeddb",
            models: [
                { model_id: "Llama-3.1-8B", model_path: "/models/llama3" },
            ],
+       },
+   });
+
+Using Cross-Origin Storage Cache
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+WebLLM also supports caching model artifacts across different origins using the experimental Cross-Origin Storage API. You can enable this cache backend by setting ``appConfig.cacheBackend = "cross-origin"``. For users with the `Cross-Origin Storage browser extension <https://chromewebstore.google.com/detail/cross-origin-storage/denpnpcgjgikjpoglpjefakmdcbmlgih>`_ installed, resources will then be cached and shared across origins. This means two independent apps opted into this cache backend using the same AI model will download and cache the required resources only once. See the `cache usage example <https://github.com/mlc-ai/web-llm/tree/main/examples/cache-usage>`_ for more details. If Cross-Origin Storage isn't available, WebLLM will automatically fall back to using the default cache.
+
+.. code-block:: typescript
+
+   const engine = await CreateMLCEngine("Llama-3.1-8B-Instruct", {
+       appConfig: {
+           cacheBackend: "cross-origin",
        },
    });
 

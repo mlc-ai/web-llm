@@ -183,6 +183,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#chrome-extension">Chrome Extension</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#additional-customization">Additional Customization</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#using-indexeddb-cache">Using IndexedDB Cache</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#using-cross-origin-storage-cache">Using Cross-Origin Storage Cache</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#customizing-token-behavior">Customizing Token Behavior</a></li>
 </ul>
 </li>
@@ -359,13 +360,24 @@ For detailed implementations of different kinds of workers, look at the followin
 <h2>Additional Customization<a class="headerlink" href="#additional-customization" title="Permalink to this heading">¶</a></h2>
 <section id="using-indexeddb-cache">
 <h3>Using IndexedDB Cache<a class="headerlink" href="#using-indexeddb-cache" title="Permalink to this heading">¶</a></h3>
-<p>By default, WebLLM caches model artifacts using the <a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/API/Cache">Cache API</a> for faster subsequent model loads. You can alternatively use <a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API">IndexedDB caching</a> by setting the <cite>useIndexedDBCache</cite> field in <cite>appConfig</cite> of <cite>MLCEngineConfig</cite> to <cite>true</cite>.</p>
+<p>By default, WebLLM caches model artifacts using the <a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/API/Cache">Cache API</a> for faster subsequent model loads. You can alternatively use <a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API">IndexedDB caching</a> by setting <code class="docutils literal notranslate"><span class="pre">appConfig.cacheBackend</span> <span class="pre">=</span> <span class="pre">&quot;indexeddb&quot;</span></code>.</p>
 <div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">engine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">CreateMLCEngine</span><span class="p">(</span><span class="s2">&quot;Llama-3.1-8B-Instruct&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nx">appConfig</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="nx">useIndexedDBCache</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">cacheBackend</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;indexeddb&quot;</span><span class="p">,</span>
 <span class="w">        </span><span class="nx">models</span><span class="o">:</span><span class="w"> </span><span class="p">[</span>
 <span class="w">            </span><span class="p">{</span><span class="w"> </span><span class="nx">model_id</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;Llama-3.1-8B&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">model_path</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;/models/llama3&quot;</span><span class="w"> </span><span class="p">},</span>
 <span class="w">        </span><span class="p">],</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+</section>
+<section id="using-cross-origin-storage-cache">
+<h3>Using Cross-Origin Storage Cache<a class="headerlink" href="#using-cross-origin-storage-cache" title="Permalink to this heading">¶</a></h3>
+<p>WebLLM also supports caching model artifacts across different origins using the experimental Cross-Origin Storage API. You can enable this cache backend by setting <code class="docutils literal notranslate"><span class="pre">appConfig.cacheBackend</span> <span class="pre">=</span> <span class="pre">&quot;cross-origin&quot;</span></code>. For users with the <a class="reference external" href="https://chromewebstore.google.com/detail/cross-origin-storage/denpnpcgjgikjpoglpjefakmdcbmlgih">Cross-Origin Storage browser extension</a> installed, resources will then be cached and shared across origins. This means two independent apps opted into this cache backend using the same AI model will download and cache the required resources only once. See the <a class="reference external" href="https://github.com/mlc-ai/web-llm/tree/main/examples/cache-usage">cache usage example</a> for more details. If Cross-Origin Storage isn’t available, WebLLM will automatically fall back to using the default cache.</p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">engine</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">CreateMLCEngine</span><span class="p">(</span><span class="s2">&quot;Llama-3.1-8B-Instruct&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">appConfig</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">cacheBackend</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;cross-origin&quot;</span><span class="p">,</span>
 <span class="w">    </span><span class="p">},</span>
 <span class="p">});</span>
 </pre></div>
