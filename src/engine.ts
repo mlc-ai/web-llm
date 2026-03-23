@@ -642,15 +642,30 @@ export class MLCEngine implements MLCEngineInterface {
     let tool_calls:
       | Array<ChatCompletionChunk.Choice.Delta.ToolCall>
       | undefined;
+    let outputContent: string | null = null;
+    const enableThinking =
+      "extra_body" in request &&
+      request.extra_body !== undefined &&
+      request.extra_body !== null &&
+      "enable_thinking" in request.extra_body
+        ? request.extra_body.enable_thinking
+        : undefined;
+    const shouldStripThinking =
+      model.toLowerCase().includes("qwen") || enableThinking !== true;
     try {
       if (pipeline.getFinishReason() === "stop" && isFunctionCalling) {
         // If stopped due to length or abort, cannot output return tool_calls field
-        finish_reason = "tool_calls";
         const outputMessage = pipeline.getMessage();
-        tool_calls = getToolCallFromOutputMessage(
+        const parsedOutput = getToolCallFromOutputMessage(
           outputMessage,
           /*isStreaming=*/ true,
-        ) as Array<ChatCompletionChunk.Choice.Delta.ToolCall>;
+          shouldStripThinking,
+        );
+        if (parsedOutput.tool_calls.length > 0) {
+          finish_reason = "tool_calls";
+          tool_calls = parsedOutput.tool_calls;
+          outputContent = parsedOutput.content;
+        }
       }
     } catch (err) {
       await lock.release();
@@ -662,12 +677,14 @@ export class MLCEngine implements MLCEngineInterface {
         id: id,
         choices: [
           {
-            delta: isFunctionCalling
-              ? {
-                  role: "assistant",
-                  tool_calls: tool_calls,
-                }
-              : {},
+            delta:
+              isFunctionCalling && tool_calls !== undefined
+                ? {
+                    role: "assistant",
+                    tool_calls: tool_calls,
+                    content: outputContent,
+                  }
+                : {},
             finish_reason: finish_reason,
             index: 0,
           },
@@ -869,16 +886,25 @@ export class MLCEngine implements MLCEngineInterface {
         const isFunctionCalling =
           request.tools !== undefined && request.tools !== null;
         let tool_calls: Array<ChatCompletionMessageToolCall> | undefined;
+        let messageContent: string | null = outputMessage;
+        const shouldStripThinking =
+          selectedModelId.toLowerCase().includes("qwen") ||
+          request.extra_body?.enable_thinking !== true;
         if (
           selectedPipeline.getFinishReason() === "stop" &&
           isFunctionCalling
         ) {
           // If stopped due to length or abort, cannot output return tool_calls field
-          finish_reason = "tool_calls";
-          tool_calls = getToolCallFromOutputMessage(
+          const parsedOutput = getToolCallFromOutputMessage(
             outputMessage,
             /*isStreaming=*/ false,
+            shouldStripThinking,
           );
+          messageContent = parsedOutput.content;
+          if (parsedOutput.tool_calls.length > 0) {
+            finish_reason = "tool_calls";
+            tool_calls = parsedOutput.tool_calls;
+          }
         }
 
         choices.push({
@@ -889,16 +915,11 @@ export class MLCEngine implements MLCEngineInterface {
                 content: selectedPipeline.getTokenLogprobArray(),
               } as ChatCompletion.Choice.Logprobs)
             : null,
-          message: isFunctionCalling
-            ? {
-                content: null,
-                tool_calls: tool_calls,
-                role: "assistant",
-              }
-            : {
-                content: outputMessage,
-                role: "assistant",
-              },
+          message: {
+            content: messageContent,
+            tool_calls: tool_calls,
+            role: "assistant",
+          },
         });
         completion_tokens += selectedPipeline.getCurRoundDecodingTotalTokens();
         prompt_tokens += selectedPipeline.getCurRoundPrefillTotalTokens();

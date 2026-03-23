@@ -316,6 +316,10 @@ export const functionCallingModelIds = [
   "Hermes-2-Pro-Mistral-7B-q4f16_1-MLC",
   "Hermes-3-Llama-3.1-8B-q4f32_1-MLC",
   "Hermes-3-Llama-3.1-8B-q4f16_1-MLC",
+  "Qwen3-4B-q4f16_1-MLC",
+  "Qwen3-4B-q4f32_1-MLC",
+  "Qwen3-8B-q4f16_1-MLC",
+  "Qwen3-8B-q4f32_1-MLC",
 ];
 
 /**

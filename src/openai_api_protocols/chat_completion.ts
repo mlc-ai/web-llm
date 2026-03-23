@@ -24,6 +24,7 @@ import {
 import {
   officialHermes2FunctionCallSchemaArray,
   hermes2FunctionCallingSystemPrompt,
+  qwenFunctionCallingSystemPrompt,
 } from "../support";
 import {
   CustomResponseFormatError,
@@ -550,7 +551,12 @@ export function postInitAndCheckFields(
   // 7. Function calling hardcoded handlings
   if (request.tools !== undefined && request.tools !== null) {
     // 7.1 Check if model supports function calling
-    if (!functionCallingModelIds.includes(currentModelId)) {
+    const supportsFunctionCalling = functionCallingModelIds.some(
+      (supportedModelId) =>
+        currentModelId === supportedModelId ||
+        currentModelId.startsWith(supportedModelId),
+    );
+    if (!supportsFunctionCalling) {
       throw new UnsupportedModelIdError(
         currentModelId,
         functionCallingModelIds,
@@ -589,6 +595,35 @@ export function postInitAndCheckFields(
         role: "system",
         content: hermes2SystemMessage,
       } as ChatCompletionSystemMessageParam);
+    }
+
+    // 7.3 Hard coded support for Qwen models
+    if (currentModelId.toLowerCase().includes("qwen")) {
+      // Note: We DO NOT force request.response_format to "json_object" here
+      // because Qwen will output <tool_call> text wrappers, which violates strict JSON mode.
+
+      // Modify system prompt to provide tools usage
+      const qwenSystemMessage = qwenFunctionCallingSystemPrompt.replace(
+        MessagePlaceholders.hermes_tools,
+        JSON.stringify(request.tools),
+      );
+
+      // Keep user persona as the primary system message when present.
+      const systemMsgIndex = request.messages.findIndex(
+        (message: ChatCompletionMessageParam) => message.role === "system",
+      );
+
+      if (systemMsgIndex !== -1) {
+        request.messages.splice(systemMsgIndex + 1, 0, {
+          role: "system",
+          content: qwenSystemMessage,
+        } as ChatCompletionSystemMessageParam);
+      } else {
+        request.messages.unshift({
+          role: "system",
+          content: qwenSystemMessage,
+        } as ChatCompletionSystemMessageParam);
+      }
     }
   }
 

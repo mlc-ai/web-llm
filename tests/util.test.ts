@@ -7,6 +7,7 @@ import {
 import {
   cleanModelUrl,
   CustomLock,
+  getToolCallFromOutputMessage,
   getModelIdToUse,
   getChunkedPrefillInputData,
   getTopProbs,
@@ -70,6 +71,65 @@ describe("Test clean model URL", () => {
     const output = cleanModelUrl(input);
     const expected = "https://huggingface.co/mlc-ai/model/resolve/main/";
     expect(output).toEqual(expected);
+  });
+});
+
+describe("Test getToolCallFromOutputMessage", () => {
+  test("Parses Qwen-style think and tool blocks while preserving normal content", () => {
+    const output =
+      "<think>I should call weather.</think>\n" +
+      "Before call summary.\n" +
+      "<tool_call>\n" +
+      '{"name":"get_current_weather","arguments":{"location":"Tokyo"}}\n' +
+      "</tool_call>\n" +
+      "After call summary.";
+
+    const parsed = getToolCallFromOutputMessage(output, false);
+    expect(parsed.content).toEqual(
+      "Before call summary.\n\nAfter call summary.",
+    );
+    expect(parsed.tool_calls).toEqual([
+      {
+        id: "0",
+        function: {
+          name: "get_current_weather",
+          arguments: '{"location":"Tokyo"}',
+        },
+        type: "function",
+      },
+    ]);
+  });
+
+  test("Returns plain text content when output is not a tool call", () => {
+    const output = "How are you today?";
+
+    const parsed = getToolCallFromOutputMessage(output, false);
+    expect(parsed.content).toEqual("How are you today?");
+    expect(parsed.tool_calls).toEqual([]);
+  });
+
+  test("Preserves think tags when stripThinking is false", () => {
+    const output = "<think>draft plan</think>\nHello there";
+
+    const parsed = getToolCallFromOutputMessage(
+      output,
+      false,
+      /*stripThinking=*/ false,
+    );
+    expect(parsed.content).toEqual("<think>draft plan</think>\nHello there");
+    expect(parsed.tool_calls).toEqual([]);
+  });
+
+  test("Strips think tags when stripThinking is true", () => {
+    const output = "<think>draft plan</think>\nHello there";
+
+    const parsed = getToolCallFromOutputMessage(
+      output,
+      false,
+      /*stripThinking=*/ true,
+    );
+    expect(parsed.content).toEqual("Hello there");
+    expect(parsed.tool_calls).toEqual([]);
   });
 });
 
