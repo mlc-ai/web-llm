@@ -613,17 +613,12 @@ export function postInitAndCheckFields(
         (message: ChatCompletionMessageParam) => message.role === "system",
       );
 
-      if (systemMsgIndex !== -1) {
-        request.messages.splice(systemMsgIndex + 1, 0, {
-          role: "system",
-          content: qwenSystemMessage,
-        } as ChatCompletionSystemMessageParam);
-      } else {
-        request.messages.unshift({
-          role: "system",
-          content: qwenSystemMessage,
-        } as ChatCompletionSystemMessageParam);
-      }
+      // If a system message exists (systemMsgIndex > -1), insert after it.
+      // Otherwise (systemMsgIndex === -1), insert at the beginning (index 0).
+      request.messages.splice(systemMsgIndex + 1, 0, {
+        role: "system",
+        content: qwenSystemMessage,
+      } as ChatCompletionSystemMessageParam);
     }
   }
 
