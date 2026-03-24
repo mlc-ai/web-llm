@@ -597,28 +597,30 @@ export function postInitAndCheckFields(
       } as ChatCompletionSystemMessageParam);
     }
 
-    // 7.3 Hard coded support for Qwen models
+    // 7.3 Support for Qwen Reasoning models
     if (currentModelId.toLowerCase().includes("qwen")) {
-      // Note: We DO NOT force request.response_format to "json_object" here
-      // because Qwen will output <tool_call> text wrappers, which violates strict JSON mode.
-
-      // Modify system prompt to provide tools usage
       const qwenSystemMessage = qwenFunctionCallingSystemPrompt.replace(
         MessagePlaceholders.hermes_tools,
         JSON.stringify(request.tools),
       );
 
-      // Keep user persona as the primary system message when present.
       const systemMsgIndex = request.messages.findIndex(
         (message: ChatCompletionMessageParam) => message.role === "system",
       );
 
-      // If a system message exists (systemMsgIndex > -1), insert after it.
-      // Otherwise (systemMsgIndex === -1), insert at the beginning (index 0).
-      request.messages.splice(systemMsgIndex + 1, 0, {
-        role: "system",
-        content: qwenSystemMessage,
-      } as ChatCompletionSystemMessageParam);
+      if (systemMsgIndex !== -1) {
+        // MERGE: Satisfy the 1-system-message rule by appending our rules to the persona.
+        const existingSystemMsg = request.messages[
+          systemMsgIndex
+        ] as ChatCompletionSystemMessageParam;
+        existingSystemMsg.content = `${existingSystemMsg.content}\n\n${qwenSystemMessage}`;
+      } else {
+        // persona absent: standard unshift
+        request.messages.unshift({
+          role: "system",
+          content: qwenSystemMessage,
+        } as ChatCompletionSystemMessageParam);
+      }
     }
   }
 
