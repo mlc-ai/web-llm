@@ -4,6 +4,7 @@ import { AppConfig, MessagePlaceholders, ModelRecord } from "./config";
 import {
   ChatCompletionChunk,
   ChatCompletionContentPartImage,
+  ChatCompletionContentPartInputAudio,
   ChatCompletionMessageToolCall,
 } from "./openai_api_protocols/index";
 import {
@@ -278,21 +279,24 @@ export function getModelIdToUse(
  * Chunk the inputData such that each chunk's total input length is smaller than prefill
  * chunk size.
  * @returns [the data chunks, the input length of each chunk]
- * @note precondition: if inputData has image in it, then prefillChunkSize >= IMAGE_EMBED_SIZE.
+ * @note precondition: if inputData has multimodal entries, prefillChunkSize must be large enough
+ * for each single modal embedding.
  */
 export function getChunkedPrefillInputData(
-  inputData: Array<Array<number> | ImageURL>,
+  inputData: Array<Array<number> | MultimodalInput>,
   prefillChunkSize: number,
-): [Array<Array<number> | ImageURL>[], Array<number>] {
-  const chunks: Array<Array<number> | ImageURL>[] = [];
+): [Array<Array<number> | MultimodalInput>[], Array<number>] {
+  const chunks: Array<Array<number> | MultimodalInput>[] = [];
   const chunkLens: Array<number> = [];
-  let curChunk: Array<Array<number> | ImageURL> = [];
+  let curChunk: Array<Array<number> | MultimodalInput> = [];
   let curChunkLen = 0;
   for (let i = 0; i < inputData.length; i++) {
-    let curData: Array<number> | ImageURL = inputData[i];
+    let curData: Array<number> | MultimodalInput = inputData[i];
     const curDataLen = Array.isArray(curData)
       ? curData.length
-      : IMAGE_EMBED_SIZE;
+      : isImageInput(curData)
+        ? IMAGE_EMBED_SIZE
+        : getAudioEmbedSize(curData);
     // 1. curData can fit into this chunk
     if (curChunkLen + curDataLen <= prefillChunkSize) {
       curChunk.push(curData);
@@ -306,7 +310,7 @@ export function getChunkedPrefillInputData(
       continue;
     }
 
-    // 2. Otherwise, depends on whether it is token data or image data
+    // 2. Otherwise, depends on whether it is token data or multimodal data
     if (Array.isArray(curData)) {
       // 2.1. Token data, which itself needs to be chunked. Keep
       // chunking and finalizing until finished
@@ -327,18 +331,18 @@ export function getChunkedPrefillInputData(
         }
       }
     } else {
-      // 2.2. Image data, which itself cannot be chunked, so cannot fit in current chunk.
+      // 2.2. Multimodal data, which itself cannot be chunked.
       // 2.2.1. Finalize curChunk
       if (curChunk.length === 0) {
         throw new Error(
-          "InternalError: do not expect curChunk to be empty when an image does not fit.",
+          "InternalError: do not expect curChunk to be empty when modal data does not fit.",
         );
       }
       chunks.push([...curChunk]);
       chunkLens.push(curChunkLen);
-      // 2.2.2. Then push image to the new chunk
+      // 2.2.2. Then push modal data to the new chunk
       curChunk = [curData];
-      curChunkLen = IMAGE_EMBED_SIZE;
+      curChunkLen = curDataLen;
       if (curChunkLen === prefillChunkSize) {
         chunks.push([...curChunk]);
         chunkLens.push(curChunkLen);
@@ -404,9 +408,32 @@ export class CustomLock {
 
 // Image related
 type ImageURL = ChatCompletionContentPartImage.ImageURL;
+type InputAudio = ChatCompletionContentPartInputAudio.InputAudio;
+export type MultimodalInput = ImageURL | InputAudio;
 
 // TODO(Charlie): currently hardcoded for phi3.5-vision num_crops 16
 export const IMAGE_EMBED_SIZE = 1921;
+
+/**
+ * Infer audio embed sequence length from input feature shape.
+ *
+ * Qwen2-Audio applies Conv1D(stride=2, kernel=3, padding=1) followed by AvgPool1D(stride=2, kernel=2),
+ * resulting in:
+ * conv_out = floor((feature_size + 1) / 2)
+ * pooled_out = floor(conv_out / 2)
+ */
+export function getAudioEmbedSize(inputAudio: InputAudio): number {
+  if (inputAudio.embed_size !== undefined) {
+    return inputAudio.embed_size;
+  }
+  const featureSize = inputAudio.shape[1];
+  const convOut = Math.floor((featureSize + 1) / 2);
+  return Math.floor(convOut / 2);
+}
+
+export function isImageInput(input: MultimodalInput): input is ImageURL {
+  return "url" in input;
+}
 
 /**
  * Given a url, get the image data. The url can either start with `http` or `data:image`.

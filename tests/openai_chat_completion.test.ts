@@ -222,7 +222,7 @@ describe("Check chat completion unsupported requests", () => {
     );
   });
 
-  test("Non-VLM cannot support non-string content", () => {
+  test("Non-multimodal model cannot support non-string content", () => {
     expect(() => {
       const request: ChatCompletionRequest = {
         messages: [
@@ -245,9 +245,34 @@ describe("Check chat completion unsupported requests", () => {
         "Llama-3.1-8B-Instruct-q4f32_1-MLC",
         ModelType.LLM,
       );
-    }).toThrow(
-      "The model loaded is not of type ModelType.VLM (vision-language model).",
-    );
+    }).toThrow("The model loaded is not a multimodal model");
+  });
+
+  test("Invalid input_audio shape", () => {
+    expect(() => {
+      const request: ChatCompletionRequest = {
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Transcribe this." },
+              {
+                type: "input_audio",
+                input_audio: {
+                  data: [0, 1, 2, 3],
+                  shape: [2, -1],
+                },
+              },
+            ],
+          },
+        ],
+      };
+      postInitAndCheckFields(
+        request,
+        "Qwen2-Audio-7B-Instruct-q4f16_1-MLC",
+        ModelType.ALM,
+      );
+    }).toThrow("Invalid input_audio payload");
   });
 });
 
@@ -303,6 +328,31 @@ describe("Supported requests", () => {
       request,
       "Phi-3.5-vision-instruct-q4f16_1-MLC",
       ModelType.VLM,
+    );
+  });
+
+  test("Support input_audio payload for ALM", () => {
+    const request: ChatCompletionRequest = {
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "Transcribe this audio." },
+            {
+              type: "input_audio",
+              input_audio: {
+                data: new Float32Array(128 * 3000).fill(0),
+                shape: [128, 3000],
+              },
+            },
+          ],
+        },
+      ],
+    };
+    postInitAndCheckFields(
+      request,
+      "Qwen2-Audio-7B-Instruct-q4f16_1-MLC",
+      ModelType.ALM,
     );
   });
 });
