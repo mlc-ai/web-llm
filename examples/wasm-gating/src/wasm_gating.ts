@@ -20,7 +20,18 @@ async function main() {
   if (adapter == null) {
     throw Error("Unable to request a WebGPU adapter.");
   }
-  const supportsSubgroups = adapter.features.has("subgroups");
+  const adapterInfo =
+    adapter.info || (await (adapter as any).requestAdapterInfo());
+  const subgroupMinSize = adapterInfo.subgroupMinSize;
+  const subgroupMaxSize = adapterInfo.subgroupMaxSize;
+  const supportsSubgroups =
+    adapter.features.has("subgroups") &&
+    subgroupMinSize !== undefined &&
+    subgroupMinSize <= 32 &&
+    subgroupMaxSize !== undefined &&
+    32 <= subgroupMaxSize &&
+    adapter.limits.maxComputeInvocationsPerWorkgroup >= 1024;
+  console.log("supportsSubgroups: ", supportsSubgroups);
   // Option 1: If we do not specify appConfig, we use `prebuiltAppConfig` defined in `config.ts`
   const modelRecord = webllm.prebuiltAppConfig.model_list.find(
     (entry) => entry.model_id === selectedModel,
