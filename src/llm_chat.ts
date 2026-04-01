@@ -35,6 +35,30 @@ import {
 
 type ImageURL = ChatCompletionContentPartImage.ImageURL;
 
+type KVStateKind = "kv_cache" | "rnn_state" | "hybrid" | "none";
+type ComputeABIKind = "single" | "batch";
+
+type VMFunctionAvailability = {
+  prefill: boolean;
+  batch_prefill: boolean;
+  decode: boolean;
+  batch_decode: boolean;
+  create_tir_paged_kv_cache: boolean;
+  create_rnn_state: boolean;
+};
+
+type VMFunctionRegistry = Record<string, tvmjs.PackedFunc | undefined>;
+
+type ResolvedModelABI = {
+  kvStateKind: Exclude<KVStateKind, "none">;
+  prefillABI: ComputeABIKind;
+  decodeABI: ComputeABIKind;
+  prefillFunctionName: "prefill" | "batch_prefill";
+  decodeFunctionName: "decode" | "batch_decode";
+  needsKVCache: boolean;
+  needsRNNState: boolean;
+};
+
 export class LLMChatPipeline {
   private config: ChatConfig;
   private tokenizer: Tokenizer;
@@ -45,6 +69,8 @@ export class LLMChatPipeline {
   private vm: tvmjs.VirtualMachine;
   private prefill: tvmjs.PackedFunc;
   private decoding: tvmjs.PackedFunc;
+  private resolvedModelABI!: ResolvedModelABI;
+  private kvStateKind: KVStateKind = "kv_cache";
   private image_embed: tvmjs.PackedFunc | undefined;
   private embed: tvmjs.PackedFunc;
   private fapplyBitmask: tvmjs.PackedFunc;
@@ -64,7 +90,11 @@ export class LLMChatPipeline {
 
   // parameter states
   private params: tvmjs.TVMObject;
-  private kvCache: tvmjs.TVMObject;
+  private kvCache?: tvmjs.TVMObject = undefined;
+  private rnnState?: tvmjs.TVMObject = undefined;
+  private prefillLogitPositions?: tvmjs.Tensor = undefined;
+  private prefillLogitPositionHost = new Int32Array(1);
+  private maxHistorySize = 1;
   private logitsOnCPU?: tvmjs.Tensor = undefined;
   private filledKVCacheLength = 0;
 
@@ -193,49 +223,123 @@ export class LLMChatPipeline {
 
     this.device = this.tvm.webgpu();
 
-    // 1. Create VM and get the core functions
+    // 1. Create VM and read model metadata
     tvm.beginScope();
     this.vm = this.tvm.detachFromCurrentScope(
       this.tvm.createVirtualMachine(this.device),
     );
-    this.prefill = this.tvm.detachFromCurrentScope(
-      this.vm.getFunction("prefill"),
-    );
-    this.embed = this.tvm.detachFromCurrentScope(this.vm.getFunction("embed"));
-    this.decoding = this.tvm.detachFromCurrentScope(
-      this.vm.getFunction("decode"),
-    );
-    this.fapplyBitmask = this.tvm.detachFromCurrentScope(
-      this.vm.getFunction("apply_bitmask_inplace"),
-    );
-    this.fapplyPenalty = this.tvm.detachFromCurrentScope(
-      this.vm.getFunction("apply_penalty_inplace"),
-    );
-    this.fapplyLogitBias = this.tvm.detachFromCurrentScope(
-      this.vm.getFunction("apply_logit_bias_inplace"),
-    );
-    this.fsoftmaxWithTemperature = this.tvm.detachFromCurrentScope(
-      this.vm.getFunction("softmax_with_temperature"),
-    );
-    this.fsampleWithTopP = this.tvm.detachFromCurrentScope(
-      this.vm.getFunction("sample_with_top_p"),
-    );
-    this.fargsortProbs = this.tvm.detachFromCurrentScope(
-      this.vm.getFunction("argsort_probs"),
-    );
-    try {
-      this.image_embed = this.tvm.detachFromCurrentScope(
-        this.vm.getFunction("image_embed"),
-      );
-    } catch {
-      log.info("Cannot find function image_embed.");
-    }
 
-    // 2. Get json stored in the vm's metadata function
+    const vmFunctionRegistry = LLMChatPipeline.loadVMFunctionRegistry(this.vm, [
+      "prefill",
+      "batch_prefill",
+      "decode",
+      "batch_decode",
+      "create_tir_paged_kv_cache",
+      "create_rnn_state",
+      "sample_with_top_p",
+      "argsort_probs",
+      "image_embed",
+      "embed",
+      "apply_bitmask_inplace",
+      "apply_penalty_inplace",
+      "apply_logit_bias_inplace",
+      "softmax_with_temperature",
+    ]);
+
     const fgetMetadata = this.vm.getFunction("_metadata");
     const ret_value = fgetMetadata();
     const metadataStr = ret_value.toString();
     const metadata = JSON.parse(metadataStr);
+    this.kvStateKind = this.parseKVStateKind(metadata.kv_state_kind);
+
+    const vmFunctionAvailability =
+      LLMChatPipeline.getVMFunctionAvailability(vmFunctionRegistry);
+    this.resolvedModelABI = LLMChatPipeline.resolveModelABI(
+      this.kvStateKind,
+      vmFunctionAvailability,
+    );
+    const stateKinds: string[] = [];
+    if (this.resolvedModelABI.needsKVCache) {
+      stateKinds.push("kv_cache");
+    }
+    if (this.resolvedModelABI.needsRNNState) {
+      stateKinds.push("rnn_state");
+    }
+    log.info(
+      "Resolved model ABI:",
+      JSON.stringify({
+        kv_state_kind: this.kvStateKind,
+        prefill: this.resolvedModelABI.prefillFunctionName,
+        decode: this.resolvedModelABI.decodeFunctionName,
+        states: stateKinds,
+      }),
+    );
+
+    // 2. Bind VM functions according to the resolved ABI
+    this.prefill = this.tvm.detachFromCurrentScope(
+      LLMChatPipeline.getRequiredVMFunctionByName(
+        this.resolvedModelABI.prefillFunctionName,
+        vmFunctionRegistry,
+      ),
+    );
+    this.decoding = this.tvm.detachFromCurrentScope(
+      LLMChatPipeline.getRequiredVMFunctionByName(
+        this.resolvedModelABI.decodeFunctionName,
+        vmFunctionRegistry,
+      ),
+    );
+    if (this.resolvedModelABI.prefillABI === "batch") {
+      log.info("Using batch_prefill kernel.");
+    }
+    if (this.resolvedModelABI.decodeABI === "batch") {
+      log.info("Using batch_decode kernel.");
+    }
+
+    this.embed = this.tvm.detachFromCurrentScope(
+      LLMChatPipeline.getRequiredVMFunctionByName("embed", vmFunctionRegistry),
+    );
+    this.fapplyBitmask = this.tvm.detachFromCurrentScope(
+      LLMChatPipeline.getRequiredVMFunctionByName(
+        "apply_bitmask_inplace",
+        vmFunctionRegistry,
+      ),
+    );
+    this.fapplyPenalty = this.tvm.detachFromCurrentScope(
+      LLMChatPipeline.getRequiredVMFunctionByName(
+        "apply_penalty_inplace",
+        vmFunctionRegistry,
+      ),
+    );
+    this.fapplyLogitBias = this.tvm.detachFromCurrentScope(
+      LLMChatPipeline.getRequiredVMFunctionByName(
+        "apply_logit_bias_inplace",
+        vmFunctionRegistry,
+      ),
+    );
+    this.fsoftmaxWithTemperature = this.tvm.detachFromCurrentScope(
+      LLMChatPipeline.getRequiredVMFunctionByName(
+        "softmax_with_temperature",
+        vmFunctionRegistry,
+      ),
+    );
+    this.fsampleWithTopP = this.tvm.detachFromCurrentScope(
+      LLMChatPipeline.getRequiredVMFunctionByName(
+        "sample_with_top_p",
+        vmFunctionRegistry,
+      ),
+    );
+    this.fargsortProbs = this.tvm.detachFromCurrentScope(
+      LLMChatPipeline.getRequiredVMFunctionByName(
+        "argsort_probs",
+        vmFunctionRegistry,
+      ),
+    );
+    const imageEmbed = vmFunctionRegistry.image_embed;
+    if (imageEmbed !== undefined) {
+      this.image_embed = this.tvm.detachFromCurrentScope(imageEmbed);
+    } else {
+      log.info("Cannot find function image_embed.");
+    }
 
     // 3. Load parameters by name
     const paramNames: string[] = [];
@@ -276,6 +380,19 @@ export class LLMChatPipeline {
     } else {
       throw new WindowSizeSpecificationError();
     }
+    if (
+      config.max_history_size !== undefined &&
+      config.max_history_size !== null
+    ) {
+      if (config.max_history_size <= 0) {
+        throw new MinValueError("max_history_size", 0);
+      }
+      this.maxHistorySize = config.max_history_size;
+    } else if (this.resolvedModelABI.needsRNNState) {
+      // Hybrid/recurrent models can over-allocate RNN state if we use context window directly.
+      // Keep browser default conservative unless user explicitly overrides max_history_size.
+      log.info("max_history_size is not set. Using browser-safe default: 1");
+    }
 
     // 5. Create cache
     // Load cache functions and instantiate KVCache
@@ -300,23 +417,48 @@ export class LLMChatPipeline {
       ),
     );
 
-    // Create PagedKVCache; we do not expose KVCache config for now
-    const fcreateCache = this.vm.getFunction("create_tir_paged_kv_cache");
     const defaultPageSize = 16;
     const defaultMaxNumSequence = 1;
     const maxTotalSeqLen =
       this.slidingWindowSize != -1
         ? this.slidingWindowSize
         : this.contextWindowSize;
-    this.kvCache = this.tvm.detachFromCurrentScope(
-      fcreateCache(
-        this.tvm.makeShapeTuple([defaultMaxNumSequence]), // max_num_sequence
-        this.tvm.makeShapeTuple([maxTotalSeqLen]), // max_total_sequence_length
-        this.tvm.makeShapeTuple([this.prefillChunkSize]), // prefill_chunk_size
-        this.tvm.makeShapeTuple([defaultPageSize]), // page_size, hard coded for now
-        this.tvm.makeShapeTuple([this.slidingWindowSize != -1 ? 1 : 0]),
-      ),
-    );
+
+    if (this.resolvedModelABI.needsKVCache) {
+      const createKVCache = LLMChatPipeline.getRequiredVMFunctionByName(
+        "create_tir_paged_kv_cache",
+        vmFunctionRegistry,
+      );
+      this.kvCache = this.tvm.detachFromCurrentScope(
+        createKVCache(
+          this.tvm.makeShapeTuple([defaultMaxNumSequence]), // max_num_sequence
+          this.tvm.makeShapeTuple([maxTotalSeqLen]), // max_total_sequence_length
+          this.tvm.makeShapeTuple([this.prefillChunkSize]), // prefill_chunk_size
+          this.tvm.makeShapeTuple([defaultPageSize]), // page_size, hard coded for now
+          this.tvm.makeShapeTuple([this.slidingWindowSize != -1 ? 1 : 0]),
+        ),
+      );
+    }
+
+    if (this.resolvedModelABI.needsRNNState) {
+      const createRNNState = LLMChatPipeline.getRequiredVMFunctionByName(
+        "create_rnn_state",
+        vmFunctionRegistry,
+      );
+      this.rnnState = this.tvm.detachFromCurrentScope(
+        createRNNState(
+          this.tvm.makeShapeTuple([defaultMaxNumSequence]),
+          this.tvm.makeShapeTuple([this.maxHistorySize]),
+        ),
+      );
+      log.info("Using maxHistorySize for RNN state: ", this.maxHistorySize);
+    }
+
+    if (this.resolvedModelABI.prefillABI === "batch") {
+      this.prefillLogitPositions = this.tvm.detachFromCurrentScope(
+        this.tvm.empty([defaultMaxNumSequence], "int32", this.device),
+      );
+    }
 
     this.filledKVCacheLength = 0;
     this.resetChat(); // especially needed for PagedKVCache as we need to call fKVCacheAddSequence
@@ -350,8 +492,14 @@ export class LLMChatPipeline {
     this.prefill.dispose();
     this.embed.dispose();
     this.image_embed?.dispose();
+    this.prefillLogitPositions?.dispose();
+    this.rnnState?.dispose();
+    this.kvCache?.dispose();
+    this.fsampleWithTopP.dispose();
+    this.fargsortProbs.dispose();
+    this.sampleIndicesDevice?.dispose();
+    this.topPDevice?.dispose();
     this.vm.dispose();
-    this.kvCache.dispose();
     this.fclearKVCaches.dispose();
     this.logitsOnCPU?.dispose();
     this.tvm.dispose();
@@ -396,9 +544,12 @@ export class LLMChatPipeline {
    * Reset KV Cache
    */
   resetKVCache() {
-    this.fclearKVCaches(this.kvCache);
-    this.fKVCacheAddSequence!(this.kvCache, new tvmjs.Scalar(0, "int64"));
-    if (this.slidingWindowSize != -1) {
+    const states = this.getActiveKVStates();
+    for (const state of states) {
+      this.fclearKVCaches(state);
+      this.fKVCacheAddSequence!(state, new tvmjs.Scalar(0, "int64"));
+    }
+    if (this.slidingWindowSize != -1 && this.kvCache !== undefined) {
       this.fKVCacheEnableSlidingWindowForSeq(
         this.kvCache,
         new tvmjs.Scalar(0, "int64"),
@@ -1080,21 +1231,330 @@ export class LLMChatPipeline {
     // 3. Forward the concatenated embeddings
     const inputLenShape = this.tvm.makeShapeTuple([inputDataLen]);
     const seqIdsTuple = this.tvm.makeShapeTuple([0]);
-    this.fKVCacheBeginForward!(this.kvCache, seqIdsTuple, inputLenShape);
+    const forwardStates = this.getActiveKVStates();
+    for (const state of forwardStates) {
+      this.fKVCacheBeginForward!(state, seqIdsTuple, inputLenShape);
+    }
     let retValue;
     if (inputDataLen > 1) {
-      retValue = this.prefill(allEmbeddings, this.kvCache, this.params);
+      retValue = this.invokePrefill(allEmbeddings, inputDataLen);
     } else {
-      retValue = this.decoding(allEmbeddings, this.kvCache, this.params);
+      retValue = this.invokeDecode(allEmbeddings);
     }
 
     // Epilogue
-    this.fKVCacheEndForward!(this.kvCache);
+    for (let i = forwardStates.length - 1; i >= 0; --i) {
+      this.fKVCacheEndForward!(forwardStates[i]);
+    }
     this.filledKVCacheLength += inputDataLen;
     const logits = this.tvm.detachFromCurrentScope(retValue.get(0));
     this.tvm.endScope();
     this.tvm.attachToCurrentScope(logits);
     return logits;
+  }
+
+  private static loadVMFunctionRegistry(
+    vm: tvmjs.VirtualMachine,
+    names: string[],
+  ): VMFunctionRegistry {
+    const registry: VMFunctionRegistry = {};
+    for (const name of names) {
+      try {
+        const func = vm.getFunction(name) as unknown;
+        if (typeof func === "function") {
+          registry[name] = func as tvmjs.PackedFunc;
+        }
+      } catch {
+        // no-op for unexported symbols
+      }
+    }
+    return registry;
+  }
+
+  private static getRequiredVMFunctionByName(
+    name: string,
+    registry: VMFunctionRegistry,
+  ): tvmjs.PackedFunc {
+    const func = registry[name];
+    if (func !== undefined) {
+      return func;
+    }
+
+    const availableNames = Object.entries(registry)
+      .filter((entry) => entry[1] !== undefined)
+      .map((entry) => entry[0])
+      .sort();
+    const availableStr =
+      availableNames.length === 0 ? "(none)" : availableNames.join(", ");
+    throw new Error(
+      `Cannot find required VM function \`${name}\`. Available candidate functions: ${availableStr}`,
+    );
+  }
+
+  private static getVMFunctionAvailability(
+    registry: VMFunctionRegistry,
+  ): VMFunctionAvailability {
+    return {
+      prefill: registry.prefill !== undefined,
+      batch_prefill: registry.batch_prefill !== undefined,
+      decode: registry.decode !== undefined,
+      batch_decode: registry.batch_decode !== undefined,
+      create_tir_paged_kv_cache:
+        registry.create_tir_paged_kv_cache !== undefined,
+      create_rnn_state: registry.create_rnn_state !== undefined,
+    };
+  }
+
+  private parseKVStateKind(kvStateKindRaw: unknown): KVStateKind {
+    if (kvStateKindRaw === undefined || kvStateKindRaw === null) {
+      return "kv_cache";
+    }
+    if (typeof kvStateKindRaw !== "string") {
+      throw new Error(
+        `Invalid kv_state_kind in model metadata: expected string, got ${typeof kvStateKindRaw}`,
+      );
+    }
+    const kvStateKind = kvStateKindRaw as KVStateKind;
+    if (
+      kvStateKind === "kv_cache" ||
+      kvStateKind === "rnn_state" ||
+      kvStateKind === "hybrid" ||
+      kvStateKind === "none"
+    ) {
+      return kvStateKind;
+    }
+    throw new Error(
+      `Unsupported kv_state_kind in model metadata: ${kvStateKindRaw}`,
+    );
+  }
+
+  private static resolveModelABI(
+    kvStateKind: KVStateKind,
+    availability: VMFunctionAvailability,
+  ): ResolvedModelABI {
+    const hasSingleKernelPair = availability.prefill && availability.decode;
+    const hasBatchKernelPair =
+      availability.batch_prefill && availability.batch_decode;
+    const availableNames = Object.entries(availability)
+      .filter((entry) => entry[1])
+      .map((entry) => entry[0])
+      .sort();
+    const availableStr =
+      availableNames.length === 0 ? "(none)" : availableNames.join(", ");
+
+    if (kvStateKind === "none") {
+      throw new Error(
+        "kv_state_kind=`none` is not supported in LLMChatPipeline chat runtime.",
+      );
+    }
+
+    if (kvStateKind === "hybrid") {
+      const missingFunctions: string[] = [];
+      if (!availability.batch_prefill) {
+        missingFunctions.push("batch_prefill");
+      }
+      if (!availability.batch_decode) {
+        missingFunctions.push("batch_decode");
+      }
+      if (!availability.create_tir_paged_kv_cache) {
+        missingFunctions.push("create_tir_paged_kv_cache");
+      }
+      if (!availability.create_rnn_state) {
+        missingFunctions.push("create_rnn_state");
+      }
+      if (missingFunctions.length !== 0) {
+        throw new Error(
+          "Invalid hybrid ABI. Missing required functions: " +
+            `${missingFunctions.join(", ")}. ` +
+            `Available candidate functions: ${availableStr}`,
+        );
+      }
+      return {
+        kvStateKind,
+        prefillABI: "batch",
+        decodeABI: "batch",
+        prefillFunctionName: "batch_prefill",
+        decodeFunctionName: "batch_decode",
+        needsKVCache: true,
+        needsRNNState: true,
+      };
+    }
+
+    if (kvStateKind === "rnn_state") {
+      if (!availability.create_rnn_state) {
+        throw new Error(
+          "Invalid rnn_state ABI. Missing required function: create_rnn_state.",
+        );
+      }
+      if (hasSingleKernelPair) {
+        return {
+          kvStateKind,
+          prefillABI: "single",
+          decodeABI: "single",
+          prefillFunctionName: "prefill",
+          decodeFunctionName: "decode",
+          needsKVCache: false,
+          needsRNNState: true,
+        };
+      }
+      if (hasBatchKernelPair) {
+        return {
+          kvStateKind,
+          prefillABI: "batch",
+          decodeABI: "batch",
+          prefillFunctionName: "batch_prefill",
+          decodeFunctionName: "batch_decode",
+          needsKVCache: false,
+          needsRNNState: true,
+        };
+      }
+      throw new Error(
+        "Invalid rnn_state ABI. Require either `prefill`+`decode` or " +
+          "`batch_prefill`+`batch_decode`. " +
+          `Available candidate functions: ${availableStr}`,
+      );
+    }
+
+    // kv_cache
+    if (hasSingleKernelPair) {
+      return {
+        kvStateKind,
+        prefillABI: "single",
+        decodeABI: "single",
+        prefillFunctionName: "prefill",
+        decodeFunctionName: "decode",
+        needsKVCache: true,
+        needsRNNState: false,
+      };
+    }
+    if (hasBatchKernelPair) {
+      return {
+        kvStateKind,
+        prefillABI: "batch",
+        decodeABI: "batch",
+        prefillFunctionName: "batch_prefill",
+        decodeFunctionName: "batch_decode",
+        needsKVCache: true,
+        needsRNNState: false,
+      };
+    }
+    throw new Error(
+      "Invalid kv_cache ABI. Require either `prefill`+`decode` or " +
+        "`batch_prefill`+`batch_decode`. " +
+        `Available candidate functions: ${availableStr}`,
+    );
+  }
+
+  private requireKVCache(): tvmjs.TVMObject {
+    if (this.kvCache === undefined) {
+      throw new Error("InternalError: kv cache is not initialized.");
+    }
+    return this.kvCache;
+  }
+
+  private requireRNNState(): tvmjs.TVMObject {
+    if (this.rnnState === undefined) {
+      throw new Error("InternalError: rnn state is not initialized.");
+    }
+    return this.rnnState;
+  }
+
+  private getSingleStateForABI(): tvmjs.TVMObject {
+    if (
+      this.resolvedModelABI.needsKVCache &&
+      !this.resolvedModelABI.needsRNNState
+    ) {
+      return this.requireKVCache();
+    }
+    if (
+      !this.resolvedModelABI.needsKVCache &&
+      this.resolvedModelABI.needsRNNState
+    ) {
+      return this.requireRNNState();
+    }
+    throw new Error(
+      "InternalError: single-state ABI requested for a hybrid/non-single state model.",
+    );
+  }
+
+  private getActiveKVStates(): tvmjs.TVMObject[] {
+    const states: tvmjs.TVMObject[] = [];
+    if (this.kvCache !== undefined) {
+      states.push(this.kvCache);
+    }
+    if (this.rnnState !== undefined) {
+      states.push(this.rnnState);
+    }
+    if (states.length === 0) {
+      throw new Error("InternalError: no kv states initialized.");
+    }
+    return states;
+  }
+
+  private invokePrefill(
+    allEmbeddings: tvmjs.Tensor,
+    inputDataLen: number,
+  ): any {
+    if (this.resolvedModelABI.prefillABI === "single") {
+      return this.prefill(
+        allEmbeddings,
+        this.getSingleStateForABI(),
+        this.params,
+      );
+    }
+
+    if (this.prefillLogitPositions === undefined) {
+      throw new Error(
+        "InternalError: batch prefill ABI requires prefillLogitPositions tensor.",
+      );
+    }
+    this.prefillLogitPositionHost[0] = inputDataLen - 1;
+    this.prefillLogitPositions.copyFrom(this.prefillLogitPositionHost);
+
+    if (
+      this.resolvedModelABI.needsKVCache &&
+      this.resolvedModelABI.needsRNNState
+    ) {
+      return this.prefill(
+        allEmbeddings,
+        this.prefillLogitPositions,
+        this.requireKVCache(),
+        this.requireRNNState(),
+        this.params,
+      );
+    }
+    return this.prefill(
+      allEmbeddings,
+      this.prefillLogitPositions,
+      this.getSingleStateForABI(),
+      this.params,
+    );
+  }
+
+  private invokeDecode(allEmbeddings: tvmjs.Tensor): any {
+    if (this.resolvedModelABI.decodeABI === "single") {
+      return this.decoding(
+        allEmbeddings,
+        this.getSingleStateForABI(),
+        this.params,
+      );
+    }
+    if (
+      this.resolvedModelABI.needsKVCache &&
+      this.resolvedModelABI.needsRNNState
+    ) {
+      return this.decoding(
+        allEmbeddings,
+        this.requireKVCache(),
+        this.requireRNNState(),
+        this.params,
+      );
+    }
+    return this.decoding(
+      allEmbeddings,
+      this.getSingleStateForABI(),
+      this.params,
+    );
   }
 
   // NOTE: caller must call device.sync()
@@ -1419,27 +1879,25 @@ export class LLMChatPipeline {
     );
     probs = probs.view([numProbs, this.fullVocabSize]);
 
+    const topPValue = Math.max(top_p, 1e-5);
+    let sampledToken = -1;
     const argsortResults = this.fargsortProbs(probs);
     const sortedProbsDevice = argsortResults.get(0);
     const sortedIndicesDevice = argsortResults.get(1);
-
     const uniformSamplesDevice = this.tvm.uniform([1], 0.0, 1.0, this.device);
 
     const topPHost = new Float32Array(numProbs).fill(-1);
-    const topPValue = Math.max(top_p, 1e-5);
     this.sampleIndices.forEach((row) => {
       topPHost[row] = topPValue;
     });
     this.topPDevice.copyFrom(topPHost);
 
-    const sampledTokensDevice = this.tvm.detachFromCurrentScope(
-      this.fsampleWithTopP(
-        sortedProbsDevice,
-        sortedIndicesDevice,
-        uniformSamplesDevice,
-        this.sampleIndicesDevice,
-        this.topPDevice,
-      ),
+    const sampledTokensDevice = this.fsampleWithTopP(
+      sortedProbsDevice,
+      sortedIndicesDevice,
+      uniformSamplesDevice,
+      this.sampleIndicesDevice,
+      this.topPDevice,
     );
     const sampledTokensHost = this.tvm.detachFromCurrentScope(
       this.tvm
@@ -1452,7 +1910,11 @@ export class LLMChatPipeline {
     this.tvm.endScope();
     await this.device.sync();
 
-    const sampledToken = sampledTokensHost.toArray()[0];
+    sampledToken = sampledTokensHost.toArray()[0];
+    sampledTokensHost.dispose();
+    if (sampledToken < 0) {
+      throw new Error("InternalError: failed to sample a valid token.");
+    }
 
     if (logprobs && top_logprobs! > 0) {
       this.tokenLogprobArray.push(
