@@ -312,6 +312,15 @@ describe("calculateResizeShape", () => {
     pipeline["config"] = { model_type: "phi3_v" } as any;
     expect(pipeline["calculateResizeShape"](1920, 1080)).toEqual([1194, 672]);
   });
+
+  test("qwen3_5_vision fixed square resize", () => {
+    const pipeline = createPipeline();
+    pipeline["config"] = {
+      model_type: "qwen3_5_vision",
+      model_config: { image_size: 448 },
+    } as any;
+    expect(pipeline["calculateResizeShape"](1080, 1920)).toEqual([448, 448]);
+  });
 });
 
 describe("calculateCropShape", () => {
@@ -332,6 +341,15 @@ describe("calculateCropShape", () => {
     pipeline["config"] = { model_type: "phi3_v" } as any;
     expect(pipeline["calculateCropShape"](1920, 1080)).toEqual([4, 2]);
   });
+
+  test("qwen3_5_vision single tile", () => {
+    const pipeline = createPipeline();
+    pipeline["config"] = {
+      model_type: "qwen3_5_vision",
+      model_config: { image_size: 448 },
+    } as any;
+    expect(pipeline["calculateCropShape"](1080, 1920)).toEqual([1, 1]);
+  });
 });
 
 describe("computeImageEmbedSize", () => {
@@ -351,6 +369,15 @@ describe("computeImageEmbedSize", () => {
     const pipeline = createPipeline();
     pipeline["config"] = { model_type: "phi3_v" } as any;
     expect(pipeline["computeImageEmbedSize"](1920, 1080)).toBe(1357);
+  });
+
+  test("qwen3_5_vision returns 196", () => {
+    const pipeline = createPipeline();
+    pipeline["config"] = {
+      model_type: "qwen3_5_vision",
+      model_config: { image_size: 448 },
+    } as any;
+    expect(pipeline["computeImageEmbedSize"](1080, 1920)).toBe(196);
   });
 
   test("model with mm_tokens_per_image", () => {

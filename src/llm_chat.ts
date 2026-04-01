@@ -1094,6 +1094,14 @@ export class LLMChatPipeline {
       const glbTokens = 12 * (12 + 1);
       return subTokens + 1 + glbTokens;
     }
+    if (modelType === "qwen3_5_vision") {
+      // (image_size / patch_size / spatial_merge_size)^2 = (448/16/2)^2 = 196
+      const imageSize = this.config.model_config?.image_size ?? 448;
+      const patchSize = 16;
+      const spatialMergeSize = 2;
+      const side = imageSize / patchSize / spatialMergeSize;
+      return side * side;
+    }
     // For models with fixed embed size (e.g. Gemma3V)
     const mmTokens = this.config.model_config?.mm_tokens_per_image;
     if (mmTokens !== undefined) {
@@ -1126,6 +1134,15 @@ export class LLMChatPipeline {
         const newH = Math.floor(newW / ratio);
         return [newH, newW];
       }
+      case "qwen3_5_vision": {
+        const imageSize = this.config.model_config?.image_size;
+        if (imageSize === undefined) {
+          throw new Error(
+            "qwen3_5_vision requires image_size in model_config for resize.",
+          );
+        }
+        return [imageSize, imageSize];
+      }
       default:
         throw new Error(
           `Unsupported model type "${this.config.model_type}" for image resize.`,
@@ -1150,6 +1167,8 @@ export class LLMChatPipeline {
         const padH = Math.ceil(resizedHeight / 336) * 336;
         return [Math.floor(padH / 336), Math.floor(resizedWidth / 336)];
       }
+      case "qwen3_5_vision":
+        return [1, 1];
       default:
         throw new Error(
           `Unsupported model type "${this.config.model_type}" for image crop.`,

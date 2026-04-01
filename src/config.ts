@@ -37,6 +37,7 @@ export type VisionModelConfig = {
   eoi_token_index?: number;
   vision_start_token_id?: number;
   vision_end_token_id?: number;
+  image_size?: number;
 };
 
 export enum Role {
