@@ -312,6 +312,15 @@ describe("calculateResizeShape", () => {
     pipeline["config"] = { model_type: "phi3_v" } as any;
     expect(pipeline["calculateResizeShape"](1920, 1080)).toEqual([1194, 672]);
   });
+
+  test("gemma3_v fixed square resize", () => {
+    const pipeline = createPipeline();
+    pipeline["config"] = {
+      model_type: "gemma3_v",
+      model_config: { image_size: 448 },
+    } as any;
+    expect(pipeline["calculateResizeShape"](1080, 1920)).toEqual([448, 448]);
+  });
 });
 
 describe("calculateCropShape", () => {
@@ -331,6 +340,15 @@ describe("calculateCropShape", () => {
     const pipeline = createPipeline();
     pipeline["config"] = { model_type: "phi3_v" } as any;
     expect(pipeline["calculateCropShape"](1920, 1080)).toEqual([4, 2]);
+  });
+
+  test("gemma3_v single tile", () => {
+    const pipeline = createPipeline();
+    pipeline["config"] = {
+      model_type: "gemma3_v",
+      model_config: { image_size: 448 },
+    } as any;
+    expect(pipeline["calculateCropShape"](1080, 1920)).toEqual([1, 1]);
   });
 });
 

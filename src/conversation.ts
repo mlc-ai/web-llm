@@ -201,6 +201,9 @@ export class Conversation {
           if (modelType === "phi3_v") {
             curMessageList.push(curImage);
             curMessageList.push("\n");
+          } else if (modelType === "gemma3_v") {
+            curMessageList.push("\n");
+            curMessageList.push(curImage);
           } else {
             curMessageList.push(curImage);
           }

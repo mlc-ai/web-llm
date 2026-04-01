@@ -1126,6 +1126,15 @@ export class LLMChatPipeline {
         const newH = Math.floor(newW / ratio);
         return [newH, newW];
       }
+      case "gemma3_v": {
+        const imageSize = this.config.model_config?.image_size;
+        if (imageSize === undefined) {
+          throw new Error(
+            "gemma3_v requires image_size in model_config for resize.",
+          );
+        }
+        return [imageSize, imageSize];
+      }
       default:
         throw new Error(
           `Unsupported model type "${this.config.model_type}" for image resize.`,
@@ -1150,6 +1159,8 @@ export class LLMChatPipeline {
         const padH = Math.ceil(resizedHeight / 336) * 336;
         return [Math.floor(padH / 336), Math.floor(resizedWidth / 336)];
       }
+      case "gemma3_v":
+        return [1, 1];
       default:
         throw new Error(
           `Unsupported model type "${this.config.model_type}" for image crop.`,
