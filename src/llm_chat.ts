@@ -1892,14 +1892,12 @@ export class LLMChatPipeline {
     });
     this.topPDevice.copyFrom(topPHost);
 
-    const sampledTokensDevice = this.tvm.detachFromCurrentScope(
-      this.fsampleWithTopP(
-        sortedProbsDevice,
-        sortedIndicesDevice,
-        uniformSamplesDevice,
-        this.sampleIndicesDevice,
-        this.topPDevice,
-      ),
+    const sampledTokensDevice = this.fsampleWithTopP(
+      sortedProbsDevice,
+      sortedIndicesDevice,
+      uniformSamplesDevice,
+      this.sampleIndicesDevice,
+      this.topPDevice,
     );
     const sampledTokensHost = this.tvm.detachFromCurrentScope(
       this.tvm
