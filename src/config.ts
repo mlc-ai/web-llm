@@ -93,6 +93,10 @@ export interface ChatConfig {
   top_p: number;
   temperature: number;
   bos_token_id?: number;
+  // Model type identifier from mlc-chat-config.json (e.g. "phi3_v", "gemma3_v")
+  model_type?: string;
+  // Nested model config from mlc-chat-config.json, contains model-specific parameters
+  model_config?: Record<string, any>;
 }
 
 /**

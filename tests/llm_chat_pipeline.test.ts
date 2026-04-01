@@ -201,10 +201,9 @@ function preparePrefillPipeline(): PipelineLike {
   const pipeline = createPipeline();
   pipeline["prefillTotalTime"] = 0;
   pipeline["prefillTotalTokens"] = 0;
-  pipeline["getInputData"] = jest.fn<() => [number[][], number]>(() => [
-    [[0]],
-    1,
-  ]);
+  pipeline["getInputData"] = jest.fn(
+    async (): Promise<[any[], number, any]> => [[[0]], 1, () => 0],
+  );
   pipeline["processNextToken"] = jest.fn();
   return pipeline;
 }
@@ -272,15 +271,15 @@ test("prefillStep compiles custom grammar when response type is grammar", async 
   expect(compileGrammarMock).toHaveBeenCalledWith("root ::= WORD");
 });
 
-test("getInputData uses cached prompts when KV cache filled", () => {
+test("getInputData uses cached prompts when KV cache filled", async () => {
   const pipeline = createPipeline();
   pipeline["tokenizer"].encode = jest.fn(() => Int32Array.from([1]));
   pipeline["conversation"].config.system_prefix_token_ids = undefined;
   pipeline["filledKVCacheLength"] = 0;
-  (pipeline as any).getInputData();
+  await (pipeline as any).getInputData();
   expect(pipeline["conversation"].getPromptArray).toHaveBeenCalled();
   pipeline["filledKVCacheLength"] = 1;
-  (pipeline as any).getInputData();
+  await (pipeline as any).getInputData();
   expect(pipeline["conversation"].getPromptArrayLastRound).toHaveBeenCalled();
 });
 
@@ -291,4 +290,75 @@ test("processNextToken ignores eos when requested", () => {
   expect(pipeline["stopTriggered"]).toBe(false);
   expect(pipeline["finishReason"]).toBeUndefined();
   expect(pipeline["outputIds"]).toContain(1);
+});
+
+describe("calculateResizeShape", () => {
+  test("square image", () => {
+    const pipeline = createPipeline();
+    expect(pipeline["calculateResizeShape"](336, 336)).toEqual([1344, 1344]);
+  });
+
+  test("landscape image", () => {
+    const pipeline = createPipeline();
+    expect(pipeline["calculateResizeShape"](1080, 1920)).toEqual([945, 1680]);
+  });
+
+  test("portrait image", () => {
+    const pipeline = createPipeline();
+    expect(pipeline["calculateResizeShape"](1920, 1080)).toEqual([1194, 672]);
+  });
+});
+
+describe("calculateCropShape", () => {
+  test("square image", () => {
+    const pipeline = createPipeline();
+    expect(pipeline["calculateCropShape"](336, 336)).toEqual([4, 4]);
+  });
+
+  test("landscape image", () => {
+    const pipeline = createPipeline();
+    expect(pipeline["calculateCropShape"](1080, 1920)).toEqual([3, 5]);
+  });
+
+  test("portrait image", () => {
+    const pipeline = createPipeline();
+    expect(pipeline["calculateCropShape"](1920, 1080)).toEqual([4, 2]);
+  });
+});
+
+describe("computeImageEmbedSize", () => {
+  test("phi3_v square image", () => {
+    const pipeline = createPipeline();
+    pipeline["config"] = { model_type: "phi3_v" } as any;
+    expect(pipeline["computeImageEmbedSize"](336, 336)).toBe(2509);
+  });
+
+  test("phi3_v landscape image", () => {
+    const pipeline = createPipeline();
+    pipeline["config"] = { model_type: "phi3_v" } as any;
+    expect(pipeline["computeImageEmbedSize"](1080, 1920)).toBe(2353);
+  });
+
+  test("phi3_v portrait image", () => {
+    const pipeline = createPipeline();
+    pipeline["config"] = { model_type: "phi3_v" } as any;
+    expect(pipeline["computeImageEmbedSize"](1920, 1080)).toBe(1357);
+  });
+
+  test("model with mm_tokens_per_image", () => {
+    const pipeline = createPipeline();
+    pipeline["config"] = {
+      model_type: "gemma3_v",
+      model_config: { mm_tokens_per_image: 256 },
+    } as any;
+    expect(pipeline["computeImageEmbedSize"](1080, 1920)).toBe(256);
+  });
+
+  test("unknown model without mm_tokens throws", () => {
+    const pipeline = createPipeline();
+    pipeline["config"] = { model_type: "unknown_model" } as any;
+    expect(() => pipeline["computeImageEmbedSize"](336, 336)).toThrow(
+      "Cannot determine image embed size",
+    );
+  });
 });
