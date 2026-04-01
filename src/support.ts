@@ -103,23 +103,23 @@ export function cleanModelUrl(modelUrl: string): string {
  * Json schema used to prompt the model for function calling; directly copied from the official guide.
  * This represents to a single function call.
  */
-export const officialHermes2_3FunctionCallSchema = `{"properties": {"arguments": {"title": "Arguments", "type": "object"}, "name": {"title": "Name", "type": "string"}}, "required": ["arguments", "name"], "title": "FunctionCall", "type": "object"}`;
+export const officialHermes2FunctionCallSchema = `{"properties": {"arguments": {"title": "Arguments", "type": "object"}, "name": {"title": "Name", "type": "string"}}, "required": ["arguments", "name"], "title": "FunctionCall", "type": "object"}`;
 
 /**
  * A list of such function calls. Used to specify response format, since the output is expected to
  * be a list of such function calls.
  */
-export const officialHermes2_3FunctionCallSchemaArray = `{"type":"array","items":${officialHermes2_3FunctionCallSchema}}`;
+export const officialHermes2FunctionCallSchemaArray = `{"type":"array","items":${officialHermes2FunctionCallSchema}}`;
 
 /**
  * Full system prompt for Hermes-2-Pro and Hermes-3 function calling.
  */
-export const hermes2_3FunctionCallingSystemPrompt = `You are a function calling AI model. You are 
+export const hermes2FunctionCallingSystemPrompt = `You are a function calling AI model. You are 
 provided with function signatures within <tools></tools> XML tags. You may call one or more functions 
 to assist with the user query. Don't make assumptions about what values to plug into functions. Here 
 are the available tools: <tools> ${MessagePlaceholders.hermes_tools}  </tools>. 
 Use the following pydantic model json schema for each tool call you will make: 
-${officialHermes2_3FunctionCallSchema} For each function call return a json object.`;
+${officialHermes2FunctionCallSchema} For each function call return a json object.`;
 
 /**
  * Given a string outputMessage, parse it as a JSON object and return an array of tool calls.

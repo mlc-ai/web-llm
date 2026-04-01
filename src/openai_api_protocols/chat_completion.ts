@@ -22,8 +22,8 @@ import {
   ModelType,
 } from "../config";
 import {
-  officialHermes2_3FunctionCallSchemaArray,
-  hermes2_3FunctionCallingSystemPrompt,
+  officialHermes2FunctionCallSchemaArray,
+  hermes2FunctionCallingSystemPrompt,
 } from "../support";
 import {
   CustomResponseFormatError,
@@ -570,11 +570,11 @@ export function postInitAndCheckFields(
       }
       request.response_format = {
         type: "json_object",
-        schema: officialHermes2_3FunctionCallSchemaArray,
+        schema: officialHermes2FunctionCallSchemaArray,
       } as ResponseFormat;
 
       // 7.2.2 Modify system prompt to provide tools usage
-      const hermes2SystemMessage = hermes2_3FunctionCallingSystemPrompt.replace(
+      const hermes2SystemMessage = hermes2FunctionCallingSystemPrompt.replace(
         MessagePlaceholders.hermes_tools,
         JSON.stringify(request.tools),
       );
