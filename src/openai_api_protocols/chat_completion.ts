@@ -22,8 +22,8 @@ import {
   ModelType,
 } from "../config";
 import {
-  officialHermes2FunctionCallSchemaArray,
-  hermes2FunctionCallingSystemPrompt,
+  officialHermes2_3FunctionCallSchemaArray,
+  hermes2_3FunctionCallingSystemPrompt,
 } from "../support";
 import {
   CustomResponseFormatError,
@@ -557,10 +557,11 @@ export function postInitAndCheckFields(
       );
     }
 
-    // 7.2 Hard coded support for Hermes2Pro following
+    // 7.2 Hard coded support for Hermes2Pro / Hermes3 following
     // https://huggingface.co/NousResearch/Hermes-2-Pro-Llama-3-8B#prompt-format-for-function-calling
-    if (currentModelId.startsWith("Hermes-2-Pro-")) {
-      // 7.2.1 Update response format for Hermes2Pro function calling to use json schema
+    // https://huggingface.co/NousResearch/Hermes-3-Llama-3.1-8B#prompt-format-for-function-calling
+    if (currentModelId.startsWith("Hermes-2-Pro-") || currentModelId.startsWith("Hermes-3-")) {
+      // 7.2.1 Update response format for Hermes2Pro / Hermes3 function calling to use json schema
       if (
         request.response_format !== undefined &&
         request.response_format !== null
@@ -569,11 +570,11 @@ export function postInitAndCheckFields(
       }
       request.response_format = {
         type: "json_object",
-        schema: officialHermes2FunctionCallSchemaArray,
+        schema: officialHermes2_3FunctionCallSchemaArray,
       } as ResponseFormat;
 
       // 7.2.2 Modify system prompt to provide tools usage
-      const hermes2SystemMessage = hermes2FunctionCallingSystemPrompt.replace(
+      const hermes2SystemMessage = hermes2_3FunctionCallingSystemPrompt.replace(
         MessagePlaceholders.hermes_tools,
         JSON.stringify(request.tools),
       );
