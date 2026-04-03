@@ -16,6 +16,6 @@
   },
   "dependencies": {
     "@mlc-ai/web-llm": "^0.2.82",
-    "langchain": "0.2.15"
+    "langchain": "^0.3.37"
   }
 }
