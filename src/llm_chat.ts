@@ -1135,7 +1135,7 @@ export class LLMChatPipeline {
       return mmTokens;
     }
     throw new Error(
-      "Cannot determine image embed size. " +
+      `Cannot determine image embed size for model type '${modelType}'. ` +
         "Please add mm_tokens_per_image to model_config in mlc-chat-config.json.",
     );
   }
