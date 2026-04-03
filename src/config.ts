@@ -82,6 +82,8 @@ export interface ChatConfig {
   context_window_size: number;
   sliding_window_size: number;
   attention_sink_size: number;
+  // RNNState settings (for hybrid/recurrent models). If unspecified, runtime picks a safe default.
+  max_history_size?: number;
   // Fields below can be swapped per-generation via `GenerationConfig`
   // Fields only used in MLC
   repetition_penalty: number;
@@ -1199,6 +1201,33 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
+      },
+    },
+    // Qwen-3.5
+    {
+      model: "https://huggingface.co/mlc-ai/Qwen3.5-0.8B-q4f16_1-MLC",
+      model_id: "Qwen3.5-0.8B-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Qwen3.5-0.8B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+        max_history_size: 1,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/Qwen3.5-2B-q4f16_1-MLC",
+      model_id: "Qwen3.5-2B-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Qwen3.5-2B-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+      low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+        max_history_size: 1,
       },
     },
     // Qwen-2
