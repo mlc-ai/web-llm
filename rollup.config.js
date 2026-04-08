@@ -15,7 +15,7 @@ export default {
     },
   ],
   plugins: [
-    ignore(["fs", "path", "crypto"]),
+    ignore(["fs", "path", "crypto", "node:fs", "node:path", "node:crypto"]),
     nodeResolve({ browser: true }),
     commonjs({
       ignoreDynamicRequires: true,
