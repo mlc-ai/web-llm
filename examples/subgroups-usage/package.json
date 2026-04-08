@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "start": "parcel src/wasm_gating.html --port 8888",
-    "build": "parcel build src/wasm_gating.html --dist-dir lib"
+    "start": "parcel src/subgroups_usage.html --port 8888",
+    "build": "parcel build src/subgroups_usage.html --dist-dir lib"
   },
   "devDependencies": {
     "buffer": "^5.7.1",

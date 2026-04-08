@@ -1,4 +1,4 @@
-# WebLLM Wasm Gating App
+# WebLLM Subgroups Usage App
 
 This folder provides a minimum demo to show capability-based routing between
 baseline and subgroup WebGPU WASM builds in a webapp setting.
@@ -9,7 +9,7 @@ npm install
 npm start
 ```
 
-Edit `src/wasm_gating.ts` if you would like to point the example at your own
+Edit `src/subgroups_usage.ts` if you would like to point the example at your own
 model path and baseline `model_lib`. The example will switch to
 `-subgroups.wasm` when the adapter reports subgroup support.
 
