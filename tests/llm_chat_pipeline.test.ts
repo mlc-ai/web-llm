@@ -83,6 +83,7 @@ function createPipeline(): PipelineLike {
     getPromptArrayLastRound: jest.fn(() => ["last"]),
     getPromptArrayTextCompletion: jest.fn(() => ["text"]),
   } as any;
+  pipeline["config"] = {} as any;
   pipeline["outputIds"] = [];
   pipeline["appearedTokensFreq"] = new Map<number, number>();
   pipeline["stopTokens"] = [];
@@ -142,6 +143,7 @@ function createPipeline(): PipelineLike {
   pipeline["tokenLogprobArray"] = [];
   pipeline["curRoundDecodingTotalTokens"] = 0;
   pipeline["curRoundDecodingTotalTime"] = 0;
+  pipeline["imageDataCache"] = new Map();
   return pipeline;
 }
 
@@ -293,35 +295,41 @@ test("processNextToken ignores eos when requested", () => {
 });
 
 describe("calculateResizeShape", () => {
-  test("square image", () => {
+  test("phi3_v square image", () => {
     const pipeline = createPipeline();
+    pipeline["config"] = { model_type: "phi3_v" } as any;
     expect(pipeline["calculateResizeShape"](336, 336)).toEqual([1344, 1344]);
   });
 
-  test("landscape image", () => {
+  test("phi3_v landscape image", () => {
     const pipeline = createPipeline();
+    pipeline["config"] = { model_type: "phi3_v" } as any;
     expect(pipeline["calculateResizeShape"](1080, 1920)).toEqual([945, 1680]);
   });
 
-  test("portrait image", () => {
+  test("phi3_v portrait image", () => {
     const pipeline = createPipeline();
+    pipeline["config"] = { model_type: "phi3_v" } as any;
     expect(pipeline["calculateResizeShape"](1920, 1080)).toEqual([1194, 672]);
   });
 });
 
 describe("calculateCropShape", () => {
-  test("square image", () => {
+  test("phi3_v square image", () => {
     const pipeline = createPipeline();
+    pipeline["config"] = { model_type: "phi3_v" } as any;
     expect(pipeline["calculateCropShape"](336, 336)).toEqual([4, 4]);
   });
 
-  test("landscape image", () => {
+  test("phi3_v landscape image", () => {
     const pipeline = createPipeline();
+    pipeline["config"] = { model_type: "phi3_v" } as any;
     expect(pipeline["calculateCropShape"](1080, 1920)).toEqual([3, 5]);
   });
 
-  test("portrait image", () => {
+  test("phi3_v portrait image", () => {
     const pipeline = createPipeline();
+    pipeline["config"] = { model_type: "phi3_v" } as any;
     expect(pipeline["calculateCropShape"](1920, 1080)).toEqual([4, 2]);
   });
 });

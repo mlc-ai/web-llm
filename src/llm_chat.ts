@@ -113,6 +113,7 @@ export class LLMChatPipeline {
   private finishReason: ChatCompletionFinishReason | undefined = undefined;
   // frequency of appeared token ids till now (refresh after PrefillStep); token_id mapped to freq
   private appearedTokensFreq = new Map<number, number>();
+  private imageDataCache = new Map<string, ImageData>();
   private conversation: Conversation;
   // The logprob information of all tokens for this current round (cleared upon each prefillStep)
   // Cleared & updated at the exact same spots as `outputMessage`. Only updated when
@@ -880,6 +881,7 @@ export class LLMChatPipeline {
         );
       }
     }
+    this.imageDataCache.clear();
     this.tvm.endScope();
 
     // 4. Sample, stats, post process token sampled.
@@ -1077,43 +1079,6 @@ export class LLMChatPipeline {
   }
 
   /**
-   * Calculate resize dimensions for Phi3-V model.
-   * Based on vlm_utils.cc CalculateResizeShape
-   */
-  private calculateResizeShape(
-    imageHeight: number,
-    imageWidth: number,
-  ): [number, number] {
-    const hdNum = 16;
-    const ratio = imageWidth / imageHeight;
-    let scale = 1;
-    while (scale * Math.ceil(scale / ratio) <= hdNum) {
-      scale += 1;
-    }
-    scale -= 1;
-    const newW = scale * 336;
-    const newH = Math.floor(newW / ratio);
-    return [newH, newW];
-  }
-
-  /**
-   * Calculate crop dimensions for Phi3-V model.
-   * Based on vlm_utils.cc CalculateCropShape / CalculatePadShape
-   */
-  private calculateCropShape(
-    imageHeight: number,
-    imageWidth: number,
-  ): [number, number] {
-    const [resizedHeight, resizedWidth] = this.calculateResizeShape(
-      imageHeight,
-      imageWidth,
-    );
-    const padH = Math.ceil(resizedHeight / 336) * 336;
-    const padW = resizedWidth;
-    return [Math.floor(padH / 336), Math.floor(padW / 336)];
-  }
-
-  /**
    * Compute the number of embedding tokens an image will produce.
    * Must match the model's image_embed output size.
    * Based on mlc_llm/serve/data.py _compute_embed_size.
@@ -1135,9 +1100,61 @@ export class LLMChatPipeline {
       return mmTokens;
     }
     throw new Error(
-      `Cannot determine image embed size for model type '${modelType}'. ` +
+      `Cannot determine image embed size for model type "${modelType}". ` +
         "Please add mm_tokens_per_image to model_config in mlc-chat-config.json.",
     );
+  }
+
+  /**
+   * Calculate resize dimensions per model type.
+   * Based on vlm_utils.cc CalculateResizeShape
+   */
+  private calculateResizeShape(
+    imageHeight: number,
+    imageWidth: number,
+  ): [number, number] {
+    switch (this.config.model_type) {
+      case "phi3_v": {
+        const hdNum = 16;
+        const ratio = imageWidth / imageHeight;
+        let scale = 1;
+        while (scale * Math.ceil(scale / ratio) <= hdNum) {
+          scale += 1;
+        }
+        scale -= 1;
+        const newW = scale * 336;
+        const newH = Math.floor(newW / ratio);
+        return [newH, newW];
+      }
+      default:
+        throw new Error(
+          `Unsupported model type "${this.config.model_type}" for image resize.`,
+        );
+    }
+  }
+
+  /**
+   * Calculate crop dimensions per model type.
+   * Based on vlm_utils.cc CalculateCropShape / CalculatePadShape
+   */
+  private calculateCropShape(
+    imageHeight: number,
+    imageWidth: number,
+  ): [number, number] {
+    switch (this.config.model_type) {
+      case "phi3_v": {
+        const [resizedHeight, resizedWidth] = this.calculateResizeShape(
+          imageHeight,
+          imageWidth,
+        );
+        const padH = Math.ceil(resizedHeight / 336) * 336;
+        return [Math.floor(padH / 336), Math.floor(resizedWidth / 336)];
+      }
+      default:
+        throw new Error(
+          `Unsupported model type "${this.config.model_type}" for image crop.`,
+        );
+    }
   }
 
   /**
@@ -1149,8 +1166,8 @@ export class LLMChatPipeline {
     this.tvm.beginScope();
     // 1. Transform ImageURL into image input in TVMArray
     const url = inputImage.url;
-    // url starting with `data:image` and `http` share the same loading method
-    const imgData: ImageData = await getImageDataFromURL(url);
+    const imgData: ImageData =
+      this.imageDataCache.get(url) ?? (await getImageDataFromURL(url));
     const pixelValues: Uint8ClampedArray = getRGBArrayFromImageData(imgData);
     const pixelArray = this.tvm
       .empty([imgData.height, imgData.width, 3], "uint32", this.device)
@@ -2021,9 +2038,9 @@ export class LLMChatPipeline {
         ) {
           curTokens = [...this.conversation.config.system_prefix_token_ids];
         }
-        prompts = this.conversation.getPromptArray();
+        prompts = this.conversation.getPromptArray(this.config);
       } else {
-        prompts = this.conversation.getPromptArrayLastRound();
+        prompts = this.conversation.getPromptArrayLastRound(this.config);
       }
     }
 
@@ -2039,9 +2056,14 @@ export class LLMChatPipeline {
         }
       }
     }
+    if (uniqueImageUrls.size > 0 && this.image_embed === undefined) {
+      throw new CannotFindImageEmbedError();
+    }
+    this.imageDataCache.clear();
     await Promise.all(
       Array.from(uniqueImageUrls).map(async (url) => {
         const imgData = await getImageDataFromURL(url);
+        this.imageDataCache.set(url, imgData);
         imageDimensions.set(url, [imgData.height, imgData.width]);
       }),
     );
@@ -2053,7 +2075,12 @@ export class LLMChatPipeline {
       return this.computeImageEmbedSize(dims[0], dims[1]);
     };
 
-    // 2. Encode all prompts. Iterate through each message in the prompt array, where each
+    // 2. Resolve BOI/EOI tokens
+    const cfg = this.config.model_config;
+    const boiToken = cfg?.vision_start_token_id ?? cfg?.boi_token_index;
+    const eoiToken = cfg?.vision_end_token_id ?? cfg?.eoi_token_index;
+
+    // 3. Encode all prompts. Iterate through each message in the prompt array, where each
     // prompt can either be a string, or an array of a mixture of string and ImageURLs.
     let numPromptTokens = 0;
     for (let i = 0; i < prompts.length; i++) {
@@ -2070,20 +2097,8 @@ export class LLMChatPipeline {
             numPromptTokens += encoded.length;
             curTokens.push(...encoded);
           } else {
-            // Insert BOI wrapping if configured
-            const boiToken =
-              this.config.model_config?.boi_token_index ??
-              this.config.model_config?.vision_start_token_id;
+            // Insert BOI token before image if configured
             if (boiToken !== undefined) {
-              // Insert newline before BOI for models using legacy boi_token_index
-              if (
-                this.config.model_config?.boi_token_index !== undefined &&
-                this.config.model_config?.vision_start_token_id === undefined
-              ) {
-                const nlTokens = this.tokenizer.encode("\n");
-                curTokens.push(...nlTokens);
-                numPromptTokens += nlTokens.length;
-              }
               curTokens.push(boiToken);
               numPromptTokens += 1;
             }
@@ -2093,9 +2108,6 @@ export class LLMChatPipeline {
             numPromptTokens += getEmbedSize(curPromptContent);
             curTokens = [];
             // Insert EOI token after image if configured
-            const eoiToken =
-              this.config.model_config?.eoi_token_index ??
-              this.config.model_config?.vision_end_token_id;
             if (eoiToken !== undefined) {
               curTokens.push(eoiToken);
               numPromptTokens += 1;
