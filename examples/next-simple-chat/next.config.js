@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  outputFileTracingRoot: __dirname,
 
   webpack: (config, { isServer }) => {
     // Fixes npm packages that depend on `fs` module
