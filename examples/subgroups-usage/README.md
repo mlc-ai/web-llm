@@ -10,8 +10,9 @@ npm start
 ```
 
 Edit `src/subgroups_usage.ts` if you would like to point the example at your own
-model path and baseline `model_lib`. The example will switch to
-`-subgroups.wasm` when the adapter reports subgroup support.
+model path and baseline `model_lib`. The example will suffix the WASM filename
+with `-subgroups` before the `.wasm` extension when the adapter reports
+subgroup support.
 
 Note if you would like to hack WebLLM core package.
 You can change the WebLLM dependency to `"file:../.."`, and follow the build

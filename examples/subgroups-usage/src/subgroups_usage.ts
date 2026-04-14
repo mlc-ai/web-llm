@@ -13,7 +13,7 @@ async function main() {
     setLabel("init-label", report.text);
   };
 
-  const selectedModel = "Llama-3.2-1B-Instruct-q4f16_1-MLC";
+  const selectedModel = "Llama-3.1-8B-Instruct-q4f32_1-MLC";
   const adapter = await (navigator as any).gpu?.requestAdapter({
     powerPreference: "high-performance",
   });
@@ -69,9 +69,12 @@ async function main() {
   // const appConfig: webllm.AppConfig = {
   //   model_list: [
   //     {
-  //       model: "http://127.0.0.1:8000/models/Llama-3.2-1B-Instruct-q4f16_1-MLC/",
-  //       model_id: "Llama-3.2-1B-Instruct-q4f16_1-MLC",
-  //       model_lib: "http://127.0.0.1:8000/libs/Llama-3.2-1B-Instruct-q4f16_1-webgpu.wasm",
+  //       model: "https://huggingface.co/mlc-ai/Llama-3.1-8B-Instruct-q4f32_1-MLC",
+  //       model_id: "Llama-3.1-8B-Instruct-q4f32_1-MLC",
+  //       model_lib:
+  //         webllm.modelLibURLPrefix +
+  //         webllm.modelVersion +
+  //         "/Llama-3_1-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
   //       overrides: {
   //         context_window_size: 2048,
   //       },
