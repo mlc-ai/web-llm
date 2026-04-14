@@ -22,6 +22,7 @@ Note that all examples below run in-browser and use WebGPU as a backend.
 - [simple-chat-ts](simple-chat-ts): a mininum and complete chat bot app in TypeScript.
 - [get-started-web-worker](get-started-web-worker): same as get-started, but using web worker.
 - [next-simple-chat](next-simple-chat): a mininum and complete chat bot app with [Next.js](https://nextjs.org/).
+- [subgroups-usage](subgroups-usage): capability-based routing between baseline and subgroup WebGPU WASM builds.
 - [multi-round-chat](multi-round-chat): while APIs are functional, we internally optimize so that multi round chat usage can reuse KV cache
 - [text-completion](text-completion): demonstrates API `engine.completions.create()`, which is pure text completion with no conversation, as opposed to `engine.chat.completions.create()`
 - [embeddings](embeddings): demonstrates API `engine.embeddings.create()`, integration with `EmbeddingsInterface` and `MemoryVectorStore` of [Langchain.js](https://js.langchain.com), and RAG with Langchain.js using WebLLM for both LLM and Embedding in a single engine
