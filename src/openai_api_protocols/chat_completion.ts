@@ -24,6 +24,7 @@ import {
 import {
   officialHermes2FunctionCallSchemaArray,
   hermes2FunctionCallingSystemPrompt,
+  qwenFunctionCallingSystemPrompt,
 } from "../support";
 import {
   CustomResponseFormatError,
@@ -550,7 +551,12 @@ export function postInitAndCheckFields(
   // 7. Function calling hardcoded handlings
   if (request.tools !== undefined && request.tools !== null) {
     // 7.1 Check if model supports function calling
-    if (!functionCallingModelIds.includes(currentModelId)) {
+    const supportsFunctionCalling = functionCallingModelIds.some(
+      (supportedModelId) =>
+        currentModelId === supportedModelId ||
+        currentModelId.startsWith(supportedModelId),
+    );
+    if (!supportsFunctionCalling) {
       throw new UnsupportedModelIdError(
         currentModelId,
         functionCallingModelIds,
@@ -589,6 +595,32 @@ export function postInitAndCheckFields(
         role: "system",
         content: hermes2SystemMessage,
       } as ChatCompletionSystemMessageParam);
+    }
+
+    // 7.3 Support for Qwen Reasoning models
+    if (currentModelId.toLowerCase().includes("qwen")) {
+      const qwenSystemMessage = qwenFunctionCallingSystemPrompt.replace(
+        MessagePlaceholders.hermes_tools,
+        JSON.stringify(request.tools),
+      );
+
+      const systemMsgIndex = request.messages.findIndex(
+        (message: ChatCompletionMessageParam) => message.role === "system",
+      );
+
+      if (systemMsgIndex !== -1) {
+        // MERGE: Satisfy the 1-system-message rule by appending our rules to the persona.
+        const existingSystemMsg = request.messages[
+          systemMsgIndex
+        ] as ChatCompletionSystemMessageParam;
+        existingSystemMsg.content = `${existingSystemMsg.content}\n\n${qwenSystemMessage}`;
+      } else {
+        // persona absent: standard unshift
+        request.messages.unshift({
+          role: "system",
+          content: qwenSystemMessage,
+        } as ChatCompletionSystemMessageParam);
+      }
     }
   }
 

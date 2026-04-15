@@ -121,61 +121,152 @@ Use the following pydantic model json schema for each tool call you will make:
 ${officialHermes2FunctionCallSchema} For each function call return a json object.`;
 
 /**
- * Given a string outputMessage, parse it as a JSON object and return an array of tool calls.
+ * Full system prompt for Qwen function calling.
+ * Optimized for reasoning models to support XML-wrapped tool calls and conversational fallbacks.
+ */
+export const qwenFunctionCallingSystemPrompt = `You are a helpful assistant with tool-calling capabilities. You are provided with function signatures within <tools></tools> XML tags. You may call one or more functions to assist with the user query. Don't make assumptions about what values to plug into functions. 
+
+Here are the available tools: <tools> ${MessagePlaceholders.hermes_tools} </tools>. 
+
+If you need to use a tool, you MUST output your tool call inside <tool_call></tool_call> tags. 
+Example:
+<tool_call>
+{"name": "tool_name", "arguments": {"arg": "value"}}
+</tool_call>
+
+If you do not need a tool, do not use the <tool_call> tags and simply reply conversationally.`;
+
+export interface ToolParsedOutput<TToolCall> {
+  content: string | null;
+  tool_calls: Array<TToolCall>;
+}
+
+/**
+ * Given a string outputMessage, parse it and return both tool calls and remaining content.
  *
- * Expect outputMessage to be a valid JSON string, and expect it to be an array of Function with
- * fields `arguments` and `name`.
+ * If `stripThinking` is true, content inside `<think>...</think>` is removed before parsing.
  */
 export function getToolCallFromOutputMessage(
   outputMessage: string,
   isStreaming: false,
-): Array<ChatCompletionMessageToolCall>;
+  stripThinking?: boolean,
+): ToolParsedOutput<ChatCompletionMessageToolCall>;
 export function getToolCallFromOutputMessage(
   outputMessage: string,
   isStreaming: true,
-): Array<ChatCompletionChunk.Choice.Delta.ToolCall>;
+  stripThinking?: boolean,
+): ToolParsedOutput<ChatCompletionChunk.Choice.Delta.ToolCall>;
 export function getToolCallFromOutputMessage(
   outputMessage: string,
   isStreaming: boolean,
+  stripThinking: boolean = true,
 ):
-  | Array<ChatCompletionMessageToolCall>
-  | Array<ChatCompletionChunk.Choice.Delta.ToolCall> {
-  // 1. Parse outputMessage to JSON object
-  let toolCallsObject;
-  try {
-    toolCallsObject = JSON.parse(outputMessage);
-  } catch (err) {
-    throw new ToolCallOutputParseError(outputMessage, err as Error);
-  }
-
-  // 2. Expect to be an array
-  if (!(toolCallsObject instanceof Array)) {
-    throw new ToolCallOutputInvalidTypeError("array");
-  }
-
-  // 3. Parse each tool call and populate tool_calls
-  const numToolCalls = toolCallsObject.length;
-  const tool_calls = [];
-  for (let id = 0; id < numToolCalls; id++) {
-    const curToolCall = toolCallsObject[id];
-    if (curToolCall.name === undefined || curToolCall.arguments === undefined) {
-      throw new ToolCallOutputMissingFieldsError(
-        ["name", "arguments"],
-        curToolCall,
-      );
+  | ToolParsedOutput<ChatCompletionMessageToolCall>
+  | ToolParsedOutput<ChatCompletionChunk.Choice.Delta.ToolCall> {
+  function stripMarkdownFence(text: string): string {
+    if (text.startsWith("```json")) {
+      return text
+        .replace(/^```json/, "")
+        .replace(/```$/, "")
+        .trim();
     }
-    tool_calls.push({
-      name: curToolCall.name,
-      arguments: JSON.stringify(curToolCall.arguments),
-    });
+    if (text.startsWith("```")) {
+      return text.replace(/^```/, "").replace(/```$/, "").trim();
+    }
+    return text;
   }
 
-  // 4. Return based on whether it is streaming or not
+  let content = stripThinking
+    ? outputMessage.replace(/<think>[\s\S]*?<\/think>\n*/g, "").trim()
+    : outputMessage.trim();
+  const toolCallPayloads: string[] = [];
+
+  // Extract and remove XML-style tool call blocks from content.
+  content = content
+    .replace(/<tool_call>\s*([\s\S]*?)\s*<\/tool_call>/g, (_, payload) => {
+      toolCallPayloads.push(String(payload).trim());
+      return "";
+    })
+    .trim();
+  content = stripMarkdownFence(content);
+
+  const parsedToolCalls: Array<{ name: string; arguments: string }> = [];
+
+  function parseToolCallsFromJson(
+    jsonString: string,
+    reportParseError: boolean,
+  ): boolean {
+    let toolCallsObject: any;
+    const strippedJson = stripMarkdownFence(jsonString.trim());
+    try {
+      toolCallsObject = JSON.parse(strippedJson);
+    } catch (err) {
+      if (reportParseError) {
+        console.error(new ToolCallOutputParseError(strippedJson, err as Error));
+      }
+      return false;
+    }
+
+    if (!(toolCallsObject instanceof Array)) {
+      toolCallsObject = [toolCallsObject];
+    }
+
+    for (const curToolCall of toolCallsObject) {
+      if (typeof curToolCall !== "object" || curToolCall === null) {
+        if (reportParseError) {
+          console.error(new ToolCallOutputInvalidTypeError("object"));
+        }
+        return false;
+      }
+      if (
+        curToolCall.name === undefined ||
+        curToolCall.arguments === undefined
+      ) {
+        if (reportParseError) {
+          console.error(
+            new ToolCallOutputMissingFieldsError(
+              ["name", "arguments"],
+              curToolCall,
+            ),
+          );
+        }
+        return false;
+      }
+      parsedToolCalls.push({
+        name: curToolCall.name,
+        arguments:
+          typeof curToolCall.arguments === "string"
+            ? curToolCall.arguments
+            : JSON.stringify(curToolCall.arguments),
+      });
+    }
+    return true;
+  }
+
+  // First pass: parse explicit <tool_call> payloads.
+  for (const payload of toolCallPayloads) {
+    if (!parseToolCallsFromJson(payload, /*reportParseError=*/ true)) {
+      parsedToolCalls.length = 0;
+      break;
+    }
+  }
+
+  // Fallback: parse whole remaining content as JSON only if no tagged calls were found.
+  if (
+    parsedToolCalls.length === 0 &&
+    content.length > 0 &&
+    toolCallPayloads.length === 0
+  ) {
+    if (parseToolCallsFromJson(content, /*reportParseError=*/ false)) {
+      content = "";
+    }
+  }
+
   if (isStreaming) {
     const tool_calls_result: Array<ChatCompletionChunk.Choice.Delta.ToolCall> =
       [];
-    for (let id = 0; id < numToolCalls; id++) {
-      const curToolCall = tool_calls[id];
+    for (let id = 0; id < parsedToolCalls.length; id++) {
+      const curToolCall = parsedToolCalls[id];
       tool_calls_result.push({
         index: id,
         function: {
@@ -185,22 +276,28 @@ export function getToolCallFromOutputMessage(
         type: "function",
       });
     }
-    return tool_calls_result;
-  } else {
-    const tool_calls_result: Array<ChatCompletionMessageToolCall> = [];
-    for (let id = 0; id < numToolCalls; id++) {
-      const curToolCall = tool_calls[id];
-      tool_calls_result.push({
-        id: id.toString(),
-        function: {
-          name: curToolCall.name,
-          arguments: curToolCall.arguments,
-        },
-        type: "function",
-      });
-    }
-    return tool_calls_result;
+    return {
+      content: content.trim() === "" ? null : content.trim(),
+      tool_calls: tool_calls_result,
+    };
   }
+
+  const tool_calls_result: Array<ChatCompletionMessageToolCall> = [];
+  for (let id = 0; id < parsedToolCalls.length; id++) {
+    const curToolCall = parsedToolCalls[id];
+    tool_calls_result.push({
+      id: id.toString(),
+      function: {
+        name: curToolCall.name,
+        arguments: curToolCall.arguments,
+      },
+      type: "function",
+    });
+  }
+  return {
+    content: content.trim() === "" ? null : content.trim(),
+    tool_calls: tool_calls_result,
+  };
 }
 
 export function findModelRecord(

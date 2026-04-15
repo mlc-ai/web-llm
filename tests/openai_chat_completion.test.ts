@@ -7,6 +7,7 @@ import {
 import {
   hermes2FunctionCallingSystemPrompt,
   officialHermes2FunctionCallSchemaArray,
+  qwenFunctionCallingSystemPrompt,
 } from "../src/support";
 import { MessagePlaceholders, ModelType } from "../src/config";
 import { describe, expect, test } from "@jest/globals";
@@ -480,5 +481,57 @@ describe("OpenAI API function calling", () => {
     expect(request.response_format!.schema).toEqual(
       officialHermes2FunctionCallSchemaArray,
     );
+  });
+
+  test("Qwen keeps existing system persona first", () => {
+    const request: ChatCompletionRequest = {
+      tools: tools,
+      messages: [
+        {
+          role: "system",
+          content: "You are a helpful assistant.",
+        },
+        {
+          role: "user",
+          content: "Get weather of Tokyo",
+        },
+      ],
+    };
+
+    postInitAndCheckFields(request, "Qwen3-4B-q4f16_1-MLC", ModelType.LLM);
+
+    expect(request.messages[0]).toEqual({
+      role: "system",
+      content: "You are a helpful assistant.",
+    });
+    expect(request.messages[1]).toEqual({
+      role: "system",
+      content: qwenFunctionCallingSystemPrompt.replace(
+        MessagePlaceholders.hermes_tools,
+        JSON.stringify(request.tools),
+      ),
+    });
+  });
+
+  test("Qwen injects protocol system prompt when persona is absent", () => {
+    const request: ChatCompletionRequest = {
+      tools: tools,
+      messages: [
+        {
+          role: "user",
+          content: "Get weather of Tokyo",
+        },
+      ],
+    };
+
+    postInitAndCheckFields(request, "Qwen3-4B-q4f16_1-MLC", ModelType.LLM);
+
+    expect(request.messages[0]).toEqual({
+      role: "system",
+      content: qwenFunctionCallingSystemPrompt.replace(
+        MessagePlaceholders.hermes_tools,
+        JSON.stringify(request.tools),
+      ),
+    });
   });
 });
