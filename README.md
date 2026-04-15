@@ -542,10 +542,10 @@ This project is only possible thanks to the shoulders open-source ecosystems tha
 If you find this project to be useful, please cite:
 
 ```
-@misc{ruan2024webllmhighperformanceinbrowserllm,
+@misc{ruan2026webllmhighperformanceinbrowserllm,
       title={WebLLM: A High-Performance In-Browser LLM Inference Engine},
-      author={Charlie F. Ruan and Yucheng Qin and Xun Zhou and Ruihang Lai and Hongyi Jin and Yixin Dong and Bohan Hou and Meng-Shiun Yu and Yiyan Zhai and Sudeep Agarwal and Hangrui Cao and Siyuan Feng and Tianqi Chen},
-      year={2024},
+      author={Charlie F. Ruan and Yucheng Qin and Akaash R. Parthasarathy and Xun Zhou and Ruihang Lai and Hongyi Jin and Yixin Dong and Bohan Hou and Meng-Shiun Yu and Yiyan Zhai and Sudeep Agarwal and Hangrui Cao and Siyuan Feng and Tianqi Chen},
+      year={2026},
       eprint={2412.15803},
       archivePrefix={arXiv},
       primaryClass={cs.LG},
