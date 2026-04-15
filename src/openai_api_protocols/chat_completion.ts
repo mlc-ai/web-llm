@@ -560,7 +560,10 @@ export function postInitAndCheckFields(
     // 7.2 Hard coded support for Hermes2Pro / Hermes3 following
     // https://huggingface.co/NousResearch/Hermes-2-Pro-Llama-3-8B#prompt-format-for-function-calling
     // https://huggingface.co/NousResearch/Hermes-3-Llama-3.1-8B#prompt-format-for-function-calling
-    if (currentModelId.startsWith("Hermes-2-Pro-") || currentModelId.startsWith("Hermes-3-")) {
+    if (
+      currentModelId.startsWith("Hermes-2-Pro-") ||
+      currentModelId.startsWith("Hermes-3-")
+    ) {
       // 7.2.1 Update response format for Hermes2Pro / Hermes3 function calling to use json schema
       if (
         request.response_format !== undefined &&
