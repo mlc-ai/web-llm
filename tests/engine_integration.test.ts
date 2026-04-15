@@ -15,6 +15,7 @@ import { LLMChatPipeline } from "../src/llm_chat";
 import { EmbeddingPipeline } from "../src/embedding";
 import { CustomLock } from "../src/support";
 import { UnclearModelToUseError } from "../src/error";
+import { jest, test, expect, describe } from "@jest/globals";
 
 type ChatConfig = import("../src/config").ChatConfig;
 type Conversation = import("../src/conversation").Conversation;
@@ -265,7 +266,7 @@ function createEngineWithPipeline(decodeLimit = 2, modelId = MODEL_ID) {
           model_lib: "https://example.com/model.wasm",
         },
       ],
-      useIndexedDBCache: false,
+      cacheBackend: "cache",
     },
   });
   const pipeline = new LLMChatPipeline(
@@ -297,7 +298,7 @@ function createEngineWithMultiplePipelines() {
           model_lib: "https://example.com/model2.wasm",
         },
       ],
-      useIndexedDBCache: false,
+      cacheBackend: "cache",
     },
   });
   const pipeline1 = new LLMChatPipeline(
@@ -337,7 +338,7 @@ function createEngineWithEmbeddingPipeline() {
           model_type: ModelType.embedding,
         },
       ],
-      useIndexedDBCache: false,
+      cacheBackend: "cache",
     },
   });
   const pipeline = new EmbeddingPipeline(

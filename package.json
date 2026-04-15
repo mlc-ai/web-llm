@@ -1,6 +1,6 @@
 {
   "name": "@mlc-ai/web-llm",
-  "version": "0.2.81",
+  "version": "0.2.82",
   "description": "Hardware accelerated language model chats on browsers",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -27,14 +27,15 @@
   "license": "Apache-2.0",
   "homepage": "https://github.com/mlc-ai/web-llm",
   "devDependencies": {
-    "@eslint/js": "^9.9.0",
     "@eslint/eslintrc": "^3.3.1",
-    "@mlc-ai/web-runtime": "^0.24.0-dev1",
+    "@eslint/js": "^9.9.0",
+    "@mlc-ai/web-runtime": "^0.24.0-dev3",
     "@mlc-ai/web-tokenizers": "^0.1.6",
     "@mlc-ai/web-xgrammar": "0.1.27",
     "@next/eslint-plugin-next": "^16.0.0",
     "@rollup/plugin-commonjs": "^29.0.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-typescript": "^12.3.0",
     "@types/chrome": "^0.0.266",
     "@types/jest": "^30.0.0",
     "@types/serviceworker": "^0.0.86",
@@ -49,11 +50,10 @@
     "process": "^0.11.10",
     "rollup": "^4.53.3",
     "rollup-plugin-ignore": "^1.0.10",
-    "rollup-plugin-typescript2": "^0.36.0",
     "ts-jest": "^29.4.6",
     "tslib": "^2.3.1",
-    "typescript-eslint": "^8.47.0",
-    "typescript": "^4.9.5"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.47.0"
   },
   "dependencies": {
     "loglevel": "^1.9.1"

@@ -5,6 +5,7 @@ import {
   ChatOptions,
   AppConfig,
   prebuiltAppConfig,
+  getCacheBackend,
   GenerationConfig,
   postInitAndCheckGenerationConfigValues,
   Role,
@@ -71,6 +72,7 @@ import {
 } from "./error";
 import { asyncLoadTokenizer } from "./cache_util";
 import { EmbeddingPipeline } from "./embedding";
+import { verifyIntegrity } from "./integrity";
 
 /**
  * Creates `MLCEngine`, and loads `modelId` onto WebGPU.
@@ -259,34 +261,39 @@ export class MLCEngine implements MLCEngineInterface {
         : modelRecord.model_type;
     this.loadedModelIdToModelType.set(modelId, modelType);
 
+    const cacheType = getCacheBackend(this.appConfig);
+
     // instantiate cache
-    let configCache: tvmjs.ArtifactCacheTemplate;
-    if (this.appConfig.useIndexedDBCache) {
-      configCache = new tvmjs.ArtifactIndexedDBCache("webllm/config");
-    } else {
-      configCache = new tvmjs.ArtifactCache("webllm/config");
-    }
+    const configCache = tvmjs.createArtifactCache("webllm/config", {
+      cacheType,
+    });
 
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
-    const curModelConfig = {
-      ...(await configCache.fetchWithCache(
+    const configData = (await configCache.fetchWithCache(
+      configUrl,
+      "arraybuffer",
+      this.reloadController?.signal,
+    )) as ArrayBuffer;
+    if (modelRecord.integrity?.config) {
+      await verifyIntegrity(
+        configData,
+        modelRecord.integrity.config,
         configUrl,
-        "json",
-        this.reloadController?.signal,
-      )),
+        modelRecord.integrity.onFailure,
+      );
+    }
+    const curModelConfig: ChatConfig = {
+      ...JSON.parse(new TextDecoder().decode(configData)),
       ...modelRecord.overrides,
       ...chatOpts,
     } as ChatConfig;
     this.loadedModelIdToChatConfig.set(modelId, curModelConfig);
 
     // load tvm wasm
-    let wasmCache: tvmjs.ArtifactCacheTemplate;
-    if (this.appConfig.useIndexedDBCache) {
-      wasmCache = new tvmjs.ArtifactIndexedDBCache("webllm/wasm");
-    } else {
-      wasmCache = new tvmjs.ArtifactCache("webllm/wasm");
-    }
+    const wasmCache = tvmjs.createArtifactCache("webllm/wasm", {
+      cacheType,
+    });
 
     const wasmUrl = modelRecord.model_lib;
     if (wasmUrl === undefined) {
@@ -309,6 +316,15 @@ export class MLCEngine implements MLCEngineInterface {
       }
     };
     const wasmSource = await fetchWasmSource();
+
+    if (modelRecord.integrity?.model_lib) {
+      await verifyIntegrity(
+        wasmSource,
+        modelRecord.integrity.model_lib,
+        wasmUrl,
+        modelRecord.integrity.onFailure,
+      );
+    }
 
     const wasm = new Uint8Array(wasmSource);
     const tvm = await tvmjs.instantiate(
@@ -366,15 +382,13 @@ export class MLCEngine implements MLCEngineInterface {
       curModelConfig,
       this.appConfig,
       this.logger,
+      modelRecord.integrity,
     );
-    const cacheType = this.appConfig.useIndexedDBCache ? "indexeddb" : "cache";
-    await tvm.fetchTensorCache(
-      modelUrl,
-      tvm.webgpu(),
-      "webllm/model",
+    await tvm.fetchTensorCache(modelUrl, tvm.webgpu(), {
+      cacheScope: "webllm/model",
       cacheType,
-      this.reloadController?.signal,
-    );
+      signal: this.reloadController?.signal,
+    });
 
     // Instantiate pipeline
     // TODO: would be good to somehow check for error when LLMChatPipeline is loaded for an

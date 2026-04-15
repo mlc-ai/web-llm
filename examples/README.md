@@ -22,6 +22,7 @@ Note that all examples below run in-browser and use WebGPU as a backend.
 - [simple-chat-ts](simple-chat-ts): a mininum and complete chat bot app in TypeScript.
 - [get-started-web-worker](get-started-web-worker): same as get-started, but using web worker.
 - [next-simple-chat](next-simple-chat): a mininum and complete chat bot app with [Next.js](https://nextjs.org/).
+- [subgroups-usage](subgroups-usage): capability-based routing between baseline and subgroup WebGPU WASM builds.
 - [multi-round-chat](multi-round-chat): while APIs are functional, we internally optimize so that multi round chat usage can reuse KV cache
 - [text-completion](text-completion): demonstrates API `engine.completions.create()`, which is pure text completion with no conversation, as opposed to `engine.chat.completions.create()`
 - [embeddings](embeddings): demonstrates API `engine.embeddings.create()`, integration with `EmbeddingsInterface` and `MemoryVectorStore` of [Langchain.js](https://js.langchain.com), and RAG with Langchain.js using WebLLM for both LLM and Embedding in a single engine
@@ -46,9 +47,8 @@ These examples demonstrate various capabilities via WebLLM's OpenAI-like API.
 #### Others
 
 - [logit-processor](logit-processor): while `logit_bias` is supported, we additionally support stateful logit processing where users can specify their own rules. We also expose low-level API `forwardTokensAndSample()`.
-- [cache-usage](cache-usage): demonstrates how WebLLM supports both the [Cache API](https://developer.mozilla.org/en-US/docs/Web/API/Cache) and [IndexedDB cache](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API), and
-  users can pick with `appConfig.useIndexedDBCache`. Also demonstrates various cache utils such as checking
-  whether a model is cached, deleting a model's weights from cache, deleting a model library wasm from cache, etc.
+- [cache-usage](cache-usage): demonstrates how WebLLM supports multiple cache backends. Choose between the [Cache API](https://developer.mozilla.org/en-US/docs/Web/API/Cache), [IndexedDB cache](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API), or the experimental Chrome [Cross-Origin Storage](https://github.com/WICG/cross-origin-storage) extension via `appConfig.cacheBackend`. Also demonstrates various cache utils such as checking
+  whether a model is cached, deleting a model's weights from cache, deleting a model library wasm from cache, etc. Note: cross-origin backend currently does not support programmatic tensor-cache deletion.
 - [simple-chat-upload](simple-chat-upload): demonstrates how to upload local models to WebLLM instead of downloading via a URL link
 
 ## Demo Spaces

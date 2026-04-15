@@ -14,6 +14,7 @@ import {
 import { areChatOptionsListEqual } from "../src/utils";
 import { MLCEngine } from "../src/engine";
 import { ChatCompletionContentPartImage } from "../src/openai_api_protocols";
+import { test, expect, describe } from "@jest/globals";
 
 describe("Check getTopLogprobs correctness", () => {
   test("Correctness test 1", () => {
