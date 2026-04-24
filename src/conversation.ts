@@ -67,6 +67,7 @@ export class Conversation {
   private getPromptArrayInternal(
     addSystem: boolean,
     startPos: number,
+    config?: ChatConfig,
   ): Array<string | Array<string | ImageURL>> {
     if (this.config.seps.length == 0) {
       throw Error("Need seps to work");
@@ -193,14 +194,19 @@ export class Conversation {
             this.config.seps[i % this.config.seps.length],
         );
       } else {
-        // If has image input, currently we hard code it to Phi3.5-vision's format:
-        // `<|user|>\n<|image_1|>\n<|image_2|>\n{prompt}<|end|>\n`
-        // So we will return a list for this:
-        // [`<|user|>\n`, imageUrl1, `\n`, imageUrl2, `\n`, `{prompt}<|end|>\n`]
+        // Per-model image layout
         const curMessageList: Array<string | ImageURL> = [role_prefix];
+        const modelType = config?.model_type ?? "";
         imageContentParts.forEach((curImage: ImageURL) => {
-          curMessageList.push(curImage);
-          curMessageList.push("\n");
+          if (modelType === "phi3_v") {
+            curMessageList.push(curImage);
+            curMessageList.push("\n");
+          } else if (modelType === "gemma3_v") {
+            curMessageList.push("\n");
+            curMessageList.push(curImage);
+          } else {
+            curMessageList.push(curImage);
+          }
         });
         curMessageList.push(
           message_str + this.config.seps[i % this.config.seps.length],
@@ -233,11 +239,13 @@ export class Conversation {
    *
    * @returns The prompt array.
    */
-  getPromptArray(): Array<string | Array<string | ImageURL>> {
+  getPromptArray(
+    config?: ChatConfig,
+  ): Array<string | Array<string | ImageURL>> {
     if (this.isTextCompletion) {
       throw new TextCompletionConversationError("getPromptArray");
     }
-    return this.getPromptArrayInternal(true, 0);
+    return this.getPromptArrayInternal(true, 0, config);
   }
 
   /**
@@ -248,14 +256,14 @@ export class Conversation {
    *
    * @returns The prompt array.
    */
-  getPromptArrayLastRound() {
+  getPromptArrayLastRound(config?: ChatConfig) {
     if (this.isTextCompletion) {
       throw new TextCompletionConversationError("getPromptArrayLastRound");
     }
     if (this.messages.length < 3) {
       throw Error("needs to call getPromptArray for the first message");
     }
-    return this.getPromptArrayInternal(false, this.messages.length - 2);
+    return this.getPromptArrayInternal(false, this.messages.length - 2, config);
   }
 
   /**
@@ -360,7 +368,6 @@ export function getConversation(
   conv_config?: Partial<ConvTemplateConfig>,
   isTextCompletion = false,
 ): Conversation {
-  // Update with conv_config
   return new Conversation(
     { ...conv_template, ...conv_config },
     isTextCompletion,

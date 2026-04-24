@@ -247,7 +247,7 @@ describe("Test getConversationFromChatCompletionRequest with image", () => {
       config,
       true,
     );
-    expect(conv1.getPromptArray()).toEqual([
+    expect(conv1.getPromptArray(config)).toEqual([
       dummySystemPromptStr, // phi3_5-vision does not have system template
       [
         `<|user|>\n`,
@@ -271,7 +271,7 @@ describe("Test getConversationFromChatCompletionRequest with image", () => {
       true,
     );
     conv1.appendReplyHeader(Role.assistant);
-    expect(conv1.getPromptArray()).toEqual([
+    expect(conv1.getPromptArray(config)).toEqual([
       dummySystemPromptStr, // phi3_5-vision does not have system template
       [
         `<|user|>\n`,
@@ -290,7 +290,7 @@ describe("Test getConversationFromChatCompletionRequest with image", () => {
       ],
       `<|assistant|>\n`,
     ]);
-    expect(conv1.getPromptArrayLastRound()).toEqual([
+    expect(conv1.getPromptArrayLastRound(config)).toEqual([
       [
         `<|user|>\n`,
         { url: imageUrl2 } as ImageURL,
@@ -300,6 +300,28 @@ describe("Test getConversationFromChatCompletionRequest with image", () => {
         `${dummyRequestStr}<|end|>\n`,
       ],
       `<|assistant|>\n`,
+    ]);
+  });
+
+  test("Test getPromptArray with gemma3_v image layout", () => {
+    const config_json = JSON.parse(phi3_5VisionChatConfigJSONString);
+    config_json.model_type = "gemma3_v";
+    const config = { ...config_json } as ChatConfig;
+    const messages1 = JSON.parse(JSON.stringify(singleImageInputMessages));
+    const request1: ChatCompletionRequest = { messages: messages1 };
+    const conv1 = getConversationFromChatCompletionRequest(
+      request1,
+      config,
+      true,
+    );
+    expect(conv1.getPromptArray(config)).toEqual([
+      dummySystemPromptStr,
+      [
+        `<|user|>\n`,
+        `\n`,
+        { url: imageUrl1 } as ImageURL,
+        `${dummyRequestStr}<|end|>\n`,
+      ],
     ]);
   });
 });

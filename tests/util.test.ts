@@ -1,6 +1,7 @@
 import { ChatOptions } from "../src/config";
 import {
   ModelNotLoadedError,
+  PrefillChunkSizeSmallerThanImageError,
   SpecifiedModelNotFoundError,
   UnclearModelToUseError,
 } from "../src/error";
@@ -329,6 +330,7 @@ describe("Test getChunkedPrefillInputData", () => {
   const prefillChunkSize = 2048;
   const image1 = { url: "url1" } as ImageURL;
   const image2 = { url: "url2" } as ImageURL;
+  const getImageEmbedSize = () => 1921;
 
   test("With image data", async () => {
     const inputData = [
@@ -336,7 +338,11 @@ describe("Test getChunkedPrefillInputData", () => {
       image1, // 1921 size
       rangeArr(0, 10),
     ];
-    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const chunks = getChunkedPrefillInputData(
+      inputData,
+      prefillChunkSize,
+      getImageEmbedSize,
+    );
     const expectedChunks = [[rangeArr(0, 200)], [image1, rangeArr(0, 10)]];
     const expectedChunkLens = [200, 1931];
     expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
@@ -344,7 +350,11 @@ describe("Test getChunkedPrefillInputData", () => {
 
   test("Single image data", async () => {
     const inputData = [image1];
-    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const chunks = getChunkedPrefillInputData(
+      inputData,
+      prefillChunkSize,
+      getImageEmbedSize,
+    );
     const expectedChunks = [[image1]];
     const expectedChunkLens = [1921];
     expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
@@ -352,7 +362,11 @@ describe("Test getChunkedPrefillInputData", () => {
 
   test("Two images", async () => {
     const inputData = [image1, image2];
-    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const chunks = getChunkedPrefillInputData(
+      inputData,
+      prefillChunkSize,
+      getImageEmbedSize,
+    );
     const expectedChunks = [[image1], [image2]];
     const expectedChunkLens = [1921, 1921];
     expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
@@ -360,7 +374,11 @@ describe("Test getChunkedPrefillInputData", () => {
 
   test("Single token array that needs to be chunked", async () => {
     const inputData = [rangeArr(0, 4097)];
-    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const chunks = getChunkedPrefillInputData(
+      inputData,
+      prefillChunkSize,
+      getImageEmbedSize,
+    );
     const expectedChunks = [
       [rangeArr(0, 2048)],
       [rangeArr(2048, 4096)],
@@ -372,7 +390,11 @@ describe("Test getChunkedPrefillInputData", () => {
 
   test("Single token array that does not need to be chunked", async () => {
     const inputData = [rangeArr(0, 2048)];
-    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const chunks = getChunkedPrefillInputData(
+      inputData,
+      prefillChunkSize,
+      getImageEmbedSize,
+    );
     const expectedChunks = [[rangeArr(0, 2048)]];
     const expectedChunkLens = [2048];
     expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
@@ -384,7 +406,11 @@ describe("Test getChunkedPrefillInputData", () => {
       rangeArr(0, 2300),
       image2,
     ];
-    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const chunks = getChunkedPrefillInputData(
+      inputData,
+      prefillChunkSize,
+      getImageEmbedSize,
+    );
     const expectedChunks = [
       [image1, rangeArr(0, 127)], // 127 = 2048 - 1921
       [rangeArr(127, 2175)], // 2175 = 127 + 2048
@@ -400,9 +426,42 @@ describe("Test getChunkedPrefillInputData", () => {
       rangeArr(0, 127),
       image2,
     ];
-    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const chunks = getChunkedPrefillInputData(
+      inputData,
+      prefillChunkSize,
+      getImageEmbedSize,
+    );
     const expectedChunks = [[image1, rangeArr(0, 127)], [image2]];
     const expectedChunkLens = [2048, 1921];
+    expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
+  });
+
+  test("Throws when image embed size exceeds prefill chunk size", () => {
+    const inputData = [image1];
+    expect(() =>
+      getChunkedPrefillInputData(inputData, 100, () => 1921),
+    ).toThrow(PrefillChunkSizeSmallerThanImageError);
+  });
+
+  test("Dynamic per-image embed sizes", () => {
+    const sizeMap: Record<string, number> = { url1: 500, url2: 1500 };
+    const getDynamicSize = (img: ImageURL) => sizeMap[img.url];
+    const inputData = [
+      rangeArr(0, 100),
+      image1, // 500
+      rangeArr(0, 50),
+      image2, // 1500
+    ];
+    const chunks = getChunkedPrefillInputData(
+      inputData,
+      prefillChunkSize,
+      getDynamicSize,
+    );
+    const expectedChunks = [
+      [rangeArr(0, 100), image1, rangeArr(0, 50)],
+      [image2],
+    ];
+    const expectedChunkLens = [650, 1500];
     expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
   });
 });
