@@ -20,6 +20,6 @@
     "vm-browserify": "^1.1.2"
   },
   "dependencies": {
-    "@mlc-ai/web-llm": "^0.2.82"
+    "@mlc-ai/web-llm": "^0.2.83"
   }
 }

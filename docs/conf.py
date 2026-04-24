@@ -17,8 +17,8 @@ copyright = "2023, %s" % author
 
 # Version information.
 
-version = "0.2.82"
-release = "0.2.82"
+version = "0.2.83"
+release = "0.2.83"
 
 extensions = [
     "sphinx_tabs.tabs",
