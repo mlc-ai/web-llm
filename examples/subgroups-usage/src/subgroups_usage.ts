@@ -49,7 +49,7 @@ async function main() {
   console.log("supportsSubgroups: ", supportsSubgroups);
   // Option 1: If we do not specify appConfig, we use `prebuiltAppConfig` defined in `config.ts`
   const modelRecord = webllm.prebuiltAppConfig.model_list.find(
-    (entry: webllm.AppConfig.model) => entry.model_id === selectedModel,
+    (entry: webllm.ModelRecord) => entry.model_id === selectedModel,
   );
   const appConfig =
     supportsSubgroups && modelRecord !== undefined

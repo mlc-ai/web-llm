@@ -763,6 +763,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Phi-4-mini-instruct-q4f16_1_cs1k-webgpu.wasm",
+      vram_required_MB: 3437.58,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -775,6 +776,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Phi-4-mini-instruct-q4f32_1_cs1k-webgpu.wasm",
+      vram_required_MB: 4220.59,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -1102,6 +1104,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/gemma3-1b-it-q4f16_1_cs1k-webgpu.wasm",
+      vram_required_MB: 711.07,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -1116,6 +1119,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/OLMo-2-1124-7B-Instruct-q4f16_1_cs1k-webgpu.wasm",
+      vram_required_MB: 6479.01,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -1129,6 +1133,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/OLMo-2-1124-7B-Instruct-q4f32_1_cs1k-webgpu.wasm",
+      vram_required_MB: 9086.02,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -1142,6 +1147,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/OLMo-2-0425-1B-Instruct-q4f16_1_cs1k-webgpu.wasm",
+      vram_required_MB: 1776.75,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -1155,6 +1161,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/OLMo-2-0425-1B-Instruct-q4f32_1_cs1k-webgpu.wasm",
+      vram_required_MB: 2453.51,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -1287,6 +1294,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen3.5-0.8B-q4f16_1_cs1k-webgpu.wasm",
+      vram_required_MB: 1629.49,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -1300,6 +1308,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen3.5-0.8B-q4f32_1_cs1k-webgpu.wasm",
+      vram_required_MB: 1894.19,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -1313,6 +1322,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen3.5-0.8B-q0f16_cs1k-webgpu.wasm",
+      vram_required_MB: 2660.27,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -1326,6 +1336,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen3.5-2B-q4f16_1_cs1k-webgpu.wasm",
+      vram_required_MB: 2245.44,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -1339,6 +1350,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen3.5-2B-q4f32_1_cs1k-webgpu.wasm",
+      vram_required_MB: 2591.55,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -1352,6 +1364,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen3.5-4B-q4f16_1_cs1k-webgpu.wasm",
+      vram_required_MB: 3867.82,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -1365,6 +1378,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen3.5-4B-q4f32_1_cs1k-webgpu.wasm",
+      vram_required_MB: 4680.36,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -1378,6 +1392,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen3.5-9B-q4f16_1_cs1k-webgpu.wasm",
+      vram_required_MB: 6433.01,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -1391,6 +1406,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelLibURLPrefix +
         modelVersion +
         "/Qwen3.5-9B-q4f32_1_cs1k-webgpu.wasm",
+      vram_required_MB: 7544.74,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -1867,6 +1883,91 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: true,
       overrides: {
         context_window_size: 1024,
+      },
+    },
+    // Ministral 3
+    {
+      model:
+        "https://huggingface.co/mlc-ai/Ministral-3-3B-Base-2512-q4f16_1-MLC",
+      model_id: "Ministral-3-3B-Base-2512-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Ministral-3-3B-Base-2512-q4f16_1_cs1k-webgpu.wasm",
+      vram_required_MB: 2863.69,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model:
+        "https://huggingface.co/mlc-ai/Ministral-3-3B-Base-2512-q4f32_1-MLC",
+      model_id: "Ministral-3-3B-Base-2512-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Ministral-3-3B-Base-2512-q4f32_1_cs1k-webgpu.wasm",
+      vram_required_MB: 3532.37,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model:
+        "https://huggingface.co/mlc-ai/Ministral-3-3B-Reasoning-2512-q4f16_1-MLC",
+      model_id: "Ministral-3-3B-Reasoning-2512-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Ministral-3-3B-Reasoning-2512-q4f16_1_cs1k-webgpu.wasm",
+      vram_required_MB: 2863.69,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model:
+        "https://huggingface.co/mlc-ai/Ministral-3-3B-Reasoning-2512-q4f32_1-MLC",
+      model_id: "Ministral-3-3B-Reasoning-2512-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Ministral-3-3B-Reasoning-2512-q4f32_1_cs1k-webgpu.wasm",
+      vram_required_MB: 3532.37,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model:
+        "https://huggingface.co/mlc-ai/Ministral-3-3B-Instruct-2512-BF16-q4f16_1-MLC",
+      model_id: "Ministral-3-3B-Instruct-2512-BF16-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Ministral-3-3B-Instruct-2512-BF16-q4f16_1_cs1k-webgpu.wasm",
+      vram_required_MB: 2863.69,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model:
+        "https://huggingface.co/mlc-ai/Ministral-3-3B-Instruct-2512-BF16-q4f32_1-MLC",
+      model_id: "Ministral-3-3B-Instruct-2512-BF16-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/Ministral-3-3B-Instruct-2512-BF16-q4f32_1_cs1k-webgpu.wasm",
+      vram_required_MB: 3532.37,
+      low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
       },
     },
     // BELOW ARE MODELS OF OLDER VERSIONS OR NOT AS PRACTICAL
@@ -2472,79 +2573,6 @@ export const prebuiltAppConfig: AppConfig = {
         "/snowflake-arctic-embed-s-q0f32-ctx512_cs512_batch4-webgpu.wasm",
       vram_required_MB: 238.71,
       model_type: ModelType.embedding,
-    },
-    // Ministral 3
-    {
-      model:
-        "https://huggingface.co/mlc-ai/Ministral-3-3B-Base-2512-q4f16_1-MLC",
-      model_id: "Ministral-3-3B-Base-2512-q4f16_1-MLC",
-      model_lib:
-        modelLibURLPrefix +
-        modelVersion +
-        "/Ministral-3-3B-Base-2512-q4f16_1_cs1k-webgpu.wasm",
-      overrides: {
-        context_window_size: 4096,
-      },
-    },
-    {
-      model:
-        "https://huggingface.co/mlc-ai/Ministral-3-3B-Base-2512-q4f32_1-MLC",
-      model_id: "Ministral-3-3B-Base-2512-q4f32_1-MLC",
-      model_lib:
-        modelLibURLPrefix +
-        modelVersion +
-        "/Ministral-3-3B-Base-2512-q4f32_1_cs1k-webgpu.wasm",
-      overrides: {
-        context_window_size: 4096,
-      },
-    },
-    {
-      model:
-        "https://huggingface.co/mlc-ai/Ministral-3-3B-Reasoning-2512-q4f16_1-MLC",
-      model_id: "Ministral-3-3B-Reasoning-2512-q4f16_1-MLC",
-      model_lib:
-        modelLibURLPrefix +
-        modelVersion +
-        "/Ministral-3-3B-Reasoning-2512-q4f16_1_cs1k-webgpu.wasm",
-      overrides: {
-        context_window_size: 4096,
-      },
-    },
-    {
-      model:
-        "https://huggingface.co/mlc-ai/Ministral-3-3B-Reasoning-2512-q4f32_1-MLC",
-      model_id: "Ministral-3-3B-Reasoning-2512-q4f32_1-MLC",
-      model_lib:
-        modelLibURLPrefix +
-        modelVersion +
-        "/Ministral-3-3B-Reasoning-2512-q4f32_1_cs1k-webgpu.wasm",
-      overrides: {
-        context_window_size: 4096,
-      },
-    },
-    {
-      model:
-        "https://huggingface.co/mlc-ai/Ministral-3-3B-Instruct-2512-BF16-q4f16_1-MLC",
-      model_id: "Ministral-3-3B-Instruct-2512-BF16-q4f16_1-MLC",
-      model_lib:
-        modelLibURLPrefix +
-        modelVersion +
-        "/Ministral-3-3B-Instruct-2512-BF16-q4f16_1_cs1k-webgpu.wasm",
-      overrides: {
-        context_window_size: 4096,
-      },
-    },
-    {
-      model:
-        "https://huggingface.co/mlc-ai/Ministral-3-3B-Instruct-2512-BF16-q4f32_1-MLC",
-      model_id: "Ministral-3-3B-Instruct-2512-BF16-q4f32_1-MLC",
-      model_lib:
-        modelLibURLPrefix +
-        modelVersion +
-        "/Ministral-3-3B-Instruct-2512-BF16-q4f32_1_cs1k-webgpu.wasm",
-      overrides: {
-        context_window_size: 4096,
-      },
     },
   ],
 };
