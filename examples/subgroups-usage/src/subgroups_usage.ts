@@ -8,6 +8,21 @@ function setLabel(id: string, text: string) {
   label.innerText = text;
 }
 
+function toSg32ModelLib(modelLib: string): string {
+  const modelLibUrl = new URL(modelLib);
+  const pathParts = modelLibUrl.pathname.split("/");
+  const wasmFileIndex = pathParts.length - 1;
+  const variantDirIndex = wasmFileIndex - 1;
+  if (variantDirIndex < 0 || pathParts[variantDirIndex] !== "base") {
+    throw Error(
+      `Expected model_lib path variant directory to be "base": ${modelLib}`,
+    );
+  }
+  pathParts[variantDirIndex] = "sg32";
+  modelLibUrl.pathname = pathParts.join("/");
+  return modelLibUrl.toString();
+}
+
 async function main() {
   const initProgressCallback = (report: webllm.InitProgressReport) => {
     setLabel("init-label", report.text);
@@ -34,7 +49,7 @@ async function main() {
   console.log("supportsSubgroups: ", supportsSubgroups);
   // Option 1: If we do not specify appConfig, we use `prebuiltAppConfig` defined in `config.ts`
   const modelRecord = webllm.prebuiltAppConfig.model_list.find(
-    (entry) => entry.model_id === selectedModel,
+    (entry: webllm.AppConfig.model) => entry.model_id === selectedModel,
   );
   const appConfig =
     supportsSubgroups && modelRecord !== undefined
@@ -42,10 +57,7 @@ async function main() {
           model_list: [
             {
               ...modelRecord,
-              model_lib: modelRecord.model_lib.replace(
-                /\.wasm$/,
-                "-subgroups.wasm",
-              ),
+              model_lib: toSg32ModelLib(modelRecord.model_lib),
             },
           ],
         }
@@ -82,9 +94,8 @@ async function main() {
   //   ],
   // };
   // if (supportsSubgroups) {
-  //   appConfig.model_list[0].model_lib = appConfig.model_list[0].model_lib.replace(
-  //     /\.wasm$/,
-  //     "-subgroups.wasm",
+  //   appConfig.model_list[0].model_lib = toSg32ModelLib(
+  //     appConfig.model_list[0].model_lib,
   //   );
   // }
   // const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
