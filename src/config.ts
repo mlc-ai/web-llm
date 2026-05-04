@@ -27,6 +27,18 @@ export interface ConvTemplateConfig {
   add_role_after_system_message?: boolean;
 }
 
+/**
+ * Common vision model config fields. Model-specific fields are accessed
+ * via the Record<string, unknown> extension.
+ */
+export type VisionModelConfig = {
+  mm_tokens_per_image?: number;
+  boi_token_index?: number;
+  eoi_token_index?: number;
+  vision_start_token_id?: number;
+  vision_end_token_id?: number;
+};
+
 export enum Role {
   user = "user",
   assistant = "assistant",
@@ -93,6 +105,10 @@ export interface ChatConfig {
   top_p: number;
   temperature: number;
   bos_token_id?: number;
+  // Model type identifier from mlc-chat-config.json (e.g. "phi3_v", "gemma3_v")
+  model_type?: string;
+  // Nested model config from mlc-chat-config.json, contains model-specific parameters
+  model_config?: VisionModelConfig & Record<string, unknown>;
 }
 
 /**

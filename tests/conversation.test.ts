@@ -247,7 +247,7 @@ describe("Test getConversationFromChatCompletionRequest with image", () => {
       config,
       true,
     );
-    expect(conv1.getPromptArray()).toEqual([
+    expect(conv1.getPromptArray(config)).toEqual([
       dummySystemPromptStr, // phi3_5-vision does not have system template
       [
         `<|user|>\n`,
@@ -271,7 +271,7 @@ describe("Test getConversationFromChatCompletionRequest with image", () => {
       true,
     );
     conv1.appendReplyHeader(Role.assistant);
-    expect(conv1.getPromptArray()).toEqual([
+    expect(conv1.getPromptArray(config)).toEqual([
       dummySystemPromptStr, // phi3_5-vision does not have system template
       [
         `<|user|>\n`,
@@ -290,7 +290,7 @@ describe("Test getConversationFromChatCompletionRequest with image", () => {
       ],
       `<|assistant|>\n`,
     ]);
-    expect(conv1.getPromptArrayLastRound()).toEqual([
+    expect(conv1.getPromptArrayLastRound(config)).toEqual([
       [
         `<|user|>\n`,
         { url: imageUrl2 } as ImageURL,
