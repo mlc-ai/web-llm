@@ -120,7 +120,7 @@ export interface ChatOptions extends Partial<ChatConfig> {}
 /**
  * Optional configurations for `CreateMLCEngine()` and `CreateWebWorkerMLCEngine()`.
  *
- * appConfig: Configure the app, including the list of models and whether to use IndexedDB cache.
+ * appConfig: Configure the app, including model list and persistent cache backend.
  * initProgressCallback: A callback for showing the progress of loading the model.
  * logitProcessorRegistry: A register for stateful logit processors, see `webllm.LogitProcessor`.
  *
@@ -297,10 +297,11 @@ export interface ModelRecord {
  * - "cache": browser Cache API.
  * - "indexeddb": IndexedDB-backed cache.
  * - "cross-origin": Chrome Cross-Origin Storage extension-backed cache.
+ * - "opfs": Origin Private File System-backed cache.
  *
- * @note Note that the Cache API is more well-tested in WebLLM as of now.
+ * @note Note that the Cache API is the most well-tested in WebLLM as of now.
  */
-export type CacheBackend = "cache" | "indexeddb" | "cross-origin";
+export type CacheBackend = "cache" | "indexeddb" | "cross-origin" | "opfs";
 
 export interface AppConfig {
   model_list: Array<ModelRecord>;

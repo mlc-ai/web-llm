@@ -15,7 +15,7 @@ const initProgressCallback = (report: webllm.InitProgressReport) => {
 async function main() {
   const appConfig = webllm.prebuiltAppConfig;
   // CHANGE THIS TO SEE THE EFFECTS OF EACH, CODE BELOW DOES NOT NEED TO CHANGE
-  appConfig.cacheBackend = "cross-origin"; // "indexeddb" or "cache" or "cross-origin"
+  appConfig.cacheBackend = "cache"; // "indexeddb" or "cache" or "cross-origin" or "opfs"
 
   const cacheBackend = appConfig.cacheBackend as string;
   if (cacheBackend === "indexeddb") {
@@ -24,6 +24,8 @@ async function main() {
     console.log("Using Cache API");
   } else if (cacheBackend === "cross-origin") {
     console.log("Using Cross-Origin Storage");
+  } else if (cacheBackend === "opfs") {
+    console.log("Using Origin Private File System");
   }
 
   // 1. This triggers downloading and caching the model with either Cache or IndexedDB Cache

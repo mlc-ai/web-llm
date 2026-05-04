@@ -156,10 +156,11 @@ await engine.reload(selectedModel);
 
 ### Cache Backend Policy
 
-WebLLM supports three cache backends through `AppConfig.cacheBackend`:
+WebLLM supports four cache backends through `AppConfig.cacheBackend`:
 
 - `"cache"`: browser [Cache API](https://developer.mozilla.org/en-US/docs/Web/API/Cache) (default).
 - `"indexeddb"`: browser [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API).
+- `"opfs"`: browser [Origin Private File System (OPFS)](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system).
 - `"cross-origin"`: experimental Chrome [Cross-Origin Storage API](https://github.com/WICG/cross-origin-storage) extension backend. Install the [Cross-Origin Storage extension](https://chromewebstore.google.com/detail/cross-origin-storage/denpnpcgjgikjpoglpjefakmdcbmlgih) to use it. (If the extension isn't installed, WebLLM falls back to the default cache automatically.)
 
 Example:
@@ -174,6 +175,7 @@ const engine = await CreateMLCEngine("Llama-3.1-8B-Instruct-q4f32_1-MLC", {
 ```
 
 Notes:
+- If `"opfs"` is selected in an environment without OPFS support, cache operations fail with an OPFS availability error.
 - The `"cross-origin"` backend requires installing and enabling a compatible browser extension.
 - Cross-origin backend currently does not support programmatic tensor-cache deletion; clearing is extension-managed.
 

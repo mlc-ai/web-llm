@@ -47,7 +47,7 @@ These examples demonstrate various capabilities via WebLLM's OpenAI-like API.
 #### Others
 
 - [logit-processor](logit-processor): while `logit_bias` is supported, we additionally support stateful logit processing where users can specify their own rules. We also expose low-level API `forwardTokensAndSample()`.
-- [cache-usage](cache-usage): demonstrates how WebLLM supports multiple cache backends. Choose between the [Cache API](https://developer.mozilla.org/en-US/docs/Web/API/Cache), [IndexedDB cache](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API), or the experimental Chrome [Cross-Origin Storage](https://github.com/WICG/cross-origin-storage) extension via `appConfig.cacheBackend`. Also demonstrates various cache utils such as checking
+- [cache-usage](cache-usage): demonstrates how WebLLM supports multiple cache backends. Choose between the [Cache API](https://developer.mozilla.org/en-US/docs/Web/API/Cache), [IndexedDB cache](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API), [OPFS](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system), or the experimental Chrome [Cross-Origin Storage](https://github.com/WICG/cross-origin-storage) extension via `appConfig.cacheBackend`. Also demonstrates various cache utils such as checking
   whether a model is cached, deleting a model's weights from cache, deleting a model library wasm from cache, etc. Note: cross-origin backend currently does not support programmatic tensor-cache deletion.
 - [simple-chat-upload](simple-chat-upload): demonstrates how to upload local models to WebLLM instead of downloading via a URL link
 
