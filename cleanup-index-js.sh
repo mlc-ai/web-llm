@@ -17,7 +17,7 @@ sed -e s/"new (require('u' + 'rl').URL)('file:' + __filename).href"/"\"MLC_DUMMY
 sed -e s/"require('u' + 'rl')\\.pathToFileURL(__filename)\\.href"/"\"MLC_DUMMY_PATH\""/g -i.backup lib/index.js
 # Replace with \"MLC_DUMMY_PATH\"
 sed -e s/"new (require('u' + 'rl').URL)('file:' + __filename).href"/'\\\"MLC_DUMMY_PATH\\\"'/g -i.backup lib/index.js.map
-sed -e s/"require('u' + 'rl').pathToFileURL(__filename).href"/'\\\"MLC_DUMMY_PATH\\\"'/g -i.backup lib/index.js.map
+sed -e s/"require('u' + 'rl')\\.pathToFileURL(__filename)\\.href"/'\\\"MLC_DUMMY_PATH\\\"'/g -i.backup lib/index.js.map
 
 # Replace "import require$$N from 'perf_hooks';" with "const require$$N = "MLC_DUMMY_REQUIRE_VAR""
 # This is to prevent `perf_hooks` not found error
