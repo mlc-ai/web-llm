@@ -96,8 +96,9 @@ export function cleanModelUrl(modelUrl: string): string {
   return new URL(modelUrl).href;
 }
 
-// Constants for Hermes-2-Pro models function calling
+// Constants for Hermes-2-Pro / Hermes-3 models function calling
 // Follows https://huggingface.co/NousResearch/Hermes-2-Pro-Llama-3-8B#prompt-format-for-function-calling
+//         https://huggingface.co/NousResearch/Hermes-3-Llama-3.1-8B#prompt-format-for-function-calling
 
 /**
  * Json schema used to prompt the model for function calling; directly copied from the official guide.
@@ -112,7 +113,7 @@ export const officialHermes2FunctionCallSchema = `{"properties": {"arguments": {
 export const officialHermes2FunctionCallSchemaArray = `{"type":"array","items":${officialHermes2FunctionCallSchema}}`;
 
 /**
- * Full system prompt for Hermes-2-Pro function calling.
+ * Full system prompt for Hermes-2-Pro and Hermes-3 function calling.
  */
 export const hermes2FunctionCallingSystemPrompt = `You are a function calling AI model. You are 
 provided with function signatures within <tools></tools> XML tags. You may call one or more functions 
