@@ -103,17 +103,19 @@ Additional Customization
 Using IndexedDB Cache
 ^^^^^^^^^^^^^^^^^^^^^
 
-By default, WebLLM caches model artifacts using the `Cache API <https://developer.mozilla.org/en-US/docs/Web/API/Cache>`_ for faster subsequent model loads. You can alternatively use `IndexedDB caching <https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API>`_ by setting ``appConfig.cacheBackend = "indexeddb"``.
+By default, WebLLM caches model artifacts using the `Cache API <https://developer.mozilla.org/en-US/docs/Web/API/Cache>`_ for faster subsequent model loads. You can alternatively use `IndexedDB caching <https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API>`_ by setting ``appConfig.cacheBackend = "indexeddb"``. When changing only the cache backend, preserve the prebuilt model list by spreading ``prebuiltAppConfig``.
 
 .. code-block:: typescript
 
-   const engine = await CreateMLCEngine("Llama-3.1-8B-Instruct", {
-       appConfig: {
-           cacheBackend: "indexeddb",
-           models: [
-               { model_id: "Llama-3.1-8B", model_path: "/models/llama3" },
-           ],
-       },
+   import { AppConfig, CreateMLCEngine, prebuiltAppConfig } from "@mlc-ai/web-llm";
+
+   const appConfig: AppConfig = {
+       ...prebuiltAppConfig,
+       cacheBackend: "indexeddb",
+   };
+
+   const engine = await CreateMLCEngine("Llama-3.1-8B-Instruct-q4f32_1-MLC", {
+       appConfig,
    });
 
 Using Cross-Origin Storage Cache
@@ -123,10 +125,15 @@ WebLLM also supports caching model artifacts across different origins using the 
 
 .. code-block:: typescript
 
-   const engine = await CreateMLCEngine("Llama-3.1-8B-Instruct", {
-       appConfig: {
-           cacheBackend: "cross-origin",
-       },
+   import { AppConfig, CreateMLCEngine, prebuiltAppConfig } from "@mlc-ai/web-llm";
+
+   const appConfig: AppConfig = {
+       ...prebuiltAppConfig,
+       cacheBackend: "cross-origin",
+   };
+
+   const engine = await CreateMLCEngine("Llama-3.1-8B-Instruct-q4f32_1-MLC", {
+       appConfig,
    });
 
 Customizing Token Behavior
