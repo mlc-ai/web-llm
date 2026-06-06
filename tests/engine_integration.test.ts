@@ -15,7 +15,7 @@ import { LLMChatPipeline } from "../src/llm_chat";
 import { EmbeddingPipeline } from "../src/embedding";
 import { CustomLock } from "../src/support";
 import { UnclearModelToUseError } from "../src/error";
-import { jest, test, expect, describe } from "@jest/globals";
+import { jest, test, expect, describe, afterEach } from "@jest/globals";
 
 type ChatConfig = import("../src/config").ChatConfig;
 type Conversation = import("../src/conversation").Conversation;
@@ -221,6 +221,8 @@ jest.mock("../src/embedding", () => {
 const MODEL_ID = "mock-model";
 const SECOND_MODEL_ID = "mock-model-2";
 const EMBED_MODEL_ID = "mock-embed";
+const FIXED_CREATED_DATE = new Date("2024-04-05T06:34:56.000Z");
+const FIXED_CREATED_SECONDS = 1712298896;
 const mockChatConfig: ChatConfig = {
   tokenizer_files: ["tokenizer.json"],
   vocab_size: 10,
@@ -354,8 +356,13 @@ function createEngineWithEmbeddingPipeline() {
   return { engine, pipeline };
 }
 
+afterEach(() => {
+  jest.useRealTimers();
+});
+
 describe("MLCEngine deterministic integration", () => {
   test("chatCompletion aggregates usage without WebGPU", async () => {
+    jest.useFakeTimers().setSystemTime(FIXED_CREATED_DATE);
     const { engine, pipeline } = createEngineWithPipeline(3);
     const request: ChatCompletionRequest = {
       model: MODEL_ID,
@@ -371,12 +378,14 @@ describe("MLCEngine deterministic integration", () => {
     response.choices.forEach((choice) => {
       expect(choice.message?.content).toContain("What is new?");
     });
+    expect(response.created).toBe(FIXED_CREATED_SECONDS);
     expect(response.usage?.completion_tokens).toBe(6);
     expect(response.usage?.prompt_tokens).toBeGreaterThan(0);
     expect((pipeline as any).prefillCallCount).toBe(2);
   });
 
   test("completion echoes prompt when requested", async () => {
+    jest.useFakeTimers().setSystemTime(FIXED_CREATED_DATE);
     const { engine } = createEngineWithPipeline(1);
     const request: CompletionCreateParams = {
       model: MODEL_ID,
@@ -388,6 +397,7 @@ describe("MLCEngine deterministic integration", () => {
 
     expect(response.choices).toHaveLength(1);
     expect(response.choices[0].text.startsWith("Alpha ")).toBe(true);
+    expect(response.created).toBe(FIXED_CREATED_SECONDS);
     expect(response.usage?.completion_tokens).toBe(1);
     expect(response.usage?.prompt_tokens).toBeGreaterThan(0);
   });
@@ -403,6 +413,7 @@ describe("MLCEngine deterministic integration", () => {
   });
 
   test("chatCompletion streaming yields chunks, final delta, and usage data", async () => {
+    jest.useFakeTimers().setSystemTime(FIXED_CREATED_DATE);
     const { engine } = createEngineWithPipeline(2);
     const request: ChatCompletionRequest = {
       model: MODEL_ID,
@@ -422,6 +433,9 @@ describe("MLCEngine deterministic integration", () => {
     }
     expect(chunks.length).toBeGreaterThanOrEqual(3);
     expect(chunks[0].choices[0].delta?.content).toContain("Stream please");
+    expect(
+      chunks.every((chunk) => chunk.created === FIXED_CREATED_SECONDS),
+    ).toBe(true);
     const finalChunk = chunks[chunks.length - 2];
     expect(finalChunk.choices[0].finish_reason).toEqual("stop");
     const usageChunk = chunks[chunks.length - 1];

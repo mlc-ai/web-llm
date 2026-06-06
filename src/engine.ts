@@ -74,6 +74,10 @@ import { asyncLoadTokenizer } from "./cache_util";
 import { EmbeddingPipeline } from "./embedding";
 import { verifyIntegrity } from "./integrity";
 
+function getUnixTimestampSeconds(): number {
+  return Math.floor(Date.now() / 1000);
+}
+
 /**
  * Creates `MLCEngine`, and loads `modelId` onto WebGPU.
  *
@@ -526,7 +530,7 @@ export class MLCEngine implements MLCEngineInterface {
     }
 
     // 1. Helper function that generates the chunk
-    const created = Date.now();
+    const created = getUnixTimestampSeconds();
     const id = crypto.randomUUID();
     this.interruptSignal = false;
     let prevMessageLength = 0; // to know where to start slicing the delta; does not count �
@@ -931,7 +935,7 @@ export class MLCEngine implements MLCEngineInterface {
         choices: choices,
         model: selectedModelId,
         object: "chat.completion",
-        created: Date.now(),
+        created: getUnixTimestampSeconds(),
         usage: {
           completion_tokens: completion_tokens,
           prompt_tokens: prompt_tokens,
@@ -1067,7 +1071,7 @@ export class MLCEngine implements MLCEngineInterface {
         choices: choices,
         model: selectedModelId,
         object: "text_completion",
-        created: Date.now(),
+        created: getUnixTimestampSeconds(),
         usage: {
           completion_tokens: completion_tokens,
           prompt_tokens: prompt_tokens,
