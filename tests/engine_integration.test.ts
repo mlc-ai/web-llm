@@ -221,7 +221,7 @@ jest.mock("../src/embedding", () => {
 const MODEL_ID = "mock-model";
 const SECOND_MODEL_ID = "mock-model-2";
 const EMBED_MODEL_ID = "mock-embed";
-const FIXED_CREATED_DATE = new Date("2024-04-05T06:34:56.000Z");
+const FIXED_CREATED_DATE = new Date("2024-04-05T06:34:56.789Z");
 const FIXED_CREATED_SECONDS = 1712298896;
 const mockChatConfig: ChatConfig = {
   tokenizer_files: ["tokenizer.json"],
