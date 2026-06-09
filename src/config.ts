@@ -299,13 +299,21 @@ export interface ModelRecord {
  * - "cross-origin": Chrome Cross-Origin Storage extension-backed cache.
  * - "opfs": Origin Private File System-backed cache.
  *
+ * @param opfsAccessMode: optional OPFS access mode. Only used when cacheBackend
+ * is "opfs".
+ * - "async": use async OPFS file APIs. This is the default.
+ * - "sync": require OPFS sync access handles.
+ * - "auto": use sync access handles when available and fall back to async OPFS otherwise.
+ *
  * @note Note that the Cache API is the most well-tested in WebLLM as of now.
  */
 export type CacheBackend = "cache" | "indexeddb" | "cross-origin" | "opfs";
+export type OPFSAccessMode = "async" | "sync" | "auto";
 
 export interface AppConfig {
   model_list: Array<ModelRecord>;
   cacheBackend?: CacheBackend;
+  opfsAccessMode?: OPFSAccessMode;
 }
 
 export function getCacheBackend(appConfig: AppConfig): CacheBackend {

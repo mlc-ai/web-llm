@@ -1,6 +1,8 @@
 import {
   asyncLoadTokenizer,
   deleteModelInCache,
+  getCacheOptions,
+  getTensorCacheAccessOptions,
   hasModelInCache,
 } from "../src/cache_util";
 import { AppConfig } from "../src/config";
@@ -88,12 +90,35 @@ test("hasModelInCache delegates to tvm cache helpers", async () => {
   );
 });
 
+test("cache option helpers include scope only for tensor cache access", () => {
+  const appConfig: AppConfig = {
+    ...baseAppConfig,
+    cacheBackend: "opfs",
+    opfsAccessMode: "auto",
+  };
+  expect(getCacheOptions(appConfig)).toEqual({
+    cacheType: "opfs",
+    opfsAccessMode: "auto",
+  });
+  expect(getTensorCacheAccessOptions("webllm/model", appConfig)).toEqual({
+    cacheScope: "webllm/model",
+    cacheType: "opfs",
+    opfsAccessMode: "auto",
+  });
+});
+
 test("deleteModelInCache clears tensors and tokenizer assets for indexeddb cache", async () => {
   const indexedConfig: AppConfig = {
     ...baseAppConfig,
     cacheBackend: "indexeddb",
   };
   await deleteModelInCache("demo-model", indexedConfig);
+  expect(tvmMock.__cacheState.createArtifactCache).toHaveBeenCalledWith(
+    "webllm/model",
+    {
+      cacheType: "indexeddb",
+    },
+  );
   expect(tvmMock.__cacheState.deleteTensorCache).toHaveBeenCalledWith(
     "https://huggingface.co/mlc-ai/demo-model/resolve/main/",
     {

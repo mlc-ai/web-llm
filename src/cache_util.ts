@@ -12,14 +12,28 @@ import { Tokenizer } from "@mlc-ai/web-tokenizers";
 import { ModelIntegrity, verifyIntegrity } from "./integrity";
 
 type CacheScope = "webllm/model" | "webllm/config" | "webllm/wasm";
+type CacheOptions = Pick<
+  tvmjs.TensorCacheAccessOptions,
+  "cacheType" | "opfsAccessMode"
+>;
 
-function getCacheAccessOptions(
+export function getCacheOptions(appConfig: AppConfig): CacheOptions {
+  const options: CacheOptions = {
+    cacheType: getCacheBackend(appConfig),
+  };
+  if (appConfig.opfsAccessMode !== undefined) {
+    options.opfsAccessMode = appConfig.opfsAccessMode;
+  }
+  return options;
+}
+
+export function getTensorCacheAccessOptions(
   scope: CacheScope,
   appConfig: AppConfig,
 ): tvmjs.TensorCacheAccessOptions {
   return {
     cacheScope: scope,
-    cacheType: getCacheBackend(appConfig),
+    ...getCacheOptions(appConfig),
   };
 }
 
@@ -27,10 +41,7 @@ function createScopedArtifactCache(
   scope: CacheScope,
   appConfig: AppConfig,
 ): tvmjs.ArtifactCacheTemplate {
-  return tvmjs.createArtifactCache(
-    scope,
-    getCacheAccessOptions(scope, appConfig),
-  );
+  return tvmjs.createArtifactCache(scope, getCacheOptions(appConfig));
 }
 
 async function maybeVerifyTokenizerIntegrity(
@@ -66,7 +77,7 @@ export async function hasModelInCache(
   const modelUrl = cleanModelUrl(modelRecord.model);
   return tvmjs.hasTensorInCache(
     modelUrl,
-    getCacheAccessOptions("webllm/model", appConfig),
+    getTensorCacheAccessOptions("webllm/model", appConfig),
   );
 }
 
@@ -99,7 +110,7 @@ export async function deleteModelInCache(
   const modelCache = createScopedArtifactCache("webllm/model", appConfig);
   await tvmjs.deleteTensorCache(
     modelUrl,
-    getCacheAccessOptions("webllm/model", appConfig),
+    getTensorCacheAccessOptions("webllm/model", appConfig),
   );
   await modelCache.deleteInCache(new URL("tokenizer.model", modelUrl).href);
   await modelCache.deleteInCache(new URL("tokenizer.json", modelUrl).href);

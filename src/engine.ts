@@ -5,7 +5,6 @@ import {
   ChatOptions,
   AppConfig,
   prebuiltAppConfig,
-  getCacheBackend,
   GenerationConfig,
   postInitAndCheckGenerationConfigValues,
   Role,
@@ -70,7 +69,11 @@ import {
   SpecifiedModelNotFoundError,
   ModelNotLoadedError,
 } from "./error";
-import { asyncLoadTokenizer } from "./cache_util";
+import {
+  asyncLoadTokenizer,
+  getCacheOptions,
+  getTensorCacheAccessOptions,
+} from "./cache_util";
 import { EmbeddingPipeline } from "./embedding";
 import { verifyIntegrity } from "./integrity";
 
@@ -261,12 +264,11 @@ export class MLCEngine implements MLCEngineInterface {
         : modelRecord.model_type;
     this.loadedModelIdToModelType.set(modelId, modelType);
 
-    const cacheType = getCacheBackend(this.appConfig);
-
     // instantiate cache
-    const configCache = tvmjs.createArtifactCache("webllm/config", {
-      cacheType,
-    });
+    const configCache = tvmjs.createArtifactCache(
+      "webllm/config",
+      getCacheOptions(this.appConfig),
+    );
 
     // load config
     const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
@@ -291,9 +293,10 @@ export class MLCEngine implements MLCEngineInterface {
     this.loadedModelIdToChatConfig.set(modelId, curModelConfig);
 
     // load tvm wasm
-    const wasmCache = tvmjs.createArtifactCache("webllm/wasm", {
-      cacheType,
-    });
+    const wasmCache = tvmjs.createArtifactCache(
+      "webllm/wasm",
+      getCacheOptions(this.appConfig),
+    );
 
     const wasmUrl = modelRecord.model_lib;
     if (wasmUrl === undefined) {
@@ -385,8 +388,7 @@ export class MLCEngine implements MLCEngineInterface {
       modelRecord.integrity,
     );
     await tvm.fetchTensorCache(modelUrl, tvm.webgpu(), {
-      cacheScope: "webllm/model",
-      cacheType,
+      ...getTensorCacheAccessOptions("webllm/model", this.appConfig),
       signal: this.reloadController?.signal,
     });
 

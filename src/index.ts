@@ -1,6 +1,7 @@
 export {
   ModelRecord,
   AppConfig,
+  OPFSAccessMode,
   ChatOptions,
   MLCEngineConfig,
   GenerationConfig,

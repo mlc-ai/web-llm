@@ -8,6 +8,7 @@ demonstrate the utility cache functions such as deleting models, checking if mod
 > **Note:** The cross-origin backend requires installation of the [Cross-Origin Storage browser extension](https://chromewebstore.google.com/detail/cross-origin-storage/denpnpcgjgikjpoglpjefakmdcbmlgih) ([source code](https://github.com/web-ai-community/cross-origin-storage-extension)). This does not currently support programmatic tensor-cache deletion; deletion is extension-managed.
 
 > **Note:** If `"opfs"` is selected in an environment without OPFS support, cache operations fail with an OPFS availability error.
+> Use `appConfig.opfsAccessMode = "auto"` to use OPFS sync access handles where supported, or `"sync"` to require sync access handles. The default is `"async"`.
 
 For more information about Cache API and IndexedDB, see:
 https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria#what_technologies_store_data_in_the_browser.
