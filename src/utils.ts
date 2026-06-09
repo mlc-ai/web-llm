@@ -81,6 +81,7 @@ export function areAppConfigsEqual(
     return false;
   }
   if (
+    getCacheBackend(config1) === "opfs" &&
     (config1.opfsAccessMode ?? "async") !== (config2.opfsAccessMode ?? "async")
   ) {
     return false;
