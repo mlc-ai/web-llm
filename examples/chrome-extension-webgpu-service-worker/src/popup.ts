@@ -91,7 +91,7 @@ async function handleClick() {
   chatHistory.push({ role: "user", content: message });
 
   // Clear the answer
-  document.getElementById("answer")!.innerHTML = "";
+  document.getElementById("answer")!.textContent = "";
   // Hide the answer
   document.getElementById("answerWrapper")!.style.display = "none";
   // Show the loading indicator
@@ -120,8 +120,7 @@ submitButton.addEventListener("click", handleClick);
 function updateAnswer(answer: string) {
   // Show answer
   document.getElementById("answerWrapper")!.style.display = "block";
-  const answerWithBreaks = answer.replace(/\n/g, "<br>");
-  document.getElementById("answer")!.innerHTML = answerWithBreaks;
+  document.getElementById("answer")!.textContent = answer;
   // Add event listener to copy button
   document.getElementById("copyAnswer")!.addEventListener("click", () => {
     // Get the answer text

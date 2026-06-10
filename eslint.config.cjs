@@ -43,6 +43,16 @@ module.exports = defineConfig([{
     "rules": {
         "no-undef": "off",
         "@typescript-eslint/no-unused-vars": "off",
+        "no-restricted-syntax": ["error", {
+            selector: "AssignmentExpression[left.property.name='innerHTML']",
+            message: "Render example text with textContent or DOM nodes instead of innerHTML.",
+        }, {
+            selector: "AssignmentExpression[left.property.name='outerHTML']",
+            message: "Render example text with textContent or DOM nodes instead of outerHTML.",
+        }, {
+            selector: "CallExpression[callee.property.name='insertAdjacentHTML']",
+            message: "Build example DOM nodes directly instead of parsing strings with insertAdjacentHTML.",
+        }],
     },
 }, globalIgnores([
     "**/dist",
