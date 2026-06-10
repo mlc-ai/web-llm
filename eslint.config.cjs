@@ -38,7 +38,12 @@ module.exports = defineConfig([{
         "@typescript-eslint/no-non-null-assertion": "off",
     },
 }, {
-    files: ["examples/**/*.js", "examples/**/*.ts"],
+    files: [
+        "examples/**/*.js",
+        "examples/**/*.jsx",
+        "examples/**/*.ts",
+        "examples/**/*.tsx",
+    ],
 
     "rules": {
         "no-undef": "off",
@@ -52,6 +57,9 @@ module.exports = defineConfig([{
         }, {
             selector: "CallExpression[callee.property.name='insertAdjacentHTML']",
             message: "Build example DOM nodes directly instead of parsing strings with insertAdjacentHTML.",
+        }, {
+            selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+            message: "Render example text as JSX text or DOM nodes instead of dangerouslySetInnerHTML.",
         }],
     },
 }, globalIgnores([
