@@ -35,6 +35,10 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const queryInput = getElementAndCheck("query-input")!;
 const submitButton = getElementAndCheck("submit-button")!;
 const modelName = getElementAndCheck("model-name");
+const answerElement = getElementAndCheck("answer");
+const answerWrapper = getElementAndCheck("answerWrapper");
+const loadingIndicator = getElementAndCheck("loading-indicator");
+const copyAnswerButton = getElementAndCheck("copyAnswer");
 
 let context = "";
 let modelDisplayName = "";
@@ -133,6 +137,15 @@ queryInput.addEventListener("keyup", () => {
   }
 });
 
+copyAnswerButton.addEventListener("click", copyAnswer);
+
+function copyAnswer() {
+  navigator.clipboard
+    .writeText(answerElement.textContent ?? "")
+    .then(() => console.log("Answer text copied to clipboard"))
+    .catch((err) => console.error("Could not copy text: ", err));
+}
+
 // If user presses enter, click submit button
 queryInput.addEventListener("keyup", (event) => {
   if (event.code === "Enter") {
@@ -150,11 +163,11 @@ async function handleClick() {
   const message = (<HTMLInputElement>queryInput).value;
   console.log("message", message);
   // Clear the answer
-  document.getElementById("answer")!.textContent = "";
+  answerElement.textContent = "";
   // Hide the answer
-  document.getElementById("answerWrapper")!.style.display = "none";
+  answerWrapper.style.display = "none";
   // Show the loading indicator
-  document.getElementById("loading-indicator")!.style.display = "block";
+  loadingIndicator.style.display = "block";
 
   // Generate response
   let inp = message;
@@ -259,18 +272,8 @@ chrome.runtime.onMessage.addListener(({ answer, error }) => {
 
 function updateAnswer(answer: string) {
   // Show answer
-  document.getElementById("answerWrapper")!.style.display = "block";
-  document.getElementById("answer")!.textContent = answer;
-  // Add event listener to copy button
-  document.getElementById("copyAnswer")!.addEventListener("click", () => {
-    // Get the answer text
-    const answerText = answer;
-    // Copy the answer text to the clipboard
-    navigator.clipboard
-      .writeText(answerText)
-      .then(() => console.log("Answer text copied to clipboard"))
-      .catch((err) => console.error("Could not copy text: ", err));
-  });
+  answerWrapper.style.display = "block";
+  answerElement.textContent = answer;
   const options: Intl.DateTimeFormatOptions = {
     month: "short",
     day: "2-digit",
@@ -282,7 +285,7 @@ function updateAnswer(answer: string) {
   // Update timestamp
   document.getElementById("timestamp")!.innerText = time;
   // Hide loading indicator
-  document.getElementById("loading-indicator")!.style.display = "none";
+  loadingIndicator.style.display = "none";
 }
 
 function fetchPageContents() {

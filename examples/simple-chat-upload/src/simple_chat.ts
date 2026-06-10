@@ -194,7 +194,7 @@ class ChatUI {
 
   private appendMessage(kind: MessageKind, text: string) {
     if (kind == "init") {
-      text = "[System Initalize] " + text;
+      text = "[System Initialize] " + text;
     }
     if (this.uiChat === undefined) {
       throw Error("cannot find ui chat");
@@ -205,7 +205,7 @@ class ChatUI {
 
   private updateLastMessage(kind: MessageKind, text: string) {
     if (kind == "init") {
-      text = "[System Initalize] " + text;
+      text = "[System Initialize] " + text;
     }
     if (this.uiChat === undefined) {
       throw Error("cannot find ui chat");

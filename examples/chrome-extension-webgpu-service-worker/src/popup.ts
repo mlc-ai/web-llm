@@ -20,6 +20,10 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const queryInput = document.getElementById("query-input")!;
 const submitButton = document.getElementById("submit-button")!;
+const answerElement = document.getElementById("answer")!;
+const answerWrapper = document.getElementById("answerWrapper")!;
+const loadingIndicator = document.getElementById("loading-indicator")!;
+const copyAnswerButton = document.getElementById("copyAnswer")!;
 
 let isLoadingParams = false;
 
@@ -75,6 +79,15 @@ queryInput.addEventListener("keyup", () => {
   }
 });
 
+copyAnswerButton.addEventListener("click", copyAnswer);
+
+function copyAnswer() {
+  navigator.clipboard
+    .writeText(answerElement.textContent ?? "")
+    .then(() => console.log("Answer text copied to clipboard"))
+    .catch((err) => console.error("Could not copy text: ", err));
+}
+
 // If user presses enter, click submit button
 queryInput.addEventListener("keyup", (event) => {
   if (event.code === "Enter") {
@@ -91,11 +104,11 @@ async function handleClick() {
   chatHistory.push({ role: "user", content: message });
 
   // Clear the answer
-  document.getElementById("answer")!.textContent = "";
+  answerElement.textContent = "";
   // Hide the answer
-  document.getElementById("answerWrapper")!.style.display = "none";
+  answerWrapper.style.display = "none";
   // Show the loading indicator
-  document.getElementById("loading-indicator")!.style.display = "block";
+  loadingIndicator.style.display = "block";
 
   // Send the chat completion message to the engine
   let curMessage = "";
@@ -119,18 +132,8 @@ submitButton.addEventListener("click", handleClick);
 
 function updateAnswer(answer: string) {
   // Show answer
-  document.getElementById("answerWrapper")!.style.display = "block";
-  document.getElementById("answer")!.textContent = answer;
-  // Add event listener to copy button
-  document.getElementById("copyAnswer")!.addEventListener("click", () => {
-    // Get the answer text
-    const answerText = answer;
-    // Copy the answer text to the clipboard
-    navigator.clipboard
-      .writeText(answerText)
-      .then(() => console.log("Answer text copied to clipboard"))
-      .catch((err) => console.error("Could not copy text: ", err));
-  });
+  answerWrapper.style.display = "block";
+  answerElement.textContent = answer;
   const options: Intl.DateTimeFormatOptions = {
     month: "short",
     day: "2-digit",
@@ -142,7 +145,7 @@ function updateAnswer(answer: string) {
   // Update timestamp
   document.getElementById("timestamp")!.innerText = time;
   // Hide loading indicator
-  document.getElementById("loading-indicator")!.style.display = "none";
+  loadingIndicator.style.display = "none";
 }
 
 function fetchPageContents() {
