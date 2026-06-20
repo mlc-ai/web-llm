@@ -181,14 +181,16 @@ class ChatUI {
     if (this.uiChat === undefined) {
       throw Error("cannot find ui chat");
     }
-    const msg = `
-      <div class="msg ${kind}-msg">
-        <div class="msg-bubble">
-          <div class="msg-text">${text}</div>
-        </div>
-      </div>
-    `;
-    this.uiChat.insertAdjacentHTML("beforeend", msg);
+    const msgDiv = document.createElement("div");
+    msgDiv.className = `msg ${kind}-msg`;
+    const bubble = document.createElement("div");
+    bubble.className = "msg-bubble";
+    const textDiv = document.createElement("div");
+    textDiv.className = "msg-text";
+    textDiv.textContent = text;  // Safe: treats as plain text, not HTML
+    bubble.appendChild(textDiv);
+    msgDiv.appendChild(bubble);
+    this.uiChat.appendChild(msgDiv);
     this.uiChat.scrollTo(0, this.uiChat.scrollHeight);
   }
 
@@ -197,18 +199,16 @@ class ChatUI {
     if (this.uiChat === undefined) {
       throw Error("cannot find ui chat");
     }
-    const msg = `
-      <div class="msg right-msg">
-        <div class="msg-bubble">
-          <div class="msg-text"></div>
-        </div>
-      </div>
-    `;
-    this.uiChat.insertAdjacentHTML("beforeend", msg);
-    // Recurse three times to get `msg-text`
-    const msgElement = this.uiChat.lastElementChild?.lastElementChild
-      ?.lastElementChild as HTMLElement;
-    msgElement.insertAdjacentText("beforeend", text);
+    const msgDiv = document.createElement("div");
+    msgDiv.className = "msg right-msg";
+    const bubble = document.createElement("div");
+    bubble.className = "msg-bubble";
+    const textDiv = document.createElement("div");
+    textDiv.className = "msg-text";
+    textDiv.textContent = text;  // Safe: treats as plain text, not HTML
+    bubble.appendChild(textDiv);
+    msgDiv.appendChild(bubble);
+    this.uiChat.appendChild(msgDiv);
     this.uiChat.scrollTo(0, this.uiChat.scrollHeight);
   }
 
