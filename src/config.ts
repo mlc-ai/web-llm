@@ -278,6 +278,7 @@ export interface ModelRecord {
   model_lib: string;
   overrides?: ChatOptions;
   vram_required_MB?: number;
+  model_size_MB?: number;
   low_resource_required?: boolean;
   buffer_size_required_bytes?: number;
   required_features?: Array<string>;
@@ -363,6 +364,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3.2-1B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 1128.82,
+      model_size_MB: 736.82,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -376,6 +378,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3.2-1B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 879.04,
+      model_size_MB: 663.04,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -389,6 +392,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3.2-1B-Instruct-q0f32_cs1k-webgpu.wasm",
       vram_required_MB: 5106.26,
+      model_size_MB: 4714.26,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -402,6 +406,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3.2-1B-Instruct-q0f16_cs1k-webgpu.wasm",
       vram_required_MB: 2573.13,
+      model_size_MB: 2357.13,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -415,6 +420,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3.2-3B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 2951.51,
+      model_size_MB: 1915.51,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -428,6 +434,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3.2-3B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 2263.69,
+      model_size_MB: 1723.69,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -442,6 +449,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3_1-8B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 5295.7,
+      model_size_MB: 4787.27,
       low_resource_required: true,
       overrides: {
         context_window_size: 1024,
@@ -455,6 +463,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3_1-8B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 4598.34,
+      model_size_MB: 4308.13,
       low_resource_required: true,
       overrides: {
         context_window_size: 1024,
@@ -468,6 +477,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3_1-8B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 6101.01,
+      model_size_MB: 4787.27,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -481,6 +491,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3_1-8B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 5001.0,
+      model_size_MB: 4308.13,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -524,6 +535,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-7B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       low_resource_required: false,
       vram_required_MB: 5106.67,
+      model_size_MB: 4085.79,
       overrides: {
         context_window_size: 4096,
       },
@@ -538,6 +550,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-7B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       low_resource_required: false,
       vram_required_MB: 5900.09,
+      model_size_MB: 4540.33,
       overrides: {
         context_window_size: 4096,
       },
@@ -552,6 +565,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3_1-8B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 6101.01,
+      model_size_MB: 4787.27,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -566,6 +580,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3_1-8B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 5001.0,
+      model_size_MB: 4308.13,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -581,6 +596,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3-8B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 4976.13,
+      model_size_MB: 4308.13,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -595,6 +611,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3-8B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 6051.27,
+      model_size_MB: 4787.27,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -609,6 +626,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3-8B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 4976.13,
+      model_size_MB: 4308.27,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -623,6 +641,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3-8B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 6051.27,
+      model_size_MB: 4787.42,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -636,6 +655,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3.2-3B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 2951.51,
+      model_size_MB: 1915.51,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -649,6 +669,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3.2-3B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 2263.69,
+      model_size_MB: 1723.69,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -662,6 +683,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3_1-8B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 5779.27,
+      model_size_MB: 4787.27,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -675,6 +697,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3_1-8B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 4876.13,
+      model_size_MB: 4308.13,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -689,6 +712,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Mistral-7B-Instruct-v0.3-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 4033.28,
+      model_size_MB: 3885.27,
       low_resource_required: false,
       required_features: ["shader-f16"],
       overrides: {
@@ -705,6 +729,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Phi-3.5-mini-instruct-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 3672.07,
+      model_size_MB: 2050.06,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -718,6 +743,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Phi-3.5-mini-instruct-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 5483.12,
+      model_size_MB: 2278.18,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -731,6 +757,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Phi-3.5-mini-instruct-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 2520.07,
+      model_size_MB: 2050.06,
       low_resource_required: true,
       overrides: {
         context_window_size: 1024,
@@ -744,6 +771,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Phi-3.5-mini-instruct-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 3179.12,
+      model_size_MB: 2278.18,
       low_resource_required: true,
       overrides: {
         context_window_size: 1024,
@@ -759,6 +787,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Phi-3.5-vision-instruct-q4f16_1_cs2k-webgpu.wasm",
       vram_required_MB: 3952.18,
+      model_size_MB: 2640.79,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -774,6 +803,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Phi-3.5-vision-instruct-q4f32_1_cs2k-webgpu.wasm",
       vram_required_MB: 5879.84,
+      model_size_MB: 3449.15,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -817,6 +847,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Mistral-7B-Instruct-v0.3-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 4573.39,
+      model_size_MB: 3888.51,
       low_resource_required: false,
       required_features: ["shader-f16"],
       overrides: {
@@ -833,6 +864,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Mistral-7B-Instruct-v0.3-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 5619.27,
+      model_size_MB: 4321.02,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -848,6 +880,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Mistral-7B-Instruct-v0.3-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 4573.39,
+      model_size_MB: 3885.13,
       low_resource_required: false,
       required_features: ["shader-f16"],
       overrides: {
@@ -864,6 +897,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Mistral-7B-Instruct-v0.3-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 4573.39,
+      model_size_MB: 3885.14,
       low_resource_required: false,
       required_features: ["shader-f16"],
       overrides: {
@@ -880,6 +914,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Mistral-7B-Instruct-v0.3-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 4573.39,
+      model_size_MB: 3885.14,
       low_resource_required: false,
       required_features: ["shader-f16"],
       overrides: {
@@ -895,6 +930,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Mistral-7B-Instruct-v0.3-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 4573.39,
+      model_size_MB: 3885.13,
       low_resource_required: false,
       required_features: ["shader-f16"],
       overrides: {
@@ -911,6 +947,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/SmolLM2-1.7B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 1774.19,
+      model_size_MB: 918.19,
       low_resource_required: true,
       required_features: ["shader-f16"],
       overrides: {
@@ -925,6 +962,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/SmolLM2-1.7B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 2692.38,
+      model_size_MB: 1020.38,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -939,6 +977,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/SmolLM2-360M-Instruct-q0f16_cs1k-webgpu.wasm",
       vram_required_MB: 871.99,
+      model_size_MB: 690.12,
       low_resource_required: true,
       required_features: ["shader-f16"],
       overrides: {
@@ -953,6 +992,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/SmolLM2-360M-Instruct-q0f32_cs1k-webgpu.wasm",
       vram_required_MB: 1743.99,
+      model_size_MB: 1380.24,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -966,6 +1006,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/SmolLM2-360M-Instruct-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 376.06,
+      model_size_MB: 194.18,
       low_resource_required: true,
       required_features: ["shader-f16"],
       overrides: {
@@ -980,6 +1021,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/SmolLM2-360M-Instruct-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 579.61,
+      model_size_MB: 215.86,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -993,6 +1035,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/SmolLM2-135M-Instruct-q0f16_cs1k-webgpu.wasm",
       vram_required_MB: 359.69,
+      model_size_MB: 256.57,
       low_resource_required: true,
       required_features: ["shader-f16"],
       overrides: {
@@ -1007,6 +1050,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/SmolLM2-135M-Instruct-q0f32_cs1k-webgpu.wasm",
       vram_required_MB: 719.38,
+      model_size_MB: 513.13,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -1021,6 +1065,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/gemma-2-2b-it-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 1895.3,
+      model_size_MB: 1402.77,
       low_resource_required: false,
       required_features: ["shader-f16"],
       overrides: {
@@ -1035,6 +1080,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/gemma-2-2b-it-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 2508.75,
+      model_size_MB: 1559.05,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -1048,6 +1094,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/gemma-2-2b-it-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 1583.3,
+      model_size_MB: 1402.77,
       low_resource_required: true,
       required_features: ["shader-f16"],
       overrides: {
@@ -1062,6 +1109,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/gemma-2-2b-it-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 1884.75,
+      model_size_MB: 1559.05,
       low_resource_required: true,
       overrides: {
         context_window_size: 1024,
@@ -1075,6 +1123,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/gemma-2-9b-it-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 6422.01,
+      model_size_MB: 4958.47,
       low_resource_required: false,
       required_features: ["shader-f16"],
       overrides: {
@@ -1089,6 +1138,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/gemma-2-9b-it-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 8383.33,
+      model_size_MB: 5510.44,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -1103,6 +1153,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/gemma-2-2b-jpn-it-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 1895.3,
+      model_size_MB: 1402.77,
       low_resource_required: true,
       required_features: ["shader-f16"],
       overrides: {
@@ -1117,6 +1168,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/gemma-2-2b-jpn-it-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 2508.75,
+      model_size_MB: 1559.05,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -1201,6 +1253,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Qwen3-0.6B-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 1403.34,
+      model_size_MB: 319.84,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -1214,6 +1267,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Qwen3-0.6B-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 1924.98,
+      model_size_MB: 355.48,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -1225,6 +1279,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix + modelVersion + "/Qwen3-0.6B-q0f16_cs1k-webgpu.wasm",
       vram_required_MB: 2220.38,
+      model_size_MB: 1136.88,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -1236,6 +1291,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix + modelVersion + "/Qwen3-0.6B-q0f32_cs1k-webgpu.wasm",
       vram_required_MB: 3843.25,
+      model_size_MB: 2273.75,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -1249,6 +1305,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Qwen3-1.7B-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 2036.66,
+      model_size_MB: 923.16,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -1262,6 +1319,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Qwen3-1.7B-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 2635.44,
+      model_size_MB: 1025.94,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -1273,6 +1331,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix + modelVersion + "/Qwen3-4B-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 3431.59,
+      model_size_MB: 2158.09,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -1284,6 +1343,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix + modelVersion + "/Qwen3-4B-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 4327.71,
+      model_size_MB: 2398.21,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
@@ -1295,6 +1355,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix + modelVersion + "/Qwen3-8B-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 5695.78,
+      model_size_MB: 4394.28,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -1306,6 +1367,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix + modelVersion + "/Qwen3-8B-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 6852.55,
+      model_size_MB: 4883.05,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -1448,6 +1510,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-0.5B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 944.62,
+      model_size_MB: 265.12,
       overrides: {
         context_window_size: 4096,
       },
@@ -1461,6 +1524,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-0.5B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 1060.2,
+      model_size_MB: 294.7,
       overrides: {
         context_window_size: 4096,
       },
@@ -1474,6 +1538,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-0.5B-Instruct-q0f16_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 1624.12,
+      model_size_MB: 942.29,
       overrides: {
         context_window_size: 4096,
       },
@@ -1487,6 +1552,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-0.5B-Instruct-q0f32_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 2654.75,
+      model_size_MB: 1884.59,
       overrides: {
         context_window_size: 4096,
       },
@@ -1500,6 +1566,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-1.5B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 1629.75,
+      model_size_MB: 828.31,
       overrides: {
         context_window_size: 4096,
       },
@@ -1513,6 +1580,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-1.5B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 1888.97,
+      model_size_MB: 920.59,
       overrides: {
         context_window_size: 4096,
       },
@@ -1526,6 +1594,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2.5-3B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 2504.76,
+      model_size_MB: 1655.76,
       overrides: {
         context_window_size: 4096,
       },
@@ -1539,6 +1608,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2.5-3B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 2893.64,
+      model_size_MB: 1840.14,
       overrides: {
         context_window_size: 4096,
       },
@@ -1552,6 +1622,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-7B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       low_resource_required: false,
       vram_required_MB: 5106.67,
+      model_size_MB: 4085.79,
       overrides: {
         context_window_size: 4096,
       },
@@ -1565,6 +1636,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-7B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       low_resource_required: false,
       vram_required_MB: 5900.09,
+      model_size_MB: 4540.33,
       overrides: {
         context_window_size: 4096,
       },
@@ -1580,6 +1652,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-0.5B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 944.62,
+      model_size_MB: 265.12,
       overrides: {
         context_window_size: 4096,
       },
@@ -1594,6 +1667,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-0.5B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 1060.2,
+      model_size_MB: 294.7,
       overrides: {
         context_window_size: 4096,
       },
@@ -1608,6 +1682,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-0.5B-Instruct-q0f16_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 1624.12,
+      model_size_MB: 942.29,
       overrides: {
         context_window_size: 4096,
       },
@@ -1622,6 +1697,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-0.5B-Instruct-q0f32_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 2654.75,
+      model_size_MB: 1884.59,
       overrides: {
         context_window_size: 4096,
       },
@@ -1636,6 +1712,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-1.5B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       low_resource_required: false,
       vram_required_MB: 1629.75,
+      model_size_MB: 828.31,
       overrides: {
         context_window_size: 4096,
       },
@@ -1650,6 +1727,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-1.5B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       low_resource_required: false,
       vram_required_MB: 1888.97,
+      model_size_MB: 920.59,
       overrides: {
         context_window_size: 4096,
       },
@@ -1664,6 +1742,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2.5-3B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 2504.76,
+      model_size_MB: 1655.76,
       overrides: {
         context_window_size: 4096,
       },
@@ -1678,6 +1757,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2.5-3B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 2893.64,
+      model_size_MB: 1840.14,
       overrides: {
         context_window_size: 4096,
       },
@@ -1692,6 +1772,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-7B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       low_resource_required: false,
       vram_required_MB: 5106.67,
+      model_size_MB: 4085.79,
       overrides: {
         context_window_size: 4096,
       },
@@ -1706,6 +1787,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-7B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       low_resource_required: false,
       vram_required_MB: 5900.09,
+      model_size_MB: 4540.33,
       overrides: {
         context_window_size: 4096,
       },
@@ -1721,6 +1803,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-1.5B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 1629.75,
+      model_size_MB: 828.31,
       overrides: {
         context_window_size: 4096,
       },
@@ -1735,6 +1818,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-1.5B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 1888.97,
+      model_size_MB: 920.59,
       overrides: {
         context_window_size: 4096,
       },
@@ -1748,6 +1832,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/stablelm-2-zephyr-1_6b-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 2087.66,
+      model_size_MB: 882.66,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -1761,6 +1846,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/stablelm-2-zephyr-1_6b-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 2999.33,
+      model_size_MB: 981.33,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -1774,6 +1860,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/stablelm-2-zephyr-1_6b-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 1511.66,
+      model_size_MB: 882.66,
       low_resource_required: true,
       overrides: {
         context_window_size: 1024,
@@ -1787,6 +1874,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/stablelm-2-zephyr-1_6b-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 1847.33,
+      model_size_MB: 981.33,
       low_resource_required: true,
       overrides: {
         context_window_size: 1024,
@@ -1802,6 +1890,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/RedPajama-INCITE-Chat-3B-v1-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 2972.09,
+      model_size_MB: 1491.34,
       low_resource_required: false,
       required_features: ["shader-f16"],
       overrides: {
@@ -1817,6 +1906,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/RedPajama-INCITE-Chat-3B-v1-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 3928.09,
+      model_size_MB: 1657.99,
       low_resource_required: false,
       overrides: {
         context_window_size: 2048,
@@ -1831,6 +1921,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/RedPajama-INCITE-Chat-3B-v1-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 2041.09,
+      model_size_MB: 1491.34,
       low_resource_required: true,
       required_features: ["shader-f16"],
       overrides: {
@@ -1846,6 +1937,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/RedPajama-INCITE-Chat-3B-v1-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 2558.09,
+      model_size_MB: 1657.99,
       low_resource_required: true,
       overrides: {
         context_window_size: 1024,
@@ -1861,6 +1953,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/TinyLlama-1.1B-Chat-v1.0-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 697.24,
+      model_size_MB: 590.24,
       low_resource_required: true,
       required_features: ["shader-f16"],
       overrides: {
@@ -1876,6 +1969,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/TinyLlama-1.1B-Chat-v1.0-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 839.98,
+      model_size_MB: 655.98,
       low_resource_required: true,
       overrides: {
         context_window_size: 2048,
@@ -1890,6 +1984,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/TinyLlama-1.1B-Chat-v1.0-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 675.24,
+      model_size_MB: 590.24,
       low_resource_required: true,
       required_features: ["shader-f16"],
       overrides: {
@@ -1905,6 +2000,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/TinyLlama-1.1B-Chat-v1.0-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 795.98,
+      model_size_MB: 655.98,
       low_resource_required: true,
       overrides: {
         context_window_size: 1024,
@@ -2005,6 +2101,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3_1-70B-Instruct-q3f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 31153.13,
+      model_size_MB: 30304.26,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -2020,6 +2117,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-0.5B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 944.62,
+      model_size_MB: 265.12,
       overrides: {
         context_window_size: 4096,
       },
@@ -2033,6 +2131,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-0.5B-Instruct-q0f16_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 1624.12,
+      model_size_MB: 942.29,
       overrides: {
         context_window_size: 4096,
       },
@@ -2046,6 +2145,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-0.5B-Instruct-q0f32_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 2654.75,
+      model_size_MB: 1884.59,
       overrides: {
         context_window_size: 4096,
       },
@@ -2059,6 +2159,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-1.5B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 1629.75,
+      model_size_MB: 828.31,
       overrides: {
         context_window_size: 4096,
       },
@@ -2072,6 +2173,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-1.5B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 1888.97,
+      model_size_MB: 920.59,
       overrides: {
         context_window_size: 4096,
       },
@@ -2085,6 +2187,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-7B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       low_resource_required: false,
       vram_required_MB: 5106.67,
+      model_size_MB: 4085.79,
       overrides: {
         context_window_size: 4096,
       },
@@ -2098,6 +2201,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-7B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       low_resource_required: false,
       vram_required_MB: 5900.09,
+      model_size_MB: 4540.33,
       overrides: {
         context_window_size: 4096,
       },
@@ -2113,6 +2217,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-1.5B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 1629.75,
+      model_size_MB: 828.31,
       overrides: {
         context_window_size: 4096,
       },
@@ -2127,6 +2232,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-1.5B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       low_resource_required: true,
       vram_required_MB: 1888.97,
+      model_size_MB: 920.59,
       overrides: {
         context_window_size: 4096,
       },
@@ -2140,6 +2246,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-7B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       low_resource_required: false,
       vram_required_MB: 5106.67,
+      model_size_MB: 4085.79,
       overrides: {
         context_window_size: 4096,
       },
@@ -2153,6 +2260,7 @@ export const prebuiltAppConfig: AppConfig = {
         "/Qwen2-7B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       low_resource_required: false,
       vram_required_MB: 5900.09,
+      model_size_MB: 4540.33,
       overrides: {
         context_window_size: 4096,
       },
@@ -2166,6 +2274,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3-8B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 5295.7,
+      model_size_MB: 4787.27,
       low_resource_required: true,
       overrides: {
         context_window_size: 1024,
@@ -2179,6 +2288,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3-8B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 4598.34,
+      model_size_MB: 4308.13,
       low_resource_required: true,
       overrides: {
         context_window_size: 1024,
@@ -2192,6 +2302,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3-8B-Instruct-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 6101.01,
+      model_size_MB: 4787.27,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -2205,6 +2316,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3-8B-Instruct-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 5001.0,
+      model_size_MB: 4308.13,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -2218,6 +2330,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-3-70B-Instruct-q3f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 31153.13,
+      model_size_MB: 30304.26,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -2232,6 +2345,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Phi-3-mini-4k-instruct-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 3672.07,
+      model_size_MB: 2050.06,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -2245,6 +2359,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Phi-3-mini-4k-instruct-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 5483.12,
+      model_size_MB: 2278.18,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -2258,6 +2373,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Phi-3-mini-4k-instruct-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 2520.07,
+      model_size_MB: 2050.06,
       low_resource_required: true,
       overrides: {
         context_window_size: 1024,
@@ -2271,6 +2387,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Phi-3-mini-4k-instruct-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 3179.12,
+      model_size_MB: 2278.18,
       low_resource_required: true,
       overrides: {
         context_window_size: 1024,
@@ -2285,6 +2402,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-2-7b-chat-hf-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 5284.01,
+      model_size_MB: 4017.27,
       low_resource_required: false,
       overrides: {
         context_window_size: 1024,
@@ -2298,6 +2416,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-2-7b-chat-hf-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 4618.52,
+      model_size_MB: 3615.13,
       low_resource_required: false,
       required_features: ["shader-f16"],
       overrides: {
@@ -2312,6 +2431,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-2-7b-chat-hf-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 9109.03,
+      model_size_MB: 4017.27,
       low_resource_required: false,
       overrides: {
         context_window_size: 4096,
@@ -2325,6 +2445,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-2-7b-chat-hf-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 6749.02,
+      model_size_MB: 3615.13,
       low_resource_required: false,
       required_features: ["shader-f16"],
       overrides: {
@@ -2339,6 +2460,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/Llama-2-13b-chat-hf-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 11814.09,
+      model_size_MB: 6982.82,
       low_resource_required: false,
       required_features: ["shader-f16"],
       overrides: {
@@ -2354,6 +2476,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/gemma-2b-it-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 1476.52,
+      model_size_MB: 1344.52,
       low_resource_required: false,
       buffer_size_required_bytes: 262144000,
       required_features: ["shader-f16"],
@@ -2369,6 +2492,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/gemma-2b-it-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 1750.66,
+      model_size_MB: 1494.04,
       low_resource_required: false,
       buffer_size_required_bytes: 262144000,
       overrides: {
@@ -2383,6 +2507,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/gemma-2b-it-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 1476.52,
+      model_size_MB: 1344.52,
       low_resource_required: true,
       buffer_size_required_bytes: 262144000,
       required_features: ["shader-f16"],
@@ -2398,6 +2523,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/gemma-2b-it-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 1750.66,
+      model_size_MB: 1494.04,
       low_resource_required: true,
       buffer_size_required_bytes: 262144000,
       overrides: {
@@ -2411,6 +2537,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix + modelVersion + "/phi-2-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 3053.97,
+      model_size_MB: 1492.45,
       low_resource_required: false,
       required_features: ["shader-f16"],
       overrides: {
@@ -2423,6 +2550,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix + modelVersion + "/phi-2-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 4032.48,
+      model_size_MB: 1659.9,
       low_resource_required: false,
       overrides: {
         context_window_size: 2048,
@@ -2434,6 +2562,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix + modelVersion + "/phi-2-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 2131.97,
+      model_size_MB: 1492.45,
       low_resource_required: true,
       required_features: ["shader-f16"],
       overrides: {
@@ -2446,6 +2575,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix + modelVersion + "/phi-2-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 2740.48,
+      model_size_MB: 1659.9,
       low_resource_required: true,
       overrides: {
         context_window_size: 1024,
@@ -2458,6 +2588,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix + modelVersion + "/phi-1_5-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 1210.09,
+      model_size_MB: 761.64,
       low_resource_required: true,
       required_features: ["shader-f16"],
       overrides: {
@@ -2470,6 +2601,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix + modelVersion + "/phi-1_5-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 1682.09,
+      model_size_MB: 847.27,
       low_resource_required: true,
       overrides: {
         context_window_size: 2048,
@@ -2481,6 +2613,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix + modelVersion + "/phi-1_5-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 1210.09,
+      model_size_MB: 761.64,
       low_resource_required: true,
       required_features: ["shader-f16"],
       overrides: {
@@ -2493,6 +2626,7 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix + modelVersion + "/phi-1_5-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 1682.09,
+      model_size_MB: 847.27,
       low_resource_required: true,
       overrides: {
         context_window_size: 1024,
@@ -2508,6 +2642,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/TinyLlama-1.1B-Chat-v0.4-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 697.24,
+      model_size_MB: 590.24,
       low_resource_required: true,
       required_features: ["shader-f16"],
       overrides: {
@@ -2523,6 +2658,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/TinyLlama-1.1B-Chat-v0.4-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 839.98,
+      model_size_MB: 655.98,
       low_resource_required: true,
       overrides: {
         context_window_size: 2048,
@@ -2537,6 +2673,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/TinyLlama-1.1B-Chat-v0.4-q4f16_1_cs1k-webgpu.wasm",
       vram_required_MB: 675.24,
+      model_size_MB: 590.24,
       low_resource_required: true,
       required_features: ["shader-f16"],
       overrides: {
@@ -2552,6 +2689,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/TinyLlama-1.1B-Chat-v0.4-q4f32_1_cs1k-webgpu.wasm",
       vram_required_MB: 795.98,
+      model_size_MB: 655.98,
       low_resource_required: true,
       overrides: {
         context_window_size: 1024,
@@ -2567,6 +2705,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/snowflake-arctic-embed-m-q0f32-ctx512_cs512_batch32-webgpu.wasm",
       vram_required_MB: 1407.51,
+      model_size_MB: 415.39,
       model_type: ModelType.embedding,
     },
     {
@@ -2577,6 +2716,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/snowflake-arctic-embed-m-q0f32-ctx512_cs512_batch4-webgpu.wasm",
       vram_required_MB: 539.4,
+      model_size_MB: 415.39,
       model_type: ModelType.embedding,
     },
     {
@@ -2587,6 +2727,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/snowflake-arctic-embed-s-q0f32-ctx512_cs512_batch32-webgpu.wasm",
       vram_required_MB: 1022.82,
+      model_size_MB: 126.69,
       model_type: ModelType.embedding,
     },
     {
@@ -2597,6 +2738,7 @@ export const prebuiltAppConfig: AppConfig = {
         modelVersion +
         "/snowflake-arctic-embed-s-q0f32-ctx512_cs512_batch4-webgpu.wasm",
       vram_required_MB: 238.71,
+      model_size_MB: 126.69,
       model_type: ModelType.embedding,
     },
   ],
