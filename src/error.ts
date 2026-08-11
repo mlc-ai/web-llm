@@ -14,6 +14,13 @@ export class ArtifactManifestError extends Error {
   }
 }
 
+export class AudioInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AudioInputError";
+  }
+}
+
 export class ConfigValueError extends Error {
   constructor(message: string) {
     super(message);
