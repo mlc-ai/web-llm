@@ -12,6 +12,50 @@ import { MessagePlaceholders, ModelType } from "../src/config";
 import { describe, expect, test } from "@jest/globals";
 
 describe("Check chat completion unsupported requests", () => {
+  test("manifest capabilities admit WAV and native PCM audio", () => {
+    for (const input_audio of [
+      { format: "wav" as const, data: "UklGRg==" },
+      {
+        format: "pcm_f32" as const,
+        data: new Float32Array([0, 0.5]),
+        sample_rate: 16000,
+      },
+    ]) {
+      const request: ChatCompletionRequest = {
+        messages: [
+          { role: "user", content: [{ type: "input_audio", input_audio }] },
+        ],
+      };
+      expect(() =>
+        postInitAndCheckFields(
+          request,
+          "manifest-model",
+          ModelType.LLM,
+          new Set(["audio"]),
+        ),
+      ).not.toThrow();
+    }
+  });
+
+  test("audio content requires a manifest-declared audio input", () => {
+    const request: ChatCompletionRequest = {
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_audio",
+              input_audio: { format: "wav", data: "UklGRg==" },
+            },
+          ],
+        },
+      ],
+    };
+    expect(() =>
+      postInitAndCheckFields(request, "legacy-model", ModelType.LLM, new Set()),
+    ).toThrow(/does not declare support/);
+  });
+
   test("stream_options without stream specified", () => {
     expect(() => {
       const request: ChatCompletionRequest = {

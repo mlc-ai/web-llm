@@ -149,6 +149,15 @@ export class UserMessageContentErrorForNonVLM extends Error {
   }
 }
 
+export class UnsupportedContentPartError extends Error {
+  constructor(modelId: string, contentType: string) {
+    super(
+      `Model ${modelId} does not declare support for user content type ${JSON.stringify(contentType)}.`,
+    );
+    this.name = "UnsupportedContentPartError";
+  }
+}
+
 export class PrefillChunkSizeSmallerThanImageError extends Error {
   constructor(prefillChunkSize: number, imageEmbedSize: number) {
     super(
