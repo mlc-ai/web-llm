@@ -7,6 +7,13 @@ export class ModelNotFoundError extends Error {
   }
 }
 
+export class ArtifactManifestError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "ArtifactManifestError";
+  }
+}
+
 export class ConfigValueError extends Error {
   constructor(message: string) {
     super(message);
