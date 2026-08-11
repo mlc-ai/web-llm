@@ -1,6 +1,58 @@
 Advanced Use Cases
 ==================
 
+Manifest-Driven Audio Input (Experimental)
+------------------------------------------
+
+WebLLM can consume ``mlc-model-manifest.json`` from a custom MLC model
+directory.  The sidecar declares the task, canonical audio format, compiled
+adapter role, prompt tokens, and hashes that must match the compiled library.
+No sidecar means the existing legacy model path; a present but invalid or
+mismatched sidecar fails model loading.
+
+For a manifest-enabled text-and-audio model, pass a base64 WAV (or a WAV data
+URL) through the OpenAI-compatible content part:
+
+.. code-block:: typescript
+
+   const response = await engine.chat.completions.create({
+     messages: [{
+       role: "user",
+       content: [
+         {
+           type: "input_audio",
+           input_audio: { format: "wav", data: wavBase64 },
+         },
+         { type: "text", text: "What do you hear?" },
+       ],
+     }],
+   });
+
+Browser-native callers may avoid WAV encoding with structured-cloneable mono
+PCM:
+
+.. code-block:: typescript
+
+   const inputAudio = {
+     type: "input_audio" as const,
+     input_audio: {
+       format: "pcm_f32" as const,
+       data: samples, // Float32Array
+       sample_rate: 48000,
+     },
+   };
+
+WebLLM downmixes WAV channels and deterministically resamples either form to
+the manifest's canonical rate.  Model-specific feature extraction remains in
+the compiled adapter, and dynamically sized adapter output is chunked to the
+model's prefill limit.
+
+This milestone targets custom ``google/gemma-4-E2B-it`` q4f16_1 artifacts;
+there is no prebuilt model record yet.  It accepts WAV or native PCM only--not
+URLs or compressed codecs--and does not include vision/video, ASR, or native
+MLC server audio ingestion.  ``ModelRecord.model_manifest`` can override the
+sidecar URL when it is not colocated with the converted weights.
+
 Using Workers
 -------------
 
