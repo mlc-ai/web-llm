@@ -285,6 +285,105 @@ test("getInputData uses cached prompts when KV cache filled", async () => {
   expect(pipeline["conversation"].getPromptArrayLastRound).toHaveBeenCalled();
 });
 
+test("artifact prompt assembly chunks dynamic audio embeddings", async () => {
+  const pipeline = createPipeline();
+  const raw = pipeline as any;
+  const audioPart = {
+    type: "input_audio" as const,
+    input_audio: {
+      format: "pcm_f32" as const,
+      data: new Float32Array([0, 1]),
+      sample_rate: 16000,
+    },
+  };
+  raw["artifact"] = {
+    audioInput: {
+      processor: {
+        kind: "audio_decode",
+        format: "pcm_f32",
+        sample_rate_hz: 16000,
+        channels: 1,
+        min_samples: 1,
+        max_samples: 10,
+      },
+      adapter: "audio",
+      prompt: {
+        prefix_token_ids: [10],
+        placeholder_token_id: 99,
+        suffix_token_ids: [11],
+      },
+    },
+  } as any;
+  pipeline["prefillChunkSize"] = 4;
+  pipeline["conversation"].config.system_prefix_token_ids = [9];
+  pipeline["conversation"].getArtifactPromptSegments = jest.fn(() => [
+    "before",
+    audioPart,
+    "after",
+  ]);
+  pipeline["tokenizer"].encode = jest.fn((text: string) =>
+    text === "before" ? Int32Array.from([1, 2]) : Int32Array.from([3]),
+  );
+  const audioEmbeddings = { shape: [6, 8], dtype: "float16" };
+  raw["getArtifactAudioEmbeddings"] = jest.fn(() => audioEmbeddings);
+  raw["sliceTensorRows"] = jest.fn(
+    (_tensor: unknown, start: number, count: number) => ({
+      shape: [count, 8],
+      start,
+    }),
+  );
+
+  const [chunks, promptLength] = await raw["getArtifactPrefillChunks"]();
+  expect(promptLength).toBe(12);
+  expect(chunks.map((chunk: any) => chunk.tokenIds)).toEqual([
+    [9, 1, 2, 10],
+    [99, 99, 99, 99],
+    [99, 99],
+    [11, 3],
+  ]);
+  expect(chunks[1].modalityIds).toEqual([1, 1, 1, 1]);
+  expect(raw["sliceTensorRows"]).toHaveBeenCalledTimes(2);
+});
+
+test("artifact prefill forwards the canonical prompt bundle", () => {
+  const pipeline = createPipeline();
+  const raw = pipeline as any;
+  const logits = { kind: "logits" };
+  const embeddings = {
+    shape: [2, 8],
+    view: jest.fn(() => ({ shape: [1, 2, 8] })),
+  };
+  const tensors: any[] = [];
+  raw["tvm"].empty = jest.fn((shape: number[]) => {
+    const tensor = { shape, copyFrom: jest.fn() };
+    tensor.copyFrom.mockReturnValue(tensor);
+    tensors.push(tensor);
+    return tensor;
+  });
+  raw["tvm"].makeShapeTuple = jest.fn((shape: number[]) => shape);
+  raw["tvm"].attachToCurrentScope = jest.fn();
+  raw["artifactPrefill"] = jest.fn(() => ({
+    get: jest.fn(() => logits),
+  }));
+  raw["kvCache"] = { kind: "kv" };
+  raw["params"] = { kind: "params" };
+  raw["fKVCacheBeginForward"] = jest.fn();
+  raw["fKVCacheEndForward"] = jest.fn();
+
+  const result = raw["artifactPrefillAndForward"](embeddings, [7, 99], [0, 1]);
+  expect(result).toBe(logits);
+  expect(tensors[0].copyFrom).toHaveBeenCalledWith([7, 99]);
+  expect(tensors[1].copyFrom).toHaveBeenCalledWith([0, 1]);
+  expect(raw["artifactPrefill"]).toHaveBeenCalledWith(
+    { shape: [1, 2, 8] },
+    tensors[0],
+    tensors[1],
+    pipeline["kvCache"],
+    pipeline["params"],
+  );
+  expect(pipeline["filledKVCacheLength"]).toBe(2);
+});
+
 test("processNextToken ignores eos when requested", () => {
   const pipeline = createPipeline();
   pipeline["stopTokens"] = [1];
