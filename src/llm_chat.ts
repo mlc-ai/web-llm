@@ -3,7 +3,18 @@ import * as xgr from "@mlc-ai/web-xgrammar";
 import log from "loglevel";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
 import { ChatConfig, GenerationConfig, Role } from "./config";
-import { getConversation, Conversation } from "./conversation";
+import {
+  getConversation,
+  Conversation,
+  ArtifactPromptSegment,
+} from "./conversation";
+import { decodeAudioInput } from "./audio";
+import {
+  ModelPackageManifest,
+  parseCompiledProgramArtifact,
+  ResolvedChatCompletionArtifact,
+  resolveChatCompletionArtifact,
+} from "./artifact_manifest";
 import { LogitProcessor, LatencyBreakdown } from "./types";
 import {
   getChunkedPrefillInputData,
@@ -18,6 +29,8 @@ import {
   TopLogprob,
   ResponseFormat,
   ChatCompletionContentPartImage,
+  ChatCompletionContentPart,
+  ChatCompletionContentPartInputAudio,
 } from "./openai_api_protocols/index";
 import {
   AttentionSinkSizeError,
@@ -29,6 +42,7 @@ import {
   MessageOrderError,
   TextCompletionExpectsKVEmptyError,
   CannotFindImageEmbedError,
+  ArtifactManifestError,
 } from "./error";
 
 type ImageURL = ChatCompletionContentPartImage.ImageURL;
@@ -47,12 +61,23 @@ type VMFunctionAvailability = {
 
 type VMFunctionRegistry = Record<string, tvmjs.PackedFunc | undefined>;
 
+type ArtifactDeviceCapabilities = {
+  features: { has(feature: string): boolean };
+  maxStorageBufferBindingSize: number;
+};
+
+type ArtifactPrefillChunk = {
+  tokenIds: number[];
+  modalityIds: number[];
+  embeddings?: tvmjs.Tensor;
+};
+
 type ResolvedModelABI = {
   kvStateKind: Exclude<KVStateKind, "none">;
   prefillABI: ComputeABIKind;
   decodeABI: ComputeABIKind;
-  prefillFunctionName: "prefill" | "batch_prefill";
-  decodeFunctionName: "decode" | "batch_decode";
+  prefillFunctionName: string;
+  decodeFunctionName: string;
   needsKVCache: boolean;
   needsRNNState: boolean;
 };
@@ -71,6 +96,12 @@ export class LLMChatPipeline {
   private kvStateKind: KVStateKind = "kv_cache";
   private image_embed: tvmjs.PackedFunc | undefined;
   private embed: tvmjs.PackedFunc;
+  private artifact?: ResolvedChatCompletionArtifact;
+  private artifactEmbed?: tvmjs.PackedFunc;
+  private artifactPrefill?: tvmjs.PackedFunc;
+  private artifactDecode?: tvmjs.PackedFunc;
+  private artifactAudioAdapter?: tvmjs.PackedFunc;
+  private fTensorCreateView?: tvmjs.PackedFunc;
   private fapplyBitmask: tvmjs.PackedFunc;
   private fapplyPenalty: tvmjs.PackedFunc;
   private fapplyLogitBias: tvmjs.PackedFunc;
@@ -181,6 +212,8 @@ export class LLMChatPipeline {
     tokenizer: Tokenizer,
     config: ChatConfig,
     logitProcessor?: LogitProcessor,
+    modelPackage?: ModelPackageManifest,
+    artifactDeviceCapabilities?: ArtifactDeviceCapabilities,
   ) {
     // 0. Setting attributes
     this.tvm = tvm;
@@ -228,7 +261,44 @@ export class LLMChatPipeline {
       this.tvm.createVirtualMachine(this.device),
     );
 
-    const vmFunctionRegistry = LLMChatPipeline.loadVMFunctionRegistry(this.vm, [
+    const fgetMetadata = this.vm.getFunction("_metadata");
+    const ret_value = fgetMetadata();
+    const metadataStr = ret_value.toString();
+    const metadata = JSON.parse(metadataStr);
+    if (modelPackage !== undefined) {
+      if (metadata.artifact === undefined) {
+        throw new ArtifactManifestError(
+          "mlc-model-manifest.json is present, but _metadata.artifact is missing",
+        );
+      }
+      this.artifact = resolveChatCompletionArtifact(
+        modelPackage,
+        parseCompiledProgramArtifact(metadata.artifact),
+      );
+      if (artifactDeviceCapabilities !== undefined) {
+        for (const feature of this.artifact.compiled.resources
+          .required_features) {
+          if (!artifactDeviceCapabilities.features.has(feature)) {
+            throw new ArtifactManifestError(
+              `Compiled artifact requires unsupported WebGPU feature ${JSON.stringify(feature)}`,
+            );
+          }
+        }
+        const requiredBuffer =
+          this.artifact.compiled.resources.max_storage_buffer_binding_size;
+        if (
+          requiredBuffer >
+          artifactDeviceCapabilities.maxStorageBufferBindingSize
+        ) {
+          throw new ArtifactManifestError(
+            `Compiled artifact requires maxStorageBufferBindingSize ${requiredBuffer}, ` +
+              `but this device exposes ${artifactDeviceCapabilities.maxStorageBufferBindingSize}`,
+          );
+        }
+      }
+    }
+
+    const functionNames = [
       "prefill",
       "batch_prefill",
       "decode",
@@ -243,20 +313,42 @@ export class LLMChatPipeline {
       "apply_penalty_inplace",
       "apply_logit_bias_inplace",
       "softmax_with_temperature",
-    ]);
-
-    const fgetMetadata = this.vm.getFunction("_metadata");
-    const ret_value = fgetMetadata();
-    const metadataStr = ret_value.toString();
-    const metadata = JSON.parse(metadataStr);
+    ];
+    if (this.artifact !== undefined) {
+      functionNames.push(
+        ...Object.values(this.artifact.program.exports),
+        ...Object.values(this.artifact.program.adapters),
+      );
+    }
+    const vmFunctionRegistry = LLMChatPipeline.loadVMFunctionRegistry(
+      this.vm,
+      Array.from(new Set(functionNames)),
+    );
     this.kvStateKind = this.parseKVStateKind(metadata.kv_state_kind);
 
-    const vmFunctionAvailability =
-      LLMChatPipeline.getVMFunctionAvailability(vmFunctionRegistry);
-    this.resolvedModelABI = LLMChatPipeline.resolveModelABI(
-      this.kvStateKind,
-      vmFunctionAvailability,
-    );
+    if (this.artifact !== undefined) {
+      if (this.kvStateKind !== "kv_cache") {
+        throw new ArtifactManifestError(
+          `token_generation v1 requires kv_state_kind="kv_cache", got ${JSON.stringify(this.kvStateKind)}`,
+        );
+      }
+      this.resolvedModelABI = {
+        kvStateKind: "kv_cache",
+        prefillABI: "single",
+        decodeABI: "single",
+        prefillFunctionName: this.artifact.program.exports.prefill_prompt,
+        decodeFunctionName: this.artifact.program.exports.decode_tokens,
+        needsKVCache: true,
+        needsRNNState: false,
+      };
+    } else {
+      const vmFunctionAvailability =
+        LLMChatPipeline.getVMFunctionAvailability(vmFunctionRegistry);
+      this.resolvedModelABI = LLMChatPipeline.resolveModelABI(
+        this.kvStateKind,
+        vmFunctionAvailability,
+      );
+    }
     const stateKinds: string[] = [];
     if (this.resolvedModelABI.needsKVCache) {
       stateKinds.push("kv_cache");
@@ -274,7 +366,7 @@ export class LLMChatPipeline {
       }),
     );
 
-    // 2. Bind VM functions according to the resolved ABI
+    // 2. Bind VM functions according to the resolved ABI or manifest roles.
     this.prefill = this.tvm.detachFromCurrentScope(
       LLMChatPipeline.getRequiredVMFunctionByName(
         this.resolvedModelABI.prefillFunctionName,
@@ -294,9 +386,18 @@ export class LLMChatPipeline {
       log.info("Using batch_decode kernel.");
     }
 
+    const embedSymbol = this.artifact?.program.exports.embed_tokens ?? "embed";
     this.embed = this.tvm.detachFromCurrentScope(
-      LLMChatPipeline.getRequiredVMFunctionByName("embed", vmFunctionRegistry),
+      LLMChatPipeline.getRequiredVMFunctionByName(
+        embedSymbol,
+        vmFunctionRegistry,
+      ),
     );
+    if (this.artifact !== undefined) {
+      this.artifactEmbed = this.embed;
+      this.artifactPrefill = this.prefill;
+      this.artifactDecode = this.decoding;
+    }
     this.fapplyBitmask = this.tvm.detachFromCurrentScope(
       LLMChatPipeline.getRequiredVMFunctionByName(
         "apply_bitmask_inplace",
@@ -338,6 +439,21 @@ export class LLMChatPipeline {
       this.image_embed = this.tvm.detachFromCurrentScope(imageEmbed);
     } else {
       log.info("Cannot find function image_embed.");
+    }
+    if (this.artifact !== undefined) {
+      if (this.artifact.audioInput !== undefined) {
+        const adapterSymbol =
+          this.artifact.program.adapters[this.artifact.audioInput.adapter];
+        this.artifactAudioAdapter = this.tvm.detachFromCurrentScope(
+          LLMChatPipeline.getRequiredVMFunctionByName(
+            adapterSymbol,
+            vmFunctionRegistry,
+          ),
+        );
+        this.fTensorCreateView = this.tvm.detachFromCurrentScope(
+          this.tvm.getGlobalFunc("runtime.TVMTensorCreateView"),
+        );
+      }
     }
 
     // 3. Load parameters by name
@@ -425,7 +541,8 @@ export class LLMChatPipeline {
 
     if (this.resolvedModelABI.needsKVCache) {
       const createKVCache = LLMChatPipeline.getRequiredVMFunctionByName(
-        "create_tir_paged_kv_cache",
+        this.artifact?.program.exports.create_kv_cache ??
+          "create_tir_paged_kv_cache",
         vmFunctionRegistry,
       );
       this.kvCache = this.tvm.detachFromCurrentScope(
@@ -490,6 +607,17 @@ export class LLMChatPipeline {
     this.decoding.dispose();
     this.prefill.dispose();
     this.embed.dispose();
+    if (this.artifactEmbed !== this.embed) {
+      this.artifactEmbed?.dispose();
+    }
+    if (this.artifactPrefill !== this.prefill) {
+      this.artifactPrefill?.dispose();
+    }
+    if (this.artifactDecode !== this.decoding) {
+      this.artifactDecode?.dispose();
+    }
+    this.artifactAudioAdapter?.dispose();
+    this.fTensorCreateView?.dispose();
     this.image_embed?.dispose();
     this.prefillLogitPositions?.dispose();
     this.rnnState?.dispose();
@@ -712,6 +840,23 @@ export class LLMChatPipeline {
     this.stopTokens = this.conversation.getStopTokens();
   }
 
+  /** Canonical non-text inputs accepted by the loaded model artifact. */
+  getSupportedInputKinds(): ReadonlySet<"image" | "audio"> | undefined {
+    const result = new Set<"image" | "audio">();
+    if (this.artifact !== undefined) {
+      if (this.artifact.audioInput !== undefined) {
+        result.add("audio");
+      }
+      return result;
+    }
+    if (this.image_embed !== undefined) {
+      result.add("image");
+      return result;
+    }
+    // Preserve legacy non-VLM validation, including its established errors.
+    return undefined;
+  }
+
   async asyncLoadWebGPUPipelines() {
     await this.tvm.asyncLoadWebGPUPipelines(this.vm.getInternalModule());
   }
@@ -720,7 +865,7 @@ export class LLMChatPipeline {
    * Generate the first token given input prompt
    */
   async prefillStep(
-    inp: string,
+    inp: string | ChatCompletionContentPart[],
     msgRole: Role, // either user or tool
     inp_role_str?: string,
     genConfig?: GenerationConfig,
@@ -832,6 +977,9 @@ export class LLMChatPipeline {
 
     // 0. Get inputData from conversation
     if (conversation.isTextCompletion) {
+      if (typeof inp !== "string") {
+        throw new TypeError("Text completion requires a string prompt");
+      }
       conversation.prompt = inp;
     } else {
       conversation.appendMessage(msgRole, inp, inp_role_str);
@@ -848,37 +996,62 @@ export class LLMChatPipeline {
         conversation.appendReplyHeader(Role.assistant);
       }
     }
-    const [inputData, promptLen, getEmbedSize] = await this.getInputData();
-
-    // Check if LLMChatPipeline fits for forwarding image input
-    const hasImageInput = inputData.some((data) => !Array.isArray(data));
-    if (hasImageInput && this.image_embed === undefined) {
-      throw new CannotFindImageEmbedError();
-    }
-
-    // 1. Chunk inputData to embed and forward in one shot for each, minimize intermediate data
-    const retGetChunks = getChunkedPrefillInputData(
-      inputData,
-      this.prefillChunkSize,
-      getEmbedSize,
-    );
-    const chunks: Array<Array<number> | ImageURL>[] = retGetChunks[0];
-    const chunkLens: Array<number> = retGetChunks[1];
-
-    // 2. Prefill each chunk
     this.tvm.beginScope();
-    let logits: tvmjs.Tensor;
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      const chunkLen = chunkLens[i];
-      const prevFilledLen = this.filledKVCacheLength;
-      logits = this.tvm.detachFromCurrentScope(
-        await this.embedAndForward(chunk, chunkLen),
-      );
-      if (this.filledKVCacheLength !== prevFilledLen + chunkLen) {
-        throw new Error(
-          "Internal Error: filledKVCacheLength does not match expected value.",
+    let logits: tvmjs.Tensor | undefined;
+    let promptLen: number;
+    if (this.artifact !== undefined) {
+      const artifactInput = await this.getArtifactPrefillChunks();
+      const chunks = artifactInput[0];
+      promptLen = artifactInput[1];
+      for (const chunk of chunks) {
+        const previousLength = this.filledKVCacheLength;
+        const embeddings =
+          chunk.embeddings ?? this.getArtifactTextEmbeddings(chunk.tokenIds);
+        const nextLogits = this.tvm.detachFromCurrentScope(
+          this.artifactPrefillAndForward(
+            embeddings,
+            chunk.tokenIds,
+            chunk.modalityIds,
+          ),
         );
+        logits?.dispose();
+        logits = nextLogits;
+        if (
+          this.filledKVCacheLength !==
+          previousLength + chunk.tokenIds.length
+        ) {
+          throw new Error(
+            "Internal Error: filledKVCacheLength does not match expected value.",
+          );
+        }
+      }
+    } else {
+      const [inputData, legacyPromptLen, getEmbedSize] =
+        await this.getInputData();
+      promptLen = legacyPromptLen;
+      const hasImageInput = inputData.some((data) => !Array.isArray(data));
+      if (hasImageInput && this.image_embed === undefined) {
+        throw new CannotFindImageEmbedError();
+      }
+      const [chunks, chunkLens] = getChunkedPrefillInputData(
+        inputData,
+        this.prefillChunkSize,
+        getEmbedSize,
+      );
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        const chunkLen = chunkLens[i];
+        const prevFilledLen = this.filledKVCacheLength;
+        const nextLogits = this.tvm.detachFromCurrentScope(
+          await this.embedAndForward(chunk, chunkLen),
+        );
+        logits?.dispose();
+        logits = nextLogits;
+        if (this.filledKVCacheLength !== prevFilledLen + chunkLen) {
+          throw new Error(
+            "Internal Error: filledKVCacheLength does not match expected value.",
+          );
+        }
       }
     }
     this.imageDataCache.clear();
@@ -907,13 +1080,14 @@ export class LLMChatPipeline {
     const tstart = performance.now();
 
     this.tvm.beginScope();
-    const chunk: Array<Array<number>> = [
-      this.outputIds.slice(this.outputIds.length - 1),
-    ];
-    const chunkLen = chunk.length;
+    const tokenId = this.outputIds[this.outputIds.length - 1];
+    const chunk: Array<Array<number>> = [[tokenId]];
+    const chunkLen = 1;
     const prevFilledLen = this.filledKVCacheLength;
     const logits = this.tvm.detachFromCurrentScope(
-      await this.embedAndForward(chunk, chunkLen),
+      this.artifact === undefined
+        ? await this.embedAndForward(chunk, chunkLen)
+        : this.artifactDecodeAndForward(tokenId),
     );
     if (this.filledKVCacheLength !== prevFilledLen + chunkLen) {
       throw new Error(
@@ -1049,6 +1223,272 @@ export class LLMChatPipeline {
         this.conversation.finishReply(this.outputMessage);
       }
     }
+  }
+
+  private getArtifactTextEmbeddings(inputTokens: number[]): tvmjs.Tensor {
+    if (this.artifactEmbed === undefined) {
+      throw new ArtifactManifestError("artifact tokenizer export is not bound");
+    }
+    if (
+      inputTokens.length === 0 ||
+      inputTokens.length > this.prefillChunkSize
+    ) {
+      throw new Error(
+        `Artifact text chunks must contain 1..${this.prefillChunkSize} tokens`,
+      );
+    }
+    this.tvm.beginScope();
+    const inputData = this.tvm.empty(
+      [inputTokens.length],
+      "int32",
+      this.device,
+    );
+    inputData.copyFrom(inputTokens);
+    const embeddings = this.tvm.detachFromCurrentScope(
+      this.artifactEmbed(inputData, this.params) as tvmjs.Tensor,
+    );
+    this.tvm.endScope();
+    this.tvm.attachToCurrentScope(embeddings);
+    return embeddings;
+  }
+
+  private getArtifactAudioEmbeddings(
+    part: ChatCompletionContentPartInputAudio,
+  ): tvmjs.Tensor {
+    if (
+      this.artifact?.audioInput === undefined ||
+      this.artifactAudioAdapter === undefined
+    ) {
+      throw new ArtifactManifestError(
+        "input_audio was provided, but the artifact has no bound audio adapter",
+      );
+    }
+    const samples = decodeAudioInput(
+      part.input_audio,
+      this.artifact.audioInput.processor,
+    );
+    this.tvm.beginScope();
+    const sampleTensor = this.tvm
+      .empty([samples.length], "float32", this.device)
+      .copyFrom(samples);
+    const embeddings = this.tvm.detachFromCurrentScope(
+      this.artifactAudioAdapter(sampleTensor, this.params) as tvmjs.Tensor,
+    );
+    if (
+      embeddings.shape.length !== 2 ||
+      embeddings.shape[0] <= 0 ||
+      embeddings.shape[1] <= 0
+    ) {
+      throw new ArtifactManifestError(
+        `audio adapter must return [audio_tokens, hidden_size], got [${embeddings.shape.join(", ")}]`,
+      );
+    }
+    this.tvm.endScope();
+    this.tvm.attachToCurrentScope(embeddings);
+    return embeddings;
+  }
+
+  private static dtypeBytes(dtype: string): number {
+    if (dtype === "bfloat16") {
+      return 2;
+    }
+    const match = /^(?:float|int|uint)(\d+)$/.exec(dtype);
+    if (match === null || Number(match[1]) % 8 !== 0) {
+      throw new Error(`Cannot determine element size for dtype ${dtype}`);
+    }
+    return Number(match[1]) / 8;
+  }
+
+  private sliceTensorRows(
+    tensor: tvmjs.Tensor,
+    rowStart: number,
+    rowCount: number,
+  ): tvmjs.Tensor {
+    if (rowStart === 0 && rowCount === tensor.shape[0]) {
+      return tensor;
+    }
+    if (this.fTensorCreateView === undefined || tensor.shape.length !== 2) {
+      throw new ArtifactManifestError(
+        "runtime tensor-view support is required to chunk adapter embeddings",
+      );
+    }
+    const hiddenSize = tensor.shape[1];
+    const relativeByteOffset =
+      rowStart * hiddenSize * LLMChatPipeline.dtypeBytes(tensor.dtype);
+    return this.fTensorCreateView(
+      tensor,
+      this.tvm.makeShapeTuple([rowCount, hiddenSize]),
+      tensor.dtype,
+      new tvmjs.Scalar(relativeByteOffset, "int"),
+    ) as tvmjs.Tensor;
+  }
+
+  private getArtifactPromptSegments(): ArtifactPromptSegment[] {
+    if (this.conversation.isTextCompletion) {
+      if (this.filledKVCacheLength !== 0) {
+        throw new TextCompletionExpectsKVEmptyError();
+      }
+      return this.conversation.getPromptArrayTextCompletion();
+    }
+    return this.filledKVCacheLength === 0
+      ? this.conversation.getArtifactPromptSegments()
+      : this.conversation.getArtifactPromptSegmentsLastRound();
+  }
+
+  private async getArtifactPrefillChunks(): Promise<
+    [ArtifactPrefillChunk[], number]
+  > {
+    if (this.artifact === undefined) {
+      throw new Error("InternalError: artifact prompt path has no artifact");
+    }
+    const chunks: ArtifactPrefillChunk[] = [];
+    let pendingTokens: number[] = [];
+    const flushTokens = () => {
+      if (pendingTokens.length !== 0) {
+        chunks.push({
+          tokenIds: pendingTokens,
+          modalityIds: new Array(pendingTokens.length).fill(0),
+        });
+        pendingTokens = [];
+      }
+    };
+    const appendTokens = (tokenIds: Iterable<number>) => {
+      for (const tokenId of tokenIds) {
+        pendingTokens.push(tokenId);
+        if (pendingTokens.length === this.prefillChunkSize) {
+          flushTokens();
+        }
+      }
+    };
+
+    if (
+      this.filledKVCacheLength === 0 &&
+      this.conversation.config.system_prefix_token_ids !== undefined
+    ) {
+      appendTokens(this.conversation.config.system_prefix_token_ids);
+    }
+    for (const segment of this.getArtifactPromptSegments()) {
+      if (typeof segment === "string") {
+        appendTokens(this.tokenizer.encode(segment));
+      } else if (segment.type === "image_url") {
+        throw new ArtifactManifestError(
+          "The loaded v1 artifact does not declare a canonical image processor",
+        );
+      } else {
+        const audioInput = this.artifact.audioInput;
+        if (audioInput === undefined) {
+          throw new ArtifactManifestError(
+            "The loaded artifact does not declare an audio input",
+          );
+        }
+        appendTokens(audioInput.prompt.prefix_token_ids);
+        flushTokens();
+
+        const embeddings = this.getArtifactAudioEmbeddings(segment);
+        const audioTokenCount = embeddings.shape[0];
+        for (let start = 0; start < audioTokenCount; ) {
+          const count = Math.min(
+            this.prefillChunkSize,
+            audioTokenCount - start,
+          );
+          chunks.push({
+            tokenIds: new Array(count).fill(
+              audioInput.prompt.placeholder_token_id,
+            ),
+            modalityIds: new Array(count).fill(1),
+            embeddings: this.sliceTensorRows(embeddings, start, count),
+          });
+          start += count;
+        }
+        appendTokens(audioInput.prompt.suffix_token_ids);
+      }
+    }
+    flushTokens();
+    const promptLength = chunks.reduce(
+      (total, chunk) => total + chunk.tokenIds.length,
+      0,
+    );
+    if (promptLength === 0) {
+      throw new Error("Prompt must contain at least one token");
+    }
+    if (
+      this.slidingWindowSize === -1 &&
+      promptLength + this.filledKVCacheLength > this.contextWindowSize
+    ) {
+      throw new ContextWindowSizeExceededError(
+        promptLength,
+        this.contextWindowSize,
+      );
+    }
+    return [chunks, promptLength];
+  }
+
+  private artifactPrefillAndForward(
+    embeddings: tvmjs.Tensor,
+    tokenIds: number[],
+    modalityIds: number[],
+  ): tvmjs.Tensor {
+    if (this.artifactPrefill === undefined || tokenIds.length === 0) {
+      throw new ArtifactManifestError("artifact prefill export is not bound");
+    }
+    if (
+      tokenIds.length !== modalityIds.length ||
+      embeddings.shape.length !== 2 ||
+      embeddings.shape[0] !== tokenIds.length
+    ) {
+      throw new Error("Artifact prompt bundle dimensions do not match");
+    }
+    this.tvm.beginScope();
+    const inputLength = tokenIds.length;
+    const inputEmbeddings = embeddings.view([
+      1,
+      inputLength,
+      embeddings.shape[1],
+    ]);
+    const tokenTensor = this.tvm
+      .empty([1, inputLength], "int32", this.device)
+      .copyFrom(tokenIds);
+    const modalityTensor = this.tvm
+      .empty([1, inputLength], "int32", this.device)
+      .copyFrom(modalityIds);
+    const inputLenShape = this.tvm.makeShapeTuple([inputLength]);
+    const seqIdsTuple = this.tvm.makeShapeTuple([0]);
+    const kvCache = this.requireKVCache();
+    this.fKVCacheBeginForward(kvCache, seqIdsTuple, inputLenShape);
+    const result = this.artifactPrefill(
+      inputEmbeddings,
+      tokenTensor,
+      modalityTensor,
+      kvCache,
+      this.params,
+    );
+    this.fKVCacheEndForward(kvCache);
+    this.filledKVCacheLength += inputLength;
+    const logits = this.tvm.detachFromCurrentScope(result.get(0));
+    this.tvm.endScope();
+    this.tvm.attachToCurrentScope(logits);
+    return logits;
+  }
+
+  private artifactDecodeAndForward(tokenId: number): tvmjs.Tensor {
+    if (this.artifactDecode === undefined) {
+      throw new ArtifactManifestError("artifact decode export is not bound");
+    }
+    this.tvm.beginScope();
+    const tokenTensor = this.tvm
+      .empty([1, 1], "int32", this.device)
+      .copyFrom([tokenId]);
+    const inputLenShape = this.tvm.makeShapeTuple([1]);
+    const seqIdsTuple = this.tvm.makeShapeTuple([0]);
+    const kvCache = this.requireKVCache();
+    this.fKVCacheBeginForward(kvCache, seqIdsTuple, inputLenShape);
+    const result = this.artifactDecode(tokenTensor, kvCache, this.params);
+    this.fKVCacheEndForward(kvCache);
+    this.filledKVCacheLength += 1;
+    const logits = this.tvm.detachFromCurrentScope(result.get(0));
+    this.tvm.endScope();
+    this.tvm.attachToCurrentScope(logits);
+    return logits;
   }
 
   /**
@@ -2140,6 +2580,45 @@ export class LLMChatPipeline {
   ): Promise<number> {
     const tstart = performance.now();
     this.tvm.beginScope();
+    if (this.artifact !== undefined) {
+      if (inputIds.length === 0) {
+        throw new Error("inputIds must not be empty");
+      }
+      let logitsOnGPU: tvmjs.Tensor;
+      if (isPrefill) {
+        for (let start = 0; start < inputIds.length; ) {
+          const tokenIds = inputIds.slice(start, start + this.prefillChunkSize);
+          logitsOnGPU = this.artifactPrefillAndForward(
+            this.getArtifactTextEmbeddings(tokenIds),
+            tokenIds,
+            new Array(tokenIds.length).fill(0),
+          );
+          start += tokenIds.length;
+        }
+      } else {
+        if (inputIds.length !== 1) {
+          throw new Error("Artifact decode expects exactly one token ID");
+        }
+        logitsOnGPU = this.artifactDecodeAndForward(inputIds[0]);
+      }
+      const nextToken = await this.sampleTokenFromLogits(logitsOnGPU!);
+      this.tvm.endScope();
+
+      const tend = performance.now();
+      if (isPrefill) {
+        this.prefillTotalTime += (tend - tstart) / 1e3;
+        this.prefillTotalTokens += inputIds.length;
+        this.curRoundPrefillTotalTokens += inputIds.length;
+        this.curRoundPrefillTotalTime += (tend - tstart) / 1e3;
+      } else {
+        this.decodingTotalTime += (tend - tstart) / 1e3;
+        this.decodingTotalTokens += 1;
+        this.curRoundDecodingTotalTokens += 1;
+        this.curRoundDecodingTotalTime += (tend - tstart) / 1e3;
+      }
+      return nextToken;
+    }
+
     // 1. Chunk inputData if needed
     const inputData: Array<Array<number>> = [inputIds];
     const retGetChunks = getChunkedPrefillInputData(
@@ -2258,7 +2737,15 @@ export class LLMChatPipeline {
     const prefillChunk: Array<Array<number>> = [tokens] as Array<Array<number>>;
     const prefillChunkLen = tokens.length;
     const prefillStart = performance.now();
-    await this.embedAndForward(prefillChunk, prefillChunkLen);
+    if (this.artifact === undefined) {
+      await this.embedAndForward(prefillChunk, prefillChunkLen);
+    } else {
+      this.artifactPrefillAndForward(
+        this.getArtifactTextEmbeddings(tokens),
+        tokens,
+        new Array(tokens.length).fill(0),
+      );
+    }
     this.tvm.endScope();
     await this.device.sync();
 
@@ -2268,7 +2755,9 @@ export class LLMChatPipeline {
     const decodeChunk: Array<Array<number>> = [[6234]];
     const decodeChunkLen = 1;
     const logitsOnCPU = this.updateLogitsOnCPU(
-      await this.embedAndForward(decodeChunk, decodeChunkLen),
+      this.artifact === undefined
+        ? await this.embedAndForward(decodeChunk, decodeChunkLen)
+        : this.artifactDecodeAndForward(6234),
     );
     await this.device.sync();
     this.tvm.endScope();

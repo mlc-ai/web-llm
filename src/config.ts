@@ -271,6 +271,7 @@ export enum ModelType {
  * @param required_features: feature needed to run this model (e.g. shader-f16).
  * @param model_type: the intended usecase for the model, if unspecified, default to LLM.
  * @param integrity: optional SRI hashes to verify downloaded artifacts. See {@link ModelIntegrity}.
+ * @param model_manifest: optional URL override for mlc-model-manifest.json.
  */
 export interface ModelRecord {
   model: string;
@@ -283,6 +284,7 @@ export interface ModelRecord {
   required_features?: Array<string>;
   model_type?: ModelType;
   integrity?: ModelIntegrity;
+  model_manifest?: string;
 }
 
 /**

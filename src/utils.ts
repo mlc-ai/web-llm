@@ -38,6 +38,7 @@ export function areModelRecordsEqual(
     record1.model !== record2.model ||
     record1.model_id !== record2.model_id ||
     record1.model_lib !== record2.model_lib ||
+    record1.model_manifest !== record2.model_manifest ||
     record1.vram_required_MB !== record2.vram_required_MB ||
     record1.low_resource_required !== record2.low_resource_required ||
     record1.buffer_size_required_bytes !== record2.buffer_size_required_bytes

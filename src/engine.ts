@@ -76,6 +76,10 @@ import {
 } from "./cache_util";
 import { EmbeddingPipeline } from "./embedding";
 import { verifyIntegrity } from "./integrity";
+import {
+  fetchOptionalModelPackageManifest,
+  MODEL_PACKAGE_MANIFEST_FILENAME,
+} from "./artifact_manifest";
 
 function getUnixTimestampSeconds(): number {
   return Math.floor(Date.now() / 1000);
@@ -296,6 +300,14 @@ export class MLCEngine implements MLCEngineInterface {
     } as ChatConfig;
     this.loadedModelIdToChatConfig.set(modelId, curModelConfig);
 
+    const manifestUrl = modelRecord.model_manifest
+      ? new URL(modelRecord.model_manifest, modelUrl).href
+      : new URL(MODEL_PACKAGE_MANIFEST_FILENAME, modelUrl).href;
+    const modelPackage = await fetchOptionalModelPackageManifest(
+      manifestUrl,
+      this.reloadController?.signal,
+    );
+
     // load tvm wasm
     const wasmCache = tvmjs.createArtifactCache(
       "webllm/wasm",
@@ -408,6 +420,12 @@ export class MLCEngine implements MLCEngineInterface {
         tokenizer,
         curModelConfig,
         logitProcessor,
+        modelPackage,
+        {
+          features: gpuDetectOutput.device.features,
+          maxStorageBufferBindingSize:
+            gpuDetectOutput.device.limits.maxStorageBufferBindingSize,
+        },
       );
     }
     await newPipeline.asyncLoadWebGPUPipelines();
@@ -806,6 +824,7 @@ export class MLCEngine implements MLCEngineInterface {
       request,
       selectedModelId,
       selectedModelType!,
+      selectedPipeline.getSupportedInputKinds?.(),
     );
     const genConfig: GenerationConfig = {
       frequency_penalty: request.frequency_penalty,
@@ -1373,7 +1392,7 @@ export class MLCEngine implements MLCEngineInterface {
     if (chatConfig === undefined) {
       throw new ConfigurationNotInitializedError();
     }
-    let input_str: string;
+    let input_str: string | API.ChatCompletionContentPart[];
     let input_role_str: string | undefined;
     let lastMsgRole = Role.user;
     if ("messages" in input) {
@@ -1400,7 +1419,7 @@ export class MLCEngine implements MLCEngineInterface {
       const last_msg = input.messages[
         input.messages.length - 1
       ] as ChatCompletionMessageParam;
-      input_str = last_msg.content as string;
+      input_str = last_msg.content as string | API.ChatCompletionContentPart[];
       input_role_str =
         last_msg.role === "user" && last_msg.name ? last_msg.name : undefined;
       lastMsgRole = last_msg.role === "tool" ? Role.tool : Role.user;

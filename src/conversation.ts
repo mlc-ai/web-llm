@@ -7,6 +7,7 @@ import {
 import {
   ChatCompletionContentPart,
   ChatCompletionContentPartImage,
+  ChatCompletionContentPartInputAudio,
   ChatCompletionMessageParam,
   ChatCompletionRequest,
 } from "./openai_api_protocols/index";
@@ -25,6 +26,10 @@ import {
 } from "./error";
 
 type ImageURL = ChatCompletionContentPartImage.ImageURL;
+export type ArtifactPromptSegment =
+  | string
+  | ChatCompletionContentPartImage
+  | ChatCompletionContentPartInputAudio;
 
 /**
  * Helper to keep track of history conversations.
@@ -141,8 +146,12 @@ export class Conversation {
             }
             textContentPart = curContentPart.text;
             seenText = true;
-          } else {
+          } else if (curContentPart.type === "image_url") {
             imageContentParts.push(curContentPart.image_url);
+          } else {
+            throw new Error(
+              "Audio content requires a model artifact manifest and cannot use the legacy image prompt path.",
+            );
           }
         }
       } else {
@@ -261,6 +270,129 @@ export class Conversation {
       throw Error("needs to call getPromptArray for the first message");
     }
     return this.getPromptArrayInternal(false, this.messages.length - 2, config);
+  }
+
+  private getArtifactPromptSegmentsInternal(
+    addSystem: boolean,
+    startPos: number,
+  ): ArtifactPromptSegment[] {
+    if (this.config.seps.length === 0) {
+      throw new Error("Need seps to work");
+    }
+
+    const configuredSystemMessage =
+      this.override_system_message ?? this.config.system_message;
+    const systemPrompt = this.config.system_template.replace(
+      MessagePlaceholders.system,
+      configuredSystemMessage,
+    );
+    const result: ArtifactPromptSegment[] =
+      addSystem && systemPrompt !== "" ? [systemPrompt] : [];
+
+    for (let index = startPos; index < this.messages.length; ++index) {
+      const [role, roleString, content] = this.messages[index];
+      if (content === undefined) {
+        if (index !== this.messages.length - 1) {
+          throw new Error(
+            "InternalError: Only the final message may be an unfinished reply header.",
+          );
+        }
+        const emptySeparator = this.config.role_empty_sep ?? ": ";
+        result.push(roleString + emptySeparator);
+        continue;
+      }
+
+      if (
+        this.isLastMessageEmptyThinkingReplyHeader &&
+        index === this.messages.length - 1
+      ) {
+        const contentSeparator = this.config.role_content_sep ?? ": ";
+        result.push(roleString + contentSeparator + content);
+        continue;
+      }
+
+      const parts: ChatCompletionContentPart[] =
+        typeof content === "string"
+          ? [{ type: "text", text: content }]
+          : content;
+      const textParts = parts.filter(
+        (part): part is Extract<ChatCompletionContentPart, { type: "text" }> =>
+          part.type === "text",
+      );
+      if (textParts.length > 1) {
+        throw new MultipleTextContentError();
+      }
+      const text = textParts[0]?.text ?? "";
+      let formattedText = this.config.role_templates?.[role]?.replace(
+        MessagePlaceholders[Role[role] as keyof typeof MessagePlaceholders],
+        text,
+      );
+      if (this.use_function_calling && this.function_string !== "") {
+        formattedText = formattedText?.replace(
+          MessagePlaceholders.function,
+          this.function_string,
+        );
+      }
+      formattedText = formattedText?.replace(MessagePlaceholders.function, "");
+      formattedText ??= text;
+
+      const omitRole =
+        this.config.add_role_after_system_message === false &&
+        systemPrompt !== "" &&
+        index === 0;
+      const rolePrefix = omitRole
+        ? ""
+        : roleString + (this.config.role_content_sep ?? ": ");
+      if (rolePrefix !== "") {
+        result.push(rolePrefix);
+      }
+
+      let emittedText = false;
+      for (const part of parts) {
+        if (part.type === "text") {
+          if (formattedText !== "") {
+            result.push(formattedText);
+          }
+          emittedText = true;
+        } else {
+          result.push(part);
+        }
+      }
+      if (!emittedText && formattedText !== "") {
+        result.push(formattedText);
+      }
+      const separator = this.config.seps[index % this.config.seps.length];
+      if (separator !== "") {
+        result.push(separator);
+      }
+    }
+    return result;
+  }
+
+  /** Prompt segments for manifest-driven adapters, preserving content-part order. */
+  getArtifactPromptSegments(): ArtifactPromptSegment[] {
+    if (this.isTextCompletion) {
+      throw new TextCompletionConversationError("getArtifactPromptSegments");
+    }
+    return this.getArtifactPromptSegmentsInternal(true, 0);
+  }
+
+  /** The unconsumed round in the manifest-driven prompt representation. */
+  getArtifactPromptSegmentsLastRound(): ArtifactPromptSegment[] {
+    if (this.isTextCompletion) {
+      throw new TextCompletionConversationError(
+        "getArtifactPromptSegmentsLastRound",
+      );
+    }
+    if (this.messages.length < 3) {
+      throw new Error(
+        "needs to call getArtifactPromptSegments for the first message",
+      );
+    }
+    return this.getArtifactPromptSegmentsInternal(
+      false,
+      this.messages.length - 2,
+    );
   }
 
   /**
@@ -442,6 +574,37 @@ export function compareConversationObject(
               entryA_k.image_url.url !== entryB_k.image_url.url ||
               entryA_k.image_url.detail !== entryB_k.image_url.detail
             ) {
+              return false;
+            }
+          } else if (
+            entryA_k.type === "input_audio" &&
+            entryB_k.type === "input_audio"
+          ) {
+            const audioA = entryA_k.input_audio;
+            const audioB = entryB_k.input_audio;
+            if (audioA.format !== audioB.format) {
+              return false;
+            }
+            if (audioA.format === "wav" && audioB.format === "wav") {
+              if (audioA.data !== audioB.data) {
+                return false;
+              }
+            } else if (
+              audioA.format === "pcm_f32" &&
+              audioB.format === "pcm_f32"
+            ) {
+              if (
+                audioA.sample_rate !== audioB.sample_rate ||
+                audioA.data.length !== audioB.data.length
+              ) {
+                return false;
+              }
+              for (let sample = 0; sample < audioA.data.length; ++sample) {
+                if (audioA.data[sample] !== audioB.data[sample]) {
+                  return false;
+                }
+              }
+            } else {
               return false;
             }
           } else {
