@@ -336,7 +336,7 @@ You can also find examples of building Chrome extension with WebLLM in [examples
 
 WebLLM is designed to be fully compatible with [OpenAI API](https://platform.openai.com/docs/api-reference/chat). Thus, besides building a simple chatbot, you can also have the following functionalities with WebLLM:
 
-> **Tip:** The same OpenAI client `base_url` / `baseURL` pattern also works with OpenAI-compatible multi-model gateways when you are not running WebLLM in-browser — for example [DaoXE](https://daoxe.com/?utm_source=github&utm_medium=organic&utm_campaign=web-llm&utm_content=openai-compat) at `https://api.daoxe.com/v1`.
+> **Tip:** The same OpenAI client `base_url` / `baseURL` pattern also works with OpenAI-compatible multi-model gateways when you are not running WebLLM in-browser — for example [DaoXE](https://daoxe.com/) at `https://api.daoxe.com/v1`.
 
 - [streaming](examples/streaming): return output as chunks in real-time in the form of an AsyncGenerator
 - [json-mode](examples/json-mode): efficiently ensure output is in JSON format, see [OpenAI Reference](https://platform.openai.com/docs/guides/text-generation/chat-completions-api) for more.
