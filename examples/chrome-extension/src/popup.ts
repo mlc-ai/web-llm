@@ -77,7 +77,7 @@ for (let i = 0; i < prebuiltAppConfig.model_list.length; ++i) {
   const model = prebuiltAppConfig.model_list[i];
   const opt = document.createElement("option");
   opt.value = model.model_id;
-  opt.innerHTML = model.model_id;
+  opt.textContent = model.model_id;
   opt.selected = false;
 
   // set initial selection as the initially selected model
@@ -150,7 +150,7 @@ async function handleClick() {
   const message = (<HTMLInputElement>queryInput).value;
   console.log("message", message);
   // Clear the answer
-  document.getElementById("answer")!.innerHTML = "";
+  document.getElementById("answer")!.textContent = "";
   // Hide the answer
   document.getElementById("answerWrapper")!.style.display = "none";
   // Show the loading indicator
@@ -260,18 +260,9 @@ chrome.runtime.onMessage.addListener(({ answer, error }) => {
 function updateAnswer(answer: string) {
   // Show answer
   document.getElementById("answerWrapper")!.style.display = "block";
-  const answerWithBreaks = answer.replace(/\n/g, "<br>");
-  document.getElementById("answer")!.innerHTML = answerWithBreaks;
-  // Add event listener to copy button
-  document.getElementById("copyAnswer")!.addEventListener("click", () => {
-    // Get the answer text
-    const answerText = answer;
-    // Copy the answer text to the clipboard
-    navigator.clipboard
-      .writeText(answerText)
-      .then(() => console.log("Answer text copied to clipboard"))
-      .catch((err) => console.error("Could not copy text: ", err));
-  });
+  const answerEl = document.getElementById("answer")!;
+  answerEl.style.whiteSpace = "pre-wrap";
+  answerEl.textContent = answer;
   const options: Intl.DateTimeFormatOptions = {
     month: "short",
     day: "2-digit",
@@ -285,6 +276,15 @@ function updateAnswer(answer: string) {
   // Hide loading indicator
   document.getElementById("loading-indicator")!.style.display = "none";
 }
+
+// Register copy listener once
+document.getElementById("copyAnswer")!.addEventListener("click", () => {
+  const answerText = document.getElementById("answer")!.textContent ?? "";
+  navigator.clipboard
+    .writeText(answerText)
+    .then(() => console.log("Answer text copied to clipboard"))
+    .catch((err) => console.error("Could not copy text: ", err));
+});
 
 function fetchPageContents() {
   chrome.tabs.query({ currentWindow: true, active: true }, function (tabs) {

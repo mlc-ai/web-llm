@@ -89,7 +89,7 @@ class ChatUI {
       const item = chatUI.config.model_list[i];
       const opt = document.createElement("option");
       opt.value = item.model_id;
-      opt.innerHTML = item.model_id;
+      opt.textContent = item.model_id;
       opt.selected = i == 0;
       if (
         (restrictModels &&
@@ -181,34 +181,33 @@ class ChatUI {
     if (this.uiChat === undefined) {
       throw Error("cannot find ui chat");
     }
-    const msg = `
-      <div class="msg ${kind}-msg">
-        <div class="msg-bubble">
-          <div class="msg-text">${text}</div>
-        </div>
-      </div>
-    `;
-    this.uiChat.insertAdjacentHTML("beforeend", msg);
+    const msgDiv = document.createElement("div");
+    msgDiv.className = `msg ${kind}-msg`;
+    const bubble = document.createElement("div");
+    bubble.className = "msg-bubble";
+    const msgText = document.createElement("div");
+    msgText.className = "msg-text";
+    msgText.textContent = text;
+    bubble.appendChild(msgText);
+    msgDiv.appendChild(bubble);
+    this.uiChat.appendChild(msgDiv);
     this.uiChat.scrollTo(0, this.uiChat.scrollHeight);
   }
 
-  // Special care for user input such that we treat it as pure text instead of html
   private appendUserMessage(text: string) {
     if (this.uiChat === undefined) {
       throw Error("cannot find ui chat");
     }
-    const msg = `
-      <div class="msg right-msg">
-        <div class="msg-bubble">
-          <div class="msg-text"></div>
-        </div>
-      </div>
-    `;
-    this.uiChat.insertAdjacentHTML("beforeend", msg);
-    // Recurse three times to get `msg-text`
-    const msgElement = this.uiChat.lastElementChild?.lastElementChild
-      ?.lastElementChild as HTMLElement;
-    msgElement.insertAdjacentText("beforeend", text);
+    const msgDiv = document.createElement("div");
+    msgDiv.className = "msg right-msg";
+    const bubble = document.createElement("div");
+    bubble.className = "msg-bubble";
+    const msgText = document.createElement("div");
+    msgText.className = "msg-text";
+    msgText.textContent = text;
+    bubble.appendChild(msgText);
+    msgDiv.appendChild(bubble);
+    this.uiChat.appendChild(msgDiv);
     this.uiChat.scrollTo(0, this.uiChat.scrollHeight);
   }
 
@@ -224,13 +223,13 @@ class ChatUI {
     const msg = matches[matches.length - 1];
     const msgText = msg.getElementsByClassName("msg-text");
     if (msgText.length != 1) throw Error("Expect msg-text");
-    if (msgText[0].innerHTML == text) return;
+    if (msgText[0].textContent == text) return;
     const list = text.split("\n").map((t) => {
       const item = document.createElement("div");
       item.textContent = t;
       return item;
     });
-    msgText[0].innerHTML = "";
+    msgText[0].textContent = "";
     list.forEach((item) => msgText[0].append(item));
     this.uiChat.scrollTo(0, this.uiChat.scrollHeight);
   }
@@ -246,7 +245,7 @@ class ChatUI {
       }
     }
     if (this.uiChatInfoLabel !== undefined) {
-      this.uiChatInfoLabel.innerHTML = "";
+      this.uiChatInfoLabel.textContent = "";
     }
   }
 
@@ -322,7 +321,7 @@ class ChatUI {
         }
       }
       if (usage) {
-        this.uiChatInfoLabel.innerHTML =
+        this.uiChatInfoLabel.textContent =
           `prompt_tokens: ${usage.prompt_tokens}, ` +
           `completion_tokens: ${usage.completion_tokens}, ` +
           `prefill: ${usage.extra.prefill_tokens_per_s.toFixed(4)} tokens/sec, ` +
