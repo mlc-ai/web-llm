@@ -22,18 +22,17 @@ type IServiceWorker = globalThis.ServiceWorker;
 /**
  * Worker handler that can be used in a ServiceWorker.
  *
+ * Construct the handler during the service worker script's initial evaluation.
+ * Registering it from an `activate` or `message` listener is too late: the
+ * browser can restart an already-active worker without dispatching `activate`,
+ * and service worker event listeners must be registered synchronously on startup.
+ *
  * @example
  *
- * const engine = new MLCEngine();
- * let handler;
- * chrome.runtime.onConnect.addListener(function (port) {
- *   if (handler === undefined) {
- *     handler = new ServiceWorkerMLCEngineHandler(engine, port);
- *   } else {
- *     handler.setPort(port);
- *   }
- *   port.onMessage.addListener(handler.onmessage.bind(handler));
- * });
+ * // sw.ts
+ * import { ServiceWorkerMLCEngineHandler } from "@mlc-ai/web-llm";
+ *
+ * new ServiceWorkerMLCEngineHandler();
  */
 export class ServiceWorkerMLCEngineHandler extends WebWorkerMLCEngineHandler {
   private clientRegistry = new Map<

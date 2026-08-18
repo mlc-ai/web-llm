@@ -40,10 +40,13 @@ const originalSelf = (globalThis as any).self;
 const originalPostMessage = (globalThis as any).postMessage;
 
 function setupWorkerScope() {
+  const addEventListener =
+    jest.fn<(type: string, listener: (event: any) => void) => void>();
   (globalThis as any).self = {
-    addEventListener: jest.fn(),
+    addEventListener,
   };
   (globalThis as any).postMessage = jest.fn();
+  return addEventListener;
 }
 
 function setupNavigator(options?: {
@@ -68,7 +71,7 @@ function setupNavigator(options?: {
 }
 
 function createHandler() {
-  setupWorkerScope();
+  const addEventListener = setupWorkerScope();
   const handler = new ServiceWorkerMLCEngineHandler();
   const handleTaskMock = jest.fn(async (_uuid: string, task: any) => task());
   (handler as any).handleTask = handleTaskMock;
@@ -78,7 +81,7 @@ function createHandler() {
   };
   reloadMock.mockClear();
   initCallback.mockClear();
-  return { handler, handleTaskMock };
+  return { handler, handleTaskMock, addEventListener };
 }
 
 afterEach(() => {
@@ -117,6 +120,32 @@ test("ServiceWorker handler responds to keepAlive message", () => {
     uuid: "keep",
   });
   expect(onComplete).toHaveBeenCalledWith({ kind: "heartbeat", uuid: "keep" });
+});
+
+test("ServiceWorker handler registers and handles messages during startup", async () => {
+  const { addEventListener } = createHandler();
+  expect(addEventListener).toHaveBeenCalledTimes(1);
+
+  const [eventType, listener] = addEventListener.mock.calls[0];
+  expect(eventType).toBe("message");
+
+  const client = { postMessage: jest.fn() };
+  const waitUntil = jest.fn<(promise: Promise<unknown>) => void>();
+  listener({
+    data: { kind: "keepAlive", uuid: "startup" },
+    source: client,
+    waitUntil,
+  });
+
+  expect(client.postMessage).toHaveBeenCalledWith({
+    kind: "heartbeat",
+    uuid: "startup",
+  });
+  expect(waitUntil).toHaveBeenCalledTimes(1);
+  await expect(waitUntil.mock.calls[0][0]).resolves.toEqual({
+    kind: "heartbeat",
+    uuid: "startup",
+  });
 });
 
 test("reload with the same model skips engine reload", async () => {

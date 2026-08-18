@@ -289,18 +289,14 @@ your application's offline experience.
 
 (Note, Service Worker's life cycle is managed by the browser and can be killed any time without notifying the webapp. `ServiceWorkerMLCEngine` will try to keep the service worker thread alive by periodically sending heartbeat events, but your application should also include proper error handling. Check `keepAliveMs` and `missedHeatbeat` in [`ServiceWorkerMLCEngine`](https://github.com/mlc-ai/web-llm/blob/main/src/service_worker.ts#L234) for more details.)
 
-We create a handler in the worker thread that communicates with the frontend while handling the requests.
+We create a handler in the worker thread that communicates with the frontend while handling the requests. Instantiate the handler at the top level of the worker script so its message listener is registered during initial script evaluation. Do not instantiate it from an `activate` or `message` listener: the browser can restart an already-active worker without dispatching another `activate` event.
 
 ```typescript
 // sw.ts
 import { ServiceWorkerMLCEngineHandler } from "@mlc-ai/web-llm";
 
-let handler: ServiceWorkerMLCEngineHandler;
-
-self.addEventListener("activate", function (event) {
-  handler = new ServiceWorkerMLCEngineHandler();
-  console.log("Service Worker is ready");
-});
+new ServiceWorkerMLCEngineHandler();
+console.log("Service Worker is ready");
 ```
 
 Then in the main logic, we register the service worker and create the engine using

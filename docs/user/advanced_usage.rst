@@ -54,17 +54,15 @@ WebLLM also supports offloading computation using `Service Workers <https://deve
 
 (Note, the lifecycle of a Service Worker is managed by the browser and can be killed any time without notifying the web application. WebLLM's ``ServiceWorkerMLCEngine`` attempts to keep the service worker thread alive by periodically sending heartbeat events. However, the script could still be killed at any time by Chrome, and your application should include proper error handling. Check `keepAliveMs` and `missedHeartbeat` in `ServiceWorkerMLCEngine <https://github.com/mlc-ai/web-llm/blob/main/src/service_worker.ts#L218>`_ for more details.)
 
-In the worker script, import and instantiate ``ServiceWorkerMLCEngineHandler``, which handles communication with page scripts and processes incoming requests.
+In the worker script, import and instantiate ``ServiceWorkerMLCEngineHandler``, which handles communication with page scripts and processes incoming requests. Instantiate it at the top level so its message listener is registered during initial script evaluation. Do not instantiate it from an ``activate`` or ``message`` listener: the browser can restart an already-active worker without dispatching another ``activate`` event.
 
 .. code-block:: typescript
 
    // sw.ts
    import { ServiceWorkerMLCEngineHandler } from "@mlc-ai/web-llm";
 
-   self.addEventListener("activate", () => {
-       const handler = new ServiceWorkerMLCEngineHandler();
-       console.log("Service Worker activated!");
-   });
+   new ServiceWorkerMLCEngineHandler();
+   console.log("Service Worker is ready!");
 
 
 Then, in the main page script, register the service worker and instantiate the engine using the ``CreateServiceWorkerMLCEngine`` factory function that implements the same ``MLCEngineInterface`` and exposes the same APIs. Then, simply use it as you would a normal ``MLCEngine``.
