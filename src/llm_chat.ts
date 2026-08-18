@@ -29,6 +29,7 @@ import {
   MessageOrderError,
   TextCompletionExpectsKVEmptyError,
   CannotFindImageEmbedError,
+  GrammarMatcherInitError,
 } from "./error";
 
 type ImageURL = ChatCompletionContentPartImage.ImageURL;
@@ -782,51 +783,65 @@ export class LLMChatPipeline {
           (performance.now() - tGrammarInitStart) / 1e3;
       } else {
         // Else dispose current grammarMatcher, reinitialize, and update this.schema.
-        /* eslint-disable no-async-promise-executor */
-        grammarMatcherInitPromise = new Promise(async (resolve) => {
+        grammarMatcherInitPromise = (async () => {
           const tGrammarInitStart = performance.now();
           log.info("Initialize new grammar matcher.");
-          if (this.grammarMatcher) {
-            this.grammarMatcher.dispose();
-          }
-          if (this.xgTokenizerInfo === undefined) {
-            log.info("Initialize token table.");
-            // Post process entire table
-            const rawTokenTable = getTokenTableFromTokenizer(this.tokenizer);
-            this.xgTokenizerInfo = await xgr.TokenizerInfo.createTokenizerInfo(
-              rawTokenTable,
-              this.token_postproc_method,
-              this.prepend_space_in_encode,
-              this.fullVocabSize,
-              this.stopTokens,
-            );
-            this.grammarCompiler =
-              await xgr.GrammarCompiler.createGrammarCompiler(
-                this.xgTokenizerInfo,
-              );
-          }
-          const grammar: xgr.CompiledGrammar =
-            responseFormat.type === undefined
-              ? await this.grammarCompiler!.compileBuiltinJSONGrammar()
-              : responseFormat.type === "json_object"
-                ? await this.grammarCompiler!.compileJSONSchema(
-                    responseFormat.schema!,
-                  )
-                : responseFormat.type === "grammar"
-                  ? await this.grammarCompiler!.compileGrammar(
-                      responseFormat.grammar!,
+          try {
+            if (this.grammarMatcher) {
+              this.grammarMatcher.dispose();
+              this.grammarMatcher = undefined;
+            }
+            if (this.xgTokenizerInfo === undefined) {
+              log.info("Initialize token table.");
+              // Post process entire table
+              const rawTokenTable = getTokenTableFromTokenizer(this.tokenizer);
+              this.xgTokenizerInfo =
+                await xgr.TokenizerInfo.createTokenizerInfo(
+                  rawTokenTable,
+                  this.token_postproc_method,
+                  this.prepend_space_in_encode,
+                  this.fullVocabSize,
+                  this.stopTokens,
+                );
+              this.grammarCompiler =
+                await xgr.GrammarCompiler.createGrammarCompiler(
+                  this.xgTokenizerInfo,
+                );
+            }
+            const grammar: xgr.CompiledGrammar =
+              responseFormat.type === undefined
+                ? await this.grammarCompiler!.compileBuiltinJSONGrammar()
+                : responseFormat.type === "json_object"
+                  ? await this.grammarCompiler!.compileJSONSchema(
+                      responseFormat.schema!,
                     )
-                  : await this.grammarCompiler!.compileStructuralTag(
-                      responseFormat.structural_tag!,
-                    );
-          this.grammarMatcher =
-            await xgr.GrammarMatcher.createGrammarMatcher(grammar);
-          grammar.dispose();
-          this.responseFormatCacheKey = curResponseFormatKey;
-          this.curRoundGrammarInitTotalTime =
-            (performance.now() - tGrammarInitStart) / 1e3;
-          resolve();
-        });
+                  : responseFormat.type === "grammar"
+                    ? await this.grammarCompiler!.compileGrammar(
+                        responseFormat.grammar!,
+                      )
+                    : await this.grammarCompiler!.compileStructuralTag(
+                        responseFormat.structural_tag!,
+                      );
+            try {
+              this.grammarMatcher =
+                await xgr.GrammarMatcher.createGrammarMatcher(grammar);
+            } finally {
+              grammar.dispose();
+            }
+            this.responseFormatCacheKey = curResponseFormatKey;
+            this.curRoundGrammarInitTotalTime =
+              (performance.now() - tGrammarInitStart) / 1e3;
+          } catch (err) {
+            throw new GrammarMatcherInitError(
+              responseFormat.type ?? "json_object",
+              err,
+            );
+          }
+        })();
+        // Grammar initialization overlaps prompt prefill, so attach a handler now. The original
+        // promise still rejects when awaited below, but browsers will not report it as unhandled
+        // if initialization fails before prefill finishes.
+        void grammarMatcherInitPromise.catch(() => undefined);
       }
     }
 

@@ -431,6 +431,28 @@ export class InvalidResponseFormatStructuralTagError extends Error {
   }
 }
 
+export class InvalidResponseFormatStructuralTagSchemaError extends Error {
+  constructor(path: string) {
+    super(
+      `${path} must be a JSON Schema object or boolean, not a JSON-encoded string. ` +
+        "Pass the schema object directly (or use JSON.parse on the schema string).",
+    );
+    this.name = "InvalidResponseFormatStructuralTagSchemaError";
+  }
+}
+
+export class GrammarMatcherInitError extends Error {
+  constructor(responseFormatType: string, cause: unknown) {
+    const causeMessage = cause instanceof Error ? cause.message : String(cause);
+    super(
+      `Failed to initialize the grammar matcher for response format ` +
+        `\`${responseFormatType}\`: ${causeMessage}`,
+    );
+    this.name = "GrammarMatcherInitError";
+    this.cause = cause;
+  }
+}
+
 export class CustomResponseFormatError extends Error {
   constructor(currentFormat: any) {
     super(

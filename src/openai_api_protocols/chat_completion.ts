@@ -31,6 +31,7 @@ import {
   InvalidResponseFormatError,
   InvalidResponseFormatGrammarError,
   InvalidResponseFormatStructuralTagError,
+  InvalidResponseFormatStructuralTagSchemaError,
   InvalidStreamOptionsError,
   MessageOrderError,
   MultipleTextContentError,
@@ -408,6 +409,80 @@ export interface ChatCompletionChunk {
 
 export const ChatCompletionRequestUnsupportedFields: Array<string> = []; // all supported as of now
 
+function validateStructuralTagJSONSchemas(
+  structuralTag: StructuralTagLike,
+): void {
+  let root: unknown = structuralTag;
+  if (typeof root === "string") {
+    try {
+      root = JSON.parse(root);
+    } catch {
+      // web-xgrammar owns validation of the complete serialized definition. If parsing or
+      // compilation fails, LLMChatPipeline converts that failure to a regular Error.
+      return;
+    }
+  }
+
+  const visitFormat = (format: unknown, path: string): void => {
+    if (
+      typeof format !== "object" ||
+      format === null ||
+      Array.isArray(format)
+    ) {
+      return;
+    }
+    const value = format as Record<string, unknown>;
+    switch (value.type) {
+      case "json_schema":
+      case "qwen_xml_parameter": {
+        const schemaPath = `${path}.json_schema`;
+        const schema = value.json_schema;
+        if (
+          typeof schema === "string" ||
+          (typeof schema !== "boolean" &&
+            (typeof schema !== "object" ||
+              schema === null ||
+              Array.isArray(schema)))
+        ) {
+          throw new InvalidResponseFormatStructuralTagSchemaError(schemaPath);
+        }
+        return;
+      }
+      case "tag":
+        visitFormat(value.content, `${path}.content`);
+        return;
+      case "sequence":
+      case "or":
+        if (Array.isArray(value.elements)) {
+          value.elements.forEach((element, index) =>
+            visitFormat(element, `${path}.elements[${index}]`),
+          );
+        }
+        return;
+      case "triggered_tags":
+      case "tags_with_separator":
+        if (Array.isArray(value.tags)) {
+          value.tags.forEach((tag, index) =>
+            visitFormat(tag, `${path}.tags[${index}]`),
+          );
+        }
+        return;
+    }
+  };
+
+  const rootPath = "response_format.structural_tag";
+  if (
+    typeof root === "object" &&
+    root !== null &&
+    !Array.isArray(root) &&
+    "format" in root
+  ) {
+    visitFormat((root as Record<string, unknown>).format, `${rootPath}.format`);
+  } else {
+    visitFormat(root, rootPath);
+  }
+}
+
 /**
  * Post init and verify whether the input of the request is valid. Thus, this function can throw
  * error or in-place update request.
@@ -545,6 +620,9 @@ export function postInitAndCheckFields(
     ) {
       throw new InvalidResponseFormatStructuralTagError();
     }
+    validateStructuralTagJSONSchemas(
+      request.response_format.structural_tag as StructuralTagLike,
+    );
   }
 
   // 7. Function calling hardcoded handlings
@@ -1221,7 +1299,8 @@ export interface ResponseFormat {
   grammar?: string;
   /**
    * A structural tag definition. Needs to be specified when, and only when,
-   * `type` is `structural_tag`.
+   * `type` is `structural_tag`. A `json_schema` format nested in the definition must contain
+   * the schema object or boolean directly, rather than a JSON-encoded schema string.
    */
   structural_tag?: StructuralTagLike | string;
 }
