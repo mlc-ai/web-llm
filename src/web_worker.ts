@@ -373,6 +373,8 @@ export class WebWorkerMLCEngineHandler {
           "Reloading engine in WebWorkerMLCEngineHandler.",
       );
       await this.engine.reload(expectedModelId, expectedChatOpts);
+      this.modelId = expectedModelId;
+      this.chatOpts = expectedChatOpts;
     }
   }
 }
