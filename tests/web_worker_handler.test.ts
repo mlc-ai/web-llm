@@ -166,6 +166,18 @@ test("reloadIfUnmatched triggers reload when model lists differ", async () => {
   expect(reloadMock).not.toHaveBeenCalled();
 });
 
+test("reloadIfUnmatched records recovered worker state", async () => {
+  const handler = new WebWorkerMLCEngineHandler();
+  const chatOpts = [{ temperature: 0.5 }];
+
+  await handler.reloadIfUnmatched(["demo"], chatOpts);
+  await handler.reloadIfUnmatched(["demo"], chatOpts);
+
+  expect(reloadMock).toHaveBeenCalledTimes(1);
+  expect(handler.modelId).toEqual(["demo"]);
+  expect(handler.chatOpts).toBe(chatOpts);
+});
+
 test("unknown messages invoke onError and throw", () => {
   const handler = new WebWorkerMLCEngineHandler();
   const onError = jest.fn();
