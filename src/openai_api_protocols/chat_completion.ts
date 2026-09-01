@@ -1221,7 +1221,8 @@ export interface ResponseFormat {
   grammar?: string;
   /**
    * A structural tag definition. Needs to be specified when, and only when,
-   * `type` is `structural_tag`.
+   * `type` is `structural_tag`. A `json_schema` format nested in the definition must contain
+   * the schema object or boolean directly, rather than a JSON-encoded schema string.
    */
   structural_tag?: StructuralTagLike | string;
 }

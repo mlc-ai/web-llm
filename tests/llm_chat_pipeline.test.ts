@@ -14,6 +14,9 @@ jest.mock("@mlc-ai/web-xgrammar", () => {
   const compileGrammar = jest
     .fn()
     .mockImplementation(async () => ({ dispose: jest.fn() }));
+  const compileStructuralTag = jest
+    .fn()
+    .mockImplementation(async () => ({ dispose: jest.fn() }));
   return {
     TokenizerInfo: {
       createTokenizerInfo: jest.fn(async () => "tokenInfo"),
@@ -23,10 +26,12 @@ jest.mock("@mlc-ai/web-xgrammar", () => {
         compileBuiltinJSONGrammar,
         compileJSONSchema,
         compileGrammar,
+        compileStructuralTag,
       })),
       __compileBuiltinJSONGrammar: compileBuiltinJSONGrammar,
       __compileJSONSchema: compileJSONSchema,
       __compileGrammar: compileGrammar,
+      __compileStructuralTag: compileStructuralTag,
     },
     GrammarMatcher: {
       createGrammarMatcher: jest.fn(async () => {
@@ -48,6 +53,7 @@ type XGrammarMock = {
     __compileBuiltinJSONGrammar: jest.Mock;
     __compileJSONSchema: jest.Mock;
     __compileGrammar: jest.Mock;
+    __compileStructuralTag: jest.Mock;
   };
   GrammarMatcher: {
     createGrammarMatcher: jest.Mock;
@@ -59,11 +65,14 @@ const xgrammar = jest.requireMock<XGrammarMock>("@mlc-ai/web-xgrammar");
 const grammarMatcherInstances = xgrammar.GrammarMatcher.__instances;
 const compileGrammarMock = xgrammar.GrammarCompiler.__compileGrammar;
 const compileJSONSchemaMock = xgrammar.GrammarCompiler.__compileJSONSchema;
+const compileStructuralTagMock =
+  xgrammar.GrammarCompiler.__compileStructuralTag;
 
 beforeEach(() => {
   grammarMatcherInstances.length = 0;
   compileGrammarMock.mockClear();
   compileJSONSchemaMock.mockClear();
+  compileStructuralTagMock.mockClear();
 });
 
 type PipelineLike = LLMChatPipeline & Record<string, any>;
@@ -271,6 +280,65 @@ test("prefillStep compiles custom grammar when response type is grammar", async 
     response_format: { type: "grammar", grammar: "root ::= WORD" },
   });
   expect(compileGrammarMock).toHaveBeenCalledWith("root ::= WORD");
+});
+
+test("prefillStep compiles structural tag response format", async () => {
+  const pipeline = preparePrefillPipeline();
+  pipeline["grammarMatcher"] = undefined;
+  pipeline["responseFormatCacheKey"] = undefined;
+  pipeline["xgTokenizerInfo"] = undefined;
+  pipeline["grammarCompiler"] = undefined;
+  const structuralTag = {
+    type: "structural_tag",
+    format: { type: "any_text" },
+  } as const;
+  await pipeline.prefillStep("hello", Role.user, undefined, {
+    response_format: {
+      type: "structural_tag",
+      structural_tag: structuralTag,
+    },
+  });
+  expect(compileStructuralTagMock).toHaveBeenCalledWith(structuralTag);
+});
+
+test("prefillStep rejects when structural tag compilation fails", async () => {
+  const pipeline = preparePrefillPipeline();
+  const logits = {
+    dispose: jest.fn(),
+    shape: [],
+    dtype: "float32",
+    device: {},
+    ndim: 0,
+  };
+  pipeline["embedAndForward"] = jest.fn(
+    async (_chunk: any, chunkLen: number) => {
+      pipeline["filledKVCacheLength"] += chunkLen;
+      return logits;
+    },
+  ) as any;
+  pipeline["grammarMatcher"] = undefined;
+  pipeline["responseFormatCacheKey"] = undefined;
+  pipeline["xgTokenizerInfo"] = undefined;
+  pipeline["grammarCompiler"] = undefined;
+  compileStructuralTagMock.mockImplementationOnce(() =>
+    Promise.reject(8476360),
+  );
+
+  await expect(
+    pipeline.prefillStep("hello", Role.user, undefined, {
+      response_format: {
+        type: "structural_tag",
+        structural_tag: {
+          type: "structural_tag",
+          format: { type: "any_text" },
+        },
+      },
+    }),
+  ).rejects.toThrow(
+    "Failed to initialize the grammar matcher for response format `structural_tag`: 8476360",
+  );
+  expect(logits.dispose).toHaveBeenCalledTimes(1);
+  expect(pipeline["processNextToken"]).not.toHaveBeenCalled();
 });
 
 test("getInputData uses cached prompts when KV cache filled", async () => {
