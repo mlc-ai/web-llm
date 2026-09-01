@@ -900,10 +900,16 @@ export class LLMChatPipeline {
     this.tvm.endScope();
 
     // 4. Sample, stats, post process token sampled.
-    // We wait for prefill and grammar matcher init to finish
-    await Promise.all([this.device.sync(), grammarMatcherInitPromise]);
-    const nextToken = await this.sampleTokenFromLogits(logits!, genConfig);
-    logits!.dispose();
+    // Grammar initialization has already been running alongside prefill. Wait for the GPU first
+    // so logits can be disposed safely even when grammar initialization fails.
+    let nextToken: number;
+    try {
+      await this.device.sync();
+      await grammarMatcherInitPromise;
+      nextToken = await this.sampleTokenFromLogits(logits!, genConfig);
+    } finally {
+      logits!.dispose();
+    }
     const tend = performance.now();
 
     this.prefillTotalTime += (tend - tstart) / 1e3;

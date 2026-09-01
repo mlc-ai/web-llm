@@ -303,6 +303,19 @@ test("prefillStep compiles structural tag response format", async () => {
 
 test("prefillStep rejects when structural tag compilation fails", async () => {
   const pipeline = preparePrefillPipeline();
+  const logits = {
+    dispose: jest.fn(),
+    shape: [],
+    dtype: "float32",
+    device: {},
+    ndim: 0,
+  };
+  pipeline["embedAndForward"] = jest.fn(
+    async (_chunk: any, chunkLen: number) => {
+      pipeline["filledKVCacheLength"] += chunkLen;
+      return logits;
+    },
+  ) as any;
   pipeline["grammarMatcher"] = undefined;
   pipeline["responseFormatCacheKey"] = undefined;
   pipeline["xgTokenizerInfo"] = undefined;
@@ -324,6 +337,7 @@ test("prefillStep rejects when structural tag compilation fails", async () => {
   ).rejects.toThrow(
     "Failed to initialize the grammar matcher for response format `structural_tag`: 8476360",
   );
+  expect(logits.dispose).toHaveBeenCalledTimes(1);
   expect(pipeline["processNextToken"]).not.toHaveBeenCalled();
 });
 
