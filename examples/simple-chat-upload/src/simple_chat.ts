@@ -1,6 +1,8 @@
 import appConfig from "./app-config";
 import * as webllm from "@mlc-ai/web-llm";
 
+type MessageKind = "left" | "right" | "init" | "error";
+
 function getElementAndCheck(id: string): HTMLElement {
   const element = document.getElementById(id);
   if (element == null) {
@@ -89,7 +91,7 @@ class ChatUI {
       const item = chatUI.config.model_list[i];
       const opt = document.createElement("option");
       opt.value = item.model_id;
-      opt.innerHTML = item.model_id;
+      opt.textContent = item.model_id;
       opt.selected = i == 0;
       if (
         (restrictModels &&
@@ -174,27 +176,36 @@ class ChatUI {
   }
 
   // Internal helper functions
-  private appendMessage(kind, text) {
+  private createMessageElement(kind: MessageKind, text: string): HTMLElement {
+    const message = document.createElement("div");
+    message.className = `msg ${kind}-msg`;
+
+    const bubble = document.createElement("div");
+    bubble.className = "msg-bubble";
+
+    const messageText = document.createElement("div");
+    messageText.className = "msg-text";
+    messageText.textContent = text;
+
+    bubble.append(messageText);
+    message.append(bubble);
+    return message;
+  }
+
+  private appendMessage(kind: MessageKind, text: string) {
     if (kind == "init") {
-      text = "[System Initalize] " + text;
+      text = "[System Initialize] " + text;
     }
     if (this.uiChat === undefined) {
       throw Error("cannot find ui chat");
     }
-    const msg = `
-      <div class="msg ${kind}-msg">
-        <div class="msg-bubble">
-          <div class="msg-text">${text}</div>
-        </div>
-      </div>
-    `;
-    this.uiChat.insertAdjacentHTML("beforeend", msg);
+    this.uiChat.append(this.createMessageElement(kind, text));
     this.uiChat.scrollTo(0, this.uiChat.scrollHeight);
   }
 
-  private updateLastMessage(kind, text) {
+  private updateLastMessage(kind: MessageKind, text: string) {
     if (kind == "init") {
-      text = "[System Initalize] " + text;
+      text = "[System Initialize] " + text;
     }
     if (this.uiChat === undefined) {
       throw Error("cannot find ui chat");
@@ -204,20 +215,14 @@ class ChatUI {
     const msg = matches[matches.length - 1];
     const msgText = msg.getElementsByClassName("msg-text");
     if (msgText.length != 1) throw Error("Expect msg-text");
-    if (msgText[0].innerHTML == text) return;
-    const list = text.split("\n").map((t) => {
-      const item = document.createElement("div");
-      item.textContent = t;
-      return item;
-    });
-    msgText[0].innerHTML = "";
-    list.forEach((item) => msgText[0].append(item));
+    if (msgText[0].textContent == text) return;
+    msgText[0].textContent = text;
     this.uiChat.scrollTo(0, this.uiChat.scrollHeight);
   }
 
   private resetChatHistory() {
     this.chatHistory = [];
-    const clearTags = ["left", "right", "init", "error"];
+    const clearTags: MessageKind[] = ["left", "right", "init", "error"];
     for (const tag of clearTags) {
       // need to unpack to list so the iterator don't get affected by mutation
       const matches = [...this.uiChat.getElementsByClassName(`msg ${tag}-msg`)];
@@ -226,7 +231,7 @@ class ChatUI {
       }
     }
     if (this.uiChatInfoLabel !== undefined) {
-      this.uiChatInfoLabel.innerHTML = "";
+      this.uiChatInfoLabel.textContent = "";
     }
   }
 
@@ -296,7 +301,7 @@ class ChatUI {
         }
       }
       if (usage) {
-        this.uiChatInfoLabel.innerHTML =
+        this.uiChatInfoLabel.textContent =
           `prompt_tokens: ${usage.prompt_tokens}, ` +
           `completion_tokens: ${usage.completion_tokens}, ` +
           `prefill: ${usage.extra.prefill_tokens_per_s.toFixed(4)} tokens/sec, ` +
