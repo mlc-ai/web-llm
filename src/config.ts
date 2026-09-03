@@ -174,44 +174,29 @@ export function postInitAndCheckGenerationConfigValues(
   }
   if (
     _hasValue(config.frequency_penalty) &&
-    (Number.isNaN(config.frequency_penalty!) ||
-      config.frequency_penalty! < -2.0 ||
-      config.frequency_penalty! > 2.0)
+    !(config.frequency_penalty! >= -2.0 && config.frequency_penalty! <= 2.0)
   ) {
     throw new RangeError("frequency_penalty", -2.0, 2.0);
   }
   if (
     _hasValue(config.presence_penalty) &&
-    (Number.isNaN(config.presence_penalty!) ||
-      config.presence_penalty! < -2.0 ||
-      config.presence_penalty! > 2.0)
+    !(config.presence_penalty! >= -2.0 && config.presence_penalty! <= 2.0)
   ) {
     throw new RangeError("presence_penalty", -2.0, 2.0);
   }
   if (
     _hasValue(config.repetition_penalty) &&
-    (Number.isNaN(config.repetition_penalty!) ||
-      config.repetition_penalty! <= 0)
+    !(config.repetition_penalty! > 0)
   ) {
     throw new MinValueError("repetition_penalty", 0);
   }
-  if (
-    _hasValue(config.max_tokens) &&
-    (Number.isNaN(config.max_tokens!) || config.max_tokens! <= 0)
-  ) {
+  if (_hasValue(config.max_tokens) && !(config.max_tokens! > 0)) {
     throw new MinValueError("max_tokens", 0);
   }
-  if (
-    (_hasValue(config.top_p) &&
-      (Number.isNaN(config.top_p!) || config.top_p! <= 0)) ||
-    config.top_p! > 1
-  ) {
+  if (_hasValue(config.top_p) && !(config.top_p! > 0 && config.top_p! <= 1)) {
     throw new RangeError("top_p", 0, 1);
   }
-  if (
-    _hasValue(config.temperature) &&
-    (Number.isNaN(config.temperature!) || config.temperature! < 0)
-  ) {
+  if (_hasValue(config.temperature) && !(config.temperature! >= 0)) {
     throw new NonNegativeError("temperature");
   }
   // If only one of frequency or presence penatly is set, make the other one 0.0
@@ -235,7 +220,7 @@ export function postInitAndCheckGenerationConfigValues(
   if (_hasValue(config.logit_bias)) {
     for (const tokenID in config.logit_bias) {
       const bias = config.logit_bias[tokenID];
-      if (Number.isNaN(bias) || bias > 100 || bias < -100) {
+      if (!(bias >= -100 && bias <= 100)) {
         throw new RangeError(
           "logit_bias",
           -100,
@@ -255,11 +240,7 @@ export function postInitAndCheckGenerationConfigValues(
       throw new DependencyError("top_logprobs", "logprobs", true);
     }
     // top_logprobs should be in range [0,5]
-    if (
-      Number.isNaN(config.top_logprobs!) ||
-      config.top_logprobs! < 0 ||
-      config.top_logprobs! > 5
-    ) {
+    if (!(config.top_logprobs! >= 0 && config.top_logprobs! <= 5)) {
       throw new RangeError("top_logprobs", 0, 5, "Got " + config.top_logprobs);
     }
   }

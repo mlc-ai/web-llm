@@ -965,11 +965,8 @@ export class LLMChatPipeline {
 
     // Get max_tokens from generationConfig (specified by user in completion request)
     // If not specified, do not set a limit
-    let max_tokens = Infinity;
-    if (genConfig !== undefined && genConfig.max_tokens) {
-      max_tokens = genConfig.max_tokens;
-    }
-    if (max_tokens <= 0) {
+    const max_tokens = genConfig?.max_tokens ?? Infinity;
+    if (!(max_tokens > 0)) {
       throw new MinValueError("max_tokens", 0);
     }
 
@@ -1675,25 +1672,19 @@ export class LLMChatPipeline {
       }
     }
     // Check range validity
-    if (top_p <= 0 || top_p > 1) {
+    if (!(top_p > 0 && top_p <= 1)) {
       throw new RangeError("top_p", 0, 1);
     }
-    if (temperature < 0) {
+    if (!(temperature >= 0)) {
       throw new MinValueError("temperature", 0);
     }
-    if (repetition_penalty <= 0) {
+    if (!(repetition_penalty > 0)) {
       throw new MinValueError("repetition_penalty", 0);
     }
-    if (
-      frequency_penalty &&
-      (frequency_penalty < -2.0 || frequency_penalty > 2.0)
-    ) {
+    if (!(frequency_penalty >= -2.0 && frequency_penalty <= 2.0)) {
       throw new RangeError("frequency_penalty", -2.0, 2.0);
     }
-    if (
-      presence_penalty &&
-      (presence_penalty < -2.0 || presence_penalty > 2.0)
-    ) {
+    if (!(presence_penalty >= -2.0 && presence_penalty <= 2.0)) {
       throw new RangeError("presence_penalty", -2.0, 2.0);
     }
 

@@ -147,6 +147,31 @@ function createPipeline(): PipelineLike {
   return pipeline;
 }
 
+test.each([
+  ["frequency_penalty", "Make sure -2 < frequency_penalty <= 2."],
+  ["presence_penalty", "Make sure -2 < presence_penalty <= 2."],
+  ["repetition_penalty", "Make sure `repetition_penalty` > 0."],
+  ["top_p", "Make sure 0 < top_p <= 1."],
+  ["temperature", "Make sure `temperature` > 0."],
+])("rejects a NaN model default for %s", async (field, message) => {
+  const pipeline = createPipeline();
+  pipeline["config"] = {
+    frequency_penalty: 0,
+    presence_penalty: 0,
+    repetition_penalty: 1,
+    top_p: 1,
+    temperature: 1,
+    [field]: Number.NaN,
+  } as any;
+
+  await expect(
+    (LLMChatPipeline.prototype as any).sampleTokenFromLogits.call(
+      pipeline,
+      {} as any,
+    ),
+  ).rejects.toThrow(message);
+});
+
 test("processNextToken stops on stop token and updates conversation", () => {
   const pipeline = createPipeline();
   pipeline["stopTokens"] = [42];
@@ -182,10 +207,14 @@ test("processNextToken respects max_tokens and updates token frequency", () => {
   expect(pipeline["finishReason"]).toBe("length");
 });
 
-test("processNextToken throws when max_tokens is below zero", () => {
+test.each([
+  ["zero", 0],
+  ["below zero", -1],
+  ["NaN", Number.NaN],
+])("processNextToken rejects max_tokens when it is %s", (_name, value) => {
   const pipeline = createPipeline();
   expect(() =>
-    (pipeline as any).processNextToken(1, { max_tokens: -1 }),
+    (pipeline as any).processNextToken(1, { max_tokens: value }),
   ).toThrow(MinValueError);
 });
 
