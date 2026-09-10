@@ -337,6 +337,16 @@ WebLLM is designed to be fully compatible with [OpenAI API](https://platform.ope
 - [seed-to-reproduce](examples/seed-to-reproduce): use seeding to ensure a reproducible output with fields `seed`.
 - [function-calling](examples/function-calling) (WIP): function calling with fields `tools` and `tool_choice` (with preliminary support); or manual function calling without `tools` or `tool_choice` (keeps the most flexibility).
 
+For Qwen-style function-calling models, WebLLM expects tool calls in an XML envelope:
+
+```text
+<tool_call>
+{"name":"tool_name","arguments":{...}}
+</tool_call>
+```
+
+Reasoning text inside `<think>...</think>` is parsed safely during function-calling. If `extra_body.enable_thinking` is `true`, non-Qwen models can preserve thinking text in `message.content`; Qwen variants still strip `<think>` tags during tool parsing to keep tool-call extraction robust.
+
 ## Integrity Verification
 
 WebLLM supports optional integrity verification for model artifacts using
@@ -479,6 +489,7 @@ WebLLM's runtime largely depends on TVMjs: https://github.com/apache/tvm/tree/ma
 While it is also available as an npm package: https://www.npmjs.com/package/@mlc-ai/web-runtime, you can build it from source if needed by following the steps below.
 
 1. Install [emscripten](https://emscripten.org). It is an LLVM-based compiler that compiles C/C++ source code to WebAssembly.
+
    - Follow the [installation instruction](https://emscripten.org/docs/getting_started/downloads.html#installation-instructions-using-the-emsdk-recommended) to install the latest emsdk.
    - Source `emsdk_env.sh` by `source path/to/emsdk_env.sh`, so that `emcc` is reachable from PATH and the command `emcc` works.
 
