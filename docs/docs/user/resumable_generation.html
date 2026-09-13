@@ -1,0 +1,535 @@
+
+
+
+
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Resumable generation &mdash; web-llm 0.2.85 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/tabs.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/tlcpack_theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+  
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <script type="text/javascript" src="../_static/js/tlcpack_theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="WebLLM API Reference" href="api_reference.html" />
+    <link rel="prev" title="Advanced Use Cases" href="advanced_usage.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    
+<header class="header">
+    <div class="innercontainer">
+      <div class="headerInner d-flex justify-content-between align-items-center">
+          <div class="headerLogo">
+          </div>
+
+          <div id="headMenu" class="headerNav">
+            <button type="button" id="closeHeadMenu" class="navCloseBtn"><img src="../_static/img/close-icon.svg" alt="Close"></button>
+             <ul class="nav">
+                <li class="nav-item">
+                   <a class="nav-link" href=https://webllm.mlc.ai/>Home</a>
+                </li>
+                <li class="nav-item">
+                   <a class="nav-link" href=https://github.com/mlc-ai/web-llm>GitHub</a>
+                </li>
+                <li class="nav-item">
+                   <a class="nav-link" href=https://discord.gg/9Xpy2HGBuD>Discord</a>
+                </li>
+             </ul>
+               <div class="responsivetlcdropdown">
+                 <button type="button" class="btn-link">
+                   Other Resources
+                 </button>
+                 <ul>
+                     <li>
+                       <a href=https://chat.webllm.ai/>WebLLM Chat</a>
+                     </li>
+                     <li>
+                       <a href=https://mlc.ai/>MLC Course</a>
+                     </li>
+                     <li>
+                       <a href=https://blog.mlc.ai/>MLC Blog</a>
+                     </li>
+                     <li>
+                       <a href=https://llm.mlc.ai/>MLC LLM</a>
+                     </li>
+                 </ul>
+               </div>
+          </div>
+            <div class="responsiveMenuIcon">
+              <button type="button" id="menuBtn" class="btn-menu"><img src="../_static/img/menu-icon.svg" alt="Menu Icon"></button>
+            </div>
+
+            <div class="tlcDropdown">
+              <div class="dropdown">
+                <button type="button" class="btn-link dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                  Other Resources
+                </button>
+                <div class="dropdown-menu dropdown-menu-right">
+                  <ul>
+                     <li>
+                       <a href=https://chat.webllm.ai/>WebLLM Chat</a>
+                     </li>
+                     <li>
+                       <a href=https://mlc.ai/>MLC Course</a>
+                     </li>
+                     <li>
+                       <a href=https://blog.mlc.ai/>MLC Blog</a>
+                     </li>
+                     <li>
+                       <a href=https://llm.mlc.ai/>MLC LLM</a>
+                     </li>
+                  </ul>
+                </div>
+              </div>
+          </div>
+       </div>
+    </div>
+ </header>
+ 
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side fixed">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html">
+          
+
+          
+            
+            <img src="../_static/mlc-logo-with-text-landscape.svg" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+                <div class="version">
+                  0.2.85
+                </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">User Guide</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="get_started.html">Getting Started with WebLLM</a></li>
+<li class="toctree-l1"><a class="reference internal" href="basic_usage.html">Basic Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="advanced_usage.html">Advanced Use Cases</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Resumable generation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#request-and-recovery-behavior">Request and recovery behavior</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#persistence-and-storage">Persistence and storage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#supported-scope-and-validation">Supported scope and validation</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="api_reference.html">WebLLM API Reference</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Guide</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../developer/building_from_source.html">Building From Source</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer/add_models.html">Adding Models</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+      
+      <nav class="wy-nav-top" aria-label="top navigation" data-toggle="wy-nav-top">
+        
+            <div class="togglemenu">
+
+            </div>
+            <div class="nav-content">
+              <!-- web-llm -->
+              Table of Contents
+            </div>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> <span class="br-arrow">></span></li>
+        
+      <li>Resumable generation</li>
+    
+    
+      
+      
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            
+              <a href="https://github.com/mlc-ai/web-llm/edit/main/docs/user/resumable_generation.rst" class="fa fa-github"> Edit on GitHub</a>
+            
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <section id="resumable-generation">
+<h1>Resumable generation<a class="headerlink" href="#resumable-generation" title="Permalink to this heading">¶</a></h1>
+<p>Resumability is opt-in, per request. It journals a text-only request’s full
+prompt, generated tokens, text patches, and RNG state in same-origin OPFS.
+Optional KV checkpoints accelerate recovery; token replay does not require
+checkpoint-capable model libraries.</p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">sessionId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">crypto</span><span class="p">.</span><span class="nx">randomUUID</span><span class="p">();</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">chunks</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">completions</span><span class="p">.</span><span class="nx">create</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">messages</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">stream</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">extra_body</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">resumable</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">enabled</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span><span class="w"> </span><span class="nx">sessionId</span><span class="p">,</span><span class="w"> </span><span class="nx">strictPersistence</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="p">});</span>
+<span class="k">for</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="p">(</span><span class="kd">const</span><span class="w"> </span><span class="nx">chunk</span><span class="w"> </span><span class="k">of</span><span class="w"> </span><span class="nx">chunks</span><span class="p">)</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="cm">/* display chunk */</span><span class="w"> </span><span class="p">}</span>
+
+<span class="c1">// After a crash, load the SAME model/configuration before continuing.</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">saved</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">resumeChatCompletion</span><span class="p">(</span><span class="nx">sessionId</span><span class="p">);</span>
+<span class="c1">// Replace any stale UI response with saved.recoveredText first.</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">resumed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">resumeChatCompletion</span><span class="p">(</span><span class="nx">sessionId</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">continueGeneration</span><span class="o">:</span><span class="w"> </span><span class="kt">true</span><span class="p">,</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+<section id="request-and-recovery-behavior">
+<h2>Request and recovery behavior<a class="headerlink" href="#request-and-recovery-behavior" title="Permalink to this heading">¶</a></h2>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30%" />
+<col style="width: 70%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Path</p></th>
+<th class="head"><p>Behavior</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Resumability disabled</p></td>
+<td><p>Normal WebLLM behavior, including in-memory conversation prefix reuse.
+No session journal or checkpoint is created.</p></td>
+</tr>
+<tr class="row-odd"><td><p>New resumable request; any number of prior turns</p></td>
+<td><p>Supply the full message history. The request resets and prefills that
+history, even if its prefix is in memory. The persisted prompt is
+self-contained, not a delta referring to another session.</p></td>
+</tr>
+<tr class="row-even"><td><p>Another session on the same model</p></td>
+<td><p>Uses a new ID and waits for the current request’s model lock. Its prefill
+replaces the in-memory cache; the previous session’s persisted data remains.
+As in ordinary WebLLM, <code class="docutils literal notranslate"><span class="pre">interruptGenerate()</span></code> can also abort a queued
+non-streaming request before prefill; that skipped request creates no session.
+Explicit iterator <code class="docutils literal notranslate"><span class="pre">return()</span></code> does not set this engine-wide interrupt flag.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Reusing a session ID</p></td>
+<td><p>A new request rejects an existing ID, even after completion. Use
+<code class="docutils literal notranslate"><span class="pre">resumeChatCompletion</span></code> for continuation, or explicitly delete the session
+before reusing its ID. Prefer a fresh ID per request.</p></td>
+</tr>
+<tr class="row-even"><td><p>Read-only recovery</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">resumeChatCompletion(id)</span></code> returns saved text without loading a model or
+generating tokens. It may repair a torn tail and clean checkpoints if it
+can obtain the session lock; an active session is read without mutation.
+Reads and session listing take a short journal I/O lock, not the lifetime
+generation lock. Without a supported locking backend, text inspection
+remains best-effort.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Continued recovery with usable KV</p></td>
+<td><p>Import the newest readable committed checkpoint, rebuild output and
+penalties, and forward only journaled tokens beyond that checkpoint.
+Restore the RNG before sampling new tokens.</p></td>
+</tr>
+<tr class="row-even"><td><p>KV absent, corrupt, unsupported, or import rejected</p></td>
+<td><p>Re-prefill the persisted prompt and forward the saved generated tokens.
+Saved tokens are not resampled. Restore the RNG and continue.</p></td>
+</tr>
+<tr class="row-odd"><td><p>No generated token committed yet</p></td>
+<td><p>Sample the first token from checkpoint logits, or from replayed prompt
+logits. A supplied request seed is restored first.</p></td>
+</tr>
+<tr class="row-even"><td><p>Checkpoint has no saved logits</p></td>
+<td><p>KV recovery works if a journaled token follows the checkpoint. Otherwise
+fall back to prompt/token replay to obtain next-token logits.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Missing model, RNG state, or replay context; already finished</p></td>
+<td><p>No further generation; recover saved text where possible. A missing
+session or malformed resumable configuration raises an error.</p></td>
+</tr>
+<tr class="row-even"><td><p>Streaming continuation</p></td>
+<td><p>Available when both the original request and resume options use
+<code class="docutils literal notranslate"><span class="pre">stream:</span> <span class="pre">true</span></code>. Emits only newly generated deltas, not the saved prefix.
+Other continuation paths return a <code class="docutils literal notranslate"><span class="pre">ResumeResult</span></code> containing full text.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Unconsumed or cancelled stream</p></td>
+<td><p>An unstarted direct-engine stream holds no generation/session locks.
+<code class="docutils literal notranslate"><span class="pre">return()</span></code> or breaking <code class="docutils literal notranslate"><span class="pre">for</span> <span class="pre">await</span></code> on a started stream records an abort
+and releases its locks. Merely abandoning a started iterator cannot be
+detected; close it explicitly.</p></td>
+</tr>
+<tr class="row-even"><td><p>Interrupt, crash, or another crash during recovery</p></td>
+<td><p>Continue the same unfinished session from its last valid journal prefix.
+An interrupted generation is resumable; a normally finished one is not.</p></td>
+</tr>
+<tr class="row-odd"><td><p>Concurrent tab/worker access</p></td>
+<td><p>One writer per session, using Web Locks or a sync-access-handle lock.
+Continuing/deleting an active session rejects. Without cross-context
+locking, persistence is disabled or fails according to strictness.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="persistence-and-storage">
+<h2>Persistence and storage<a class="headerlink" href="#persistence-and-storage" title="Permalink to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">durabilityMode:</span> <span class="pre">&quot;exact&quot;</span></code> (default) waits for each token’s OPFS append before
+exposing it. <code class="docutils literal notranslate"><span class="pre">&quot;relaxed&quot;</span></code> queues writes and waits every eight tokens or when
+250 ms have elapsed at a token boundary; a crash can lose an unflushed suffix.
+Neither mode protects against origin eviction, clearing browser data, or all
+OS/power failures.</p>
+<p><code class="docutils literal notranslate"><span class="pre">strictPersistence:</span> <span class="pre">false</span></code> (default) lets generation continue after journal
+failure, without further persistence. If only a KV checkpoint write fails, that
+checkpoint is skipped and healthy token journaling can continue.
+<code class="docutils literal notranslate"><span class="pre">true</span></code> makes persistence failures reject
+generation, including an abort write/flush failure during explicit stream
+cancellation. Unsupported KV export and a low reported storage estimate skip KV
+capture but still permit token journaling; strictness does not require KV recovery.
+Estimates are advisory: a browser can report headroom while enforcing a lower
+quota. An actual checkpoint write failure follows the same strictness policy.
+Cleanup failure after a durable finished record is logged and retried on later
+session inspection, not treated as a failed generation.</p>
+<p>Prompt checkpointing defaults to enabled. Decode checkpoints default to every
+512 tokens, aligned to the cache page size. KV capture is skipped below the
+storage headroom threshold (at least 512 MiB, or twice the checkpoint size).
+Retention keeps the newest two payload-valid committed checkpoints; incomplete,
+uncommitted, and invalid checkpoints are removed under the session lock.
+Normal completion removes residual KV but retains the journal/text. Use
+<code class="docutils literal notranslate"><span class="pre">listResumableSessions()</span></code> and <code class="docutils literal notranslate"><span class="pre">deleteResumableSession(id)</span></code> to manage sessions.
+There is no TTL or automatic journal eviction.</p>
+<p>Persisted data includes the full conversation and is not encrypted by WebLLM.
+Deletion does not clear the active model’s in-memory prefix cache. After normal
+or resumed completion, an ordinary non-resumable follow-up can reuse a matching
+in-memory conversation prefix; another resumable request always prefills anew.</p>
+</section>
+<section id="supported-scope-and-validation">
+<h2>Supported scope and validation<a class="headerlink" href="#supported-scope-and-validation" title="Permalink to this heading">¶</a></h2>
+<p>Supported: text-only chat completions with one choice. The legacy
+<code class="docutils literal notranslate"><span class="pre">completions</span></code> endpoint rejects resumability. Resumable chat requests reject
+images, grammar/JSON/structural-tag constraints, and custom LogitProcessors.
+KV export additionally requires a compatible model library containing TVM’s
+checkpoint primitives and a supported pure KV-cache layout.
+Unsupported cache layouts use token replay.</p>
+<p>Model/tokenizer/weights/configuration fingerprints are not implemented. Keep
+those artifacts unchanged when resuming; a matching model ID or KV layout hash
+alone does not verify model identity. This is not a persistent cross-request
+prefix cache.</p>
+<p>Run <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">ci</span></code>, <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">test</span> <span class="pre">--</span> <span class="pre">--runInBand</span></code>, and <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">run</span> <span class="pre">test:browser</span></code> for the
+unit and model-free browser regressions. The latter exercises real OPFS, Web
+Locks, and XGrammar WASM; its tensor-boundary fixtures are not GPU inference.</p>
+<p>The opt-in real-model suite requires WebGPU with shader-f16 support, enough
+storage for model weights/checkpoints, and a checkpoint-capable
+<code class="docutils literal notranslate"><span class="pre">Qwen3-0.6B-q4f16_1-MLC</span></code> model library:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>npm<span class="w"> </span>run<span class="w"> </span>build:browser-tests
+<span class="nv">WEBLLM_TEST_MODEL_LIB</span><span class="o">=</span>https://your-host/Qwen3-0.6B.wasm<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>npx<span class="w"> </span>playwright<span class="w"> </span><span class="nb">test</span><span class="w"> </span>--config<span class="w"> </span>tests/browser/playwright.config.mjs<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--headed<span class="w"> </span>--grep<span class="w"> </span><span class="s1">&#39;real WebGPU&#39;</span>
+</pre></div>
+</div>
+<p>It compares uninterrupted seeded output with repeated page-crash recovery,
+with four prior messages and a prompt spanning multiple prefill chunks,
+separately forcing token replay and KV recovery. It covers all combinations of
+exact/relaxed durability and strict/best-effort persistence, completed-session
+inspection, ordinary prefix reuse after session deletion, and full-history
+prefill for a new resumable session. Opting in fails, rather than skips, if GPU
+inference or KV import is unavailable.</p>
+<p>Additional real-GPU cases cover zero-token recovery at checkpoint write/commit
+boundaries, saved logits present or absent, decode-checkpoint retention and
+corruption, torn journal repair, token-write failures, cancellation, competing
+sessions/tabs, low browser quota, and deliberate browser-process crashes followed
+by relaunching the same profile. Fault hooks pause writes or inject storage
+errors; they do not replace inference. Unsupported requests are checked for
+rejection without creating sessions.</p>
+<p>For a locally compiled model library and downloaded model directory:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">WEBLLM_TEST_MODEL_LIB_PATH</span><span class="o">=</span>/absolute/path/to/Qwen3-0.6B.wasm<span class="w"> </span><span class="se">\</span>
+<span class="nv">WEBLLM_TEST_MODEL_PATH</span><span class="o">=</span>/absolute/path/to/Qwen3-0.6B-q4f16_1-MLC<span class="w"> </span><span class="se">\</span>
+<span class="nv">WEBLLM_TEST_BROWSER_EXECUTABLE</span><span class="o">=</span>/absolute/path/to/chromium<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>npx<span class="w"> </span>playwright<span class="w"> </span><span class="nb">test</span><span class="w"> </span>--config<span class="w"> </span>tests/browser/playwright.config.mjs
+</pre></div>
+</div>
+<p>The model directory must contain the matching configuration, tokenizer files,
+tensor-cache manifest, and weight shards. Local files are served over loopback
+HTTP. Do not set both the model-library URL and local-path options.</p>
+<p>The browser bundle uses the package-locked runtime by default. To test a TVM
+source build, run <code class="docutils literal notranslate"><span class="pre">WEBLLM_TEST_RUNTIME_PATH=/absolute/path/to/tvm/web</span> <span class="pre">npm</span> <span class="pre">run</span>
+<span class="pre">build:browser-tests</span></code> after building that checkout’s WASM runtime and JavaScript
+package. Run without this variable to rebuild against the published runtime.
+Record the TVM/MLC-LLM revisions and model-library hash alongside each result.</p>
+<p>Each test uses a fresh persistent browser profile, retaining its OPFS contents
+across page reloads. Set <code class="docutils literal notranslate"><span class="pre">WEBLLM_TEST_PROFILE_ROOT</span></code> to an existing directory
+on a volume with ample free space if the default temporary volume is nearly
+full; Chromium’s blob-storage reserve can reject large cache writes even when
+the model itself would fit. On macOS, also set <code class="docutils literal notranslate"><span class="pre">MAC_CHROMIUM_TMPDIR</span></code> to that
+volume for Chromium’s temporary files; <code class="docutils literal notranslate"><span class="pre">TMPDIR</span></code> alone does not redirect them.
+Use Playwright’s <code class="docutils literal notranslate"><span class="pre">--output</span></code> option to move test output if needed.
+Profiles are removed after each test. These tests
+exercise browser-process and page recovery, not OS/power-loss durability.</p>
+</section>
+</section>
+
+
+           </div>
+           
+          </div>
+          
+
+<footer>
+
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+        <a href="api_reference.html" class="btn btn-neutral float-right" title="WebLLM API Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right"></span></a>
+      
+      
+        <a href="advanced_usage.html" class="btn btn-neutral float-left" title="Advanced Use Cases" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+
+<div id="button" class="backtop"><img src="../_static/img/right.svg" alt="backtop"/> </div>
+<section class="footerSec">
+    <div class="footerHeader">
+      <div class="d-flex align-md-items-center justify-content-between flex-column flex-md-row">
+        <div class="copywrite d-flex align-items-center">
+          <h5 id="copy-right-info">© 2023 MLC LLM</h5>
+        </div>
+      </div>
+
+    </div>
+
+    <div>
+      <div class="footernote"> </div>
+    </div>
+
+</section>
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+
+  </body>
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

@@ -25,6 +25,7 @@ Start exploring WebLLM by `chatting with WebLLM Chat <https://chat.webllm.ai/>`_
    user/get_started.rst
    user/basic_usage.rst
    user/advanced_usage.rst
+   user/resumable_generation.rst
    user/api_reference.rst
 
 .. toctree::
