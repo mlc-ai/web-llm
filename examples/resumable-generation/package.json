@@ -1,0 +1,19 @@
+{
+  "name": "webllm-resumable-generation-example",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:webllm": "npm --prefix ../.. run build",
+    "dev": "npm run build:webllm && vite --host 0.0.0.0",
+    "build": "npm run build:webllm && vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "@mlc-ai/web-llm": "file:../.."
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}
