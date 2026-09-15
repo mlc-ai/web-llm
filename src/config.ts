@@ -1315,6 +1315,19 @@ export const prebuiltAppConfig: AppConfig = {
         context_window_size: 4096,
       },
     },
+    // MiniCPM5
+    {
+      model: "https://huggingface.co/ozhyhinas/MiniCPM5-2B-q4f16_1-MLC",
+      model_id: "MiniCPM5-2B-q4f16_1-MLC",
+      model_lib:
+        "https://huggingface.co/ozhyhinas/MiniCPM5-2B-q4f16_1-MLC/resolve/main/libs/MiniCPM5-2B-q4f16_1-MLC-webgpu.wasm",
+      vram_required_MB: 1900,
+      low_resource_required: true,
+      required_features: ["shader-f16"],
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
     // Qwen-3.5
     {
       model: "https://huggingface.co/mlc-ai/Qwen3.5-0.8B-q4f16_1-MLC",
