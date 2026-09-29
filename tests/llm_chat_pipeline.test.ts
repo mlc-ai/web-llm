@@ -1041,6 +1041,27 @@ test("artifact prompt assembly chunks dynamic audio embeddings", async () => {
   expect(raw["sliceTensorRows"]).toHaveBeenCalledTimes(2);
 });
 
+test("a text prompt is chunked when the config has a null system prefix", async () => {
+  const pipeline = createPipeline();
+  const raw = pipeline as any;
+  raw["artifact"] = {
+    generation: { inputs: "embeds", prefill: "prefill", decode: "decode" },
+  };
+  pipeline["prefillChunkSize"] = 4;
+  raw["conversation"].config.system_prefix_token_ids = null;
+  pipeline["conversation"].getArtifactPromptSegments = jest.fn(() => ["text"]);
+  pipeline["tokenizer"].encode = jest.fn(() =>
+    Int32Array.from([1, 2, 3, 4, 5]),
+  );
+
+  const [chunks, promptLength] = await raw["getArtifactPrefillChunks"]();
+  expect(promptLength).toBe(5);
+  expect(chunks.map((chunk: any) => chunk.tokenIds)).toEqual([
+    [1, 2, 3, 4],
+    [5],
+  ]);
+});
+
 test("audio prefill uses the sampled-step flow without text replay metadata", async () => {
   const pipeline = createPipeline();
   const raw = pipeline as any;

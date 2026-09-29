@@ -2016,7 +2016,8 @@ export class LLMChatPipeline {
 
     if (
       this.filledKVCacheLength === 0 &&
-      this.conversation.config.system_prefix_token_ids !== undefined
+      this.conversation.config.system_prefix_token_ids !== undefined &&
+      this.conversation.config.system_prefix_token_ids !== null
     ) {
       appendTokens(this.conversation.config.system_prefix_token_ids);
     }
