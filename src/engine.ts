@@ -98,6 +98,7 @@ import {
 import {
   fetchOptionalModelPackageManifest,
   MODEL_PACKAGE_MANIFEST_FILENAME,
+  resolveModelPackageResourceURLs,
 } from "./artifact_manifest";
 
 function getUnixTimestampSeconds(): number {
@@ -367,6 +368,18 @@ export class MLCEngine implements MLCEngineInterface {
         : modelRecord.model_type;
     this.loadedModelIdToModelType.set(modelId, modelType);
 
+    const manifestUrl = modelRecord.model_manifest
+      ? new URL(modelRecord.model_manifest, modelUrl).href
+      : new URL(MODEL_PACKAGE_MANIFEST_FILENAME, modelUrl).href;
+    const modelPackage = await fetchOptionalModelPackageManifest(
+      manifestUrl,
+      this.reloadController?.signal,
+    );
+    const packageResources = resolveModelPackageResourceURLs(
+      modelUrl,
+      modelPackage,
+    );
+
     // instantiate cache
     const configCache = tvmjs.createArtifactCache(
       "webllm/config",
@@ -374,7 +387,7 @@ export class MLCEngine implements MLCEngineInterface {
     );
 
     // load config
-    const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
+    const configUrl = packageResources.chatConfigUrl;
     const configData = (await configCache.fetchWithCache(
       configUrl,
       "arraybuffer",
@@ -394,14 +407,6 @@ export class MLCEngine implements MLCEngineInterface {
       ...chatOpts,
     } as ChatConfig;
     this.loadedModelIdToChatConfig.set(modelId, curModelConfig);
-
-    const manifestUrl = modelRecord.model_manifest
-      ? new URL(modelRecord.model_manifest, modelUrl).href
-      : new URL(MODEL_PACKAGE_MANIFEST_FILENAME, modelUrl).href;
-    const modelPackage = await fetchOptionalModelPackageManifest(
-      manifestUrl,
-      this.reloadController?.signal,
-    );
 
     // load tvm wasm
     const wasmCache = tvmjs.createArtifactCache(
@@ -498,10 +503,14 @@ export class MLCEngine implements MLCEngineInterface {
       this.logger,
       modelRecord.integrity,
     );
-    await tvm.fetchTensorCache(modelUrl, tvm.webgpu(), {
-      ...getTensorCacheAccessOptions("webllm/model", this.appConfig),
-      signal: this.reloadController?.signal,
-    });
+    await tvm.fetchTensorCache(
+      packageResources.tensorCacheBaseUrl,
+      tvm.webgpu(),
+      {
+        ...getTensorCacheAccessOptions("webllm/model", this.appConfig),
+        signal: this.reloadController?.signal,
+      },
+    );
 
     // Instantiate pipeline
     // TODO: would be good to somehow check for error when LLMChatPipeline is loaded for an

@@ -24,6 +24,7 @@ export { IntegrityError } from "./error";
 
 export {
   MODEL_PACKAGE_MANIFEST_FILENAME,
+  TENSOR_CACHE_MANIFEST_FILENAME,
   ARTIFACT_SCHEMA_VERSION,
   type ModelPackageManifest,
   type CompiledProgramArtifact,

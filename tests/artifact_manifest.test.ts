@@ -4,6 +4,7 @@ import {
   parseCompiledProgramArtifact,
   parseModelPackageManifest,
   resolveChatCompletionArtifact,
+  resolveModelPackageResourceURLs,
 } from "../src/artifact_manifest";
 import { ArtifactManifestError } from "../src/error";
 
@@ -17,7 +18,7 @@ function modelPackage() {
     chat_config: "mlc-chat-config.json",
     interface_id: interfaceId,
     weights: {
-      manifest: "ndarray-cache.json",
+      manifest: "tensor-cache.json",
       parameter_schema_id: parameterId,
     },
     tasks: {
@@ -133,6 +134,35 @@ test("applies only schema-defined defaults", () => {
   expect(parsed.chat_config).toBe("mlc-chat-config.json");
   const processor = parsed.tasks["chat.completions"].inputs.audio.processor;
   expect(typeof processor === "string" ? -1 : processor.min_samples).toBe(1);
+});
+
+test("resolves declared resources relative to the model artifact URL", () => {
+  expect(
+    resolveModelPackageResourceURLs(
+      "https://models.example/gemma4/",
+      parseModelPackageManifest(modelPackage()),
+    ),
+  ).toEqual({
+    chatConfigUrl: "https://models.example/gemma4/mlc-chat-config.json",
+    tensorCacheBaseUrl: "https://models.example/gemma4/",
+    tensorCacheManifestUrl: "https://models.example/gemma4/tensor-cache.json",
+  });
+
+  expect(
+    resolveModelPackageResourceURLs("https://models.example/legacy/"),
+  ).toEqual({
+    chatConfigUrl: "https://models.example/legacy/mlc-chat-config.json",
+    tensorCacheBaseUrl: "https://models.example/legacy/",
+    tensorCacheManifestUrl: "https://models.example/legacy/tensor-cache.json",
+  });
+});
+
+test("rejects the obsolete ndarray cache filename", () => {
+  const manifest = modelPackage();
+  manifest.weights.manifest = "ndarray-cache.json" as "tensor-cache.json";
+  expect(() => parseModelPackageManifest(manifest)).toThrow(
+    /expected "tensor-cache.json"/,
+  );
 });
 
 test("computes the same interface identity as MLC", async () => {

@@ -10,6 +10,13 @@ adapter role, prompt tokens, and hashes that must match the compiled library.
 No sidecar means the existing legacy model path; a present but invalid or
 mismatched sidecar fails model loading.
 
+The weight contract names ``tensor-cache.json``.  WebLLM loads the records
+described by that TVM cache and does not coalesce them or request a WebGPU
+buffer larger than 1 GiB.  Large logical weights must therefore be split by
+the model conversion contract.  Gemma 4's packed per-layer embedding is
+exported as 35 layer records; the compiled resource metadata reports the
+largest remaining storage-buffer binding required by the artifact.
+
 For a manifest-enabled text-and-audio model, pass a base64 WAV (or a WAV data
 URL) through the OpenAI-compatible content part:
 

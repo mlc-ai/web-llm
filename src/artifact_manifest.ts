@@ -1,6 +1,7 @@
 import { ArtifactManifestError } from "./error";
 
 export const MODEL_PACKAGE_MANIFEST_FILENAME = "mlc-model-manifest.json";
+export const TENSOR_CACHE_MANIFEST_FILENAME = "tensor-cache.json";
 export const ARTIFACT_SCHEMA_VERSION = 1;
 
 export interface PromptInsertion {
@@ -31,8 +32,14 @@ export interface TaskSpec {
 }
 
 export interface WeightContract {
-  manifest: "ndarray-cache.json";
+  manifest: "tensor-cache.json";
   parameter_schema_id: string;
+}
+
+export interface ModelPackageResourceURLs {
+  chatConfigUrl: string;
+  tensorCacheBaseUrl: string;
+  tensorCacheManifestUrl: string;
 }
 
 export interface ModelPackageManifest {
@@ -422,7 +429,7 @@ export function parseModelPackageManifest(
     weights: {
       manifest: literal(
         weights.manifest,
-        "ndarray-cache.json",
+        TENSOR_CACHE_MANIFEST_FILENAME,
         `${path}.weights.manifest`,
       ),
       parameter_schema_id: sha256(
@@ -431,6 +438,26 @@ export function parseModelPackageManifest(
       ),
     },
     tasks: parseTasks(obj.tasks, `${path}.tasks`),
+  };
+}
+
+/** Resolve resources declared by the sidecar against the model artifact URL. */
+export function resolveModelPackageResourceURLs(
+  modelUrl: string,
+  modelPackage?: ModelPackageManifest,
+): ModelPackageResourceURLs {
+  const chatConfigUrl = new URL(
+    modelPackage?.chat_config ?? "mlc-chat-config.json",
+    modelUrl,
+  ).href;
+  const tensorCacheManifestUrl = new URL(
+    modelPackage?.weights.manifest ?? TENSOR_CACHE_MANIFEST_FILENAME,
+    modelUrl,
+  ).href;
+  return {
+    chatConfigUrl,
+    tensorCacheBaseUrl: new URL(".", tensorCacheManifestUrl).href,
+    tensorCacheManifestUrl,
   };
 }
 
