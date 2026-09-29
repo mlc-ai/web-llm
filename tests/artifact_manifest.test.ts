@@ -1,6 +1,6 @@
 import {
   computeInterfaceId,
-  fetchOptionalModelPackageManifest,
+  loadModelPackageManifest,
   parseCompiledProgramArtifact,
   parseModelPackageManifest,
   resolveChatCompletionArtifact,
@@ -172,33 +172,24 @@ test("computes the same interface identity as MLC", async () => {
   );
 });
 
-test("only a missing sidecar selects legacy behavior", async () => {
-  const fetchSpy = jest.spyOn(globalThis, "fetch");
-  fetchSpy.mockResolvedValueOnce(new Response("", { status: 404 }));
-  await expect(
-    fetchOptionalModelPackageManifest("https://example.test/missing.json"),
-  ).resolves.toBeUndefined();
-
+test("loads a downloaded manifest and checks its interface_id", async () => {
+  const encode = (value: unknown) =>
+    new TextEncoder().encode(JSON.stringify(value)).buffer as ArrayBuffer;
   const valid = modelPackage();
   valid.interface_id = await computeInterfaceId(
     parseModelPackageManifest(valid).tasks,
   );
-  fetchSpy.mockResolvedValueOnce(
-    new Response(JSON.stringify(valid), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    }),
-  );
-  await expect(
-    fetchOptionalModelPackageManifest("https://example.test/valid.json"),
-  ).resolves.toMatchObject({ interface_id: valid.interface_id });
+  await expect(loadModelPackageManifest(encode(valid))).resolves.toMatchObject({
+    interface_id: valid.interface_id,
+  });
 
   valid.tasks["chat.completions"].inputs.audio.prompt.placeholder_token_id += 1;
-  fetchSpy.mockResolvedValueOnce(
-    new Response(JSON.stringify(valid), { status: 200 }),
+  await expect(loadModelPackageManifest(encode(valid))).rejects.toThrow(
+    /interface_id does not match its tasks/,
   );
   await expect(
-    fetchOptionalModelPackageManifest("https://example.test/stale.json"),
-  ).rejects.toThrow(/interface_id does not match its tasks/);
-  fetchSpy.mockRestore();
+    loadModelPackageManifest(
+      new TextEncoder().encode("{").buffer as ArrayBuffer,
+    ),
+  ).rejects.toThrow(/invalid JSON/);
 });

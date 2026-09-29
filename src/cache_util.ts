@@ -129,6 +129,11 @@ export async function deleteChatConfigInCache(
   const modelUrl = cleanModelUrl(modelRecord.model);
   const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
   await configCache.deleteInCache(configUrl);
+  if (modelRecord.model_manifest !== undefined) {
+    await configCache.deleteInCache(
+      new URL(modelRecord.model_manifest, modelUrl).href,
+    );
+  }
 }
 
 export async function deleteModelWasmInCache(

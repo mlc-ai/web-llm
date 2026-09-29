@@ -632,22 +632,13 @@ export function resolveChatCompletionArtifact(
   return { task, program, textInput, audioInput, compiled };
 }
 
-export async function fetchOptionalModelPackageManifest(
-  url: string,
-  signal?: AbortSignal,
-): Promise<ModelPackageManifest | undefined> {
-  const response = await fetch(url, { signal });
-  if (response.status === 404) {
-    return undefined;
-  }
-  if (!response.ok) {
-    throw new ArtifactManifestError(
-      `Failed to fetch ${MODEL_PACKAGE_MANIFEST_FILENAME}: HTTP ${response.status}`,
-    );
-  }
+/** Parse a downloaded manifest and check its interface_id against its tasks. */
+export async function loadModelPackageManifest(
+  data: ArrayBuffer,
+): Promise<ModelPackageManifest> {
   let value: unknown;
   try {
-    value = await response.json();
+    value = JSON.parse(new TextDecoder().decode(data));
   } catch (error) {
     throw new ArtifactManifestError(
       `${MODEL_PACKAGE_MANIFEST_FILENAME}: invalid JSON`,

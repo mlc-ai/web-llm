@@ -96,8 +96,7 @@ import {
   ResumableGenerationCoordinator,
 } from "./resumable/coordinator";
 import {
-  fetchOptionalModelPackageManifest,
-  MODEL_PACKAGE_MANIFEST_FILENAME,
+  loadModelPackageManifest,
   resolveModelPackageResourceURLs,
 } from "./artifact_manifest";
 
@@ -368,22 +367,26 @@ export class MLCEngine implements MLCEngineInterface {
         : modelRecord.model_type;
     this.loadedModelIdToModelType.set(modelId, modelType);
 
-    const manifestUrl = modelRecord.model_manifest
-      ? new URL(modelRecord.model_manifest, modelUrl).href
-      : new URL(MODEL_PACKAGE_MANIFEST_FILENAME, modelUrl).href;
-    const modelPackage = await fetchOptionalModelPackageManifest(
-      manifestUrl,
-      this.reloadController?.signal,
-    );
-    const packageResources = resolveModelPackageResourceURLs(
-      modelUrl,
-      modelPackage,
-    );
-
     // instantiate cache
     const configCache = tvmjs.createArtifactCache(
       "webllm/config",
       getCacheOptions(this.appConfig),
+    );
+
+    // A model uses its manifest only when the record names one.
+    const modelPackage =
+      modelRecord.model_manifest === undefined
+        ? undefined
+        : await loadModelPackageManifest(
+            (await configCache.fetchWithCache(
+              new URL(modelRecord.model_manifest, modelUrl).href,
+              "arraybuffer",
+              this.reloadController?.signal,
+            )) as ArrayBuffer,
+          );
+    const packageResources = resolveModelPackageResourceURLs(
+      modelUrl,
+      modelPackage,
     );
 
     // load config

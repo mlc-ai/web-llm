@@ -7,8 +7,10 @@ Audio Input with a Model Manifest (Experimental)
 A custom MLC model directory can include ``mlc-model-manifest.json``.  The
 manifest describes the task, the audio format the model expects, the compiled
 function that embeds audio, the prompt tokens around it, and two hashes that
-must match the compiled library.  Models without a manifest load as before.
-A manifest that is invalid or does not match the library fails the load.
+must match the compiled library.  WebLLM reads the manifest only when the
+model record sets ``model_manifest``, so other models load as before.  A
+manifest that is missing, invalid or does not match the library fails the
+load.
 
 Weights are read from ``tensor-cache.json``.  WebLLM loads each record in that
 cache as its own buffer and never asks WebGPU for a buffer over 1 GiB, so
@@ -55,8 +57,18 @@ embeddings longer than the model's prefill limit are split into chunks.
 This currently works with custom ``google/gemma-4-E2B-it`` q4f16_1 builds.
 There is no prebuilt model record yet.  Input must be WAV or PCM.  URLs and
 compressed formats are not supported, and neither are vision, video, ASR or
-audio through the native MLC server.  Set ``ModelRecord.model_manifest`` when
-the manifest is not in the same directory as the converted weights.
+audio through the native MLC server.
+
+``model_manifest`` is a URL relative to the model URL:
+
+.. code-block:: typescript
+
+   const modelRecord = {
+     model_id: "gemma-4-E2B-it-q4f16_1-MLC",
+     model: modelUrl,
+     model_lib: modelLibUrl,
+     model_manifest: "mlc-model-manifest.json",
+   };
 
 Using Workers
 -------------
