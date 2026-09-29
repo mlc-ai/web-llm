@@ -305,6 +305,61 @@ describe("Test getConversationFromChatCompletionRequest with image", () => {
 });
 
 describe("Manifest prompt segments preserve modality order", () => {
+  test("formats Gemma 4 turns without a model-specific WebLLM branch", () => {
+    const conversation = getConversation({
+      system_template: "<|turn>system\n{system_message}<turn|>\n",
+      system_message: "",
+      render_empty_system_message: false,
+      system_prefix_token_ids: [2],
+      add_role_after_system_message: true,
+      roles: {
+        user: "<|turn>user",
+        assistant: "<|turn>model",
+      } as Record<Role, string>,
+      role_templates: {
+        user: "{user_message}",
+        assistant: "{assistant_message}",
+      },
+      seps: ["<turn|>\n"],
+      role_content_sep: "\n",
+      role_empty_sep: "\n",
+      stop_str: ["<turn|>"],
+      stop_token_ids: [1, 106],
+    });
+    const audio = {
+      type: "input_audio" as const,
+      input_audio: {
+        format: "pcm_f32" as const,
+        data: new Float32Array([0]),
+        sample_rate: 16000,
+      },
+    };
+    conversation.appendMessage(Role.user, [
+      { type: "text", text: "What is spoken?" },
+      audio,
+    ]);
+    conversation.appendReplyHeader(Role.assistant);
+
+    expect(conversation.config.system_prefix_token_ids).toEqual([2]);
+    expect(conversation.getArtifactPromptSegments()).toEqual([
+      "<|turn>user\n",
+      "What is spoken?",
+      audio,
+      "<turn|>\n",
+      "<|turn>model\n",
+    ]);
+
+    const defaultBehavior = getConversation({
+      ...conversation.config,
+      render_empty_system_message: undefined,
+    });
+    defaultBehavior.appendMessage(Role.user, "Hello");
+    defaultBehavior.appendReplyHeader(Role.assistant);
+    expect(defaultBehavior.getArtifactPromptSegments()[0]).toBe(
+      "<|turn>system\n<turn|>\n",
+    );
+  });
+
   test("keeps text and audio parts in source order", () => {
     const config = JSON.parse(qwen3ChatConfigJSONString) as ChatConfig;
     const conversation = getConversation(config.conv_template);

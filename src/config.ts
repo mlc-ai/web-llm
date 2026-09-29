@@ -25,6 +25,7 @@ export interface ConvTemplateConfig {
   system_prefix_token_ids?: Array<number>;
   stop_token_ids: Array<number>;
   add_role_after_system_message?: boolean;
+  render_empty_system_message?: boolean;
 }
 
 /**

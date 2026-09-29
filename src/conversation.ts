@@ -68,6 +68,21 @@ export class Conversation {
     this.isTextCompletion = isTextCompletion;
   }
 
+  private getSystemPrompt(): string {
+    const systemMessage =
+      this.override_system_message ?? this.config.system_message;
+    if (
+      systemMessage === "" &&
+      this.config.render_empty_system_message === false
+    ) {
+      return "";
+    }
+    return this.config.system_template.replace(
+      MessagePlaceholders.system,
+      systemMessage,
+    );
+  }
+
   // TODO: Consider rewriting this method, a bit messy.
   private getPromptArrayInternal(
     addSystem: boolean,
@@ -78,16 +93,7 @@ export class Conversation {
       throw Error("Need seps to work");
     }
 
-    // Prepare system message
-    // Get overridden system message if exists, else use default one in config
-    let system_message = this.config.system_message;
-    if (this.override_system_message !== undefined) {
-      system_message = this.override_system_message;
-    }
-    const system_prompt = this.config.system_template.replace(
-      MessagePlaceholders.system,
-      system_message,
-    );
+    const system_prompt = this.getSystemPrompt();
     const ret: Array<string | Array<string | ImageURL>> =
       addSystem && system_prompt !== "" ? [system_prompt] : [];
 
@@ -280,12 +286,7 @@ export class Conversation {
       throw new Error("Need seps to work");
     }
 
-    const configuredSystemMessage =
-      this.override_system_message ?? this.config.system_message;
-    const systemPrompt = this.config.system_template.replace(
-      MessagePlaceholders.system,
-      configuredSystemMessage,
-    );
+    const systemPrompt = this.getSystemPrompt();
     const result: ArtifactPromptSegment[] =
       addSystem && systemPrompt !== "" ? [systemPrompt] : [];
 
