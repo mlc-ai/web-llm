@@ -478,7 +478,7 @@ export class LLMChatPipeline {
       }),
     );
 
-    // 2. Bind VM functions according to the resolved ABI or manifest roles.
+    // 2. Look up the VM functions, by manifest role when the model has a manifest.
     this.prefill = this.tvm.detachFromCurrentScope(
       LLMChatPipeline.getRequiredVMFunctionByName(
         this.resolvedModelABI.prefillFunctionName,
@@ -1076,7 +1076,7 @@ export class LLMChatPipeline {
     this.stopTokens = this.conversation.getStopTokens();
   }
 
-  /** Canonical non-text inputs accepted by the loaded model artifact. */
+  /** Input kinds other than text that the loaded model accepts. */
   getSupportedInputKinds(): ReadonlySet<"image" | "audio"> | undefined {
     const result = new Set<"image" | "audio">();
     if (this.artifact !== undefined) {
@@ -1089,7 +1089,7 @@ export class LLMChatPipeline {
       result.add("image");
       return result;
     }
-    // Preserve legacy non-VLM validation, including its established errors.
+    // Text-only models keep the existing checks and error messages.
     return undefined;
   }
 
@@ -1969,8 +1969,8 @@ export class LLMChatPipeline {
     if (relativeByteOffset === 0) {
       return view;
     }
-    // Compiled prefill kernels require zero-offset inputs. Copy later chunks
-    // on the GPU rather than passing offset views or reading back to the CPU.
+    // Compiled prefill kernels need inputs with no byte offset, so chunks after
+    // the first are copied on the GPU.
     return this.tvm
       .empty([rowCount, hiddenSize], tensor.dtype, this.device)
       .copyFrom(view);

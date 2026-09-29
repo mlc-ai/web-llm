@@ -704,13 +704,13 @@ export interface ChatCompletionContentPartImage {
   type: "image_url";
 }
 
-/** OpenAI-compatible base64 WAV input. */
+/** Base64 WAV, as in the OpenAI API. */
 export interface ChatCompletionAudioInputWav {
   data: string;
   format: "wav";
 }
 
-/** WebLLM-native, structured-cloneable mono PCM input. */
+/** Mono PCM samples. A Float32Array can be posted to a worker as is. */
 export interface ChatCompletionAudioInputPCM {
   data: Float32Array;
   format: "pcm_f32";

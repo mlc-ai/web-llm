@@ -1,24 +1,23 @@
 Advanced Use Cases
 ==================
 
-Manifest-Driven Audio Input (Experimental)
-------------------------------------------
+Audio Input with a Model Manifest (Experimental)
+------------------------------------------------
 
-WebLLM can consume ``mlc-model-manifest.json`` from a custom MLC model
-directory.  The sidecar declares the task, canonical audio format, compiled
-adapter role, prompt tokens, and hashes that must match the compiled library.
-No sidecar means the existing legacy model path; a present but invalid or
-mismatched sidecar fails model loading.
+A custom MLC model directory can include ``mlc-model-manifest.json``.  The
+manifest describes the task, the audio format the model expects, the compiled
+function that embeds audio, the prompt tokens around it, and two hashes that
+must match the compiled library.  Models without a manifest load as before.
+A manifest that is invalid or does not match the library fails the load.
 
-The weight contract names ``tensor-cache.json``.  WebLLM loads the records
-described by that TVM cache and does not coalesce them or request a WebGPU
-buffer larger than 1 GiB.  Large logical weights must therefore be split by
-the model conversion contract.  Gemma 4's packed per-layer embedding is
-exported as 35 layer records; the compiled resource metadata reports the
-largest remaining storage-buffer binding required by the artifact.
+Weights are read from ``tensor-cache.json``.  WebLLM loads each record in that
+cache as its own buffer and never asks WebGPU for a buffer over 1 GiB, so
+model conversion has to split large weights.  Gemma 4's per-layer embedding is
+exported as 35 records, one per layer.  The compiled library reports the
+largest buffer the model needs.
 
-For a manifest-enabled text-and-audio model, pass a base64 WAV (or a WAV data
-URL) through the OpenAI-compatible content part:
+To send audio, pass a base64 WAV or a WAV data URL as an ``input_audio``
+content part:
 
 .. code-block:: typescript
 
@@ -35,8 +34,8 @@ URL) through the OpenAI-compatible content part:
      }],
    });
 
-Browser-native callers may avoid WAV encoding with structured-cloneable mono
-PCM:
+Callers that already have samples can pass mono PCM as a ``Float32Array`` and
+skip WAV encoding:
 
 .. code-block:: typescript
 
@@ -49,16 +48,15 @@ PCM:
      },
    };
 
-WebLLM downmixes WAV channels and deterministically resamples either form to
-the manifest's canonical rate.  Model-specific feature extraction remains in
-the compiled adapter, and dynamically sized adapter output is chunked to the
-model's prefill limit.
+WebLLM downmixes WAV input to mono and resamples both forms to the rate the
+manifest asks for.  Feature extraction happens in the compiled model.  Audio
+embeddings longer than the model's prefill limit are split into chunks.
 
-This milestone targets custom ``google/gemma-4-E2B-it`` q4f16_1 artifacts;
-there is no prebuilt model record yet.  It accepts WAV or native PCM only--not
-URLs or compressed codecs--and does not include vision/video, ASR, or native
-MLC server audio ingestion.  ``ModelRecord.model_manifest`` can override the
-sidecar URL when it is not colocated with the converted weights.
+This currently works with custom ``google/gemma-4-E2B-it`` q4f16_1 builds.
+There is no prebuilt model record yet.  Input must be WAV or PCM.  URLs and
+compressed formats are not supported, and neither are vision, video, ASR or
+audio through the native MLC server.  Set ``ModelRecord.model_manifest`` when
+the manifest is not in the same directory as the converted weights.
 
 Using Workers
 -------------

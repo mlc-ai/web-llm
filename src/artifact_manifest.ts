@@ -174,13 +174,12 @@ function canonicalJson(value: unknown): string {
   return result;
 }
 
-/** Compute the identity MLC uses to bind canonical task semantics. */
+/** Hash the task description the same way MLC does. */
 export async function computeInterfaceId(
   tasks: Record<string, TaskSpec>,
 ): Promise<string> {
   const bytes = new TextEncoder().encode(canonicalJson({ tasks }));
-  // TextEncoder always owns an ArrayBuffer, while TypeScript models the view
-  // more broadly as ArrayBufferLike.
+  // encode() returns a view over a plain ArrayBuffer, but its type says ArrayBufferLike.
   const buffer = bytes.buffer as ArrayBuffer;
   const digest = new Uint8Array(
     await globalThis.crypto.subtle.digest("SHA-256", buffer),
@@ -441,7 +440,7 @@ export function parseModelPackageManifest(
   };
 }
 
-/** Resolve resources declared by the sidecar against the model artifact URL. */
+/** URLs of the chat config and tensor cache, relative to the model URL. */
 export function resolveModelPackageResourceURLs(
   modelUrl: string,
   modelPackage?: ModelPackageManifest,

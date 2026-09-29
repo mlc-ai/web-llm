@@ -370,7 +370,7 @@ export class Conversation {
     return result;
   }
 
-  /** Prompt segments for manifest-driven adapters, preserving content-part order. */
+  /** The prompt as text and audio segments, in the order of the content parts. */
   getArtifactPromptSegments(): ArtifactPromptSegment[] {
     if (this.isTextCompletion) {
       throw new TextCompletionConversationError("getArtifactPromptSegments");
@@ -378,7 +378,7 @@ export class Conversation {
     return this.getArtifactPromptSegmentsInternal(true, 0);
   }
 
-  /** The unconsumed round in the manifest-driven prompt representation. */
+  /** Segments of the latest round, which has not been prefilled yet. */
   getArtifactPromptSegmentsLastRound(): ArtifactPromptSegment[] {
     if (this.isTextCompletion) {
       throw new TextCompletionConversationError(
