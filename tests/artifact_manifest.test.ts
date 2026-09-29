@@ -60,7 +60,7 @@ function compiledProgram() {
         kind: "token_generation",
         exports: {
           embed_tokens: "embed",
-          prefill_prompt: "prefill_prompt",
+          prefill_tokens: "prefill_prompt",
           decode_tokens: "decode_tokens",
           create_kv_cache: "create_tir_paged_kv_cache",
         },
@@ -80,7 +80,11 @@ test("strictly parses and resolves the model artifact pair", () => {
     parseModelPackageManifest(modelPackage()),
     parseCompiledProgramArtifact(compiledProgram()),
   );
-  expect(resolved.program.exports.prefill_prompt).toBe("prefill_prompt");
+  expect(resolved.generation).toEqual({
+    inputs: "tokens",
+    prefill: "prefill_prompt",
+    decode: "decode_tokens",
+  });
   expect(resolved.audioInput?.processor.sample_rate_hz).toBe(16000);
   expect(resolved.audioInput?.prompt.placeholder_token_id).toBe(258881);
 });
@@ -192,4 +196,50 @@ test("loads a downloaded manifest and checks its interface_id", async () => {
       new TextEncoder().encode("{").buffer as ArrayBuffer,
     ),
   ).rejects.toThrow(/invalid JSON/);
+});
+
+test("resolves whichever pair of generation roles the library declares", () => {
+  const compiled = compiledProgram();
+  compiled.programs.generation.exports = {
+    embed_tokens: "embed",
+    prefill_embeds: "prefill",
+    decode_embeds: "decode",
+    create_kv_cache: "create_tir_paged_kv_cache",
+  } as any;
+  const resolved = resolveChatCompletionArtifact(
+    parseModelPackageManifest(modelPackage()),
+    parseCompiledProgramArtifact(compiled),
+  );
+  expect(resolved.generation).toEqual({
+    inputs: "embeds",
+    prefill: "prefill",
+    decode: "decode",
+  });
+});
+
+test.each([
+  [{}],
+  [{ prefill_tokens: "prefill_prompt" }],
+  [{ prefill_tokens: "prefill_prompt", decode_embeds: "decode" }],
+  [
+    {
+      prefill_tokens: "prefill_prompt",
+      decode_tokens: "decode_tokens",
+      prefill_embeds: "prefill",
+      decode_embeds: "decode",
+    },
+  ],
+])("rejects generation roles that are not one complete pair", (roles) => {
+  const compiled = compiledProgram();
+  compiled.programs.generation.exports = {
+    embed_tokens: "embed",
+    create_kv_cache: "create_tir_paged_kv_cache",
+    ...roles,
+  } as any;
+  expect(() =>
+    resolveChatCompletionArtifact(
+      parseModelPackageManifest(modelPackage()),
+      parseCompiledProgramArtifact(compiled),
+    ),
+  ).toThrow(/exactly one complete pair/);
 });

@@ -18,6 +18,11 @@ model conversion has to split large weights.  Gemma 4's per-layer embedding is
 exported as 35 records, one per layer.  The compiled library reports the
 largest buffer the model needs.
 
+The compiled library names its prefill and decode functions under one of two
+pairs of roles.  ``prefill_tokens`` and ``decode_tokens`` take token IDs, which
+Gemma 4 needs.  ``prefill_embeds`` and ``decode_embeds`` take embeddings only.
+WebLLM calls whichever pair the library declares.
+
 To send audio, pass a base64 WAV or a WAV data URL as an ``input_audio``
 content part:
 

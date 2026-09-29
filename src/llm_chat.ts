@@ -448,8 +448,8 @@ export class LLMChatPipeline {
         kvStateKind: "kv_cache",
         prefillABI: "single",
         decodeABI: "single",
-        prefillFunctionName: this.artifact.program.exports.prefill_prompt,
-        decodeFunctionName: this.artifact.program.exports.decode_tokens,
+        prefillFunctionName: this.artifact.generation.prefill,
+        decodeFunctionName: this.artifact.generation.decode,
         needsKVCache: true,
         needsRNNState: false,
       };
@@ -2098,20 +2098,21 @@ export class LLMChatPipeline {
       inputLength,
       embeddings.shape[1],
     ]);
-    const tokenTensor = this.tvm
-      .empty([1, inputLength], "int32", this.device)
-      .copyFrom(tokenIds);
-    const modalityTensor = this.tvm
-      .empty([1, inputLength], "int32", this.device)
-      .copyFrom(modalityIds);
+    const idTensors =
+      this.artifact?.generation.inputs === "embeds"
+        ? []
+        : [tokenIds, modalityIds].map((ids) =>
+            this.tvm
+              .empty([1, inputLength], "int32", this.device)
+              .copyFrom(ids),
+          );
     const inputLenShape = this.tvm.makeShapeTuple([inputLength]);
     const seqIdsTuple = this.tvm.makeShapeTuple([0]);
     const kvCache = this.requireKVCache();
     this.fKVCacheBeginForward(kvCache, seqIdsTuple, inputLenShape);
     const result = this.artifactPrefill(
       inputEmbeddings,
-      tokenTensor,
-      modalityTensor,
+      ...idTensors,
       kvCache,
       this.params,
     );
@@ -2128,14 +2129,18 @@ export class LLMChatPipeline {
       throw new ArtifactManifestError("artifact decode export is not bound");
     }
     this.tvm.beginScope();
-    const tokenTensor = this.tvm
-      .empty([1, 1], "int32", this.device)
-      .copyFrom([tokenId]);
+    let input: tvmjs.Tensor;
+    if (this.artifact?.generation.inputs === "embeds") {
+      const embedding = this.getArtifactTextEmbeddings([tokenId]);
+      input = embedding.view([1, 1, embedding.shape[1]]);
+    } else {
+      input = this.tvm.empty([1, 1], "int32", this.device).copyFrom([tokenId]);
+    }
     const inputLenShape = this.tvm.makeShapeTuple([1]);
     const seqIdsTuple = this.tvm.makeShapeTuple([0]);
     const kvCache = this.requireKVCache();
     this.fKVCacheBeginForward(kvCache, seqIdsTuple, inputLenShape);
-    const result = this.artifactDecode(tokenTensor, kvCache, this.params);
+    const result = this.artifactDecode(input, kvCache, this.params);
     this.fKVCacheEndForward(kvCache);
     this.filledKVCacheLength += 1;
     const logits = this.tvm.detachFromCurrentScope(result.get(0));

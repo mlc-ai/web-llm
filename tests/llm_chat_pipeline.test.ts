@@ -1160,6 +1160,46 @@ test("artifact prefill forwards the canonical prompt bundle", () => {
   expect(pipeline["filledKVCacheLength"]).toBe(2);
 });
 
+test("a library with the embedding roles is called without token IDs", () => {
+  const pipeline = createPipeline();
+  const raw = pipeline as any;
+  const logits = { kind: "logits" };
+  const prompt = { shape: [2, 8], view: jest.fn(() => ({ shape: [1, 2, 8] })) };
+  const token = { shape: [1, 8], view: jest.fn(() => ({ shape: [1, 1, 8] })) };
+  raw["artifact"] = {
+    generation: { inputs: "embeds", prefill: "prefill", decode: "decode" },
+  };
+  raw["tvm"].empty = jest.fn();
+  raw["tvm"].makeShapeTuple = jest.fn((shape: number[]) => shape);
+  raw["tvm"].attachToCurrentScope = jest.fn();
+  raw["artifactPrefill"] = jest.fn(() => ({ get: jest.fn(() => logits) }));
+  raw["artifactDecode"] = jest.fn(() => ({ get: jest.fn(() => logits) }));
+  raw["getArtifactTextEmbeddings"] = jest.fn(() => token);
+  raw["kvCache"] = { kind: "kv" };
+  raw["params"] = { kind: "params" };
+  raw["fKVCacheBeginForward"] = jest.fn();
+  raw["fKVCacheEndForward"] = jest.fn();
+
+  expect(raw["artifactPrefillAndForward"](prompt, [7, 99], [0, 1])).toBe(
+    logits,
+  );
+  expect(raw["artifactPrefill"]).toHaveBeenCalledWith(
+    { shape: [1, 2, 8] },
+    pipeline["kvCache"],
+    pipeline["params"],
+  );
+
+  expect(raw["artifactDecodeAndForward"](7)).toBe(logits);
+  expect(raw["getArtifactTextEmbeddings"]).toHaveBeenCalledWith([7]);
+  expect(raw["artifactDecode"]).toHaveBeenCalledWith(
+    { shape: [1, 1, 8] },
+    pipeline["kvCache"],
+    pipeline["params"],
+  );
+  expect(raw["tvm"].empty).not.toHaveBeenCalled();
+  expect(pipeline["filledKVCacheLength"]).toBe(3);
+});
+
 test("processNextToken ignores eos when requested", () => {
   const pipeline = createPipeline();
   pipeline["stopTokens"] = [1];

@@ -72,9 +72,17 @@ export interface CompiledProgramArtifact {
   resources: ResourceRequirements;
 }
 
+/** The compiled prefill and decode functions and what they take next to the KV cache. */
+export interface GenerationExports {
+  inputs: "tokens" | "embeds";
+  prefill: string;
+  decode: string;
+}
+
 export interface ResolvedChatCompletionArtifact {
   task: TaskSpec;
   program: ProgramSpec;
+  generation: GenerationExports;
   textInput: TaskInput;
   audioInput?: TaskInput & {
     processor: AudioDecodeProcessor;
@@ -532,6 +540,31 @@ export function parseCompiledProgramArtifact(
   };
 }
 
+function resolveGenerationExports(
+  exports: Record<string, string>,
+): GenerationExports {
+  const pairs = (["tokens", "embeds"] as const).map((inputs) => ({
+    inputs,
+    prefill: exports[`prefill_${inputs}`],
+    decode: exports[`decode_${inputs}`],
+  }));
+  const declared = pairs.filter(
+    (pair) => pair.prefill !== undefined || pair.decode !== undefined,
+  );
+  if (
+    declared.length !== 1 ||
+    declared[0].prefill === undefined ||
+    declared[0].decode === undefined
+  ) {
+    fail(
+      "artifact contract",
+      "executor must declare exactly one complete pair of prefill and decode roles: " +
+        "prefill_tokens with decode_tokens, or prefill_embeds with decode_embeds",
+    );
+  }
+  return declared[0];
+}
+
 export function resolveChatCompletionArtifact(
   modelPackage: ModelPackageManifest,
   compiled: CompiledProgramArtifact,
@@ -570,12 +603,7 @@ export function resolveChatCompletionArtifact(
       `unsupported executor kind ${JSON.stringify(program.kind)}`,
     );
   }
-  for (const role of [
-    "embed_tokens",
-    "prefill_prompt",
-    "decode_tokens",
-    "create_kv_cache",
-  ]) {
+  for (const role of ["embed_tokens", "create_kv_cache"]) {
     if (program.exports[role] === undefined) {
       fail(
         "artifact contract",
@@ -583,6 +611,7 @@ export function resolveChatCompletionArtifact(
       );
     }
   }
+  const generation = resolveGenerationExports(program.exports);
   const textInput = task.inputs.text;
   if (textInput === undefined || textInput.processor !== "tokenizer") {
     fail(
@@ -629,7 +658,7 @@ export function resolveChatCompletionArtifact(
       };
     }
   }
-  return { task, program, textInput, audioInput, compiled };
+  return { task, program, generation, textInput, audioInput, compiled };
 }
 
 /** Parse a downloaded manifest and check its interface_id against its tasks. */
