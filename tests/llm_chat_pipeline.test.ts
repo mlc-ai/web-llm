@@ -924,6 +924,63 @@ test("getInputData uses cached prompts when KV cache filled", async () => {
   expect(pipeline["conversation"].getPromptArrayLastRound).toHaveBeenCalled();
 });
 
+test("adapter embeddings that fit one chunk are reused without allocation", () => {
+  const pipeline = createPipeline();
+  const raw = pipeline as any;
+  const tensor = { shape: [68, 1536], dtype: "float16" };
+  raw.fTensorCreateView = jest.fn();
+  raw.tvm.empty = jest.fn();
+
+  expect(raw.sliceTensorRows(tensor, 0, 68)).toBe(tensor);
+  expect(raw.fTensorCreateView).not.toHaveBeenCalled();
+  expect(raw.tvm.empty).not.toHaveBeenCalled();
+});
+
+test.each([
+  ["float16", 2, 0, 128],
+  ["float16", 2, 128, 128],
+  ["float16", 2, 256, 3],
+  ["float32", 4, 128, 128],
+  ["bfloat16", 2, 256, 3],
+])(
+  "adapter chunk (%s, %i bytes/element, start=%i, rows=%i) has zero offset",
+  (dtype, bytes, start, count) => {
+    const pipeline = createPipeline();
+    const raw = pipeline as any;
+    const tensor = { shape: [259, 1536], dtype };
+    const byteOffset = start * 1536 * bytes;
+    const view = { shape: [count, 1536], dtype, byteOffset };
+    const contiguous = { byteOffset: 0, copyFrom: jest.fn() };
+    contiguous.copyFrom.mockReturnValue(contiguous);
+    raw.tvm.makeShapeTuple = jest.fn((shape: number[]) => shape);
+    raw.fTensorCreateView = jest.fn(() => view);
+    raw.tvm.empty = jest.fn(() => contiguous);
+
+    const chunk = raw.sliceTensorRows(tensor, start, count);
+
+    expect(raw.fTensorCreateView).toHaveBeenCalledWith(
+      tensor,
+      [count, 1536],
+      dtype,
+      expect.objectContaining({ value: byteOffset }),
+    );
+    expect(chunk.byteOffset).toBe(0);
+    if (start === 0) {
+      expect(chunk).toBe(view);
+      expect(raw.tvm.empty).not.toHaveBeenCalled();
+    } else {
+      expect(chunk).toBe(contiguous);
+      expect(raw.tvm.empty).toHaveBeenCalledTimes(1);
+      expect(raw.tvm.empty).toHaveBeenCalledWith(
+        [count, 1536],
+        dtype,
+        raw.device,
+      );
+      expect(contiguous.copyFrom).toHaveBeenCalledWith(view);
+    }
+  },
+);
+
 test("artifact prompt assembly chunks dynamic audio embeddings", async () => {
   const pipeline = createPipeline();
   const raw = pipeline as any;
@@ -982,6 +1039,86 @@ test("artifact prompt assembly chunks dynamic audio embeddings", async () => {
   ]);
   expect(chunks[1].modalityIds).toEqual([1, 1, 1, 1]);
   expect(raw["sliceTensorRows"]).toHaveBeenCalledTimes(2);
+});
+
+test("audio prefill uses the sampled-step flow without text replay metadata", async () => {
+  const pipeline = createPipeline();
+  const raw = pipeline as any;
+  raw.artifact = {};
+  const embeddings = { kind: "audio" };
+  const logits = { dispose: jest.fn() };
+  raw.getArtifactPrefillChunks = jest.fn(async () => [
+    [{ tokenIds: [99, 99], modalityIds: [1, 1], embeddings }],
+    2,
+  ]);
+  raw.artifactPrefillAndForward = jest.fn(() => {
+    raw.filledKVCacheLength += 2;
+    return logits;
+  });
+
+  const step = await pipeline.samplePrefillStep(
+    [{ type: "input_audio", input_audio: { format: "wav", data: "UklGRg==" } }],
+    Role.user,
+  );
+  expect(step.promptLen).toBe(2);
+  expect(step.promptTokenIds).toBeUndefined();
+  expect(step.tokenId).toBe(2);
+  expect(raw.artifactPrefillAndForward).toHaveBeenCalledWith(
+    embeddings,
+    [99, 99],
+    [1, 1],
+  );
+  expect(raw.embedAndForward).not.toHaveBeenCalled();
+  expect(logits.dispose).toHaveBeenCalledTimes(1);
+  expect(raw.tvm.endScope).toHaveBeenCalledTimes(1);
+});
+
+test("manifest text replay forwards known tokens through the declared ABI", async () => {
+  const pipeline = createPipeline();
+  const raw = pipeline as any;
+  raw.artifact = {};
+  raw.prefillChunkSize = 2;
+  raw.getArtifactTextEmbeddings = jest.fn((ids: number[]) => ({ ids }));
+  const logits = { dispose: jest.fn() };
+  raw.artifactPrefillAndForward = jest.fn(
+    (_embeddings: unknown, ids: number[]) => {
+      raw.filledKVCacheLength += ids.length;
+      return logits;
+    },
+  );
+
+  await expect(raw.forwardKnownTokens([4, 5, 6], true)).resolves.toBe(logits);
+  expect(raw.artifactPrefillAndForward.mock.calls).toEqual([
+    [{ ids: [4, 5] }, [4, 5], [0, 0]],
+    [{ ids: [6] }, [6], [0]],
+  ]);
+  expect(raw.embedAndForward).not.toHaveBeenCalled();
+  expect(raw.filledKVCacheLength).toBe(3);
+  expect(raw.tvm.endScope).toHaveBeenCalledTimes(1);
+});
+
+test("manifest decode uses the sampled-step flow and closes its scope on failure", async () => {
+  const pipeline = createPipeline();
+  const raw = pipeline as any;
+  raw.artifact = {};
+  raw.outputIds = [7];
+  const logits = { dispose: jest.fn() };
+  raw.artifactDecodeAndForward = jest.fn(() => {
+    raw.filledKVCacheLength++;
+    return logits;
+  });
+  await expect(pipeline.sampleDecodeStep()).resolves.toMatchObject({
+    tokenId: 2,
+  });
+  expect(raw.artifactDecodeAndForward).toHaveBeenCalledWith(7);
+  expect(raw.embedAndForward).not.toHaveBeenCalled();
+  expect(logits.dispose).toHaveBeenCalledTimes(1);
+
+  raw.artifactDecodeAndForward.mockImplementation(() => {
+    throw new Error("decode failed");
+  });
+  await expect(pipeline.sampleDecodeStep()).rejects.toThrow("decode failed");
+  expect(raw.tvm.endScope).toHaveBeenCalledTimes(2);
 });
 
 test("artifact prefill forwards the canonical prompt bundle", () => {

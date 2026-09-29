@@ -1224,9 +1224,12 @@ export class LLMChatPipeline {
     this.tvm.beginScope();
     try {
       if (this.artifact !== undefined) {
-        const [chunks, artifactPromptLen] = await this.getArtifactPrefillChunks();
+        const [chunks, artifactPromptLen] =
+          await this.getArtifactPrefillChunks();
         promptLen = artifactPromptLen;
-        if (chunks.every((chunk) => chunk.modalityIds.every((kind) => kind === 0))) {
+        if (
+          chunks.every((chunk) => chunk.modalityIds.every((kind) => kind === 0))
+        ) {
           promptTokenIds = chunks.flatMap((chunk) => chunk.tokenIds);
         }
         for (let i = 0; i < chunks.length; i++) {
@@ -1239,7 +1242,10 @@ export class LLMChatPipeline {
             chunk.tokenIds,
             chunk.modalityIds,
           );
-          if (this.filledKVCacheLength !== previousLength + chunk.tokenIds.length) {
+          if (
+            this.filledKVCacheLength !==
+            previousLength + chunk.tokenIds.length
+          ) {
             throw new Error(
               "Internal Error: filledKVCacheLength does not match expected value.",
             );
@@ -1249,7 +1255,8 @@ export class LLMChatPipeline {
           }
         }
       } else {
-        const [inputData, legacyPromptLen, getEmbedSize] = await this.getInputData();
+        const [inputData, legacyPromptLen, getEmbedSize] =
+          await this.getInputData();
         promptLen = legacyPromptLen;
         promptTokenIds = inputData.every((data) => Array.isArray(data))
           ? inputData.flatMap((data) => data as number[])
@@ -1265,7 +1272,10 @@ export class LLMChatPipeline {
         );
         for (let i = 0; i < chunks.length; i++) {
           const previousLength = this.filledKVCacheLength;
-          const chunkLogits = await this.embedAndForward(chunks[i], chunkLens[i]);
+          const chunkLogits = await this.embedAndForward(
+            chunks[i],
+            chunkLens[i],
+          );
           if (this.filledKVCacheLength !== previousLength + chunkLens[i]) {
             throw new Error(
               "Internal Error: filledKVCacheLength does not match expected value.",
@@ -1293,9 +1303,10 @@ export class LLMChatPipeline {
     this.tvm.beginScope();
     try {
       const previousLength = this.filledKVCacheLength;
-      const logits = this.artifact === undefined
-        ? await this.embedAndForward([[tokenId]], 1)
-        : this.artifactDecodeAndForward(tokenId);
+      const logits =
+        this.artifact === undefined
+          ? await this.embedAndForward([[tokenId]], 1)
+          : this.artifactDecodeAndForward(tokenId);
       if (this.filledKVCacheLength !== previousLength + 1) {
         throw new Error(
           "Internal Error: filledKVCacheLength does not match expected value.",
@@ -1949,12 +1960,20 @@ export class LLMChatPipeline {
     const hiddenSize = tensor.shape[1];
     const relativeByteOffset =
       rowStart * hiddenSize * LLMChatPipeline.dtypeBytes(tensor.dtype);
-    return this.fTensorCreateView(
+    const view = this.fTensorCreateView(
       tensor,
       this.tvm.makeShapeTuple([rowCount, hiddenSize]),
       tensor.dtype,
       new tvmjs.Scalar(relativeByteOffset, "int"),
     ) as tvmjs.Tensor;
+    if (relativeByteOffset === 0) {
+      return view;
+    }
+    // Compiled prefill kernels require zero-offset inputs. Copy later chunks
+    // on the GPU rather than passing offset views or reading back to the CPU.
+    return this.tvm
+      .empty([rowCount, hiddenSize], tensor.dtype, this.device)
+      .copyFrom(view);
   }
 
   private getArtifactPromptSegments(): ArtifactPromptSegment[] {
@@ -3205,7 +3224,8 @@ export class LLMChatPipeline {
         }
         logitsOnGPU = this.artifactDecodeAndForward(inputIds[0]);
       }
-      const nextToken = await this.sampleTokenFromLogits(logitsOnGPU!);
+      const nextToken = await this.sampleFromRawLogits(logitsOnGPU!);
+      this.commitSamplerState(nextToken, undefined);
       this.tvm.endScope();
 
       const tend = performance.now();
@@ -3293,7 +3313,15 @@ export class LLMChatPipeline {
         const chunk = chunks[i];
         const chunkLen = chunkLens[i];
         const prevFilledLen = this.filledKVCacheLength;
-        const logits = await this.embedAndForward(chunk, chunkLen);
+        const tokenIds = (chunk as number[][]).flat();
+        const logits =
+          this.artifact === undefined
+            ? await this.embedAndForward(chunk, chunkLen)
+            : this.artifactPrefillAndForward(
+                this.getArtifactTextEmbeddings(tokenIds),
+                tokenIds,
+                new Array(tokenIds.length).fill(0),
+              );
         if (this.filledKVCacheLength !== prevFilledLen + chunkLen) {
           throw new Error(
             "Internal Error: filledKVCacheLength does not match expected value.",
