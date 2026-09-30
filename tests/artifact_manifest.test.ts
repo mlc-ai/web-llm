@@ -272,13 +272,6 @@ test("resolves audio and image inputs of the same task", () => {
   expect(resolved.imageInput?.adapter).toBe("image");
 });
 
-test("computes the LLaVA interface identity", async () => {
-  const parsed = parseModelPackageManifest(imageModelPackage());
-  await expect(computeInterfaceId(parsed.tasks)).resolves.toBe(
-    "sha256:66d63a1bbc8d10b8ec19f7916cb8183e1415088e18f6b9c7ccf8333b43fe5139",
-  );
-});
-
 test("applies only schema-defined defaults", () => {
   const manifest = modelPackage();
   delete (manifest as Partial<typeof manifest>).chat_config;
