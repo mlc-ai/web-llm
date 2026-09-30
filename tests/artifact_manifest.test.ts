@@ -50,6 +50,7 @@ function modelPackage() {
 }
 
 function compiledProgram() {
+  const adapters: Record<string, string> = { audio: "audio_embed" };
   return {
     schema: "mlc.compiled-program",
     schema_version: 1,
@@ -64,7 +65,7 @@ function compiledProgram() {
           decode_tokens: "decode_tokens",
           create_kv_cache: "create_tir_paged_kv_cache",
         },
-        adapters: { audio: "audio_embed" },
+        adapters,
       },
     },
     resources: {
@@ -73,6 +74,41 @@ function compiledProgram() {
       estimated_device_memory_bytes: 2048,
     },
   };
+}
+
+function imageInput() {
+  return {
+    processor: {
+      kind: "image_decode",
+      format: "rgb_u8",
+      layout: "nhwc",
+      resize: { mode: "center_crop", height: 336, width: 336 },
+      num_embeddings: 576,
+    },
+    adapter: "image",
+    prompt: {
+      prefix_token_ids: [],
+      placeholder_token_id: 32000,
+      suffix_token_ids: [],
+    },
+  };
+}
+
+function imageModelPackage() {
+  const manifest = modelPackage();
+  const inputs = manifest.tasks["chat.completions"].inputs as Record<
+    string,
+    unknown
+  >;
+  delete inputs.audio;
+  inputs.image = imageInput();
+  return manifest;
+}
+
+function imageCompiledProgram() {
+  const compiled = compiledProgram();
+  compiled.programs.generation.adapters = { image: "image_embed" };
+  return compiled;
 }
 
 test("strictly parses and resolves the model artifact pair", () => {
@@ -126,6 +162,99 @@ test("rejects interface, parameter, and adapter mismatches", () => {
   ).toThrow(/missing adapter/);
 });
 
+test("parses and resolves an image input", () => {
+  const resolved = resolveChatCompletionArtifact(
+    parseModelPackageManifest(imageModelPackage()),
+    parseCompiledProgramArtifact(imageCompiledProgram()),
+  );
+  expect(resolved.audioInput).toBeUndefined();
+  expect(resolved.imageInput?.processor).toEqual(imageInput().processor);
+  expect(resolved.imageInput?.adapter).toBe("image");
+  expect(resolved.imageInput?.prompt.placeholder_token_id).toBe(32000);
+});
+
+test.each([
+  [{ kind: "video_decode" }, /expected "audio_decode" or "image_decode"/],
+  [{ format: "rgba_u8" }, /expected "rgb_u8"/],
+  [{ layout: "nchw" }, /expected "nhwc"/],
+  [{ num_embeddings: 0 }, /num_embeddings/],
+  [{ padding: true }, /unknown field "padding"/],
+  [{ resize: { mode: "pad", height: 1, width: 1 } }, /expected "stretch"/],
+  [{ resize: { mode: "stretch", height: 0, width: 1 } }, /resize.height/],
+  [{ resize: { mode: "stretch", height: 1 } }, /missing field "width"/],
+])("rejects an invalid image processor %j", (override, message) => {
+  const manifest = imageModelPackage();
+  const inputs = manifest.tasks["chat.completions"].inputs as Record<
+    string,
+    Record<string, unknown>
+  >;
+  Object.assign(inputs.image.processor as Record<string, unknown>, override);
+  expect(() => parseModelPackageManifest(manifest)).toThrow(message);
+});
+
+test("an image input needs an adapter, a prompt and a compiled adapter", () => {
+  const noPrompt = imageModelPackage();
+  const inputs = noPrompt.tasks["chat.completions"].inputs as Record<
+    string,
+    Record<string, unknown>
+  >;
+  delete inputs.image.prompt;
+  expect(() => parseModelPackageManifest(noPrompt)).toThrow(
+    /declared together/,
+  );
+  delete inputs.image.adapter;
+  expect(() =>
+    resolveChatCompletionArtifact(
+      parseModelPackageManifest(noPrompt),
+      parseCompiledProgramArtifact(imageCompiledProgram()),
+    ),
+  ).toThrow(/image input "image" has no adapter prompt/);
+
+  const compiled = imageCompiledProgram();
+  compiled.programs.generation.adapters = { audio: "audio_embed" };
+  expect(() =>
+    resolveChatCompletionArtifact(
+      parseModelPackageManifest(imageModelPackage()),
+      parseCompiledProgramArtifact(compiled),
+    ),
+  ).toThrow(/image input "image" references a missing adapter/);
+});
+
+test("resolves audio and image inputs of the same task", () => {
+  const manifest = imageModelPackage();
+  const inputs = manifest.tasks["chat.completions"].inputs as Record<
+    string,
+    unknown
+  >;
+  inputs.audio = modelPackage().tasks["chat.completions"].inputs.audio;
+  inputs.picture = imageInput();
+  const compiled = imageCompiledProgram();
+  compiled.programs.generation.adapters = {
+    audio: "audio_embed",
+    image: "image_embed",
+  };
+  expect(() =>
+    resolveChatCompletionArtifact(
+      parseModelPackageManifest(manifest),
+      parseCompiledProgramArtifact(compiled),
+    ),
+  ).toThrow(/one image input per task/);
+  delete inputs.picture;
+  const resolved = resolveChatCompletionArtifact(
+    parseModelPackageManifest(manifest),
+    parseCompiledProgramArtifact(compiled),
+  );
+  expect(resolved.audioInput?.adapter).toBe("audio");
+  expect(resolved.imageInput?.adapter).toBe("image");
+});
+
+test("computes the LLaVA interface identity", async () => {
+  const parsed = parseModelPackageManifest(imageModelPackage());
+  await expect(computeInterfaceId(parsed.tasks)).resolves.toBe(
+    "sha256:66d63a1bbc8d10b8ec19f7916cb8183e1415088e18f6b9c7ccf8333b43fe5139",
+  );
+});
+
 test("applies only schema-defined defaults", () => {
   const manifest = modelPackage();
   delete (manifest as Partial<typeof manifest>).chat_config;
@@ -137,7 +266,11 @@ test("applies only schema-defined defaults", () => {
   const parsed = parseModelPackageManifest(manifest);
   expect(parsed.chat_config).toBe("mlc-chat-config.json");
   const processor = parsed.tasks["chat.completions"].inputs.audio.processor;
-  expect(typeof processor === "string" ? -1 : processor.min_samples).toBe(1);
+  expect(
+    typeof processor !== "string" && processor.kind === "audio_decode"
+      ? processor.min_samples
+      : -1,
+  ).toBe(1);
 });
 
 test("resolves declared resources relative to the model artifact URL", () => {

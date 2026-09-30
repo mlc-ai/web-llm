@@ -19,8 +19,27 @@ export interface AudioDecodeProcessor {
   max_samples: number;
 }
 
+export interface ImageResize {
+  mode: "stretch" | "center_crop";
+  height: number;
+  width: number;
+}
+
+export interface ImageDecodeProcessor {
+  kind: "image_decode";
+  format: "rgb_u8";
+  layout: "nhwc";
+  resize: ImageResize;
+  num_embeddings: number;
+}
+
+export type TaskInputProcessor =
+  | string
+  | AudioDecodeProcessor
+  | ImageDecodeProcessor;
+
 export interface TaskInput {
-  processor: string | AudioDecodeProcessor;
+  processor: TaskInputProcessor;
   adapter?: string;
   prompt?: PromptInsertion;
 }
@@ -86,6 +105,11 @@ export interface ResolvedChatCompletionArtifact {
   textInput: TaskInput;
   audioInput?: TaskInput & {
     processor: AudioDecodeProcessor;
+    adapter: string;
+    prompt: PromptInsertion;
+  };
+  imageInput?: TaskInput & {
+    processor: ImageDecodeProcessor;
     adapter: string;
     prompt: PromptInsertion;
   };
@@ -286,15 +310,62 @@ function parseAudioDecodeProcessor(
   };
 }
 
+function parseImageResize(value: unknown, path: string): ImageResize {
+  const obj = record(value, path);
+  exactKeys(
+    obj,
+    ["mode", "height", "width"],
+    ["mode", "height", "width"],
+    path,
+  );
+  if (obj.mode !== "stretch" && obj.mode !== "center_crop") {
+    fail(`${path}.mode`, 'expected "stretch" or "center_crop"');
+  }
+  return {
+    mode: obj.mode,
+    height: integer(obj.height, `${path}.height`, 1),
+    width: integer(obj.width, `${path}.width`, 1),
+  };
+}
+
+function parseImageDecodeProcessor(
+  value: unknown,
+  path: string,
+): ImageDecodeProcessor {
+  const obj = record(value, path);
+  exactKeys(
+    obj,
+    ["kind", "format", "layout", "resize", "num_embeddings"],
+    ["kind", "format", "layout", "resize", "num_embeddings"],
+    path,
+  );
+  return {
+    kind: literal(obj.kind, "image_decode", `${path}.kind`),
+    format: literal(obj.format, "rgb_u8", `${path}.format`),
+    layout: literal(obj.layout, "nhwc", `${path}.layout`),
+    resize: parseImageResize(obj.resize, `${path}.resize`),
+    num_embeddings: integer(obj.num_embeddings, `${path}.num_embeddings`, 1),
+  };
+}
+
+function parseProcessor(value: unknown, path: string): TaskInputProcessor {
+  if (typeof value === "string") {
+    return stringValue(value, path);
+  }
+  const kind = record(value, path).kind;
+  if (kind === "image_decode") {
+    return parseImageDecodeProcessor(value, path);
+  }
+  if (kind === "audio_decode") {
+    return parseAudioDecodeProcessor(value, path);
+  }
+  fail(`${path}.kind`, 'expected "audio_decode" or "image_decode"');
+}
+
 function parseTaskInput(value: unknown, path: string): TaskInput {
   const obj = record(value, path);
   exactKeys(obj, ["processor", "adapter", "prompt"], ["processor"], path);
-  let processor: string | AudioDecodeProcessor;
-  if (typeof obj.processor === "string") {
-    processor = stringValue(obj.processor, `${path}.processor`);
-  } else {
-    processor = parseAudioDecodeProcessor(obj.processor, `${path}.processor`);
-  }
+  const processor = parseProcessor(obj.processor, `${path}.processor`);
   const adapter =
     obj.adapter === undefined
       ? undefined
@@ -629,38 +700,43 @@ export function resolveChatCompletionArtifact(
   }
 
   let audioInput: ResolvedChatCompletionArtifact["audioInput"];
+  let imageInput: ResolvedChatCompletionArtifact["imageInput"];
   for (const [name, input] of Object.entries(task.inputs)) {
-    if (
-      typeof input.processor !== "string" &&
-      input.processor.kind === "audio_decode"
-    ) {
-      if (audioInput !== undefined) {
-        fail(
-          "artifact contract",
-          "WebLLM supports one canonical audio input per task",
-        );
-      }
-      if (input.adapter === undefined || input.prompt === undefined) {
-        fail(
-          "artifact contract",
-          `audio input ${JSON.stringify(name)} has no adapter prompt`,
-        );
-      }
-      if (program.adapters[input.adapter] === undefined) {
-        fail(
-          "artifact contract",
-          `audio input ${JSON.stringify(name)} references a missing adapter`,
-        );
-      }
-      audioInput = {
-        ...input,
-        processor: input.processor,
-        adapter: input.adapter,
-        prompt: input.prompt,
-      };
+    if (typeof input.processor === "string") {
+      continue;
+    }
+    const kind = input.processor.kind === "audio_decode" ? "audio" : "image";
+    if ((kind === "audio" ? audioInput : imageInput) !== undefined) {
+      fail("artifact contract", `WebLLM supports one ${kind} input per task`);
+    }
+    if (input.adapter === undefined || input.prompt === undefined) {
+      fail(
+        "artifact contract",
+        `${kind} input ${JSON.stringify(name)} has no adapter prompt`,
+      );
+    }
+    if (program.adapters[input.adapter] === undefined) {
+      fail(
+        "artifact contract",
+        `${kind} input ${JSON.stringify(name)} references a missing adapter`,
+      );
+    }
+    const bound = { ...input, adapter: input.adapter, prompt: input.prompt };
+    if (input.processor.kind === "audio_decode") {
+      audioInput = { ...bound, processor: input.processor };
+    } else {
+      imageInput = { ...bound, processor: input.processor };
     }
   }
-  return { task, program, generation, textInput, audioInput, compiled };
+  return {
+    task,
+    program,
+    generation,
+    textInput,
+    audioInput,
+    imageInput,
+    compiled,
+  };
 }
 
 /** Parse a downloaded manifest and check its interface_id against its tasks. */
