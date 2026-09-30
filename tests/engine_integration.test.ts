@@ -6,6 +6,7 @@ import {
   createEngineWithPipeline,
   createEngineWithMultiplePipelines,
   createEngineWithEmbeddingPipeline,
+  mockChatConfig,
 } from "./helpers/engine_fixture";
 import {
   ChatCompletion,
@@ -16,6 +17,7 @@ import {
   ChatCompletionChunk,
 } from "../src/openai_api_protocols";
 import { MLCEngine } from "../src/engine";
+import { getConversationFromChatCompletionRequest } from "../src/conversation";
 import { UnclearModelToUseError } from "../src/error";
 import { jest, test, expect, describe, afterEach } from "@jest/globals";
 afterEach(() => {
@@ -90,6 +92,37 @@ describe("MLCEngine deterministic integration", () => {
     expect(response.choices[0].finish_reason).not.toBe("abort");
     expect((pipeline as any).prefillCallCount).toBe(1);
   });
+
+  test.each(["abort", "length", "stop"] as const)(
+    "a conversation continued after a reply that ended with %s is rebuilt from the request",
+    async (reason) => {
+      const { engine, pipeline } = createEngineWithPipeline(1);
+      const request: ChatCompletionRequest = {
+        model: MODEL_ID,
+        messages: [
+          { role: "user", content: "First" },
+          { role: "assistant", content: "Partial reply" },
+          { role: "user", content: "Continue" },
+        ],
+      };
+      pipeline.setConversation(
+        getConversationFromChatCompletionRequest(request, mockChatConfig),
+      );
+      jest.spyOn(pipeline, "getFinishReason").mockReturnValue(reason);
+      const reset = jest.spyOn(pipeline, "resetChat");
+      const setConversation = jest.spyOn(pipeline, "setConversation");
+      await engine.prefill(request, pipeline, mockChatConfig, {
+        max_tokens: 32,
+      });
+      const rebuilt = reason === "stop" ? 0 : 1;
+      expect(reset).toHaveBeenCalledTimes(rebuilt);
+      expect(setConversation).toHaveBeenCalledTimes(rebuilt);
+      expect(pipeline.getConversationObject().messages).toEqual(
+        getConversationFromChatCompletionRequest(request, mockChatConfig)
+          .messages,
+      );
+    },
+  );
 
   test("completion echoes prompt when requested", async () => {
     jest.useFakeTimers().setSystemTime(FIXED_CREATED_DATE);

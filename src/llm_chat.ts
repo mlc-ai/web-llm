@@ -758,6 +758,7 @@ export class LLMChatPipeline {
   resetChat(keepStats = false) {
     this.tvm.beginScope();
     this.conversation.reset();
+    this.finishReason = undefined;
     if (!keepStats) {
       this.resetRuntimeStats();
     }
