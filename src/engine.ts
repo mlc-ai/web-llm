@@ -728,7 +728,8 @@ export class MLCEngine implements MLCEngineInterface {
       (request.response_format?.type === "grammar" ||
         request.response_format?.type === "json_object");
     const completionTokens =
-      pipeline.getCurRoundDecodingTotalTokens() + completionTokenOffset;
+      pipeline.getCurRoundCompletionTotalTokens() + completionTokenOffset;
+    const decodeTokens = pipeline.getCurRoundDecodingTotalTokens();
     const promptTokens = pipeline.getCurRoundPrefillTotalTokens();
     const prefillTime = pipeline.getCurRoundPrefillTotalTime();
     const decodeTime = pipeline.getCurRoundDecodingTotalTime();
@@ -737,7 +738,7 @@ export class MLCEngine implements MLCEngineInterface {
       prefill_tokens_per_s: pipeline.getCurRoundPrefillTokensPerSec(),
       decode_tokens_per_s: pipeline.getCurRoundDecodingTokensPerSec(),
       time_to_first_token_s: prefillTime,
-      time_per_output_token_s: decodeTime / completionTokens,
+      time_per_output_token_s: decodeTokens > 0 ? decodeTime / decodeTokens : 0,
       latencyBreakdown: request.extra_body?.enable_latency_breakdown
         ? pipeline.getCurRoundLatencyBreakdown()
         : undefined,
@@ -1016,6 +1017,7 @@ export class MLCEngine implements MLCEngineInterface {
       const n = request.n ? request.n : 1;
       const choices: Array<ChatCompletion.Choice> = [];
       let completion_tokens = 0;
+      let decode_tokens = 0;
       let prompt_tokens = 0;
       let prefill_time = 0;
       let decode_time = 0;
@@ -1082,7 +1084,9 @@ export class MLCEngine implements MLCEngineInterface {
                 role: "assistant",
               },
         });
-        completion_tokens += selectedPipeline.getCurRoundDecodingTotalTokens();
+        completion_tokens +=
+          selectedPipeline.getCurRoundCompletionTotalTokens();
+        decode_tokens += selectedPipeline.getCurRoundDecodingTotalTokens();
         prompt_tokens += selectedPipeline.getCurRoundPrefillTotalTokens();
         prefill_time += selectedPipeline.getCurRoundPrefillTotalTime();
         decode_time += selectedPipeline.getCurRoundDecodingTotalTime();
@@ -1101,9 +1105,10 @@ export class MLCEngine implements MLCEngineInterface {
       const defaultExtra = {
         e2e_latency_s: (Date.now() - timeReceived) / 1000,
         prefill_tokens_per_s: prompt_tokens / prefill_time,
-        decode_tokens_per_s: completion_tokens / decode_time,
+        decode_tokens_per_s: decode_time > 0 ? decode_tokens / decode_time : 0,
         time_to_first_token_s: prefill_time,
-        time_per_output_token_s: decode_time / completion_tokens,
+        time_per_output_token_s:
+          decode_tokens > 0 ? decode_time / decode_tokens : 0,
         latencyBreakdown: request.extra_body?.enable_latency_breakdown
           ? latencyBreakdown
           : undefined,
@@ -1208,6 +1213,7 @@ export class MLCEngine implements MLCEngineInterface {
       const n = request.n ? request.n : 1;
       const choices: Array<CompletionChoice> = [];
       let completion_tokens = 0;
+      let decode_tokens = 0;
       let prompt_tokens = 0;
       let prefill_time = 0;
       let decode_time = 0;
@@ -1237,7 +1243,9 @@ export class MLCEngine implements MLCEngineInterface {
             : null,
           text: request.echo ? request.prompt + outputMessage : outputMessage,
         });
-        completion_tokens += selectedPipeline.getCurRoundDecodingTotalTokens();
+        completion_tokens +=
+          selectedPipeline.getCurRoundCompletionTotalTokens();
+        decode_tokens += selectedPipeline.getCurRoundDecodingTotalTokens();
         prompt_tokens += selectedPipeline.getCurRoundPrefillTotalTokens();
         prefill_time += selectedPipeline.getCurRoundPrefillTotalTime();
         decode_time += selectedPipeline.getCurRoundDecodingTotalTime();
@@ -1259,9 +1267,11 @@ export class MLCEngine implements MLCEngineInterface {
           extra: {
             e2e_latency_s: (Date.now() - timeReceived) / 1000,
             prefill_tokens_per_s: prompt_tokens / prefill_time,
-            decode_tokens_per_s: completion_tokens / decode_time,
+            decode_tokens_per_s:
+              decode_time > 0 ? decode_tokens / decode_time : 0,
             time_to_first_token_s: prefill_time,
-            time_per_output_token_s: decode_time / completion_tokens,
+            time_per_output_token_s:
+              decode_tokens > 0 ? decode_time / decode_tokens : 0,
             latencyBreakdown: request.extra_body?.enable_latency_breakdown
               ? latencyBreakdown
               : undefined,
