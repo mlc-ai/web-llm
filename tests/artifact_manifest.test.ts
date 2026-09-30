@@ -60,7 +60,7 @@ function compiledProgram() {
         kind: "token_generation",
         exports: {
           embed_tokens: "embed",
-          prefill_tokens: "prefill_prompt",
+          prefill_tokens: "prefill_tokens",
           decode_tokens: "decode_tokens",
           create_kv_cache: "create_tir_paged_kv_cache",
         },
@@ -82,7 +82,7 @@ test("strictly parses and resolves the model artifact pair", () => {
   );
   expect(resolved.generation).toEqual({
     inputs: "tokens",
-    prefill: "prefill_prompt",
+    prefill: "prefill_tokens",
     decode: "decode_tokens",
   });
   expect(resolved.audioInput?.processor.sample_rate_hz).toBe(16000);
@@ -233,14 +233,14 @@ test("prefers the token roles when a library declares both pairs", () => {
 
 test.each([
   [{}, /complete pair/],
-  [{ prefill_tokens: "prefill_prompt" }, /only one of prefill_tokens/],
+  [{ prefill_tokens: "prefill_tokens" }, /only one of prefill_tokens/],
   [
-    { prefill_tokens: "prefill_prompt", decode_embeds: "decode" },
+    { prefill_tokens: "prefill_tokens", decode_embeds: "decode" },
     /only one of prefill_tokens/,
   ],
   [
     {
-      prefill_tokens: "prefill_prompt",
+      prefill_tokens: "prefill_tokens",
       decode_tokens: "decode_tokens",
       prefill_embeds: "prefill",
     },
