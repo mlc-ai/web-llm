@@ -64,6 +64,11 @@ compiled model normalizes it.  This works with custom
 ``llava-hf/llava-1.5-7b-hf`` builds.  Models that pick a resolution per
 image, such as Phi-3.5-vision, keep loading without a manifest.
 
+A model that keeps a recurrent state next to the KV cache, such as Qwen3.5,
+declares ``create_rnn_state`` in its program, and WebLLM passes both states
+to prefill and decode.  The record needs the same ``max_history_size``
+override as the prebuilt Qwen3.5 records.
+
 ``model_manifest`` is a URL relative to the model URL:
 
 .. code-block:: typescript

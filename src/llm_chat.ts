@@ -438,19 +438,25 @@ export class LLMChatPipeline {
     this.kvStateKind = this.parseKVStateKind(metadata.kv_state_kind);
 
     if (this.artifact !== undefined) {
-      if (this.kvStateKind !== "kv_cache") {
+      // The roles decide the state set: create_kv_cache alone is a KV cache
+      // model, with create_rnn_state it is a hybrid one.
+      const needsRNNState =
+        this.artifact.program.exports.create_rnn_state !== undefined;
+      const kvStateKind = needsRNNState ? "hybrid" : "kv_cache";
+      if (this.kvStateKind !== kvStateKind) {
         throw new ArtifactManifestError(
-          `token_generation v1 requires kv_state_kind="kv_cache", got ${JSON.stringify(this.kvStateKind)}`,
+          `the manifest roles imply kv_state_kind=${JSON.stringify(kvStateKind)}, ` +
+            `but the library reports ${JSON.stringify(this.kvStateKind)}`,
         );
       }
       this.resolvedModelABI = {
-        kvStateKind: "kv_cache",
+        kvStateKind,
         prefillABI: "single",
         decodeABI: "single",
         prefillFunctionName: this.artifact.generation.prefill,
         decodeFunctionName: this.artifact.generation.decode,
         needsKVCache: true,
-        needsRNNState: false,
+        needsRNNState,
       };
     } else {
       const vmFunctionAvailability =
@@ -672,7 +678,7 @@ export class LLMChatPipeline {
 
     if (this.resolvedModelABI.needsRNNState) {
       const createRNNState = LLMChatPipeline.getRequiredVMFunctionByName(
-        "create_rnn_state",
+        this.artifact?.program.exports.create_rnn_state ?? "create_rnn_state",
         vmFunctionRegistry,
       );
       this.rnnState = this.tvm.detachFromCurrentScope(
@@ -2162,17 +2168,14 @@ export class LLMChatPipeline {
               .empty([1, inputLength], "int32", this.device)
               .copyFrom(ids),
           );
-    const inputLenShape = this.tvm.makeShapeTuple([inputLength]);
-    const seqIdsTuple = this.tvm.makeShapeTuple([0]);
-    const kvCache = this.requireKVCache();
-    this.fKVCacheBeginForward(kvCache, seqIdsTuple, inputLenShape);
+    const states = this.beginArtifactForward(inputLength);
     const result = this.prefill(
       inputEmbeddings,
       ...idTensors,
-      kvCache,
+      ...states,
       this.params,
     );
-    this.fKVCacheEndForward(kvCache);
+    this.endArtifactForward(states);
     this.filledKVCacheLength += inputLength;
     const logits = this.tvm.detachFromCurrentScope(result.get(0));
     this.tvm.endScope();
@@ -2189,17 +2192,31 @@ export class LLMChatPipeline {
     } else {
       input = this.tvm.empty([1, 1], "int32", this.device).copyFrom([tokenId]);
     }
-    const inputLenShape = this.tvm.makeShapeTuple([1]);
-    const seqIdsTuple = this.tvm.makeShapeTuple([0]);
-    const kvCache = this.requireKVCache();
-    this.fKVCacheBeginForward(kvCache, seqIdsTuple, inputLenShape);
-    const result = this.decoding(input, kvCache, this.params);
-    this.fKVCacheEndForward(kvCache);
+    const states = this.beginArtifactForward(1);
+    const result = this.decoding(input, ...states, this.params);
+    this.endArtifactForward(states);
     this.filledKVCacheLength += 1;
     const logits = this.tvm.detachFromCurrentScope(result.get(0));
     this.tvm.endScope();
     this.tvm.attachToCurrentScope(logits);
     return logits;
+  }
+
+  /** Begin a forward of `inputLength` positions on every state the model keeps, in the order the functions take them. */
+  private beginArtifactForward(inputLength: number): tvmjs.TVMObject[] {
+    const inputLenShape = this.tvm.makeShapeTuple([inputLength]);
+    const seqIdsTuple = this.tvm.makeShapeTuple([0]);
+    const states = this.getActiveKVStates();
+    for (const state of states) {
+      this.fKVCacheBeginForward(state, seqIdsTuple, inputLenShape);
+    }
+    return states;
+  }
+
+  private endArtifactForward(states: tvmjs.TVMObject[]): void {
+    for (let i = states.length - 1; i >= 0; --i) {
+      this.fKVCacheEndForward(states[i]);
+    }
   }
 
   /**
