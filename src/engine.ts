@@ -95,6 +95,10 @@ import {
   ResumableEngineMetrics,
   ResumableGenerationCoordinator,
 } from "./resumable/coordinator";
+import {
+  loadModelPackageManifest,
+  resolveModelPackageResourceURLs,
+} from "./artifact_manifest";
 
 function getUnixTimestampSeconds(): number {
   return Math.floor(Date.now() / 1000);
@@ -369,8 +373,24 @@ export class MLCEngine implements MLCEngineInterface {
       getCacheOptions(this.appConfig),
     );
 
+    // A model uses its manifest only when the record names one.
+    const modelPackage =
+      modelRecord.model_manifest === undefined
+        ? undefined
+        : await loadModelPackageManifest(
+            (await configCache.fetchWithCache(
+              new URL(modelRecord.model_manifest, modelUrl).href,
+              "arraybuffer",
+              this.reloadController?.signal,
+            )) as ArrayBuffer,
+          );
+    const packageResources = resolveModelPackageResourceURLs(
+      modelUrl,
+      modelPackage,
+    );
+
     // load config
-    const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
+    const configUrl = packageResources.chatConfigUrl;
     const configData = (await configCache.fetchWithCache(
       configUrl,
       "arraybuffer",
@@ -486,10 +506,14 @@ export class MLCEngine implements MLCEngineInterface {
       this.logger,
       modelRecord.integrity,
     );
-    await tvm.fetchTensorCache(modelUrl, tvm.webgpu(), {
-      ...getTensorCacheAccessOptions("webllm/model", this.appConfig),
-      signal: this.reloadController?.signal,
-    });
+    await tvm.fetchTensorCache(
+      packageResources.tensorCacheBaseUrl,
+      tvm.webgpu(),
+      {
+        ...getTensorCacheAccessOptions("webllm/model", this.appConfig),
+        signal: this.reloadController?.signal,
+      },
+    );
 
     // Instantiate pipeline
     // TODO: would be good to somehow check for error when LLMChatPipeline is loaded for an
@@ -503,6 +527,12 @@ export class MLCEngine implements MLCEngineInterface {
         tokenizer,
         curModelConfig,
         logitProcessor,
+        modelPackage,
+        {
+          features: gpuDetectOutput.device.features,
+          maxStorageBufferBindingSize:
+            gpuDetectOutput.device.limits.maxStorageBufferBindingSize,
+        },
       );
     }
     await newPipeline.asyncLoadWebGPUPipelines();
@@ -934,6 +964,7 @@ export class MLCEngine implements MLCEngineInterface {
       request,
       selectedModelId,
       selectedModelType!,
+      selectedPipeline.getSupportedInputKinds?.(),
     );
     const genConfig: GenerationConfig = {
       frequency_penalty: request.frequency_penalty,
@@ -1531,7 +1562,7 @@ export class MLCEngine implements MLCEngineInterface {
     chatConfig: ChatConfig,
     reuseKVCache = true,
   ): {
-    inputStr: string;
+    inputStr: string | API.ChatCompletionContentPart[];
     lastMsgRole: Role;
     inputRoleStr?: string;
   } {
@@ -1539,7 +1570,7 @@ export class MLCEngine implements MLCEngineInterface {
     if (chatConfig === undefined) {
       throw new ConfigurationNotInitializedError();
     }
-    let inputStr: string;
+    let inputStr: string | API.ChatCompletionContentPart[];
     let inputRoleStr: string | undefined;
     let lastMsgRole = Role.user;
     if ("messages" in input) {
@@ -1566,7 +1597,7 @@ export class MLCEngine implements MLCEngineInterface {
       const last_msg = input.messages[
         input.messages.length - 1
       ] as ChatCompletionMessageParam;
-      inputStr = last_msg.content as string;
+      inputStr = last_msg.content as string | API.ChatCompletionContentPart[];
       inputRoleStr =
         last_msg.role === "user" && last_msg.name ? last_msg.name : undefined;
       lastMsgRole = last_msg.role === "tool" ? Role.tool : Role.user;

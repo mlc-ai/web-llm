@@ -25,6 +25,7 @@ export interface ConvTemplateConfig {
   system_prefix_token_ids?: Array<number>;
   stop_token_ids: Array<number>;
   add_role_after_system_message?: boolean;
+  render_empty_system_message?: boolean;
 }
 
 /**
@@ -275,6 +276,8 @@ export enum ModelType {
  * @param required_features: feature needed to run this model (e.g. shader-f16).
  * @param model_type: the intended usecase for the model, if unspecified, default to LLM.
  * @param integrity: optional SRI hashes to verify downloaded artifacts. See {@link ModelIntegrity}.
+ * @param model_manifest: URL of mlc-model-manifest.json, relative to the model URL. The model
+ *   is loaded through its manifest only when this is set.
  */
 export interface ModelRecord {
   model: string;
@@ -287,6 +290,7 @@ export interface ModelRecord {
   required_features?: Array<string>;
   model_type?: ModelType;
   integrity?: ModelIntegrity;
+  model_manifest?: string;
 }
 
 /**

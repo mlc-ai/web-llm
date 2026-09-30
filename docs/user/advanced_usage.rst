@@ -1,6 +1,81 @@
 Advanced Use Cases
 ==================
 
+Audio Input with a Model Manifest (Experimental)
+------------------------------------------------
+
+A custom MLC model directory can include ``mlc-model-manifest.json``.  The
+manifest describes the task, the audio format the model expects, the compiled
+function that embeds audio, the prompt tokens around it, and two hashes that
+must match the compiled library.  WebLLM reads the manifest only when the
+model record sets ``model_manifest``, so other models load as before.  A
+manifest that is missing, invalid or does not match the library fails the
+load.
+
+Weights are read from ``tensor-cache.json``.  WebLLM loads each record in that
+cache as its own buffer and never asks WebGPU for a buffer over 1 GiB, so
+model conversion has to split large weights.  Gemma 4's per-layer embedding is
+exported as 35 records, one per layer.  The compiled library reports the
+largest buffer the model needs.
+
+The compiled library names its prefill and decode functions under one of two
+pairs of roles.  ``prefill_tokens`` and ``decode_tokens`` take token IDs, which
+Gemma 4 needs.  ``prefill_embeds`` and ``decode_embeds`` take embeddings only.
+WebLLM calls the pair the library declares, and the token pair when it
+declares both.
+
+To send audio, pass a base64 WAV or a WAV data URL as an ``input_audio``
+content part:
+
+.. code-block:: typescript
+
+   const response = await engine.chat.completions.create({
+     messages: [{
+       role: "user",
+       content: [
+         {
+           type: "input_audio",
+           input_audio: { format: "wav", data: wavBase64 },
+         },
+         { type: "text", text: "What do you hear?" },
+       ],
+     }],
+   });
+
+Callers that already have samples can pass mono PCM as a ``Float32Array`` and
+skip WAV encoding:
+
+.. code-block:: typescript
+
+   const inputAudio = {
+     type: "input_audio" as const,
+     input_audio: {
+       format: "pcm_f32" as const,
+       data: samples, // Float32Array
+       sample_rate: 48000,
+     },
+   };
+
+WebLLM downmixes WAV input to mono and resamples both forms to the rate the
+manifest asks for.  Feature extraction happens in the compiled model.  Audio
+embeddings longer than the model's prefill limit are split into chunks.
+
+This currently works with custom ``google/gemma-4-E2B-it`` q4f16_1 builds.
+There is no prebuilt model record yet.  Input must be WAV or PCM.  URLs and
+compressed formats are not supported, and neither are vision, video, ASR or
+audio through the native MLC server.
+
+``model_manifest`` is a URL relative to the model URL:
+
+.. code-block:: typescript
+
+   const modelRecord = {
+     model_id: "gemma-4-E2B-it-q4f16_1-MLC",
+     model: modelUrl,
+     model_lib: modelLibUrl,
+     model_manifest: "mlc-model-manifest.json",
+   };
+
 Using Workers
 -------------
 

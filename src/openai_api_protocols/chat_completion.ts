@@ -45,6 +45,7 @@ import {
   UnsupportedFieldsError,
   UnsupportedImageURLError,
   UnsupportedModelIdError,
+  UnsupportedContentPartError,
   UserMessageContentErrorForNonVLM,
 } from "../error";
 import type { StructuralTagLike } from "@mlc-ai/web-xgrammar";
@@ -428,6 +429,7 @@ export function postInitAndCheckFields(
   request: ChatCompletionRequest,
   currentModelId: string,
   currentModelType: ModelType,
+  supportedInputKinds?: ReadonlySet<"image" | "audio">,
 ): void {
   // Generation-related checks and post inits are in `postInitAndCheckGenerationConfigValues()`
   // 1. Check unsupported fields in request
@@ -446,7 +448,10 @@ export function postInitAndCheckFields(
     (message: ChatCompletionMessageParam, index: number) => {
       // Check content array messages (that are not simple string)
       if (message.role === "user" && typeof message.content !== "string") {
-        if (currentModelType !== ModelType.VLM) {
+        if (
+          supportedInputKinds === undefined &&
+          currentModelType !== ModelType.VLM
+        ) {
           // Only VLM can handle non-string content (i.e. message with image)
           throw new UserMessageContentErrorForNonVLM(
             currentModelId,
@@ -458,6 +463,15 @@ export function postInitAndCheckFields(
         for (let i = 0; i < message.content.length; i++) {
           const curContent = message.content[i];
           if (curContent.type === "image_url") {
+            if (
+              supportedInputKinds !== undefined &&
+              !supportedInputKinds.has("image")
+            ) {
+              throw new UnsupportedContentPartError(
+                currentModelId,
+                curContent.type,
+              );
+            }
             // Do not support image_url.detail
             const detail = curContent.image_url.detail;
             if (detail !== undefined && detail !== null) {
@@ -467,6 +481,38 @@ export function postInitAndCheckFields(
             const url = curContent.image_url.url;
             if (!url.startsWith("data:image") && !url.startsWith("http")) {
               throw new UnsupportedImageURLError(url);
+            }
+          } else if (curContent.type === "input_audio") {
+            if (
+              supportedInputKinds === undefined ||
+              !supportedInputKinds.has("audio")
+            ) {
+              throw new UnsupportedContentPartError(
+                currentModelId,
+                curContent.type,
+              );
+            }
+            if (curContent.input_audio.format === "pcm_f32") {
+              if (!(curContent.input_audio.data instanceof Float32Array)) {
+                throw new TypeError(
+                  "pcm_f32 input_audio.data must be a Float32Array",
+                );
+              }
+              if (
+                !Number.isSafeInteger(curContent.input_audio.sample_rate) ||
+                curContent.input_audio.sample_rate <= 0
+              ) {
+                throw new TypeError(
+                  "pcm_f32 input_audio.sample_rate must be a positive integer",
+                );
+              }
+            } else if (
+              typeof curContent.input_audio.data !== "string" ||
+              /^https?:/i.test(curContent.input_audio.data)
+            ) {
+              throw new TypeError(
+                "WAV input_audio.data must be raw base64 or a WAV data URL",
+              );
             }
           } else {
             numTextContent += 1;
@@ -621,7 +667,8 @@ export function postInitAndCheckFields(
 
 export type ChatCompletionContentPart =
   | ChatCompletionContentPartText
-  | ChatCompletionContentPartImage;
+  | ChatCompletionContentPartImage
+  | ChatCompletionContentPartInputAudio;
 
 export interface ChatCompletionContentPartText {
   /**
@@ -655,6 +702,28 @@ export interface ChatCompletionContentPartImage {
    * The type of the content part.
    */
   type: "image_url";
+}
+
+/** Base64 WAV, as in the OpenAI API. */
+export interface ChatCompletionAudioInputWav {
+  data: string;
+  format: "wav";
+}
+
+/** Mono PCM samples. A Float32Array can be posted to a worker as is. */
+export interface ChatCompletionAudioInputPCM {
+  data: Float32Array;
+  format: "pcm_f32";
+  sample_rate: number;
+}
+
+export type ChatCompletionAudioInput =
+  | ChatCompletionAudioInputWav
+  | ChatCompletionAudioInputPCM;
+
+export interface ChatCompletionContentPartInputAudio {
+  input_audio: ChatCompletionAudioInput;
+  type: "input_audio";
 }
 
 //////////////////////////////// 1.2. MESSAGE TOOL CALL ////////////////////////////////

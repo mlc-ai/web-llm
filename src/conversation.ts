@@ -7,6 +7,7 @@ import {
 import {
   ChatCompletionContentPart,
   ChatCompletionContentPartImage,
+  ChatCompletionContentPartInputAudio,
   ChatCompletionMessageParam,
   ChatCompletionRequest,
 } from "./openai_api_protocols/index";
@@ -25,6 +26,10 @@ import {
 } from "./error";
 
 type ImageURL = ChatCompletionContentPartImage.ImageURL;
+export type ArtifactPromptSegment =
+  | string
+  | ChatCompletionContentPartImage
+  | ChatCompletionContentPartInputAudio;
 
 /**
  * Helper to keep track of history conversations.
@@ -63,6 +68,21 @@ export class Conversation {
     this.isTextCompletion = isTextCompletion;
   }
 
+  private getSystemPrompt(): string {
+    const systemMessage =
+      this.override_system_message ?? this.config.system_message;
+    if (
+      systemMessage === "" &&
+      this.config.render_empty_system_message === false
+    ) {
+      return "";
+    }
+    return this.config.system_template.replace(
+      MessagePlaceholders.system,
+      systemMessage,
+    );
+  }
+
   // TODO: Consider rewriting this method, a bit messy.
   private getPromptArrayInternal(
     addSystem: boolean,
@@ -73,16 +93,7 @@ export class Conversation {
       throw Error("Need seps to work");
     }
 
-    // Prepare system message
-    // Get overridden system message if exists, else use default one in config
-    let system_message = this.config.system_message;
-    if (this.override_system_message !== undefined) {
-      system_message = this.override_system_message;
-    }
-    const system_prompt = this.config.system_template.replace(
-      MessagePlaceholders.system,
-      system_message,
-    );
+    const system_prompt = this.getSystemPrompt();
     const ret: Array<string | Array<string | ImageURL>> =
       addSystem && system_prompt !== "" ? [system_prompt] : [];
 
@@ -141,8 +152,12 @@ export class Conversation {
             }
             textContentPart = curContentPart.text;
             seenText = true;
-          } else {
+          } else if (curContentPart.type === "image_url") {
             imageContentParts.push(curContentPart.image_url);
+          } else {
+            throw new Error(
+              "Audio content requires a model artifact manifest and cannot use the legacy image prompt path.",
+            );
           }
         }
       } else {
@@ -261,6 +276,156 @@ export class Conversation {
       throw Error("needs to call getPromptArray for the first message");
     }
     return this.getPromptArrayInternal(false, this.messages.length - 2, config);
+  }
+
+  private getArtifactPromptSegmentsInternal(
+    addSystem: boolean,
+    startPos: number,
+  ): ArtifactPromptSegment[] {
+    if (this.config.seps.length === 0) {
+      throw new Error("Need seps to work");
+    }
+
+    const systemPrompt = this.getSystemPrompt();
+    const result: ArtifactPromptSegment[] =
+      addSystem && systemPrompt !== "" ? [systemPrompt] : [];
+
+    for (let index = startPos; index < this.messages.length; ++index) {
+      const [role, roleString, content] = this.messages[index];
+      if (content === undefined) {
+        if (index !== this.messages.length - 1) {
+          throw new Error(
+            "InternalError: Only the final message may be an unfinished reply header.",
+          );
+        }
+        const emptySeparator = this.config.role_empty_sep ?? ": ";
+        result.push(roleString + emptySeparator);
+        continue;
+      }
+
+      if (
+        this.isLastMessageEmptyThinkingReplyHeader &&
+        index === this.messages.length - 1
+      ) {
+        const contentSeparator = this.config.role_content_sep ?? ": ";
+        result.push(roleString + contentSeparator + content);
+        continue;
+      }
+
+      const parts: ChatCompletionContentPart[] =
+        typeof content === "string"
+          ? [{ type: "text", text: content }]
+          : content;
+      const textParts = parts.filter(
+        (part): part is Extract<ChatCompletionContentPart, { type: "text" }> =>
+          part.type === "text",
+      );
+      if (textParts.length > 1) {
+        throw new MultipleTextContentError();
+      }
+      const text = textParts[0]?.text ?? "";
+
+      // Split the role template around the message so that non-text parts end up inside it.
+      // Text that ends up next to other text is joined, so a message without audio tokenizes
+      // exactly as it does on the path without a manifest.
+      let before = "";
+      let after = "";
+      const template = this.config.role_templates?.[role];
+      if (template !== undefined) {
+        const placeholder =
+          MessagePlaceholders[Role[role] as keyof typeof MessagePlaceholders];
+        const at = template.indexOf(placeholder);
+        [before, after] =
+          at === -1
+            ? [template, ""]
+            : [template.slice(0, at), template.slice(at + placeholder.length)];
+        // As in getPromptArray: the first function placeholder takes the
+        // function list when function calling is on, and one more is removed.
+        const replacements =
+          this.use_function_calling && this.function_string !== ""
+            ? [this.function_string, ""]
+            : [""];
+        const fillFunction = (part: string) => {
+          while (
+            replacements.length !== 0 &&
+            part.includes(MessagePlaceholders.function)
+          ) {
+            part = part.replace(
+              MessagePlaceholders.function,
+              replacements.shift()!,
+            );
+          }
+          return part;
+        };
+        before = fillFunction(before);
+        after = fillFunction(after);
+      }
+      const messageText =
+        template === undefined ||
+        template.includes(
+          MessagePlaceholders[Role[role] as keyof typeof MessagePlaceholders],
+        )
+          ? text
+          : "";
+
+      const omitRole =
+        this.config.add_role_after_system_message === false &&
+        systemPrompt !== "" &&
+        index === 0;
+      const rolePrefix = omitRole
+        ? ""
+        : roleString + (this.config.role_content_sep ?? ": ");
+
+      const message: ArtifactPromptSegment[] = [];
+      const addText = (value: string) => {
+        if (value === "") {
+          return;
+        }
+        const last = message[message.length - 1];
+        if (typeof last === "string") {
+          message[message.length - 1] = last + value;
+        } else {
+          message.push(value);
+        }
+      };
+      addText(rolePrefix + before);
+      for (const part of parts) {
+        if (part.type === "text") {
+          addText(messageText);
+        } else {
+          message.push(part);
+        }
+      }
+      addText(after + this.config.seps[index % this.config.seps.length]);
+      result.push(...message);
+    }
+    return result;
+  }
+
+  /** The prompt as text and audio segments, in the order of the content parts. */
+  getArtifactPromptSegments(): ArtifactPromptSegment[] {
+    if (this.isTextCompletion) {
+      throw new TextCompletionConversationError("getArtifactPromptSegments");
+    }
+    return this.getArtifactPromptSegmentsInternal(true, 0);
+  }
+
+  /** Segments of the latest round, which has not been prefilled yet. */
+  getArtifactPromptSegmentsLastRound(): ArtifactPromptSegment[] {
+    if (this.isTextCompletion) {
+      throw new TextCompletionConversationError(
+        "getArtifactPromptSegmentsLastRound",
+      );
+    }
+    if (this.messages.length < 3) {
+      throw new Error(
+        "needs to call getArtifactPromptSegments for the first message",
+      );
+    }
+    return this.getArtifactPromptSegmentsInternal(
+      false,
+      this.messages.length - 2,
+    );
   }
 
   /**
@@ -442,6 +607,37 @@ export function compareConversationObject(
               entryA_k.image_url.url !== entryB_k.image_url.url ||
               entryA_k.image_url.detail !== entryB_k.image_url.detail
             ) {
+              return false;
+            }
+          } else if (
+            entryA_k.type === "input_audio" &&
+            entryB_k.type === "input_audio"
+          ) {
+            const audioA = entryA_k.input_audio;
+            const audioB = entryB_k.input_audio;
+            if (audioA.format !== audioB.format) {
+              return false;
+            }
+            if (audioA.format === "wav" && audioB.format === "wav") {
+              if (audioA.data !== audioB.data) {
+                return false;
+              }
+            } else if (
+              audioA.format === "pcm_f32" &&
+              audioB.format === "pcm_f32"
+            ) {
+              if (
+                audioA.sample_rate !== audioB.sample_rate ||
+                audioA.data.length !== audioB.data.length
+              ) {
+                return false;
+              }
+              for (let sample = 0; sample < audioA.data.length; ++sample) {
+                if (audioA.data[sample] !== audioB.data[sample]) {
+                  return false;
+                }
+              }
+            } else {
               return false;
             }
           } else {
