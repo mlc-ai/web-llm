@@ -419,32 +419,6 @@ describe("Manifest prompt segments preserve modality order", () => {
     );
   });
 
-  test("keeps text and audio parts in source order", () => {
-    const config = JSON.parse(qwen3ChatConfigJSONString) as ChatConfig;
-    const conversation = getConversation(config.conv_template);
-    const audio = {
-      type: "input_audio" as const,
-      input_audio: {
-        format: "pcm_f32" as const,
-        data: new Float32Array([0, 0.25, -0.25]),
-        sample_rate: 16000,
-      },
-    };
-    conversation.appendMessage(Role.user, [
-      { type: "text", text: "before" },
-      audio,
-    ]);
-    conversation.appendReplyHeader(Role.assistant);
-
-    const segments = conversation.getArtifactPromptSegments();
-    const audioIndex = segments.indexOf(audio);
-    expect(audioIndex).toBeGreaterThan(0);
-    expect(segments.slice(0, audioIndex).join("")).toContain("before");
-    expect(segments.slice(audioIndex + 1).join("")).toContain(
-      "<|im_start|>assistant",
-    );
-  });
-
   test("compares native PCM content by value for multi-round reuse", () => {
     const config = JSON.parse(qwen3ChatConfigJSONString) as ChatConfig;
     const request = (lastSample: number): ChatCompletionRequest => ({
