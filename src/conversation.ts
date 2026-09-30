@@ -325,9 +325,8 @@ export class Conversation {
       }
       const text = textParts[0]?.text ?? "";
 
-      // Split the role template around the message so that non-text parts end up inside it.
-      // Text that ends up next to other text is joined, so a message without audio tokenizes
-      // exactly as it does on the path without a manifest.
+      // Audio goes inside the role template. Adjacent text is joined so a
+      // message without audio tokenizes as it does without a manifest.
       let before = "";
       let after = "";
       const template = this.config.role_templates?.[role];
@@ -339,8 +338,7 @@ export class Conversation {
           at === -1
             ? [template, ""]
             : [template.slice(0, at), template.slice(at + placeholder.length)];
-        // As in getPromptArray: the first function placeholder takes the
-        // function list when function calling is on, and one more is removed.
+        // Same replacements as getPromptArray.
         const replacements =
           this.use_function_calling && this.function_string !== ""
             ? [this.function_string, ""]

@@ -2020,7 +2020,7 @@ export class LLMChatPipeline {
 
         const embeddings = this.getArtifactAudioEmbeddings(segment);
         const audioTokenCount = embeddings.shape[0];
-        // Reject a recording that cannot fit before its chunks are sliced and kept.
+        // Reject a recording that cannot fit before slicing it.
         const lengthSoFar =
           this.filledKVCacheLength +
           pendingTokens.length +
