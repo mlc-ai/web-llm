@@ -399,6 +399,26 @@ describe("Manifest prompt segments preserve modality order", () => {
     expect(segments[audioIndex + 1]).toMatch(/^hello<end>/);
   });
 
+  test("fills the function placeholder once, as the prompt array does", () => {
+    const config = JSON.parse(qwen3ChatConfigJSONString) as ChatConfig;
+    const conversation = getConversation({
+      ...config.conv_template,
+      role_templates: {
+        user: "{function_string} {user_message} {function_string}",
+      },
+    } as any);
+    conversation.use_function_calling = true;
+    conversation.function_string = "TOOLS";
+    conversation.appendMessage(Role.user, "hello");
+    conversation.appendReplyHeader(Role.assistant);
+    expect(conversation.getArtifactPromptSegments()).toEqual(
+      conversation.getPromptArray(),
+    );
+    expect(conversation.getArtifactPromptSegments().join("")).toContain(
+      "TOOLS hello ",
+    );
+  });
+
   test("keeps text and audio parts in source order", () => {
     const config = JSON.parse(qwen3ChatConfigJSONString) as ChatConfig;
     const conversation = getConversation(config.conv_template);

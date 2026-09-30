@@ -339,12 +339,26 @@ export class Conversation {
           at === -1
             ? [template, ""]
             : [template.slice(0, at), template.slice(at + placeholder.length)];
-        const functionString =
+        // As in getPromptArray: the first function placeholder takes the
+        // function list when function calling is on, and one more is removed.
+        const replacements =
           this.use_function_calling && this.function_string !== ""
-            ? this.function_string
-            : "";
-        before = before.replace(MessagePlaceholders.function, functionString);
-        after = after.replace(MessagePlaceholders.function, functionString);
+            ? [this.function_string, ""]
+            : [""];
+        const fillFunction = (part: string) => {
+          while (
+            replacements.length !== 0 &&
+            part.includes(MessagePlaceholders.function)
+          ) {
+            part = part.replace(
+              MessagePlaceholders.function,
+              replacements.shift()!,
+            );
+          }
+          return part;
+        };
+        before = fillFunction(before);
+        after = fillFunction(after);
       }
       const messageText =
         template === undefined ||
