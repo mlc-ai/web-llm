@@ -175,6 +175,7 @@
 <li class="toctree-l1"><a class="reference internal" href="get_started.html">Getting Started with WebLLM</a></li>
 <li class="toctree-l1"><a class="reference internal" href="basic_usage.html">Basic Usage</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Advanced Use Cases</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#audio-input-with-a-model-manifest-experimental">Audio Input with a Model Manifest (Experimental)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#using-workers">Using Workers</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#using-web-workers">Using Web Workers</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#service-workers">Service Workers</a></li>
@@ -279,6 +280,70 @@
             
   <section id="advanced-use-cases">
 <h1>Advanced Use Cases<a class="headerlink" href="#advanced-use-cases" title="Permalink to this heading">¶</a></h1>
+<section id="audio-input-with-a-model-manifest-experimental">
+<h2>Audio Input with a Model Manifest (Experimental)<a class="headerlink" href="#audio-input-with-a-model-manifest-experimental" title="Permalink to this heading">¶</a></h2>
+<p>A custom MLC model directory can include <code class="docutils literal notranslate"><span class="pre">mlc-model-manifest.json</span></code>.  The
+manifest describes the task, the audio format the model expects, the compiled
+function that embeds audio, the prompt tokens around it, and two hashes that
+must match the compiled library.  WebLLM reads the manifest only when the
+model record sets <code class="docutils literal notranslate"><span class="pre">model_manifest</span></code>, so other models load as before.  A
+manifest that is missing, invalid or does not match the library fails the
+load.</p>
+<p>Weights are read from <code class="docutils literal notranslate"><span class="pre">tensor-cache.json</span></code>.  WebLLM loads each record in that
+cache as its own buffer and never asks WebGPU for a buffer over 1 GiB, so
+model conversion has to split large weights.  Gemma 4’s per-layer embedding is
+exported as 35 records, one per layer.  The compiled library reports the
+largest buffer the model needs.</p>
+<p>The compiled library names its prefill and decode functions under one of two
+pairs of roles.  <code class="docutils literal notranslate"><span class="pre">prefill_tokens</span></code> and <code class="docutils literal notranslate"><span class="pre">decode_tokens</span></code> take token IDs, which
+Gemma 4 needs.  <code class="docutils literal notranslate"><span class="pre">prefill_embeds</span></code> and <code class="docutils literal notranslate"><span class="pre">decode_embeds</span></code> take embeddings only.
+WebLLM calls the pair the library declares, and the token pair when it
+declares both.</p>
+<p>To send audio, pass a base64 WAV or a WAV data URL as an <code class="docutils literal notranslate"><span class="pre">input_audio</span></code>
+content part:</p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">response</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">completions</span><span class="p">.</span><span class="nx">create</span><span class="p">({</span>
+<span class="w">  </span><span class="nx">messages</span><span class="o">:</span><span class="w"> </span><span class="p">[{</span>
+<span class="w">    </span><span class="nx">role</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;user&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">content</span><span class="o">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">        </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;input_audio&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">input_audio</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">format</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;wav&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">data</span><span class="o">:</span><span class="w"> </span><span class="kt">wavBase64</span><span class="w"> </span><span class="p">},</span>
+<span class="w">      </span><span class="p">},</span>
+<span class="w">      </span><span class="p">{</span><span class="w"> </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;text&quot;</span><span class="p">,</span><span class="w"> </span><span class="nx">text</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;What do you hear?&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="p">],</span>
+<span class="w">  </span><span class="p">}],</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+<p>Callers that already have samples can pass mono PCM as a <code class="docutils literal notranslate"><span class="pre">Float32Array</span></code> and
+skip WAV encoding:</p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">inputAudio</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kr">type</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;input_audio&quot;</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="kd">const</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">input_audio</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">format</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;pcm_f32&quot;</span><span class="w"> </span><span class="kr">as</span><span class="w"> </span><span class="kd">const</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">data</span><span class="o">:</span><span class="w"> </span><span class="kt">samples</span><span class="p">,</span><span class="w"> </span><span class="c1">// Float32Array</span>
+<span class="w">    </span><span class="nx">sample_rate</span><span class="o">:</span><span class="w"> </span><span class="kt">48000</span><span class="p">,</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p>WebLLM downmixes WAV input to mono and resamples both forms to the rate the
+manifest asks for.  Feature extraction happens in the compiled model.  Audio
+embeddings longer than the model’s prefill limit are split into chunks.</p>
+<p>This currently works with custom <code class="docutils literal notranslate"><span class="pre">google/gemma-4-E2B-it</span></code> q4f16_1 builds.
+There is no prebuilt model record yet.  Input must be WAV or PCM.  URLs and
+compressed formats are not supported, and neither are vision, video, ASR or
+audio through the native MLC server.</p>
+<p><code class="docutils literal notranslate"><span class="pre">model_manifest</span></code> is a URL relative to the model URL:</p>
+<div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">modelRecord</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">model_id</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;gemma-4-E2B-it-q4f16_1-MLC&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">model</span><span class="o">:</span><span class="w"> </span><span class="kt">modelUrl</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">model_lib</span><span class="o">:</span><span class="w"> </span><span class="kt">modelLibUrl</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">model_manifest</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;mlc-model-manifest.json&quot;</span><span class="p">,</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+</section>
 <section id="using-workers">
 <h2>Using Workers<a class="headerlink" href="#using-workers" title="Permalink to this heading">¶</a></h2>
 <p>You can put the heavy computation in a worker script to optimize your application performance. To do so, you need to:</p>
