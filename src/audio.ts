@@ -50,6 +50,38 @@ function fourCC(view: DataView, offset: number): string {
   );
 }
 
+const WAVE_FORMAT_EXTENSIBLE = 0xfffe;
+// Bytes 4..15 of the PCM and IEEE float subformat GUIDs. Bytes 0..3 hold
+// the format tag.
+const SUBFORMAT_GUID_TAIL = [
+  0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71,
+];
+
+// Returns the format tag carried by an extensible fmt chunk. Subformats
+// outside the known GUID family map to the extensible tag itself so the
+// caller rejects them.
+function readExtensibleFormat(
+  view: DataView,
+  payload: number,
+  size: number,
+  bitsPerSample: number,
+): number {
+  if (size < 40 || view.getUint16(payload + 16, true) < 22) {
+    audioError("WAV extensible fmt chunk is truncated");
+  }
+  const validBitsPerSample = view.getUint16(payload + 18, true);
+  if (validBitsPerSample < 1 || validBitsPerSample > bitsPerSample) {
+    audioError("WAV valid bits per sample must fit the container bit depth");
+  }
+  const guid = payload + 24;
+  for (let i = 0; i < SUBFORMAT_GUID_TAIL.length; ++i) {
+    if (view.getUint8(guid + 4 + i) !== SUBFORMAT_GUID_TAIL[i]) {
+      return WAVE_FORMAT_EXTENSIBLE;
+    }
+  }
+  return view.getUint32(guid, true);
+}
+
 function decodeWav(bytes: Uint8Array): DecodedWav {
   if (bytes.byteLength < 12) {
     audioError("WAV input is truncated");
@@ -83,6 +115,9 @@ function decodeWav(bytes: Uint8Array): DecodedWav {
       sampleRate = view.getUint32(payload + 4, true);
       blockAlign = view.getUint16(payload + 12, true);
       bitsPerSample = view.getUint16(payload + 14, true);
+      if (format === WAVE_FORMAT_EXTENSIBLE) {
+        format = readExtensibleFormat(view, payload, size, bitsPerSample);
+      }
     } else if (id === "data") {
       dataOffset = payload;
       dataSize = size;

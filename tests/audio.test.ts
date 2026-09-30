@@ -10,13 +10,26 @@ const processor: AudioDecodeProcessor = {
   max_samples: 480000,
 };
 
-function pcm16Wav(
-  interleaved: number[],
-  sampleRate: number,
-  channels: number,
-): Uint8Array {
-  const dataSize = interleaved.length * 2;
-  const bytes = new Uint8Array(44 + dataSize);
+interface WavSpec {
+  format: 1 | 3;
+  sampleRate: number;
+  channels: number;
+  interleaved: number[];
+  // Write a WAVE_FORMAT_EXTENSIBLE header. A subformat tag other than
+  // `format` stands in for an unsupported codec GUID.
+  extensible?: { subformat?: number };
+}
+
+const SUBFORMAT_GUID_TAIL = [
+  0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71,
+];
+
+function wav(spec: WavSpec): Uint8Array {
+  const { format, sampleRate, channels, interleaved, extensible } = spec;
+  const bytesPerSample = format === 1 ? 2 : 4;
+  const fmtSize = extensible === undefined ? 16 : 40;
+  const dataSize = interleaved.length * bytesPerSample;
+  const bytes = new Uint8Array(28 + fmtSize + dataSize);
   const view = new DataView(bytes.buffer);
   const write = (offset: number, value: string) => {
     for (let i = 0; i < value.length; ++i) {
@@ -24,22 +37,43 @@ function pcm16Wav(
     }
   };
   write(0, "RIFF");
-  view.setUint32(4, 36 + dataSize, true);
+  view.setUint32(4, bytes.length - 8, true);
   write(8, "WAVE");
   write(12, "fmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
+  view.setUint32(16, fmtSize, true);
+  view.setUint16(20, extensible === undefined ? format : 0xfffe, true);
   view.setUint16(22, channels, true);
   view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * channels * 2, true);
-  view.setUint16(32, channels * 2, true);
-  view.setUint16(34, 16, true);
-  write(36, "data");
-  view.setUint32(40, dataSize, true);
+  view.setUint32(28, sampleRate * channels * bytesPerSample, true);
+  view.setUint16(32, channels * bytesPerSample, true);
+  view.setUint16(34, bytesPerSample * 8, true);
+  if (extensible !== undefined) {
+    view.setUint16(36, 22, true);
+    view.setUint16(38, bytesPerSample * 8, true);
+    view.setUint32(40, 0, true);
+    view.setUint32(44, extensible.subformat ?? format, true);
+    SUBFORMAT_GUID_TAIL.forEach((byte, i) => view.setUint8(48 + i, byte));
+  }
+  const dataOffset = 20 + fmtSize;
+  write(dataOffset, "data");
+  view.setUint32(dataOffset + 4, dataSize, true);
   interleaved.forEach((sample, index) => {
-    view.setInt16(44 + index * 2, sample, true);
+    const offset = dataOffset + 8 + index * bytesPerSample;
+    if (format === 1) {
+      view.setInt16(offset, sample, true);
+    } else {
+      view.setFloat32(offset, sample, true);
+    }
   });
   return bytes;
+}
+
+function pcm16Wav(
+  interleaved: number[],
+  sampleRate: number,
+  channels: number,
+): Uint8Array {
+  return wav({ format: 1, sampleRate, channels, interleaved });
 }
 
 function base64(bytes: Uint8Array): string {
@@ -72,6 +106,32 @@ test("decodes raw-base64 and data-URL PCM16 WAV", () => {
     expect(actual[0]).toBeCloseTo(-1 / 65536, 6);
     expect(actual[1]).toBeCloseTo(0, 6);
   }
+});
+
+test("decodes WAVE_FORMAT_EXTENSIBLE PCM and float like the plain tags", () => {
+  const decode = (bytes: Uint8Array) =>
+    Array.from(
+      decodeAudioInput({ format: "wav", data: base64(bytes) }, processor),
+    );
+  const pcm = {
+    format: 1 as const,
+    sampleRate: 16000,
+    channels: 2,
+    interleaved: [32767, -32768, 16384, -16384, 1000, 1000],
+  };
+  expect(decode(wav({ ...pcm, extensible: {} }))).toEqual(decode(wav(pcm)));
+  const float = {
+    format: 3 as const,
+    sampleRate: 16000,
+    channels: 1,
+    interleaved: [0.25, -0.5, 1, 0],
+  };
+  const decodedFloat = decode(wav({ ...float, extensible: {} }));
+  expect(decodedFloat).toEqual(decode(wav(float)));
+  expect(decodedFloat).toEqual(float.interleaved);
+  expect(() =>
+    decode(wav({ ...pcm, extensible: { subformat: 0x55 } })),
+  ).toThrow(/codec 85 is unsupported/);
 });
 
 test("linear resampling is deterministic at the boundary", () => {
