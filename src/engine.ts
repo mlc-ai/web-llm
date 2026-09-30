@@ -1595,8 +1595,17 @@ export class MLCEngine implements MLCEngineInterface {
         input,
         chatConfig,
       );
-      if (!reuseKVCache || !compareConversationObject(oldConv, newConv)) {
+      const previousFinishReason = pipeline.getFinishReason();
+      if (
+        !reuseKVCache ||
+        previousFinishReason === "abort" ||
+        previousFinishReason === "length" ||
+        !compareConversationObject(oldConv, newConv)
+      ) {
         // Not the same conversation, so not multiround chatting, reset everything (KV cache, etc.)
+        // An interrupted or length-limited reply ends with a sampled token that is
+        // in the visible text but not yet in the KV cache, so its conversation
+        // cannot be continued in place. Rebuild it from the caller's messages.
         pipeline.resetChat();
         pipeline.setConversation(newConv);
       } else if (newConv.messages.length === 0) {
