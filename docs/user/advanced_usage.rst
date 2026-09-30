@@ -54,6 +54,16 @@ This works with custom ``google/gemma-4-E2B-it`` q4f16_1 builds.  There is no
 prebuilt model record yet.  Audio URLs and compressed formats are not
 supported.
 
+A manifest may declare an image input instead of or next to the audio one.
+It names the size the model expects, whether the image is stretched or
+scaled and center cropped to that size, the compiled function that embeds
+it, and the prompt tokens around it.  Send an image as an ``image_url``
+content part with an ``http`` URL or a ``data:image`` URL, the same part the
+prebuilt vision models take.  WebLLM decodes and resizes the image, and the
+compiled model normalizes it.  This works with custom
+``llava-hf/llava-1.5-7b-hf`` builds.  Models that pick a resolution per
+image, such as Phi-3.5-vision, keep loading without a manifest.
+
 ``model_manifest`` is a URL relative to the model URL:
 
 .. code-block:: typescript
