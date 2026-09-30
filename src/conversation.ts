@@ -324,18 +324,35 @@ export class Conversation {
         throw new MultipleTextContentError();
       }
       const text = textParts[0]?.text ?? "";
-      let formattedText = this.config.role_templates?.[role]?.replace(
-        MessagePlaceholders[Role[role] as keyof typeof MessagePlaceholders],
-        text,
-      );
-      if (this.use_function_calling && this.function_string !== "") {
-        formattedText = formattedText?.replace(
-          MessagePlaceholders.function,
-          this.function_string,
-        );
+
+      // Split the role template around the message so that non-text parts end up inside it.
+      // Text that ends up next to other text is joined, so a message without audio tokenizes
+      // exactly as it does on the path without a manifest.
+      let before = "";
+      let after = "";
+      const template = this.config.role_templates?.[role];
+      if (template !== undefined) {
+        const placeholder =
+          MessagePlaceholders[Role[role] as keyof typeof MessagePlaceholders];
+        const at = template.indexOf(placeholder);
+        [before, after] =
+          at === -1
+            ? [template, ""]
+            : [template.slice(0, at), template.slice(at + placeholder.length)];
+        const functionString =
+          this.use_function_calling && this.function_string !== ""
+            ? this.function_string
+            : "";
+        before = before.replace(MessagePlaceholders.function, functionString);
+        after = after.replace(MessagePlaceholders.function, functionString);
       }
-      formattedText = formattedText?.replace(MessagePlaceholders.function, "");
-      formattedText ??= text;
+      const messageText =
+        template === undefined ||
+        template.includes(
+          MessagePlaceholders[Role[role] as keyof typeof MessagePlaceholders],
+        )
+          ? text
+          : "";
 
       const omitRole =
         this.config.add_role_after_system_message === false &&
@@ -344,28 +361,29 @@ export class Conversation {
       const rolePrefix = omitRole
         ? ""
         : roleString + (this.config.role_content_sep ?? ": ");
-      if (rolePrefix !== "") {
-        result.push(rolePrefix);
-      }
 
-      let emittedText = false;
+      const message: ArtifactPromptSegment[] = [];
+      const addText = (value: string) => {
+        if (value === "") {
+          return;
+        }
+        const last = message[message.length - 1];
+        if (typeof last === "string") {
+          message[message.length - 1] = last + value;
+        } else {
+          message.push(value);
+        }
+      };
+      addText(rolePrefix + before);
       for (const part of parts) {
         if (part.type === "text") {
-          if (formattedText !== "") {
-            result.push(formattedText);
-          }
-          emittedText = true;
+          addText(messageText);
         } else {
-          result.push(part);
+          message.push(part);
         }
       }
-      if (!emittedText && formattedText !== "") {
-        result.push(formattedText);
-      }
-      const separator = this.config.seps[index % this.config.seps.length];
-      if (separator !== "") {
-        result.push(separator);
-      }
+      addText(after + this.config.seps[index % this.config.seps.length]);
+      result.push(...message);
     }
     return result;
   }

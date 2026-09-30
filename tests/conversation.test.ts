@@ -342,8 +342,7 @@ describe("Manifest prompt segments preserve modality order", () => {
 
     expect(conversation.config.system_prefix_token_ids).toEqual([2]);
     expect(conversation.getArtifactPromptSegments()).toEqual([
-      "<|turn>user\n",
-      "What is spoken?",
+      "<|turn>user\nWhat is spoken?",
       audio,
       "<turn|>\n",
       "<|turn>model\n",
@@ -358,6 +357,46 @@ describe("Manifest prompt segments preserve modality order", () => {
     expect(defaultBehavior.getArtifactPromptSegments()[0]).toBe(
       "<|turn>system\n<turn|>\n",
     );
+  });
+
+  test("renders a text message as one string, the same as the prompt array", () => {
+    const config = JSON.parse(qwen3ChatConfigJSONString) as ChatConfig;
+    const conversation = getConversation(config.conv_template);
+    conversation.appendMessage(Role.user, "Hello there");
+    conversation.appendMessage(Role.assistant, "Hi");
+    conversation.appendMessage(Role.user, "How are you?");
+    conversation.appendReplyHeader(Role.assistant);
+    expect(conversation.getArtifactPromptSegments()).toEqual(
+      conversation.getPromptArray(),
+    );
+    expect(conversation.getArtifactPromptSegmentsLastRound()).toEqual(
+      conversation.getPromptArrayLastRound(),
+    );
+  });
+
+  test("keeps audio inside the role template", () => {
+    const config = JSON.parse(qwen3ChatConfigJSONString) as ChatConfig;
+    const conversation = getConversation({
+      ...config.conv_template,
+      role_templates: { user: "<start>{user_message}<end>" },
+    } as any);
+    const audio = {
+      type: "input_audio" as const,
+      input_audio: {
+        format: "pcm_f32" as const,
+        data: new Float32Array([0]),
+        sample_rate: 16000,
+      },
+    };
+    conversation.appendMessage(Role.user, [
+      audio,
+      { type: "text", text: "hello" },
+    ]);
+    conversation.appendReplyHeader(Role.assistant);
+    const segments = conversation.getArtifactPromptSegments();
+    const audioIndex = segments.indexOf(audio);
+    expect(segments[audioIndex - 1]).toMatch(/<start>$/);
+    expect(segments[audioIndex + 1]).toMatch(/^hello<end>/);
   });
 
   test("keeps text and audio parts in source order", () => {
