@@ -1938,12 +1938,23 @@ export class LLMChatPipeline {
         "image_url was provided, but the artifact has no bound image adapter",
       );
     }
-    const { resize, num_embeddings } = this.artifact.imageInput.processor;
+    const { processor, dtype } = this.artifact.imageInput;
+    const { resize, num_embeddings } = processor;
     const pixels = await getResizedRGBArrayFromURL(part.image_url.url, resize);
     this.tvm.beginScope();
-    const pixelTensor = this.tvm
-      .empty([1, resize.height, resize.width, 3], "uint8", this.device)
-      .copyFrom(pixels);
+    // The values stay 0..255 whichever width the compiled adapter takes.
+    const pixelTensor = this.tvm.empty(
+      [1, resize.height, resize.width, 3],
+      dtype,
+      this.device,
+    );
+    if (dtype === "uint32") {
+      pixelTensor.copyFromRawBytes(
+        new Uint8Array(Uint32Array.from(pixels).buffer),
+      );
+    } else {
+      pixelTensor.copyFrom(pixels);
+    }
     const embeddings = this.tvm.detachFromCurrentScope(
       this.artifactImageAdapter(pixelTensor, this.params) as tvmjs.Tensor,
     );

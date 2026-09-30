@@ -1125,13 +1125,12 @@ test("image embeddings are built from a uint8 NHWC tensor of the declared size",
   const raw = pipeline as any;
   const resize = { mode: "stretch", height: 2, width: 3 };
   raw["artifact"] = {
-    imageInput: { processor: { resize, num_embeddings: 4 } },
+    imageInput: { processor: { resize, num_embeddings: 4 }, dtype: "uint8" },
   };
   const pixels = new Uint8ClampedArray(2 * 3 * 3).fill(7);
   const support = jest.requireMock("../src/support") as any;
   support.getResizedRGBArrayFromURL.mockResolvedValue(pixels);
-  const pixelTensor = { copyFrom: jest.fn() };
-  pixelTensor.copyFrom.mockReturnValue(pixelTensor);
+  const pixelTensor = { copyFrom: jest.fn(), copyFromRawBytes: jest.fn() };
   raw["tvm"].empty = jest.fn(() => pixelTensor);
   raw["tvm"].attachToCurrentScope = jest.fn();
   raw["params"] = "params";
@@ -1163,6 +1162,21 @@ test("image embeddings are built from a uint8 NHWC tensor of the declared size",
   raw["artifactImageAdapter"] = jest.fn(() => ({ shape: [3, 8] }));
   await expect(raw["getArtifactImageEmbeddings"](imagePart)).rejects.toThrow(
     /must return \[4, hidden_size\], got \[3, 8\]/,
+  );
+
+  // A uint32 adapter gets the same byte values in a wider tensor.
+  raw["artifact"].imageInput.dtype = "uint32";
+  raw["artifactImageAdapter"] = jest.fn(() => embeddings);
+  await raw["getArtifactImageEmbeddings"](imagePart);
+  expect(raw["tvm"].empty).toHaveBeenLastCalledWith(
+    [1, 2, 3, 3],
+    "uint32",
+    raw["device"],
+  );
+  const bytes = pixelTensor.copyFromRawBytes.mock.calls.at(-1)?.[0];
+  expect(bytes).toBeInstanceOf(Uint8Array);
+  expect(Array.from(new Uint32Array((bytes as Uint8Array).buffer))).toEqual(
+    Array.from(pixels),
   );
 });
 

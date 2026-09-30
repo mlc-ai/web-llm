@@ -220,6 +220,30 @@ test("an image input needs an adapter, a prompt and a compiled adapter", () => {
   ).toThrow(/image input "image" references a missing adapter/);
 });
 
+test("adapter_dtypes picks the pixel tensor dtype for a declared adapter", () => {
+  const resolve = (compiled: ReturnType<typeof compiledProgram>) =>
+    resolveChatCompletionArtifact(
+      parseModelPackageManifest(imageModelPackage()),
+      parseCompiledProgramArtifact(compiled),
+    );
+  expect(resolve(imageCompiledProgram()).imageInput?.dtype).toBe("uint8");
+  expect(resolve(imageCompiledProgram()).program.adapter_dtypes).toEqual({});
+
+  const wide = imageCompiledProgram() as Record<string, any>;
+  wide.programs.generation.adapter_dtypes = { image: "uint32" };
+  expect(resolve(wide as any).imageInput?.dtype).toBe("uint32");
+
+  const unknown = imageCompiledProgram() as Record<string, any>;
+  unknown.programs.generation.adapter_dtypes = { audio: "uint32" };
+  expect(() => parseCompiledProgramArtifact(unknown)).toThrow(
+    /adapter_dtypes: "audio" is not an adapter/,
+  );
+
+  const wrong = imageCompiledProgram() as Record<string, any>;
+  wrong.programs.generation.adapter_dtypes = { image: "float16" };
+  expect(() => resolve(wrong as any)).toThrow(/must take uint8 or uint32/);
+});
+
 test("resolves audio and image inputs of the same task", () => {
   const manifest = imageModelPackage();
   const inputs = manifest.tasks["chat.completions"].inputs as Record<

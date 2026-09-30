@@ -74,6 +74,8 @@ export interface ProgramSpec {
   kind: string;
   exports: Record<string, string>;
   adapters: Record<string, string>;
+  /** Tensor dtype an adapter takes when it differs from the processor's natural type. */
+  adapter_dtypes: Record<string, string>;
 }
 
 export interface ResourceRequirements {
@@ -112,6 +114,8 @@ export interface ResolvedChatCompletionArtifact {
     processor: ImageDecodeProcessor;
     adapter: string;
     prompt: PromptInsertion;
+    /** The pixel tensor dtype the compiled adapter takes. */
+    dtype: "uint8" | "uint32";
   };
   compiled: CompiledProgramArtifact;
 }
@@ -436,14 +440,33 @@ function parseStringMap(
 
 function parseProgramSpec(value: unknown, path: string): ProgramSpec {
   const obj = record(value, path);
-  exactKeys(obj, ["kind", "exports", "adapters"], ["kind", "exports"], path);
+  exactKeys(
+    obj,
+    ["kind", "exports", "adapters", "adapter_dtypes"],
+    ["kind", "exports"],
+    path,
+  );
+  const adapters =
+    obj.adapters === undefined
+      ? {}
+      : parseStringMap(obj.adapters, `${path}.adapters`, true);
+  const adapterDtypes =
+    obj.adapter_dtypes === undefined
+      ? {}
+      : parseStringMap(obj.adapter_dtypes, `${path}.adapter_dtypes`, true);
+  for (const name of Object.keys(adapterDtypes)) {
+    if (adapters[name] === undefined) {
+      fail(
+        `${path}.adapter_dtypes`,
+        `${JSON.stringify(name)} is not an adapter`,
+      );
+    }
+  }
   return {
     kind: stringValue(obj.kind, `${path}.kind`),
     exports: parseStringMap(obj.exports, `${path}.exports`, false),
-    adapters:
-      obj.adapters === undefined
-        ? {}
-        : parseStringMap(obj.adapters, `${path}.adapters`, true),
+    adapters,
+    adapter_dtypes: adapterDtypes,
   };
 }
 
@@ -722,10 +745,27 @@ export function resolveChatCompletionArtifact(
       );
     }
     const bound = { ...input, adapter: input.adapter, prompt: input.prompt };
+    const dtype = program.adapter_dtypes[input.adapter];
     if (input.processor.kind === "audio_decode") {
+      if (dtype !== undefined && dtype !== "float32") {
+        fail(
+          "artifact contract",
+          `audio adapter ${JSON.stringify(input.adapter)} must take float32, not ${dtype}`,
+        );
+      }
       audioInput = { ...bound, processor: input.processor };
     } else {
-      imageInput = { ...bound, processor: input.processor };
+      if (dtype !== undefined && dtype !== "uint8" && dtype !== "uint32") {
+        fail(
+          "artifact contract",
+          `image adapter ${JSON.stringify(input.adapter)} must take uint8 or uint32, not ${dtype}`,
+        );
+      }
+      imageInput = {
+        ...bound,
+        processor: input.processor,
+        dtype: dtype ?? "uint8",
+      };
     }
   }
   return {
