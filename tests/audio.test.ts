@@ -219,3 +219,35 @@ test("rejects URLs, malformed WAV, non-finite PCM, and sample bounds", () => {
     ),
   ).toThrow(/2..480000/);
 });
+
+test("rejects a recording that is too long before decoding its samples", () => {
+  const bytes = wav({
+    format: 1,
+    sampleRate: 48000,
+    channels: 1,
+    interleaved: new Array(30).fill(0),
+  });
+  const allocations: number[] = [];
+  const original = globalThis.Float32Array;
+  const spy = jest
+    .spyOn(globalThis, "Float32Array")
+    .mockImplementation(function (length?: unknown) {
+      if (typeof length === "number") allocations.push(length);
+      return new original(length as number);
+    } as never);
+  expect(() =>
+    decodeAudioInput(
+      { format: "wav", data: base64(bytes) },
+      { ...processor, max_samples: 5 },
+    ),
+  ).toThrow(/1..5 samples; got 10/);
+  spy.mockRestore();
+  expect(allocations).toEqual([]);
+
+  expect(() =>
+    decodeAudioInput(
+      { format: "pcm_f32", data: new Float32Array(31), sample_rate: 1 },
+      processor,
+    ),
+  ).toThrow(/got 496000/);
+});

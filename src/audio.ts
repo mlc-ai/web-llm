@@ -82,7 +82,32 @@ function readExtensibleFormat(
   return view.getUint32(guid, true);
 }
 
-function decodeWav(bytes: Uint8Array): DecodedWav {
+/** Number of samples a recording has once resampled to the target rate. */
+function canonicalLength(
+  frameCount: number,
+  sourceRate: number,
+  targetRate: number,
+): number {
+  if (frameCount === 0) {
+    return 0;
+  }
+  return sourceRate === targetRate
+    ? frameCount
+    : Math.max(1, Math.round((frameCount * targetRate) / sourceRate));
+}
+
+function checkSampleRange(length: number, processor: AudioDecodeProcessor) {
+  if (length < processor.min_samples || length > processor.max_samples) {
+    audioError(
+      `canonical audio must contain ${processor.min_samples}..${processor.max_samples} samples; got ${length}`,
+    );
+  }
+}
+
+function decodeWav(
+  bytes: Uint8Array,
+  processor: AudioDecodeProcessor,
+): DecodedWav {
   if (bytes.byteLength < 12) {
     audioError("WAV input is truncated");
   }
@@ -162,6 +187,11 @@ function decodeWav(bytes: Uint8Array): DecodedWav {
   }
 
   const frameCount = dataSize / blockAlign;
+  // Reject a recording that is too long before its samples are allocated.
+  checkSampleRange(
+    canonicalLength(frameCount, sampleRate, processor.sample_rate_hz),
+    processor,
+  );
   const samples = new Float32Array(frameCount);
   const readSample = (sampleOffset: number): number => {
     if (format === 3) {
@@ -287,6 +317,14 @@ export function decodeAudioInput(
     if (!(input.data instanceof Float32Array)) {
       audioError("pcm_f32 input_audio.data must be a Float32Array");
     }
+    checkSampleRange(
+      canonicalLength(
+        input.data.length,
+        input.sample_rate,
+        processor.sample_rate_hz,
+      ),
+      processor,
+    );
     for (const sample of input.data) {
       if (!Number.isFinite(sample)) {
         audioError("pcm_f32 input_audio contains a non-finite sample");
@@ -300,7 +338,7 @@ export function decodeAudioInput(
         "WAV input_audio.data must be a base64 string or WAV data URL",
       );
     }
-    const decoded = decodeWav(decodeBase64Wav(input.data));
+    const decoded = decodeWav(decodeBase64Wav(input.data), processor);
     samples = decoded.samples;
     sourceRate = decoded.sampleRate;
   }
@@ -310,13 +348,6 @@ export function decodeAudioInput(
     sourceRate,
     processor.sample_rate_hz,
   );
-  if (
-    canonical.length < processor.min_samples ||
-    canonical.length > processor.max_samples
-  ) {
-    audioError(
-      `canonical audio must contain ${processor.min_samples}..${processor.max_samples} samples; got ${canonical.length}`,
-    );
-  }
+  checkSampleRange(canonical.length, processor);
   return canonical;
 }
