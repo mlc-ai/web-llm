@@ -289,16 +289,8 @@ must match the compiled library.  WebLLM reads the manifest only when the
 model record sets <code class="docutils literal notranslate"><span class="pre">model_manifest</span></code>, so other models load as before.  A
 manifest that is missing, invalid or does not match the library fails the
 load.</p>
-<p>Weights are read from <code class="docutils literal notranslate"><span class="pre">tensor-cache.json</span></code>.  WebLLM loads each record in that
-cache as its own buffer and never asks WebGPU for a buffer over 1 GiB, so
-model conversion has to split large weights.  Gemma 4’s per-layer embedding is
-exported as 35 records, one per layer.  The compiled library reports the
-largest buffer the model needs.</p>
-<p>The compiled library names its prefill and decode functions under one of two
-pairs of roles.  <code class="docutils literal notranslate"><span class="pre">prefill_tokens</span></code> and <code class="docutils literal notranslate"><span class="pre">decode_tokens</span></code> take token IDs, which
-Gemma 4 needs.  <code class="docutils literal notranslate"><span class="pre">prefill_embeds</span></code> and <code class="docutils literal notranslate"><span class="pre">decode_embeds</span></code> take embeddings only.
-WebLLM calls the pair the library declares, and the token pair when it
-declares both.</p>
+<p>Weights are read from <code class="docutils literal notranslate"><span class="pre">tensor-cache.json</span></code>.  WebLLM never asks WebGPU for a
+buffer over 1 GiB, so conversion has to split any weight larger than that.</p>
 <p>To send audio, pass a base64 WAV or a WAV data URL as an <code class="docutils literal notranslate"><span class="pre">input_audio</span></code>
 content part:</p>
 <div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">response</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">engine</span><span class="p">.</span><span class="nx">chat</span><span class="p">.</span><span class="nx">completions</span><span class="p">.</span><span class="nx">create</span><span class="p">({</span>
@@ -327,13 +319,11 @@ skip WAV encoding:</p>
 <span class="p">};</span>
 </pre></div>
 </div>
-<p>WebLLM downmixes WAV input to mono and resamples both forms to the rate the
-manifest asks for.  Feature extraction happens in the compiled model.  Audio
-embeddings longer than the model’s prefill limit are split into chunks.</p>
-<p>This currently works with custom <code class="docutils literal notranslate"><span class="pre">google/gemma-4-E2B-it</span></code> q4f16_1 builds.
-There is no prebuilt model record yet.  Input must be WAV or PCM.  URLs and
-compressed formats are not supported, and neither are vision, video, ASR or
-audio through the native MLC server.</p>
+<p>WebLLM downmixes to mono and resamples to the rate the manifest asks for.
+Feature extraction happens in the compiled model.</p>
+<p>This works with custom <code class="docutils literal notranslate"><span class="pre">google/gemma-4-E2B-it</span></code> q4f16_1 builds.  There is no
+prebuilt model record yet.  Audio URLs and compressed formats are not
+supported.</p>
 <p><code class="docutils literal notranslate"><span class="pre">model_manifest</span></code> is a URL relative to the model URL:</p>
 <div class="highlight-typescript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">modelRecord</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
 <span class="w">  </span><span class="nx">model_id</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;gemma-4-E2B-it-q4f16_1-MLC&quot;</span><span class="p">,</span>
