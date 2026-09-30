@@ -206,9 +206,6 @@ export class LLMChatPipeline {
   private image_embed: tvmjs.PackedFunc | undefined;
   private embed: tvmjs.PackedFunc;
   private artifact?: ResolvedChatCompletionArtifact;
-  private artifactEmbed?: tvmjs.PackedFunc;
-  private artifactPrefill?: tvmjs.PackedFunc;
-  private artifactDecode?: tvmjs.PackedFunc;
   private artifactAudioAdapter?: tvmjs.PackedFunc;
   private fTensorCreateView?: tvmjs.PackedFunc;
   private fapplyBitmask: tvmjs.PackedFunc;
@@ -505,11 +502,6 @@ export class LLMChatPipeline {
         vmFunctionRegistry,
       ),
     );
-    if (this.artifact !== undefined) {
-      this.artifactEmbed = this.embed;
-      this.artifactPrefill = this.prefill;
-      this.artifactDecode = this.decoding;
-    }
     this.fapplyBitmask = this.tvm.detachFromCurrentScope(
       LLMChatPipeline.getRequiredVMFunctionByName(
         "apply_bitmask_inplace",
@@ -719,15 +711,6 @@ export class LLMChatPipeline {
     this.decoding.dispose();
     this.prefill.dispose();
     this.embed.dispose();
-    if (this.artifactEmbed !== this.embed) {
-      this.artifactEmbed?.dispose();
-    }
-    if (this.artifactPrefill !== this.prefill) {
-      this.artifactPrefill?.dispose();
-    }
-    if (this.artifactDecode !== this.decoding) {
-      this.artifactDecode?.dispose();
-    }
     this.artifactAudioAdapter?.dispose();
     this.fTensorCreateView?.dispose();
     this.image_embed?.dispose();
@@ -1871,9 +1854,6 @@ export class LLMChatPipeline {
   }
 
   private getArtifactTextEmbeddings(inputTokens: number[]): tvmjs.Tensor {
-    if (this.artifactEmbed === undefined) {
-      throw new ArtifactManifestError("artifact tokenizer export is not bound");
-    }
     if (
       inputTokens.length === 0 ||
       inputTokens.length > this.prefillChunkSize
@@ -1890,7 +1870,7 @@ export class LLMChatPipeline {
     );
     inputData.copyFrom(inputTokens);
     const embeddings = this.tvm.detachFromCurrentScope(
-      this.artifactEmbed(inputData, this.params) as tvmjs.Tensor,
+      this.embed(inputData, this.params) as tvmjs.Tensor,
     );
     this.tvm.endScope();
     this.tvm.attachToCurrentScope(embeddings);
@@ -2040,6 +2020,22 @@ export class LLMChatPipeline {
 
         const embeddings = this.getArtifactAudioEmbeddings(segment);
         const audioTokenCount = embeddings.shape[0];
+        // Reject a recording that cannot fit before its chunks are sliced and kept.
+        const lengthSoFar =
+          this.filledKVCacheLength +
+          pendingTokens.length +
+          audioTokenCount +
+          chunks.reduce((total, chunk) => total + chunk.tokenIds.length, 0);
+        if (
+          this.slidingWindowSize === -1 &&
+          lengthSoFar > this.contextWindowSize
+        ) {
+          embeddings.dispose();
+          throw new ContextWindowSizeExceededError(
+            lengthSoFar - this.filledKVCacheLength,
+            this.contextWindowSize,
+          );
+        }
         for (let start = 0; start < audioTokenCount; ) {
           const count = Math.min(
             this.prefillChunkSize,
@@ -2082,8 +2078,8 @@ export class LLMChatPipeline {
     tokenIds: number[],
     modalityIds: number[],
   ): tvmjs.Tensor {
-    if (this.artifactPrefill === undefined || tokenIds.length === 0) {
-      throw new ArtifactManifestError("artifact prefill export is not bound");
+    if (tokenIds.length === 0) {
+      throw new Error("Artifact prefill chunk has no tokens");
     }
     if (
       tokenIds.length !== modalityIds.length ||
@@ -2111,7 +2107,7 @@ export class LLMChatPipeline {
     const seqIdsTuple = this.tvm.makeShapeTuple([0]);
     const kvCache = this.requireKVCache();
     this.fKVCacheBeginForward(kvCache, seqIdsTuple, inputLenShape);
-    const result = this.artifactPrefill(
+    const result = this.prefill(
       inputEmbeddings,
       ...idTensors,
       kvCache,
@@ -2126,9 +2122,6 @@ export class LLMChatPipeline {
   }
 
   private artifactDecodeAndForward(tokenId: number): tvmjs.Tensor {
-    if (this.artifactDecode === undefined) {
-      throw new ArtifactManifestError("artifact decode export is not bound");
-    }
     this.tvm.beginScope();
     let input: tvmjs.Tensor;
     if (this.artifact?.generation.inputs === "embeds") {
@@ -2141,7 +2134,7 @@ export class LLMChatPipeline {
     const seqIdsTuple = this.tvm.makeShapeTuple([0]);
     const kvCache = this.requireKVCache();
     this.fKVCacheBeginForward(kvCache, seqIdsTuple, inputLenShape);
-    const result = this.artifactDecode(input, kvCache, this.params);
+    const result = this.decoding(input, kvCache, this.params);
     this.fKVCacheEndForward(kvCache);
     this.filledKVCacheLength += 1;
     const logits = this.tvm.detachFromCurrentScope(result.get(0));

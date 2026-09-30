@@ -1062,6 +1062,44 @@ test("a text prompt is chunked when the config has a null system prefix", async 
   ]);
 });
 
+test("a recording that cannot fit is rejected before its chunks are sliced", async () => {
+  const pipeline = createPipeline();
+  const raw = pipeline as any;
+  const audioPart = {
+    type: "input_audio" as const,
+    input_audio: { format: "wav" as const, data: "" },
+  };
+  raw["artifact"] = {
+    generation: { inputs: "tokens", prefill: "p", decode: "d" },
+    audioInput: {
+      adapter: "audio",
+      prompt: {
+        prefix_token_ids: [],
+        placeholder_token_id: 99,
+        suffix_token_ids: [],
+      },
+    },
+  };
+  pipeline["prefillChunkSize"] = 4;
+  pipeline["contextWindowSize"] = 8;
+  pipeline["slidingWindowSize"] = -1;
+  raw["conversation"].config.system_prefix_token_ids = null;
+  pipeline["conversation"].getArtifactPromptSegments = jest.fn(() => [
+    "text",
+    audioPart,
+  ]);
+  pipeline["tokenizer"].encode = jest.fn(() => Int32Array.from([1, 2, 3]));
+  const embeddings = { shape: [6, 8], dispose: jest.fn() };
+  raw["getArtifactAudioEmbeddings"] = jest.fn(() => embeddings);
+  raw["sliceTensorRows"] = jest.fn();
+
+  await expect(raw["getArtifactPrefillChunks"]()).rejects.toThrow(
+    /exceed context window size/,
+  );
+  expect(embeddings.dispose).toHaveBeenCalled();
+  expect(raw["sliceTensorRows"]).not.toHaveBeenCalled();
+});
+
 test("audio prefill uses the sampled-step flow without text replay metadata", async () => {
   const pipeline = createPipeline();
   const raw = pipeline as any;
@@ -1159,7 +1197,7 @@ test("artifact prefill forwards the canonical prompt bundle", () => {
   });
   raw["tvm"].makeShapeTuple = jest.fn((shape: number[]) => shape);
   raw["tvm"].attachToCurrentScope = jest.fn();
-  raw["artifactPrefill"] = jest.fn(() => ({
+  raw["prefill"] = jest.fn(() => ({
     get: jest.fn(() => logits),
   }));
   raw["kvCache"] = { kind: "kv" };
@@ -1171,7 +1209,7 @@ test("artifact prefill forwards the canonical prompt bundle", () => {
   expect(result).toBe(logits);
   expect(tensors[0].copyFrom).toHaveBeenCalledWith([7, 99]);
   expect(tensors[1].copyFrom).toHaveBeenCalledWith([0, 1]);
-  expect(raw["artifactPrefill"]).toHaveBeenCalledWith(
+  expect(raw["prefill"]).toHaveBeenCalledWith(
     { shape: [1, 2, 8] },
     tensors[0],
     tensors[1],
@@ -1193,8 +1231,8 @@ test("a library with the embedding roles is called without token IDs", () => {
   raw["tvm"].empty = jest.fn();
   raw["tvm"].makeShapeTuple = jest.fn((shape: number[]) => shape);
   raw["tvm"].attachToCurrentScope = jest.fn();
-  raw["artifactPrefill"] = jest.fn(() => ({ get: jest.fn(() => logits) }));
-  raw["artifactDecode"] = jest.fn(() => ({ get: jest.fn(() => logits) }));
+  raw["prefill"] = jest.fn(() => ({ get: jest.fn(() => logits) }));
+  raw["decoding"] = jest.fn(() => ({ get: jest.fn(() => logits) }));
   raw["getArtifactTextEmbeddings"] = jest.fn(() => token);
   raw["kvCache"] = { kind: "kv" };
   raw["params"] = { kind: "params" };
@@ -1204,7 +1242,7 @@ test("a library with the embedding roles is called without token IDs", () => {
   expect(raw["artifactPrefillAndForward"](prompt, [7, 99], [0, 1])).toBe(
     logits,
   );
-  expect(raw["artifactPrefill"]).toHaveBeenCalledWith(
+  expect(raw["prefill"]).toHaveBeenCalledWith(
     { shape: [1, 2, 8] },
     pipeline["kvCache"],
     pipeline["params"],
@@ -1212,7 +1250,7 @@ test("a library with the embedding roles is called without token IDs", () => {
 
   expect(raw["artifactDecodeAndForward"](7)).toBe(logits);
   expect(raw["getArtifactTextEmbeddings"]).toHaveBeenCalledWith([7]);
-  expect(raw["artifactDecode"]).toHaveBeenCalledWith(
+  expect(raw["decoding"]).toHaveBeenCalledWith(
     { shape: [1, 1, 8] },
     pipeline["kvCache"],
     pipeline["params"],
