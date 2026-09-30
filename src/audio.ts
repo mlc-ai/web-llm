@@ -234,16 +234,15 @@ function decodeWav(
   return { samples, sampleRate };
 }
 
-// Hann windowed sinc low-pass applied before downsampling. The cutoff sits
-// at 90% of the target Nyquist and the kernel spans 32 target samples on
-// each side, so the transition band ends near the target Nyquist for any
-// ratio. Samples past either edge count as zero.
 /** Highest sample rate accepted. Above this the filter would be pointlessly large. */
 const MAX_SAMPLE_RATE = 384000;
 
 /**
- * Hann windowed sinc kernel with its cutoff a little under the target Nyquist.
- * Returns the taps on one side, so the kernel has 2 * half + 1 entries.
+ * Hann windowed sinc kernel for the low-pass applied before downsampling. The
+ * cutoff sits at 90% of the target Nyquist and the kernel spans 32 target
+ * samples on each side, so the transition band ends near the target Nyquist
+ * for any ratio. Returns the taps on one side, so the kernel has 2 * half + 1
+ * entries, and never more than the recording is long.
  */
 function lowPassKernel(
   sourceRate: number,

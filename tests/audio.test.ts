@@ -267,7 +267,17 @@ test("rejects sample rates the filter cannot handle", () => {
   expect(() =>
     resampleLinear(new Float32Array([0]), 4_000_000_000, 16000),
   ).toThrow(/must not exceed 384000/);
-  const started = performance.now();
+  // The kernel is never longer than the recording, so a one-sample recording
+  // at the highest rate allocates a three-tap kernel and one output sample.
+  const allocations: number[] = [];
+  const original = globalThis.Float32Array;
+  const spy = jest
+    .spyOn(globalThis, "Float32Array")
+    .mockImplementation(function (length?: unknown) {
+      if (typeof length === "number") allocations.push(length);
+      return new original(length as number);
+    } as never);
   expect(resampleLinear(new Float32Array(1), 384000, 16000).length).toBe(1);
-  expect(performance.now() - started).toBeLessThan(100);
+  spy.mockRestore();
+  expect(allocations).toEqual([1, 3, 1]);
 });
