@@ -17,6 +17,7 @@ jest.mock("../../src/llm_chat", () => {
   class MockLLMChatPipeline {
     public decodeLimit = 2;
     public prefillCallCount = 0;
+    public curRoundCompletionTotalTokens = 0;
     public decodeCallCount = 0;
     public resetCount = 0;
     public enablePromptCheckpoint = false;
@@ -107,6 +108,7 @@ jest.mock("../../src/llm_chat", () => {
       this.curRoundPrefillTotalTokens = Math.max(1, inp.length);
       this.curRoundPrefillTotalTime = 0.01 * this.curRoundPrefillTotalTokens;
       this.curRoundDecodingTotalTokens = 0;
+      this.curRoundCompletionTotalTokens = 0;
       this.curRoundDecodingTotalTime = 0.001;
       this.curRoundGrammarPerTokenTotalTime = 0;
       this.finishReason = "length";
@@ -230,6 +232,7 @@ jest.mock("../../src/llm_chat", () => {
 
     commitSampledStep(step: any) {
       const prevMessage = this.message;
+      this.curRoundCompletionTotalTokens += 1;
       if (step.source === "prefill") {
         this.message = this.pendingPrefillMessage;
       } else {
@@ -279,6 +282,7 @@ jest.mock("../../src/llm_chat", () => {
       );
       this.decodeCallCount = Math.max(0, generatedTokens.length - 1);
       this.curRoundDecodingTotalTokens = 0;
+      this.curRoundCompletionTotalTokens = 0;
       this.curRoundDecodingTotalTime = 0.001;
       if (generatedTokens.length === 0) {
         this.message = "first";
@@ -335,6 +339,7 @@ jest.mock("../../src/llm_chat", () => {
       const generatedTokens = [...coveredTokens, ...tailTokens];
       this.decodeCallCount = Math.max(0, generatedTokens.length - 1);
       this.curRoundDecodingTotalTokens = 0;
+      this.curRoundCompletionTotalTokens = 0;
       this.curRoundDecodingTotalTime = 0.001;
       if (generatedTokens.length === 0) {
         this.message = "first";
@@ -388,6 +393,10 @@ jest.mock("../../src/llm_chat", () => {
 
     getCurRoundDecodingTotalTokens() {
       return this.curRoundDecodingTotalTokens;
+    }
+
+    getCurRoundCompletionTotalTokens() {
+      return this.curRoundCompletionTotalTokens;
     }
 
     getCurRoundPrefillTotalTokens() {

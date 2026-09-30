@@ -40,9 +40,27 @@ describe("MLCEngine deterministic integration", () => {
       expect(choice.message?.content).toContain("What is new?");
     });
     expect(response.created).toBe(FIXED_CREATED_SECONDS);
-    expect(response.usage?.completion_tokens).toBe(6);
+    expect(response.usage?.completion_tokens).toBe(8);
     expect(response.usage?.prompt_tokens).toBeGreaterThan(0);
     expect((pipeline as any).prefillCallCount).toBe(2);
+  });
+
+  test("usage counts the token sampled after prefill", async () => {
+    const { engine } = createEngineWithPipeline(2);
+    const response = (await engine.chatCompletion({
+      model: MODEL_ID,
+      messages: [{ role: "user", content: "Count" }],
+    })) as ChatCompletion;
+
+    // One token comes from prefill and two from decode steps.
+    expect(response.usage?.completion_tokens).toBe(3);
+    expect(response.usage?.total_tokens).toBe(
+      3 + (response.usage?.prompt_tokens ?? 0),
+    );
+    expect(response.usage?.extra?.time_per_output_token_s).toBeGreaterThan(0);
+    expect(Number.isFinite(response.usage?.extra?.decode_tokens_per_s)).toBe(
+      true,
+    );
   });
 
   test("completion echoes prompt when requested", async () => {
@@ -59,7 +77,7 @@ describe("MLCEngine deterministic integration", () => {
     expect(response.choices).toHaveLength(1);
     expect(response.choices[0].text.startsWith("Alpha ")).toBe(true);
     expect(response.created).toBe(FIXED_CREATED_SECONDS);
-    expect(response.usage?.completion_tokens).toBe(1);
+    expect(response.usage?.completion_tokens).toBe(2);
     expect(response.usage?.prompt_tokens).toBeGreaterThan(0);
   });
 

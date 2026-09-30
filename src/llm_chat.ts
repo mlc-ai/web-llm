@@ -266,6 +266,7 @@ export class LLMChatPipeline {
   private prefillTotalTokens = 0;
   // same stats as above, but reset at every `prefillStep()`
   private curRoundDecodingTotalTokens = 0;
+  private curRoundCompletionTotalTokens = 0;
   private curRoundPrefillTotalTokens = 0;
   private curRoundDecodingTotalTime = 0;
   private curRoundPrefillTotalTime = 0;
@@ -815,6 +816,14 @@ export class LLMChatPipeline {
   }
 
   /**
+   * Number of tokens committed to the output this round: the token sampled
+   * after prefill, every decoded token, and a terminating stop token.
+   */
+  getCurRoundCompletionTotalTokens(): number {
+    return this.curRoundCompletionTotalTokens;
+  }
+
+  /**
    * @returns the number of tokens decoded for a single request or a single choice in the request.
    */
   getCurRoundPrefillTotalTokens(): number {
@@ -938,6 +947,7 @@ export class LLMChatPipeline {
     this.outputMessage = "";
     this.tokenLogprobArray = [];
     this.curRoundDecodingTotalTokens = 0;
+    this.curRoundCompletionTotalTokens = 0;
     this.curRoundPrefillTotalTokens = 0;
     this.curRoundPrefillTotalTime = 0;
     this.curRoundDecodingTotalTime = 0;
@@ -1478,6 +1488,7 @@ export class LLMChatPipeline {
       case "decode":
         this.commitSamplerState(nextToken, genConfig);
         this.processNextToken(nextToken, genConfig);
+        this.curRoundCompletionTotalTokens += 1;
         return;
     }
   }
