@@ -234,7 +234,7 @@ function decodeWav(
   return { samples, sampleRate };
 }
 
-/** Highest sample rate accepted. Above this the filter would be pointlessly large. */
+/** Highest sample rate accepted. */
 const MAX_SAMPLE_RATE = 384000;
 
 /**
@@ -305,8 +305,7 @@ export function resampleLinear(
     1,
     Math.round((samples.length * targetRate) / sourceRate),
   );
-  // When downsampling, the source is low-passed at the positions the
-  // interpolation reads, so the work grows with the output, not the input.
+  // The low-pass is evaluated only where the interpolation reads.
   const filter =
     targetRate < sourceRate
       ? lowPassKernel(sourceRate, targetRate, samples.length)

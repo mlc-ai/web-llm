@@ -12,17 +12,8 @@ model record sets ``model_manifest``, so other models load as before.  A
 manifest that is missing, invalid or does not match the library fails the
 load.
 
-Weights are read from ``tensor-cache.json``.  WebLLM loads each record in that
-cache as its own buffer and never asks WebGPU for a buffer over 1 GiB, so
-model conversion has to split large weights.  Gemma 4's per-layer embedding is
-exported as 35 records, one per layer.  The compiled library reports the
-largest buffer the model needs.
-
-The compiled library names its prefill and decode functions under one of two
-pairs of roles.  ``prefill_tokens`` and ``decode_tokens`` take token IDs, which
-Gemma 4 needs.  ``prefill_embeds`` and ``decode_embeds`` take embeddings only.
-WebLLM calls the pair the library declares, and the token pair when it
-declares both.
+Weights are read from ``tensor-cache.json``.  WebLLM never asks WebGPU for a
+buffer over 1 GiB, so conversion has to split any weight larger than that.
 
 To send audio, pass a base64 WAV or a WAV data URL as an ``input_audio``
 content part:
@@ -56,14 +47,12 @@ skip WAV encoding:
      },
    };
 
-WebLLM downmixes WAV input to mono and resamples both forms to the rate the
-manifest asks for.  Feature extraction happens in the compiled model.  Audio
-embeddings longer than the model's prefill limit are split into chunks.
+WebLLM downmixes to mono and resamples to the rate the manifest asks for.
+Feature extraction happens in the compiled model.
 
-This currently works with custom ``google/gemma-4-E2B-it`` q4f16_1 builds.
-There is no prebuilt model record yet.  Input must be WAV or PCM.  URLs and
-compressed formats are not supported, and neither are vision, video, ASR or
-audio through the native MLC server.
+This works with custom ``google/gemma-4-E2B-it`` q4f16_1 builds.  There is no
+prebuilt model record yet.  Audio URLs and compressed formats are not
+supported.
 
 ``model_manifest`` is a URL relative to the model URL:
 
