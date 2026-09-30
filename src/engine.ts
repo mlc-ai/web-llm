@@ -1009,6 +1009,8 @@ export class MLCEngine implements MLCEngineInterface {
 
     // Big try-finally to release lock in case of errors
     try {
+      // An interrupt applies only to the request that was running when it was raised.
+      this.interruptSignal = false;
       if (request.seed !== null && request.seed !== undefined) {
         selectedPipeline.setSeed(request.seed);
       }
@@ -1205,6 +1207,8 @@ export class MLCEngine implements MLCEngineInterface {
 
     // Big try-finally to release lock in case of errors
     try {
+      // An interrupt applies only to the request that was running when it was raised.
+      this.interruptSignal = false;
       if (request.seed !== null && request.seed !== undefined) {
         selectedPipeline.setSeed(request.seed);
       }
