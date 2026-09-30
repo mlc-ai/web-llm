@@ -204,6 +204,40 @@ function decodeWav(bytes: Uint8Array): DecodedWav {
   return { samples, sampleRate };
 }
 
+// Hann windowed sinc low-pass applied before downsampling. The cutoff sits
+// at 90% of the target Nyquist and the kernel spans 32 target samples on
+// each side, so the transition band ends near the target Nyquist for any
+// ratio. Samples past either edge count as zero.
+function lowPassForDownsampling(
+  samples: Float32Array,
+  sourceRate: number,
+  targetRate: number,
+): Float32Array {
+  const step = sourceRate / targetRate;
+  const cutoff = 0.45 / step;
+  const half = Math.ceil(32 * step);
+  const kernel = new Float32Array(2 * half + 1);
+  let gain = 0;
+  for (let t = -half; t <= half; ++t) {
+    const x = 2 * Math.PI * cutoff * t;
+    const sinc = x === 0 ? 1 : Math.sin(x) / x;
+    const window = 0.5 + 0.5 * Math.cos((Math.PI * t) / (half + 1));
+    kernel[t + half] = sinc * window;
+    gain += sinc * window;
+  }
+  const output = new Float32Array(samples.length);
+  for (let n = 0; n < samples.length; ++n) {
+    const first = Math.max(0, n - half);
+    const last = Math.min(samples.length - 1, n + half);
+    let sum = 0;
+    for (let k = first; k <= last; ++k) {
+      sum += samples[k] * kernel[k - n + half];
+    }
+    output[n] = sum / gain;
+  }
+  return output;
+}
+
 export function resampleLinear(
   samples: Float32Array,
   sourceRate: number,
@@ -222,13 +256,17 @@ export function resampleLinear(
     1,
     Math.round((samples.length * targetRate) / sourceRate),
   );
+  const source =
+    targetRate < sourceRate
+      ? lowPassForDownsampling(samples, sourceRate, targetRate)
+      : samples;
   const output = new Float32Array(outputLength);
   for (let i = 0; i < outputLength; ++i) {
     const sourcePosition = (i * sourceRate) / targetRate;
-    const left = Math.min(Math.floor(sourcePosition), samples.length - 1);
-    const right = Math.min(left + 1, samples.length - 1);
+    const left = Math.min(Math.floor(sourcePosition), source.length - 1);
+    const right = Math.min(left + 1, source.length - 1);
     const fraction = sourcePosition - left;
-    output[i] = samples[left] + (samples[right] - samples[left]) * fraction;
+    output[i] = source[left] + (source[right] - source[left]) * fraction;
   }
   return output;
 }

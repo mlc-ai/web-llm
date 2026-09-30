@@ -140,6 +140,55 @@ test("linear resampling is deterministic at the boundary", () => {
   ]);
 });
 
+function tone(frequency: number, rate: number, length: number): Float32Array {
+  const samples = new Float32Array(length);
+  for (let n = 0; n < length; ++n) {
+    samples[n] = Math.sin((2 * Math.PI * frequency * n) / rate);
+  }
+  return samples;
+}
+
+// Peak amplitude of one DFT bin, so a unit sine reads as 1.
+function amplitudeAt(
+  samples: Float32Array,
+  rate: number,
+  frequency: number,
+): number {
+  let re = 0;
+  let im = 0;
+  for (let n = 0; n < samples.length; ++n) {
+    const phase = (2 * Math.PI * frequency * n) / rate;
+    re += samples[n] * Math.cos(phase);
+    im -= samples[n] * Math.sin(phase);
+  }
+  return (2 * Math.hypot(re, im)) / samples.length;
+}
+
+function rms(samples: Float32Array): number {
+  let sum = 0;
+  for (const sample of samples) {
+    sum += sample * sample;
+  }
+  return Math.sqrt(sum / samples.length);
+}
+
+test("downsampling removes content above the target Nyquist", () => {
+  const aliased = resampleLinear(tone(12000, 48000, 48000), 48000, 16000);
+  expect(aliased).toHaveLength(16000);
+  expect(amplitudeAt(aliased, 16000, 4000)).toBeLessThan(0.001);
+  expect(amplitudeAt(aliased, 16000, 12000)).toBeLessThan(0.001);
+  expect(rms(aliased)).toBeLessThan(0.01);
+
+  const kept = resampleLinear(tone(1000, 48000, 48000), 48000, 16000);
+  expect(kept).toHaveLength(16000);
+  expect(amplitudeAt(kept, 16000, 1000)).toBeCloseTo(1, 2);
+  expect(rms(kept)).toBeCloseTo(Math.SQRT1_2, 2);
+
+  expect(resampleLinear(new Float32Array(1001), 44100, 16000)).toHaveLength(
+    363,
+  );
+});
+
 test("rejects URLs, malformed WAV, non-finite PCM, and sample bounds", () => {
   expect(() =>
     decodeAudioInput(
