@@ -63,6 +63,34 @@ describe("MLCEngine deterministic integration", () => {
     );
   });
 
+  test("a prior interrupt does not abort the next non-streaming chat request", async () => {
+    const { engine, pipeline } = createEngineWithPipeline(2);
+    await engine.interruptGenerate();
+
+    const response = (await engine.chatCompletion({
+      model: MODEL_ID,
+      messages: [{ role: "user", content: "Continue" }],
+    })) as ChatCompletion;
+
+    expect(response.choices[0].message.content).toContain("Continue");
+    expect(response.choices[0].finish_reason).not.toBe("abort");
+    expect((pipeline as any).prefillCallCount).toBe(1);
+  });
+
+  test("a prior interrupt does not abort the next non-streaming text request", async () => {
+    const { engine, pipeline } = createEngineWithPipeline(2);
+    await engine.interruptGenerate();
+
+    const response = (await engine.completion({
+      model: MODEL_ID,
+      prompt: "Continue",
+    })) as Completion;
+
+    expect(response.choices[0].text).toContain("Continue");
+    expect(response.choices[0].finish_reason).not.toBe("abort");
+    expect((pipeline as any).prefillCallCount).toBe(1);
+  });
+
   test("completion echoes prompt when requested", async () => {
     jest.useFakeTimers().setSystemTime(FIXED_CREATED_DATE);
     const { engine } = createEngineWithPipeline(1);
