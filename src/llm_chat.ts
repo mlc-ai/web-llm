@@ -19,6 +19,7 @@ import { LogitProcessor, LatencyBreakdown } from "./types";
 import {
   getChunkedPrefillInputData,
   getImageDataFromURL,
+  getResizedRGBArrayFromURL,
   getRGBArrayFromImageData,
   getTokenTableFromTokenizer,
   getTopProbs,
@@ -207,6 +208,7 @@ export class LLMChatPipeline {
   private embed: tvmjs.PackedFunc;
   private artifact?: ResolvedChatCompletionArtifact;
   private artifactAudioAdapter?: tvmjs.PackedFunc;
+  private artifactImageAdapter?: tvmjs.PackedFunc;
   private fTensorCreateView?: tvmjs.PackedFunc;
   private fapplyBitmask: tvmjs.PackedFunc;
   private fapplyPenalty: tvmjs.PackedFunc;
@@ -538,22 +540,30 @@ export class LLMChatPipeline {
         vmFunctionRegistry,
       ),
     );
+    // A manifest model reaches its vision function only through the adapter
+    // the manifest names, which may be this same image_embed.
     const imageEmbed = vmFunctionRegistry.image_embed;
-    if (imageEmbed !== undefined) {
-      this.image_embed = this.tvm.detachFromCurrentScope(imageEmbed);
-    } else {
+    if (imageEmbed === undefined) {
       log.info("Cannot find function image_embed.");
+    } else if (this.artifact === undefined) {
+      this.image_embed = this.tvm.detachFromCurrentScope(imageEmbed);
     }
     if (this.artifact !== undefined) {
-      if (this.artifact.audioInput !== undefined) {
-        const adapterSymbol =
-          this.artifact.program.adapters[this.artifact.audioInput.adapter];
-        this.artifactAudioAdapter = this.tvm.detachFromCurrentScope(
+      const { audioInput, imageInput, program } = this.artifact;
+      const bindAdapter = (name: string) =>
+        this.tvm.detachFromCurrentScope(
           LLMChatPipeline.getRequiredVMFunctionByName(
-            adapterSymbol,
+            program.adapters[name],
             vmFunctionRegistry,
           ),
         );
+      if (audioInput !== undefined) {
+        this.artifactAudioAdapter = bindAdapter(audioInput.adapter);
+      }
+      if (imageInput !== undefined) {
+        this.artifactImageAdapter = bindAdapter(imageInput.adapter);
+      }
+      if (audioInput !== undefined || imageInput !== undefined) {
         this.fTensorCreateView = this.tvm.detachFromCurrentScope(
           this.tvm.getGlobalFunc("runtime.TVMTensorCreateView"),
         );
@@ -712,6 +722,7 @@ export class LLMChatPipeline {
     this.prefill.dispose();
     this.embed.dispose();
     this.artifactAudioAdapter?.dispose();
+    this.artifactImageAdapter?.dispose();
     this.fTensorCreateView?.dispose();
     this.image_embed?.dispose();
     this.prefillLogitPositions?.dispose();
@@ -1065,6 +1076,9 @@ export class LLMChatPipeline {
     if (this.artifact !== undefined) {
       if (this.artifact.audioInput !== undefined) {
         result.add("audio");
+      }
+      if (this.artifact.imageInput !== undefined) {
+        result.add("image");
       }
       return result;
     }
@@ -1913,6 +1927,40 @@ export class LLMChatPipeline {
     return embeddings;
   }
 
+  private async getArtifactImageEmbeddings(
+    part: ChatCompletionContentPartImage,
+  ): Promise<tvmjs.Tensor> {
+    if (
+      this.artifact?.imageInput === undefined ||
+      this.artifactImageAdapter === undefined
+    ) {
+      throw new ArtifactManifestError(
+        "image_url was provided, but the artifact has no bound image adapter",
+      );
+    }
+    const { resize, num_embeddings } = this.artifact.imageInput.processor;
+    const pixels = await getResizedRGBArrayFromURL(part.image_url.url, resize);
+    this.tvm.beginScope();
+    const pixelTensor = this.tvm
+      .empty([1, resize.height, resize.width, 3], "uint8", this.device)
+      .copyFrom(pixels);
+    const embeddings = this.tvm.detachFromCurrentScope(
+      this.artifactImageAdapter(pixelTensor, this.params) as tvmjs.Tensor,
+    );
+    if (
+      embeddings.shape.length !== 2 ||
+      embeddings.shape[0] !== num_embeddings ||
+      embeddings.shape[1] <= 0
+    ) {
+      throw new ArtifactManifestError(
+        `image adapter must return [${num_embeddings}, hidden_size], got [${embeddings.shape.join(", ")}]`,
+      );
+    }
+    this.tvm.endScope();
+    this.tvm.attachToCurrentScope(embeddings);
+    return embeddings;
+  }
+
   private static dtypeBytes(dtype: string): number {
     if (dtype === "bfloat16") {
       return 2;
@@ -2004,27 +2052,29 @@ export class LLMChatPipeline {
     for (const segment of this.getArtifactPromptSegments()) {
       if (typeof segment === "string") {
         appendTokens(this.tokenizer.encode(segment));
-      } else if (segment.type === "image_url") {
-        throw new ArtifactManifestError(
-          "The loaded v1 artifact does not declare a canonical image processor",
-        );
       } else {
-        const audioInput = this.artifact.audioInput;
-        if (audioInput === undefined) {
+        const isImage = segment.type === "image_url";
+        const input = isImage
+          ? this.artifact.imageInput
+          : this.artifact.audioInput;
+        if (input === undefined) {
           throw new ArtifactManifestError(
-            "The loaded artifact does not declare an audio input",
+            `The loaded artifact does not declare an ${isImage ? "image" : "audio"} input`,
           );
         }
-        appendTokens(audioInput.prompt.prefix_token_ids);
+        appendTokens(input.prompt.prefix_token_ids);
         flushTokens();
 
-        const embeddings = this.getArtifactAudioEmbeddings(segment);
-        const audioTokenCount = embeddings.shape[0];
-        // Reject a recording that cannot fit before slicing it.
+        const embeddings =
+          segment.type === "image_url"
+            ? await this.getArtifactImageEmbeddings(segment)
+            : this.getArtifactAudioEmbeddings(segment);
+        const adapterTokenCount = embeddings.shape[0];
+        // Reject an input that cannot fit before slicing it.
         const lengthSoFar =
           this.filledKVCacheLength +
           pendingTokens.length +
-          audioTokenCount +
+          adapterTokenCount +
           chunks.reduce((total, chunk) => total + chunk.tokenIds.length, 0);
         if (
           this.slidingWindowSize === -1 &&
@@ -2036,21 +2086,19 @@ export class LLMChatPipeline {
             this.contextWindowSize,
           );
         }
-        for (let start = 0; start < audioTokenCount; ) {
+        for (let start = 0; start < adapterTokenCount; ) {
           const count = Math.min(
             this.prefillChunkSize,
-            audioTokenCount - start,
+            adapterTokenCount - start,
           );
           chunks.push({
-            tokenIds: new Array(count).fill(
-              audioInput.prompt.placeholder_token_id,
-            ),
+            tokenIds: new Array(count).fill(input.prompt.placeholder_token_id),
             modalityIds: new Array(count).fill(1),
             embeddings: this.sliceTensorRows(embeddings, start, count),
           });
           start += count;
         }
-        appendTokens(audioInput.prompt.suffix_token_ids);
+        appendTokens(input.prompt.suffix_token_ids);
       }
     }
     flushTokens();

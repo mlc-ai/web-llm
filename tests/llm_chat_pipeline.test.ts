@@ -4,6 +4,11 @@ import { Role } from "../src/config";
 import { jest, test, expect, beforeEach } from "@jest/globals";
 import log from "loglevel";
 
+jest.mock("../src/support", () => ({
+  ...(jest.requireActual("../src/support") as object),
+  getResizedRGBArrayFromURL: jest.fn(),
+}));
+
 jest.mock("@mlc-ai/web-xgrammar", () => {
   const grammarMatcherInstances: any[] = [];
   const compileBuiltinJSONGrammar = jest
@@ -1039,6 +1044,126 @@ test("artifact prompt assembly chunks dynamic audio embeddings", async () => {
   ]);
   expect(chunks[1].modalityIds).toEqual([1, 1, 1, 1]);
   expect(raw["sliceTensorRows"]).toHaveBeenCalledTimes(2);
+});
+
+test("artifact prompt assembly splices image embeddings at the placeholder span", async () => {
+  const pipeline = createPipeline();
+  const raw = pipeline as any;
+  const imagePart = {
+    type: "image_url" as const,
+    image_url: { url: "data:image/png;base64,AAAA" },
+  };
+  raw["artifact"] = {
+    imageInput: {
+      processor: {
+        kind: "image_decode",
+        format: "rgb_u8",
+        layout: "nhwc",
+        resize: { mode: "center_crop", height: 2, width: 2 },
+        num_embeddings: 5,
+      },
+      adapter: "image",
+      prompt: {
+        prefix_token_ids: [20],
+        placeholder_token_id: 32000,
+        suffix_token_ids: [21],
+      },
+    },
+  } as any;
+  pipeline["prefillChunkSize"] = 4;
+  pipeline["conversation"].config.system_prefix_token_ids = [1];
+  pipeline["conversation"].getArtifactPromptSegments = jest.fn(() => [
+    "USER: ",
+    imagePart,
+    "\nwhat? ASSISTANT:",
+  ]);
+  pipeline["tokenizer"].encode = jest.fn((text: string) =>
+    text === "USER: " ? Int32Array.from([2, 3]) : Int32Array.from([4, 5]),
+  );
+  const imageEmbeddings = { shape: [5, 8], dtype: "float16" };
+  raw["getArtifactImageEmbeddings"] = jest.fn(async () => imageEmbeddings);
+  raw["getArtifactAudioEmbeddings"] = jest.fn();
+  raw["sliceTensorRows"] = jest.fn(
+    (_tensor: unknown, start: number, count: number) => ({
+      shape: [count, 8],
+      start,
+    }),
+  );
+
+  const [chunks, promptLength] = await raw["getArtifactPrefillChunks"]();
+  expect(promptLength).toBe(12);
+  expect(chunks.map((chunk: any) => chunk.tokenIds)).toEqual([
+    [1, 2, 3, 20],
+    [32000, 32000, 32000, 32000],
+    [32000],
+    [21, 4, 5],
+  ]);
+  expect(chunks[1].modalityIds).toEqual([1, 1, 1, 1]);
+  expect(chunks[2].embeddings).toEqual({ shape: [1, 8], start: 4 });
+  expect(raw["getArtifactImageEmbeddings"]).toHaveBeenCalledWith(imagePart);
+  expect(raw["getArtifactAudioEmbeddings"]).not.toHaveBeenCalled();
+});
+
+test("an image part is rejected when the artifact declares no image input", async () => {
+  const pipeline = createPipeline();
+  const raw = pipeline as any;
+  raw["artifact"] = { audioInput: { prompt: {} } };
+  raw["conversation"].config.system_prefix_token_ids = null;
+  pipeline["conversation"].getArtifactPromptSegments = jest.fn(() => [
+    {
+      type: "image_url" as const,
+      image_url: { url: "data:image/png;base64,AAAA" },
+    },
+  ]);
+  await expect(raw["getArtifactPrefillChunks"]()).rejects.toThrow(
+    /does not declare an image input/,
+  );
+});
+
+test("image embeddings are built from a uint8 NHWC tensor of the declared size", async () => {
+  const pipeline = createPipeline();
+  const raw = pipeline as any;
+  const resize = { mode: "stretch", height: 2, width: 3 };
+  raw["artifact"] = {
+    imageInput: { processor: { resize, num_embeddings: 4 } },
+  };
+  const pixels = new Uint8ClampedArray(2 * 3 * 3).fill(7);
+  const support = jest.requireMock("../src/support") as any;
+  support.getResizedRGBArrayFromURL.mockResolvedValue(pixels);
+  const pixelTensor = { copyFrom: jest.fn() };
+  pixelTensor.copyFrom.mockReturnValue(pixelTensor);
+  raw["tvm"].empty = jest.fn(() => pixelTensor);
+  raw["tvm"].attachToCurrentScope = jest.fn();
+  raw["params"] = "params";
+  const embeddings = { shape: [4, 8] };
+  raw["artifactImageAdapter"] = jest.fn(() => embeddings);
+
+  const imagePart = {
+    type: "image_url" as const,
+    image_url: { url: "data:image/png;base64,AAAA" },
+  };
+  await expect(raw["getArtifactImageEmbeddings"](imagePart)).resolves.toBe(
+    embeddings,
+  );
+  expect(support.getResizedRGBArrayFromURL).toHaveBeenCalledWith(
+    imagePart.image_url.url,
+    resize,
+  );
+  expect(raw["tvm"].empty).toHaveBeenCalledWith(
+    [1, 2, 3, 3],
+    "uint8",
+    raw["device"],
+  );
+  expect(pixelTensor.copyFrom).toHaveBeenCalledWith(pixels);
+  expect(raw["artifactImageAdapter"]).toHaveBeenCalledWith(
+    pixelTensor,
+    "params",
+  );
+
+  raw["artifactImageAdapter"] = jest.fn(() => ({ shape: [3, 8] }));
+  await expect(raw["getArtifactImageEmbeddings"](imagePart)).rejects.toThrow(
+    /must return \[4, hidden_size\], got \[3, 8\]/,
+  );
 });
 
 test("a text prompt is chunked when the config has a null system prefix", async () => {
