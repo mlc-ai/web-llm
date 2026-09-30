@@ -238,34 +238,51 @@ function decodeWav(
 // at 90% of the target Nyquist and the kernel spans 32 target samples on
 // each side, so the transition band ends near the target Nyquist for any
 // ratio. Samples past either edge count as zero.
-function lowPassForDownsampling(
-  samples: Float32Array,
+/** Highest sample rate accepted. Above this the filter would be pointlessly large. */
+const MAX_SAMPLE_RATE = 384000;
+
+/**
+ * Hann windowed sinc kernel with its cutoff a little under the target Nyquist.
+ * Returns the taps on one side, so the kernel has 2 * half + 1 entries.
+ */
+function lowPassKernel(
   sourceRate: number,
   targetRate: number,
-): Float32Array {
+  maxHalf: number,
+) {
   const step = sourceRate / targetRate;
   const cutoff = 0.45 / step;
-  const half = Math.ceil(32 * step);
+  const half = Math.min(Math.ceil(32 * step), maxHalf);
   const kernel = new Float32Array(2 * half + 1);
-  let gain = 0;
   for (let t = -half; t <= half; ++t) {
     const x = 2 * Math.PI * cutoff * t;
     const sinc = x === 0 ? 1 : Math.sin(x) / x;
-    const window = 0.5 + 0.5 * Math.cos((Math.PI * t) / (half + 1));
-    kernel[t + half] = sinc * window;
-    gain += sinc * window;
+    kernel[t + half] =
+      sinc * (0.5 + 0.5 * Math.cos((Math.PI * t) / (half + 1)));
   }
-  const output = new Float32Array(samples.length);
-  for (let n = 0; n < samples.length; ++n) {
-    const first = Math.max(0, n - half);
-    const last = Math.min(samples.length - 1, n + half);
-    let sum = 0;
-    for (let k = first; k <= last; ++k) {
-      sum += samples[k] * kernel[k - n + half];
-    }
-    output[n] = sum / gain;
+  return { kernel, half };
+}
+
+/**
+ * The low-passed value at one source index, normalized by the taps that fall
+ * inside the recording so that a constant signal stays constant at the edges.
+ */
+function filteredAt(
+  samples: Float32Array,
+  kernel: Float32Array,
+  half: number,
+  n: number,
+): number {
+  const first = Math.max(0, n - half);
+  const last = Math.min(samples.length - 1, n + half);
+  let sum = 0;
+  let gain = 0;
+  for (let k = first; k <= last; ++k) {
+    const weight = kernel[k - n + half];
+    sum += samples[k] * weight;
+    gain += weight;
   }
-  return output;
+  return sum / gain;
 }
 
 export function resampleLinear(
@@ -275,6 +292,9 @@ export function resampleLinear(
 ): Float32Array {
   if (!Number.isSafeInteger(sourceRate) || sourceRate <= 0) {
     audioError("input_audio.sample_rate must be a positive integer");
+  }
+  if (sourceRate > MAX_SAMPLE_RATE) {
+    audioError(`input_audio.sample_rate must not exceed ${MAX_SAMPLE_RATE}`);
   }
   if (samples.length === 0) {
     return new Float32Array();
@@ -286,17 +306,36 @@ export function resampleLinear(
     1,
     Math.round((samples.length * targetRate) / sourceRate),
   );
-  const source =
+  // When downsampling, the source is low-passed at the positions the
+  // interpolation reads, so the work grows with the output, not the input.
+  const filter =
     targetRate < sourceRate
-      ? lowPassForDownsampling(samples, sourceRate, targetRate)
-      : samples;
+      ? lowPassKernel(sourceRate, targetRate, samples.length)
+      : undefined;
+  let cachedIndex = -1;
+  let cachedValue = 0;
+  const source = (index: number): number => {
+    if (filter === undefined) {
+      return samples[index];
+    }
+    if (index !== cachedIndex) {
+      cachedIndex = index;
+      cachedValue = filteredAt(samples, filter.kernel, filter.half, index);
+    }
+    return cachedValue;
+  };
   const output = new Float32Array(outputLength);
+  let previousIndex = -1;
+  let previousValue = 0;
   for (let i = 0; i < outputLength; ++i) {
     const sourcePosition = (i * sourceRate) / targetRate;
-    const left = Math.min(Math.floor(sourcePosition), source.length - 1);
-    const right = Math.min(left + 1, source.length - 1);
-    const fraction = sourcePosition - left;
-    output[i] = source[left] + (source[right] - source[left]) * fraction;
+    const left = Math.min(Math.floor(sourcePosition), samples.length - 1);
+    const right = Math.min(left + 1, samples.length - 1);
+    const leftValue = left === previousIndex ? previousValue : source(left);
+    const rightValue = right === left ? leftValue : source(right);
+    previousIndex = right;
+    previousValue = rightValue;
+    output[i] = leftValue + (rightValue - leftValue) * (sourcePosition - left);
   }
   return output;
 }

@@ -251,3 +251,23 @@ test("rejects a recording that is too long before decoding its samples", () => {
     ),
   ).toThrow(/got 496000/);
 });
+
+test("downsampling keeps a constant signal constant at the edges", () => {
+  expect(resampleLinear(new Float32Array([1]), 48000, 16000)[0]).toBeCloseTo(
+    1,
+    6,
+  );
+  const constant = resampleLinear(new Float32Array(300).fill(1), 48000, 16000);
+  expect(constant.length).toBe(100);
+  expect(constant[0]).toBeCloseTo(1, 6);
+  expect(constant[constant.length - 1]).toBeCloseTo(1, 6);
+});
+
+test("rejects sample rates the filter cannot handle", () => {
+  expect(() =>
+    resampleLinear(new Float32Array([0]), 4_000_000_000, 16000),
+  ).toThrow(/must not exceed 384000/);
+  const started = performance.now();
+  expect(resampleLinear(new Float32Array(1), 384000, 16000).length).toBe(1);
+  expect(performance.now() - started).toBeLessThan(100);
+});
