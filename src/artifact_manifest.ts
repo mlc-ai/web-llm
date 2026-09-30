@@ -540,25 +540,27 @@ export function parseCompiledProgramArtifact(
   };
 }
 
+/** Pick the pair WebLLM calls. The token pair is preferred when both are declared. */
 function resolveGenerationExports(
   exports: Record<string, string>,
 ): GenerationExports {
-  const pairs = (["tokens", "embeds"] as const).map((inputs) => ({
-    inputs,
-    prefill: exports[`prefill_${inputs}`],
-    decode: exports[`decode_${inputs}`],
-  }));
-  const declared = pairs.filter(
-    (pair) => pair.prefill !== undefined || pair.decode !== undefined,
-  );
-  if (
-    declared.length !== 1 ||
-    declared[0].prefill === undefined ||
-    declared[0].decode === undefined
-  ) {
+  const declared: GenerationExports[] = [];
+  for (const inputs of ["tokens", "embeds"] as const) {
+    const prefill = exports[`prefill_${inputs}`];
+    const decode = exports[`decode_${inputs}`];
+    if (prefill !== undefined && decode !== undefined) {
+      declared.push({ inputs, prefill, decode });
+    } else if (prefill !== undefined || decode !== undefined) {
+      fail(
+        "artifact contract",
+        `executor declares only one of prefill_${inputs} and decode_${inputs}`,
+      );
+    }
+  }
+  if (declared.length === 0) {
     fail(
       "artifact contract",
-      "executor must declare exactly one complete pair of prefill and decode roles: " +
+      "executor must declare a complete pair of prefill and decode roles: " +
         "prefill_tokens with decode_tokens, or prefill_embeds with decode_embeds",
     );
   }

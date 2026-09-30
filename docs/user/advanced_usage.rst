@@ -21,7 +21,8 @@ largest buffer the model needs.
 The compiled library names its prefill and decode functions under one of two
 pairs of roles.  ``prefill_tokens`` and ``decode_tokens`` take token IDs, which
 Gemma 4 needs.  ``prefill_embeds`` and ``decode_embeds`` take embeddings only.
-WebLLM calls whichever pair the library declares.
+WebLLM calls the pair the library declares, and the token pair when it
+declares both.
 
 To send audio, pass a base64 WAV or a WAV data URL as an ``input_audio``
 content part:

@@ -217,19 +217,36 @@ test("resolves whichever pair of generation roles the library declares", () => {
   });
 });
 
+test("prefers the token roles when a library declares both pairs", () => {
+  const compiled = compiledProgram();
+  compiled.programs.generation.exports = {
+    ...compiled.programs.generation.exports,
+    prefill_embeds: "prefill",
+    decode_embeds: "decode",
+  } as any;
+  const resolved = resolveChatCompletionArtifact(
+    parseModelPackageManifest(modelPackage()),
+    parseCompiledProgramArtifact(compiled),
+  );
+  expect(resolved.generation.inputs).toBe("tokens");
+});
+
 test.each([
-  [{}],
-  [{ prefill_tokens: "prefill_prompt" }],
-  [{ prefill_tokens: "prefill_prompt", decode_embeds: "decode" }],
+  [{}, /complete pair/],
+  [{ prefill_tokens: "prefill_prompt" }, /only one of prefill_tokens/],
+  [
+    { prefill_tokens: "prefill_prompt", decode_embeds: "decode" },
+    /only one of prefill_tokens/,
+  ],
   [
     {
       prefill_tokens: "prefill_prompt",
       decode_tokens: "decode_tokens",
       prefill_embeds: "prefill",
-      decode_embeds: "decode",
     },
+    /only one of prefill_embeds/,
   ],
-])("rejects generation roles that are not one complete pair", (roles) => {
+])("rejects generation roles without a complete pair", (roles, message) => {
   const compiled = compiledProgram();
   compiled.programs.generation.exports = {
     embed_tokens: "embed",
@@ -241,5 +258,5 @@ test.each([
       parseModelPackageManifest(modelPackage()),
       parseCompiledProgramArtifact(compiled),
     ),
-  ).toThrow(/exactly one complete pair/);
+  ).toThrow(message);
 });
