@@ -1164,10 +1164,6 @@ test("image embeddings are built from a uint8 NHWC tensor of the declared size",
   await expect(raw["getArtifactImageEmbeddings"](imagePart)).rejects.toThrow(
     /must return \[4, hidden_size\], got \[3, 8\]/,
   );
-  // A rejected output must not leave the adapter's scope open.
-  expect(raw["tvm"].endScope).toHaveBeenCalledTimes(
-    raw["tvm"].beginScope.mock.calls.length,
-  );
 
   // A uint32 adapter gets the same byte values in a wider tensor.
   raw["artifact"].imageInput.dtype = "uint32";
@@ -1286,6 +1282,29 @@ test.each([
             sample_rate: 16000,
             data: new Float32Array(4),
           },
+        });
+    },
+  ],
+  [
+    "image",
+    (raw: any) => {
+      raw["artifact"] = {
+        imageInput: {
+          processor: {
+            resize: { mode: "stretch", height: 2, width: 3 },
+            num_embeddings: 4,
+          },
+          dtype: "uint8",
+        },
+      };
+      (
+        jest.requireMock("../src/support") as any
+      ).getResizedRGBArrayFromURL.mockResolvedValue(new Uint8ClampedArray(18));
+      raw["tvm"].empty = jest.fn(() => ({ copyFrom: jest.fn() }));
+      return () =>
+        raw["getArtifactImageEmbeddings"]({
+          type: "image_url",
+          image_url: { url: "data:image/png;base64,AAAA" },
         });
     },
   ],
