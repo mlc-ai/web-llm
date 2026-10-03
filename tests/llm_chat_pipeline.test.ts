@@ -1100,6 +1100,43 @@ test("a recording that cannot fit is rejected before its chunks are sliced", asy
   expect(raw["sliceTensorRows"]).not.toHaveBeenCalled();
 });
 
+// Guards scope balance: a rejected adapter output used to leave the adapter's
+// scope open, so the prefill closed it instead of its own.
+test("a wrong-shaped audio adapter output closes the adapter scope", () => {
+  const pipeline = createPipeline();
+  const raw = pipeline as any;
+  raw["artifact"] = {
+    audioInput: {
+      processor: {
+        kind: "audio_decode",
+        format: "pcm_f32",
+        sample_rate_hz: 16000,
+        channels: 1,
+        min_samples: 1,
+        max_samples: 16,
+      },
+    },
+  };
+  raw["tvm"].empty = jest.fn(() => ({ copyFrom: jest.fn(() => ({})) }));
+  raw["tvm"].attachToCurrentScope = jest.fn();
+  raw["artifactAudioAdapter"] = jest.fn(() => ({ shape: [0, 8] }));
+  const audioPart = {
+    type: "input_audio" as const,
+    input_audio: {
+      format: "pcm_f32" as const,
+      sample_rate: 16000,
+      data: new Float32Array(4),
+    },
+  };
+
+  expect(() => raw["getArtifactAudioEmbeddings"](audioPart)).toThrow(
+    /audio adapter must return/,
+  );
+  expect(raw["tvm"].endScope).toHaveBeenCalledTimes(
+    raw["tvm"].beginScope.mock.calls.length,
+  );
+});
+
 test("audio prefill uses the sampled-step flow without text replay metadata", async () => {
   const pipeline = createPipeline();
   const raw = pipeline as any;

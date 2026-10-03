@@ -1904,13 +1904,20 @@ export class LLMChatPipeline {
       part.input_audio,
       this.artifact.audioInput.processor,
     );
+    let embeddings: tvmjs.Tensor;
     this.tvm.beginScope();
-    const sampleTensor = this.tvm
-      .empty([samples.length], "float32", this.device)
-      .copyFrom(samples);
-    const embeddings = this.tvm.detachFromCurrentScope(
-      this.artifactAudioAdapter(sampleTensor, this.params) as tvmjs.Tensor,
-    );
+    try {
+      const sampleTensor = this.tvm
+        .empty([samples.length], "float32", this.device)
+        .copyFrom(samples);
+      embeddings = this.tvm.detachFromCurrentScope(
+        this.artifactAudioAdapter(sampleTensor, this.params) as tvmjs.Tensor,
+      );
+    } finally {
+      this.tvm.endScope();
+    }
+    // The caller's scope owns the result, so it is freed there if it is rejected.
+    this.tvm.attachToCurrentScope(embeddings);
     if (
       embeddings.shape.length !== 2 ||
       embeddings.shape[0] <= 0 ||
@@ -1920,8 +1927,6 @@ export class LLMChatPipeline {
         `audio adapter must return [audio_tokens, hidden_size], got [${embeddings.shape.join(", ")}]`,
       );
     }
-    this.tvm.endScope();
-    this.tvm.attachToCurrentScope(embeddings);
     return embeddings;
   }
 
