@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+  <script>
+    webLLMGlobal = {};
+  </script>
+  <body>
+    <h2>MCP client example</h2>
+    <p>
+      Connects to a real Model Context Protocol server over Streamable HTTP,
+      lists its tools, and lets the model call them. Open the console to follow
+      along.
+    </p>
+    <label id="init-label"></label>
+    <br />
+    <label for="mcp-url">MCP server URL:</label>
+    <input
+      id="mcp-url"
+      type="text"
+      size="50"
+      placeholder="http://localhost:8811/mcp"
+    />
+    <button id="connect-btn">Connect &amp; run</button>
+    <pre id="log"></pre>
+    <script type="module" src="./mcp_client.ts"></script>
+  </body>
+</html>
