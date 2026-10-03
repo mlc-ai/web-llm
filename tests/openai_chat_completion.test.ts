@@ -57,6 +57,39 @@ describe("Check chat completion unsupported requests", () => {
     }
   });
 
+  test("manifest capabilities admit image_url parts only when declared", () => {
+    const request: ChatCompletionRequest = {
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: { url: "data:image/png;base64,AA" },
+            },
+            { type: "text", text: "What is this?" },
+          ],
+        },
+      ],
+    };
+    expect(() =>
+      postInitAndCheckFields(
+        request,
+        "manifest-model",
+        ModelType.LLM,
+        new Set(["image"]),
+      ),
+    ).not.toThrow();
+    expect(() =>
+      postInitAndCheckFields(
+        request,
+        "manifest-model",
+        ModelType.LLM,
+        new Set(["audio"]),
+      ),
+    ).toThrow(/does not declare support/);
+  });
+
   test("audio content requires a manifest-declared audio input", () => {
     const request: ChatCompletionRequest = {
       messages: [

@@ -399,6 +399,34 @@ describe("Manifest prompt segments preserve modality order", () => {
     expect(segments[audioIndex + 1]).toMatch(/^hello<end>/);
   });
 
+  test("keeps an image part in place and joins the text around it", () => {
+    const config = JSON.parse(qwen3ChatConfigJSONString) as ChatConfig;
+    const conversation = getConversation({
+      ...config.conv_template,
+      role_templates: { user: "<start>{user_message}<end>" },
+    } as any);
+    const image = {
+      type: "image_url" as const,
+      image_url: { url: "data:image/png;base64,AAAA" },
+    };
+    const audio = {
+      type: "input_audio" as const,
+      input_audio: { format: "wav" as const, data: "UklGRg==" },
+    };
+    conversation.appendMessage(Role.user, [
+      image,
+      { type: "text", text: "describe" },
+      audio,
+    ]);
+    conversation.appendReplyHeader(Role.assistant);
+    const segments = conversation.getArtifactPromptSegments();
+    const imageIndex = segments.indexOf(image);
+    expect(segments[imageIndex - 1]).toMatch(/<start>$/);
+    expect(segments[imageIndex + 1]).toBe("describe");
+    expect(segments[imageIndex + 2]).toBe(audio);
+    expect(segments[imageIndex + 3]).toMatch(/^<end>/);
+  });
+
   test("fills the function placeholder once, as the prompt array does", () => {
     const config = JSON.parse(qwen3ChatConfigJSONString) as ChatConfig;
     const conversation = getConversation({

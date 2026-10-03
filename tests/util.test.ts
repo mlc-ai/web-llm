@@ -11,6 +11,7 @@ import {
   getModelIdToUse,
   getChunkedPrefillInputData,
   getTopProbs,
+  planImageResize,
 } from "../src/support";
 import { areChatOptionsListEqual } from "../src/utils";
 import { MLCEngine } from "../src/engine";
@@ -481,5 +482,40 @@ describe("Test CustomLock", () => {
     }
     await Promise.all([addOne(), addOne(), addOne(), addOne(), addOne()]);
     expect(value).toEqual(5); // without a lock, most likely less than 5
+  });
+});
+
+describe("planImageResize", () => {
+  test("stretch draws at the target size and keeps the origin", () => {
+    expect(
+      planImageResize(640, 480, { mode: "stretch", height: 336, width: 336 }),
+    ).toEqual({ width: 336, height: 336, left: 0, top: 0 });
+  });
+
+  test("center_crop scales until the image covers the target, then centers", () => {
+    // 640x480 scales by 336/480 to 448x336, then keeps the middle 336 columns.
+    expect(
+      planImageResize(640, 480, {
+        mode: "center_crop",
+        height: 336,
+        width: 336,
+      }),
+    ).toEqual({ width: 448, height: 336, left: 56, top: 0 });
+    // A tall image scales by its width and crops rows.
+    expect(
+      planImageResize(100, 300, { mode: "center_crop", height: 20, width: 10 }),
+    ).toEqual({ width: 10, height: 30, left: 0, top: 5 });
+    // An odd leftover rounds down, as the reference driver does.
+    expect(
+      planImageResize(7, 5, { mode: "center_crop", height: 5, width: 4 }),
+    ).toEqual({ width: 7, height: 5, left: 1, top: 0 });
+    // The target size is the identity.
+    expect(
+      planImageResize(336, 336, {
+        mode: "center_crop",
+        height: 336,
+        width: 336,
+      }),
+    ).toEqual({ width: 336, height: 336, left: 0, top: 0 });
   });
 });
