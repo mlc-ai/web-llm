@@ -325,8 +325,8 @@ export class Conversation {
       }
       const text = textParts[0]?.text ?? "";
 
-      // Audio goes inside the role template. Adjacent text is joined so a
-      // message without audio tokenizes as it does without a manifest.
+      // Image and audio parts go inside the role template. Adjacent text is
+      // joined so a text-only message tokenizes as it does without a manifest.
       let before = "";
       let after = "";
       const template = this.config.role_templates?.[role];
@@ -400,7 +400,7 @@ export class Conversation {
     return result;
   }
 
-  /** The prompt as text and audio segments, in the order of the content parts. */
+  /** The prompt as text, image and audio segments, in the order of the content parts. */
   getArtifactPromptSegments(): ArtifactPromptSegment[] {
     if (this.isTextCompletion) {
       throw new TextCompletionConversationError("getArtifactPromptSegments");

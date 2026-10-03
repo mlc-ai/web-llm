@@ -1,6 +1,7 @@
 /** Util methods. */
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
 import { AppConfig, MessagePlaceholders, ModelRecord } from "./config";
+import { ImageResize } from "./artifact_manifest";
 import {
   ChatCompletionChunk,
   ChatCompletionContentPartImage,
@@ -446,4 +447,60 @@ export function getRGBArrayFromImageData(
     newData[offset++] = imageData.data[i + 2];
   }
   return newData;
+}
+
+/** The size to draw an image at and the corner of the region to keep. */
+export interface ImageResizePlan {
+  width: number;
+  height: number;
+  left: number;
+  top: number;
+}
+
+/**
+ * Plan a manifest resize. `stretch` draws at the target size. `center_crop`
+ * scales uniformly until the image covers the target, then keeps the center.
+ */
+export function planImageResize(
+  sourceWidth: number,
+  sourceHeight: number,
+  resize: ImageResize,
+): ImageResizePlan {
+  if (resize.mode === "stretch") {
+    return { width: resize.width, height: resize.height, left: 0, top: 0 };
+  }
+  const scale = Math.max(
+    resize.height / sourceHeight,
+    resize.width / sourceWidth,
+  );
+  const width = Math.round(sourceWidth * scale);
+  const height = Math.round(sourceHeight * scale);
+  return {
+    width,
+    height,
+    left: Math.floor((width - resize.width) / 2),
+    top: Math.floor((height - resize.height) / 2),
+  };
+}
+
+/** Load an image and return its RGB bytes at the size the manifest asks for. */
+export async function getResizedRGBArrayFromURL(
+  url: string,
+  resize: ImageResize,
+): Promise<Uint8ClampedArray> {
+  const response = await fetch(url, { mode: "cors" });
+  const img = await createImageBitmap(await response.blob());
+  const plan = planImageResize(img.width, img.height, resize);
+  // Only the target rectangle is read, so draw the scaled image offset into a
+  // target-sized canvas instead of allocating the whole scaled image.
+  const canvas = new OffscreenCanvas(resize.width, resize.height);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Could not get 2d context");
+  }
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(img, -plan.left, -plan.top, plan.width, plan.height);
+  return getRGBArrayFromImageData(
+    ctx.getImageData(0, 0, resize.width, resize.height),
+  );
 }

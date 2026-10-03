@@ -238,3 +238,40 @@ test("embedAndForward begins and ends forward for all active states", async () =
   expect(pipeline.fKVCacheEndForward).toHaveBeenNthCalledWith(1, rnnState);
   expect(pipeline.fKVCacheEndForward).toHaveBeenNthCalledWith(2, kvState);
 });
+
+test("manifest forward passes every state in role order", () => {
+  const pipeline = Object.create(LLMChatPipeline.prototype) as AnyObj;
+  const calls: string[] = [];
+  pipeline.tvm = {
+    beginScope: jest.fn(),
+    endScope: jest.fn(),
+    detachFromCurrentScope: (x: unknown) => x,
+    attachToCurrentScope: jest.fn(),
+    makeShapeTuple: (x: number[]) => x,
+  };
+  pipeline.artifact = { generation: { inputs: "embeds" } };
+  pipeline.kvCache = { kind: "kv" };
+  pipeline.rnnState = { kind: "rnn" };
+  pipeline.params = { kind: "params" };
+  pipeline.filledKVCacheLength = 0;
+  pipeline.fKVCacheBeginForward = jest.fn((state: AnyObj) =>
+    calls.push(`begin ${state.kind}`),
+  );
+  pipeline.fKVCacheEndForward = jest.fn((state: AnyObj) =>
+    calls.push(`end ${state.kind}`),
+  );
+  pipeline.prefill = jest.fn(() => ({ get: () => "logits" }));
+  const embeddings = { shape: [3, 8], view: () => ({ kind: "emb" }) };
+
+  expect(
+    pipeline.artifactPrefillAndForward(embeddings, [1, 2, 3], [0, 0, 0]),
+  ).toBe("logits");
+  expect(pipeline.prefill).toHaveBeenCalledWith(
+    { kind: "emb" },
+    pipeline.kvCache,
+    pipeline.rnnState,
+    pipeline.params,
+  );
+  expect(calls).toEqual(["begin kv", "begin rnn", "end rnn", "end kv"]);
+  expect(pipeline.filledKVCacheLength).toBe(3);
+});
