@@ -255,6 +255,8 @@ export class LLMChatPipeline {
   // frequency of appeared token ids till now (refresh after PrefillStep); token_id mapped to freq
   private appearedTokensFreq = new Map<number, number>();
   private imageDataCache = new Map<string, ImageData>();
+  // Resized pixels for manifest image inputs, reused within one prefill.
+  private artifactImagePixelCache = new Map<string, Uint8ClampedArray>();
   private conversation: Conversation;
   // The logprob information of all tokens for this current round (cleared upon each prefillStep)
   // Cleared & updated at the exact same spots as `outputMessage`. Only updated when
@@ -1291,6 +1293,7 @@ export class LLMChatPipeline {
       }
     } finally {
       this.imageDataCache.clear();
+      this.artifactImagePixelCache.clear();
       this.tvm.endScope();
     }
     if (logits === undefined) {
@@ -1946,24 +1949,36 @@ export class LLMChatPipeline {
     }
     const { processor, dtype } = this.artifact.imageInput;
     const { resize, num_embeddings } = processor;
-    const pixels = await getResizedRGBArrayFromURL(part.image_url.url, resize);
-    this.tvm.beginScope();
-    // The values stay 0..255 whichever width the compiled adapter takes.
-    const pixelTensor = this.tvm.empty(
-      [1, resize.height, resize.width, 3],
-      dtype,
-      this.device,
-    );
-    if (dtype === "uint32") {
-      pixelTensor.copyFromRawBytes(
-        new Uint8Array(Uint32Array.from(pixels).buffer),
-      );
-    } else {
-      pixelTensor.copyFrom(pixels);
+    const cacheKey = `${resize.mode}:${resize.width}x${resize.height}:${part.image_url.url}`;
+    let pixels = this.artifactImagePixelCache.get(cacheKey);
+    if (pixels === undefined) {
+      pixels = await getResizedRGBArrayFromURL(part.image_url.url, resize);
+      this.artifactImagePixelCache.set(cacheKey, pixels);
     }
-    const embeddings = this.tvm.detachFromCurrentScope(
-      this.artifactImageAdapter(pixelTensor, this.params) as tvmjs.Tensor,
-    );
+    let embeddings: tvmjs.Tensor;
+    this.tvm.beginScope();
+    try {
+      // The values stay 0..255 whichever width the compiled adapter takes.
+      const pixelTensor = this.tvm.empty(
+        [1, resize.height, resize.width, 3],
+        dtype,
+        this.device,
+      );
+      if (dtype === "uint32") {
+        pixelTensor.copyFromRawBytes(
+          new Uint8Array(Uint32Array.from(pixels).buffer),
+        );
+      } else {
+        pixelTensor.copyFrom(pixels);
+      }
+      embeddings = this.tvm.detachFromCurrentScope(
+        this.artifactImageAdapter(pixelTensor, this.params) as tvmjs.Tensor,
+      );
+    } finally {
+      this.tvm.endScope();
+    }
+    // The caller's scope owns the result, so it is freed there if it is rejected.
+    this.tvm.attachToCurrentScope(embeddings);
     if (
       embeddings.shape.length !== 2 ||
       embeddings.shape[0] !== num_embeddings ||
@@ -1973,8 +1988,6 @@ export class LLMChatPipeline {
         `image adapter must return [${num_embeddings}, hidden_size], got [${embeddings.shape.join(", ")}]`,
       );
     }
-    this.tvm.endScope();
-    this.tvm.attachToCurrentScope(embeddings);
     return embeddings;
   }
 

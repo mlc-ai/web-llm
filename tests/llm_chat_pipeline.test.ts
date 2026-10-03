@@ -167,6 +167,7 @@ function createPipeline(): PipelineLike {
   pipeline["curRoundDecodingTotalTokens"] = 0;
   pipeline["curRoundDecodingTotalTime"] = 0;
   pipeline["imageDataCache"] = new Map();
+  pipeline["artifactImagePixelCache"] = new Map();
   return pipeline;
 }
 
@@ -1162,6 +1163,10 @@ test("image embeddings are built from a uint8 NHWC tensor of the declared size",
   raw["artifactImageAdapter"] = jest.fn(() => ({ shape: [3, 8] }));
   await expect(raw["getArtifactImageEmbeddings"](imagePart)).rejects.toThrow(
     /must return \[4, hidden_size\], got \[3, 8\]/,
+  );
+  // A rejected output must not leave the adapter's scope open.
+  expect(raw["tvm"].endScope).toHaveBeenCalledTimes(
+    raw["tvm"].beginScope.mock.calls.length,
   );
 
   // A uint32 adapter gets the same byte values in a wider tensor.

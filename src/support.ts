@@ -491,14 +491,16 @@ export async function getResizedRGBArrayFromURL(
   const response = await fetch(url, { mode: "cors" });
   const img = await createImageBitmap(await response.blob());
   const plan = planImageResize(img.width, img.height, resize);
-  const canvas = new OffscreenCanvas(plan.width, plan.height);
+  // Only the target rectangle is read, so draw the scaled image offset into a
+  // target-sized canvas instead of allocating the whole scaled image.
+  const canvas = new OffscreenCanvas(resize.width, resize.height);
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     throw new Error("Could not get 2d context");
   }
   ctx.imageSmoothingQuality = "high";
-  ctx.drawImage(img, 0, 0, plan.width, plan.height);
+  ctx.drawImage(img, -plan.left, -plan.top, plan.width, plan.height);
   return getRGBArrayFromImageData(
-    ctx.getImageData(plan.left, plan.top, resize.width, resize.height),
+    ctx.getImageData(0, 0, resize.width, resize.height),
   );
 }
