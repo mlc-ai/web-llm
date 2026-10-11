@@ -338,7 +338,7 @@ export function getCacheBackend(appConfig: AppConfig): CacheBackend {
  * @note The model version does not have to match the npm version, since not each npm update
  * requires an update of the model libraries.
  */
-export const modelVersion = "v0_2_84/base";
+export const modelVersion = "v0_2_86/base";
 export const modelLibURLPrefix =
   "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/";
 
@@ -765,9 +765,9 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Phi-3.5-vision-instruct-q4f16_1_cs2k-webgpu.wasm",
-      vram_required_MB: 3952.18,
-      low_resource_required: true,
+        "/Phi-3.5-vision-instruct-q4f16_1_cs4k-webgpu.wasm",
+      vram_required_MB: 4521.54,
+      low_resource_required: false,
       overrides: {
         context_window_size: 4096,
       },
@@ -780,9 +780,9 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/Phi-3.5-vision-instruct-q4f32_1_cs2k-webgpu.wasm",
-      vram_required_MB: 5879.84,
-      low_resource_required: true,
+        "/Phi-3.5-vision-instruct-q4f32_1_cs4k-webgpu.wasm",
+      vram_required_MB: 7050.65,
+      low_resource_required: false,
       overrides: {
         context_window_size: 4096,
       },
@@ -1016,6 +1016,38 @@ export const prebuiltAppConfig: AppConfig = {
         "/SmolLM2-135M-Instruct-q0f32_cs1k-webgpu.wasm",
       vram_required_MB: 719.38,
       low_resource_required: true,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    // Gemma-4
+    {
+      model: "https://huggingface.co/mlc-ai/gemma-4-E2B-it-q4f16_1-MLC",
+      model_id: "gemma-4-E2B-it-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/gemma-4-E2B-it-q4f16_1_cs512-webgpu.wasm",
+      model_manifest: "mlc-model-manifest.json",
+      buffer_size_required_bytes: 201326592,
+      vram_required_MB: 3387.37,
+      low_resource_required: false,
+      required_features: ["shader-f16"],
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/gemma-4-E2B-it-q4f32_1-MLC",
+      model_id: "gemma-4-E2B-it-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/gemma-4-E2B-it-q4f32_1_cs512-webgpu.wasm",
+      model_manifest: "mlc-model-manifest.json",
+      buffer_size_required_bytes: 201326592,
+      vram_required_MB: 3862.72,
+      low_resource_required: false,
       overrides: {
         context_window_size: 4096,
       },
