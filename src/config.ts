@@ -338,7 +338,7 @@ export function getCacheBackend(appConfig: AppConfig): CacheBackend {
  * @note The model version does not have to match the npm version, since not each npm update
  * requires an update of the model libraries.
  */
-export const modelVersion = "v0_2_84/base";
+export const modelVersion = "v0_2_86/base";
 export const modelLibURLPrefix =
   "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/";
 
@@ -362,6 +362,34 @@ export const functionCallingModelIds = [
 export const prebuiltAppConfig: AppConfig = {
   cacheBackend: "cache",
   model_list: [
+    // Gemma-4
+    {
+      model: "https://huggingface.co/mlc-ai/gemma-4-E2B-it-q4f16_1-MLC",
+      model_id: "gemma-4-E2B-it-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/gemma-4-E2B-it-q4f16_1_cs512-webgpu.wasm",
+      model_manifest: "mlc-model-manifest.json",
+      buffer_size_required_bytes: 201326592,
+      required_features: ["shader-f16"],
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model: "https://huggingface.co/mlc-ai/gemma-4-E2B-it-q4f32_1-MLC",
+      model_id: "gemma-4-E2B-it-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/gemma-4-E2B-it-q4f32_1_cs512-webgpu.wasm",
+      model_manifest: "mlc-model-manifest.json",
+      buffer_size_required_bytes: 201326592,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
     // Llama-3.2
     {
       model: "https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q4f32_1-MLC",
