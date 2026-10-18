@@ -1173,6 +1173,7 @@ export const prebuiltAppConfig: AppConfig = {
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
+        sliding_window_size: -1,
       },
     },
     // OLMo2
