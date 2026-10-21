@@ -282,6 +282,13 @@ export interface ChatCompletionRequestBase {
      * @note Currently only allowed to be used for Qwen3 models, though not explicitly checked.
      */
     enable_thinking?: boolean | null;
+    /**
+     * Replay historical assistant reasoning_content using the loaded template's
+     * declared preservation policy. Omit to use the profile's default history.
+     * Currently supported by the gemma4 profile only. Existing content strings are
+     * never stripped or rewritten by this option.
+     */
+    preserve_thinking?: boolean | null;
 
     /**
      * If set to true, the response will include a breakdown of the time spent in various
@@ -831,6 +838,13 @@ export interface ChatCompletionAssistantMessageParam {
    * The contents of the assistant message. Required unless `tool_calls` is specified.
    */
   content?: string | null;
+
+  /**
+   * Separately stored reasoning, rendered before content using
+   * conv_template.reasoning. This does not enable tool-call serialization;
+   * tool-call histories must still include their model-formatted content.
+   */
+  reasoning_content?: string | null;
 
   /**
    * An optional name for the participant. Provides the model information to

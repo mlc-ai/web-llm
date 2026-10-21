@@ -26,6 +26,8 @@ export interface ConvTemplateConfig {
   stop_token_ids: Array<number>;
   add_role_after_system_message?: boolean;
   render_empty_system_message?: boolean;
+  /** Format and history policy for separately supplied assistant reasoning. */
+  reasoning?: "qwen3" | "qwen3_5" | "gemma4" | "ministral3";
 }
 
 /**

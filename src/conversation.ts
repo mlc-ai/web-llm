@@ -24,6 +24,11 @@ import {
   UnsupportedToolChoiceTypeError,
   UnsupportedToolTypeError,
 } from "./error";
+import {
+  preserveThinking,
+  lastUserIndex,
+  formatAssistantReasoning,
+} from "./reasoning";
 
 type ImageURL = ChatCompletionContentPartImage.ImageURL;
 export type ArtifactPromptSegment =
@@ -681,6 +686,8 @@ export function getConversationFromChatCompletionRequest(
 
   // 2. Populate conversation.messages
   const input = request.messages;
+  const preserve = preserveThinking(request, conversation.config.reasoning);
+  let lastUser: number | undefined;
   const lastId = input.length - 1;
   if (input[lastId].role !== "user" && input[lastId].role !== "tool") {
     throw new MessageOrderError(
@@ -698,10 +705,20 @@ export function getConversationFromChatCompletionRequest(
     } else if (message.role === "user") {
       conversation.appendMessage(Role.user, message.content, message.name);
     } else if (message.role === "assistant") {
-      if (typeof message.content !== "string") {
+      let content = message.content;
+      if (message.reasoning_content != null) {
+        lastUser ??= lastUserIndex(input, conversation.config.reasoning);
+        content = formatAssistantReasoning(
+          message,
+          conversation.config.reasoning,
+          i > lastUser,
+          preserve,
+        );
+      }
+      if (typeof content !== "string") {
         throw new ContentTypeError(message.role + "'s message");
       }
-      conversation.appendMessage(Role.assistant, message.content, message.name);
+      conversation.appendMessage(Role.assistant, content, message.name);
     } else if (message.role === "tool") {
       conversation.appendMessage(Role.tool, message.content);
     } else {
