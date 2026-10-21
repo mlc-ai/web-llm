@@ -177,6 +177,29 @@ Additionally, we have a full Chrome extension project, `WebLLM Assistant <https:
 Additional Customization
 ------------------------
 
+Replaying Separated Reasoning
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Assistant ``reasoning_content`` can be replayed separately from ``content`` by
+selecting an explicit conversation reasoning profile:
+
+.. code-block:: typescript
+
+   await engine.reload("Qwen3-0.6B-q4f16_1-MLC", {
+       conv_config: { reasoning: "qwen3" },
+   });
+
+The profiles ``qwen3`` and ``qwen3_5`` keep reasoning in the current user turn,
+including across tool replies. ``ministral3`` retains historical reasoning.
+``gemma4`` also accepts ``extra_body: { preserve_thinking: true }`` to keep
+historical tool-call reasoning. Unsupported preservation options raise an error.
+
+Profiles format separated reasoning and its associated content using the model's
+reasoning rules. They leave existing raw content, generation settings and output
+parsing unchanged. This does not enable native tools for additional models or
+serialize ``tool_calls``; tool histories still require their model-formatted
+content and an appropriate tool-role template.
+
 Using IndexedDB Cache
 ^^^^^^^^^^^^^^^^^^^^^
 
