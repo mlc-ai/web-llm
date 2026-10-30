@@ -573,8 +573,13 @@ export class LLMChatPipeline {
         this.artifactImageAdapter = bindAdapter(imageInput.adapter);
       }
       if (audioInput !== undefined || imageInput !== undefined) {
+        const tensorCreateViewName = this.tvm
+          .listGlobalFuncNames()
+          .includes("runtime.TensorCreateView")
+          ? "runtime.TensorCreateView"
+          : "runtime.TVMTensorCreateView";
         this.fTensorCreateView = this.tvm.detachFromCurrentScope(
-          this.tvm.getGlobalFunc("runtime.TVMTensorCreateView"),
+          this.tvm.getGlobalFunc(tensorCreateViewName),
         );
       }
     }
