@@ -1364,6 +1364,7 @@ export const prebuiltAppConfig: AppConfig = {
       overrides: {
         context_window_size: 4096,
         max_history_size: 1,
+        conv_config: { stop_token_ids: [248046, 248044] },
       },
     },
     {
@@ -1378,6 +1379,7 @@ export const prebuiltAppConfig: AppConfig = {
       overrides: {
         context_window_size: 4096,
         max_history_size: 1,
+        conv_config: { stop_token_ids: [248046, 248044] },
       },
     },
     {
@@ -1392,6 +1394,7 @@ export const prebuiltAppConfig: AppConfig = {
       overrides: {
         context_window_size: 4096,
         max_history_size: 1,
+        conv_config: { stop_token_ids: [248046, 248044] },
       },
     },
     {
@@ -1406,6 +1409,7 @@ export const prebuiltAppConfig: AppConfig = {
       overrides: {
         context_window_size: 4096,
         max_history_size: 1,
+        conv_config: { stop_token_ids: [248046, 248044] },
       },
     },
     {
@@ -1420,6 +1424,7 @@ export const prebuiltAppConfig: AppConfig = {
       overrides: {
         context_window_size: 4096,
         max_history_size: 1,
+        conv_config: { stop_token_ids: [248046, 248044] },
       },
     },
     {
@@ -1434,6 +1439,7 @@ export const prebuiltAppConfig: AppConfig = {
       overrides: {
         context_window_size: 4096,
         max_history_size: 1,
+        conv_config: { stop_token_ids: [248046, 248044] },
       },
     },
     {
@@ -1448,6 +1454,7 @@ export const prebuiltAppConfig: AppConfig = {
       overrides: {
         context_window_size: 4096,
         max_history_size: 1,
+        conv_config: { stop_token_ids: [248046, 248044] },
       },
     },
     {
@@ -1462,6 +1469,7 @@ export const prebuiltAppConfig: AppConfig = {
       overrides: {
         context_window_size: 4096,
         max_history_size: 1,
+        conv_config: { stop_token_ids: [248046, 248044] },
       },
     },
     {
@@ -1476,6 +1484,7 @@ export const prebuiltAppConfig: AppConfig = {
       overrides: {
         context_window_size: 4096,
         max_history_size: 1,
+        conv_config: { stop_token_ids: [248046, 248044] },
       },
     },
     // Qwen-2

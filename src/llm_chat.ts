@@ -1042,6 +1042,11 @@ export class LLMChatPipeline {
             : responseFormat.type === "json_object"
               ? await this.grammarCompiler!.compileJSONSchema(
                   responseFormat.schema!,
+                  true,
+                  undefined,
+                  undefined,
+                  true,
+                  16, // Bound whitespace between JSON elements to prevent generation loops.
                 )
               : responseFormat.type === "grammar"
                 ? await this.grammarCompiler!.compileGrammar(
