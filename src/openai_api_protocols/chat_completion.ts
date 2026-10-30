@@ -91,7 +91,10 @@ export class Completions {
  * API reference: https://platform.openai.com/docs/api-reference/chat/create
  * Followed: https://github.com/openai/openai-node/blob/master/src/resources/chat/completions.ts
  *
- * @note `model` is excluded. Instead, call `CreateMLCEngine(model)` or `engine.reload(model)` explicitly before calling this API.
+ * @note Load models with `CreateMLCEngine(...)` or `engine.reload(...)` before calling this API.
+ * The `model` field selects an already loaded model by its `ModelRecord.model_id`. It is optional
+ * when one model is loaded and required when multiple models are loaded. Unknown or unloaded IDs
+ * are rejected; this field does not load a model.
  */
 export interface ChatCompletionRequestBase {
   /**
