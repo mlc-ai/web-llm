@@ -35,7 +35,7 @@ async function main() {
         model_lib:
           webllm.modelLibURLPrefix +
           webllm.modelVersion +
-          "/Llama-3.2-1B-Instruct-q4f16_1-ctx4k_cs1k-webgpu.wasm",
+          "/Llama-3.2-1B-Instruct-q4f16_1_cs1k-webgpu.wasm",
         low_resource_required: true,
         vram_required_MB: 879.04,
         overrides: {
