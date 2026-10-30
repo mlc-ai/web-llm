@@ -574,7 +574,7 @@ export class LLMChatPipeline {
       }
       if (audioInput !== undefined || imageInput !== undefined) {
         this.fTensorCreateView = this.tvm.detachFromCurrentScope(
-          this.tvm.getGlobalFunc("runtime.TVMTensorCreateView"),
+          this.tvm.getGlobalFunc("runtime.TensorCreateView"),
         );
       }
     }

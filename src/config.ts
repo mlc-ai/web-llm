@@ -338,7 +338,7 @@ export function getCacheBackend(appConfig: AppConfig): CacheBackend {
  * @note The model version does not have to match the npm version, since not each npm update
  * requires an update of the model libraries.
  */
-export const modelVersion = "v0_2_86/base";
+export const modelVersion = "v0_2_87/base";
 export const modelLibURLPrefix =
   "https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/";
 
@@ -1168,11 +1168,12 @@ export const prebuiltAppConfig: AppConfig = {
       model_lib:
         modelLibURLPrefix +
         modelVersion +
-        "/gemma3-1b-it-q4f16_1_cs1k-webgpu.wasm",
+        "/gemma3-1b-it-q4f16_1_cs512-webgpu.wasm",
       vram_required_MB: 711.07,
       low_resource_required: true,
       overrides: {
         context_window_size: 4096,
+        sliding_window_size: -1,
       },
     },
     // OLMo2
