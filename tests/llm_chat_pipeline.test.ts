@@ -1574,3 +1574,131 @@ describe("computeImageEmbedSize", () => {
     );
   });
 });
+
+// Keep sampling orchestration and logprob extraction real; only device kernels
+// and tensors are deterministic fixtures, so no WebGPU/model is needed.
+function createSamplingPipeline() {
+  const pipeline = createPipeline() as any;
+  function tensor(values: number[], shape = [values.length]) {
+    let data = Float32Array.from(values);
+    return {
+      shape,
+      dtype: "float32",
+      view(nextShape: number[]) {
+        return tensor(Array.from(data), nextShape);
+      },
+      copyFrom(source: any) {
+        data = Float32Array.from(source.toArray?.() ?? source);
+        return this;
+      },
+      toArray: () => data,
+      dispose: jest.fn(),
+    };
+  }
+  pipeline["config"] = {
+    temperature: 1,
+    top_p: 1,
+    repetition_penalty: 1,
+    frequency_penalty: 0,
+    presence_penalty: 0,
+  } as any;
+  pipeline["fullVocabSize"] = 3;
+  pipeline["sampleIndices"] = [0];
+  pipeline["sampleIndicesDevice"] = tensor([0]);
+  pipeline["topPDevice"] = tensor([1]);
+  Object.assign(pipeline["tvm"], {
+    empty: (shape: number[]) => tensor([], shape),
+    cpu: () => "cpu",
+    uniform: () => tensor([0.5]),
+  });
+  pipeline["fsoftmaxWithTemperature"] = () => tensor([0.25, 0.5, 0.25]);
+  pipeline["fargsortProbs"] = () => ({
+    get: (index: number) => tensor(index === 0 ? [0.5, 0.25, 0.25] : [1, 0, 2]),
+  });
+  pipeline["fsampleWithTopP"] = () => tensor([1]);
+  return { pipeline, logits: tensor([9, 8, 7]) };
+}
+
+test.each([undefined, 0, 2])(
+  "sampling records selected-token logprob with top_logprobs=%s",
+  async (top_logprobs) => {
+    const { pipeline, logits } = createSamplingPipeline();
+    const config = { logprobs: true, top_logprobs };
+    const sampled = await (
+      LLMChatPipeline.prototype as any
+    ).sampleFromRawLogits.call(pipeline, logits, config);
+    expect(sampled).toBe(1);
+    const entries = pipeline.getTokenLogprobArray();
+    expect(entries).toHaveLength(1);
+    expect(entries[0].token).toBe("t1");
+    expect(entries[0].bytes).toEqual([116, 49]);
+    expect(entries[0].logprob).toBeCloseTo(Math.log(0.5));
+    expect(entries[0].top_logprobs).toHaveLength(top_logprobs ?? 0);
+    if (top_logprobs === 2) {
+      expect(entries[0].top_logprobs.map((entry: any) => entry.token)).toEqual([
+        "t1",
+        "t0",
+      ]);
+      expect(entries[0].top_logprobs[1].logprob).toBeCloseTo(Math.log(0.25));
+    }
+  },
+);
+
+test("sampling without logprobs does not copy probabilities to CPU", async () => {
+  const { pipeline, logits } = createSamplingPipeline();
+  const copy = jest.spyOn(pipeline as any, "updateLogitsOnCPU");
+  await (LLMChatPipeline.prototype as any).sampleFromRawLogits.call(
+    pipeline,
+    logits,
+    { logprobs: false },
+  );
+  expect(pipeline.getTokenLogprobArray()).toEqual([]);
+  expect(copy).not.toHaveBeenCalled();
+});
+
+test.each([false, true])(
+  "token replay resets stale logprobs and only records a newly sampled token (journaled=%s)",
+  async (journaled) => {
+    const { pipeline, logits } = createSamplingPipeline();
+    pipeline.resetChat = jest.fn();
+    pipeline.setConversation = jest.fn();
+    pipeline.forwardKnownTokens = jest.fn(async () => logits);
+    pipeline.forwardDecodeToken = jest.fn(async () => logits);
+    // Undo createPipeline's sampling stub: replay and sampling stay real.
+    pipeline.sampleFromRawLogits = (
+      LLMChatPipeline.prototype as any
+    ).sampleFromRawLogits;
+    pipeline.tokenLogprobArray = [{ token: "stale" }];
+    const replayed = journaled
+      ? [{ globalTokenPos: 1, tokenId: 0, textDelta: "t0" }]
+      : [];
+    const result = await pipeline.replayGenerationTokens([2], [], replayed, {
+      logprobs: true,
+      top_logprobs: 0,
+    });
+    expect(
+      pipeline.getTokenLogprobArray().map((item: any) => item.token),
+    ).toEqual(journaled ? [] : ["t1"]);
+    expect(result.sampledToken === undefined).toBe(journaled);
+    expect(pipeline.getMessage()).toBe(journaled ? "t0" : "t1");
+  },
+);
+
+test("reusing a pipeline after resetting a generation does not retain prior logprobs", async () => {
+  const { pipeline, logits } = createSamplingPipeline();
+  const sample = () =>
+    (LLMChatPipeline.prototype as any).sampleFromRawLogits.call(
+      pipeline,
+      logits,
+      { logprobs: true, top_logprobs: 0 },
+    );
+  await sample();
+  const previous = pipeline.getTokenLogprobArray();
+  expect(previous).toHaveLength(1);
+  pipeline.resetGenerationRoundState();
+  expect(pipeline.getTokenLogprobArray()).toEqual([]);
+  await sample();
+  expect(pipeline.getTokenLogprobArray()).toHaveLength(1);
+  expect(pipeline.getTokenLogprobArray()).not.toBe(previous);
+  expect(previous).toHaveLength(1);
+});
