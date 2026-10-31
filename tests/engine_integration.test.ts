@@ -142,6 +142,98 @@ describe("MLCEngine deterministic integration", () => {
     expect(response.usage?.prompt_tokens).toBeGreaterThan(0);
   });
 
+  test.each([true, false, null, undefined])(
+    "streaming completion preserves echo=%s across multiple chunks",
+    async (echo) => {
+      const prompt = "Alpha ";
+      const { engine } = createEngineWithPipeline(3);
+      const generated = await engine.completions.create({
+        model: MODEL_ID,
+        prompt,
+        echo: false,
+      });
+      const expected = await engine.completions.create({
+        model: MODEL_ID,
+        prompt,
+        echo,
+      });
+      const stream = await engine.completions.create({
+        model: MODEL_ID,
+        prompt,
+        echo,
+        stream: true,
+        stream_options: { include_usage: true },
+      });
+      const chunks: Completion[] = [];
+      for await (const chunk of stream) chunks.push(chunk);
+      const text = chunks
+        .flatMap((chunk) => chunk.choices)
+        .map((choice) => choice.text)
+        .join("");
+      expect(text).toBe(expected.choices[0].text);
+      expect(text).toBe((echo ? prompt : "") + generated.choices[0].text);
+      const contentChunks = chunks.filter(
+        (chunk) => chunk.choices[0]?.finish_reason === null,
+      );
+      expect(contentChunks).toHaveLength(echo ? 5 : 4);
+      if (echo) {
+        expect(contentChunks[0].choices).toEqual([
+          { text: prompt, index: 0, finish_reason: null, logprobs: null },
+        ]);
+      }
+      for (const chunk of chunks) {
+        expect(chunk.id).toBe(chunks[0].id);
+        expect(chunk.created).toBe(chunks[0].created);
+        expect(chunk.model).toBe(MODEL_ID);
+        expect(chunk.object).toBe("text_completion");
+      }
+      expect(chunks[chunks.length - 2].choices[0]).toMatchObject({
+        text: "",
+        finish_reason: expected.choices[0].finish_reason,
+      });
+      expect(chunks[chunks.length - 1].usage).toMatchObject({
+        completion_tokens: generated.usage!.completion_tokens,
+        prompt_tokens: generated.usage!.prompt_tokens,
+        total_tokens: generated.usage!.total_tokens,
+      });
+    },
+  );
+
+  test("streaming completion echoes the prompt even when generated text is empty", async () => {
+    const { engine, pipeline } = createEngineWithPipeline();
+    jest.spyOn(pipeline, "getMessage").mockReturnValue("");
+    jest.spyOn(pipeline, "stopped").mockReturnValue(true);
+    const stream = await engine.completions.create({
+      model: MODEL_ID,
+      prompt: "Alpha ",
+      echo: true,
+      stream: true,
+    });
+    const texts: string[] = [];
+    for await (const chunk of stream) texts.push(chunk.choices[0].text);
+    expect(texts.join("")).toBe("Alpha ");
+    expect(texts[texts.length - 1]).toBe("");
+    expect(pipeline.decodeCallCount).toBe(0);
+  });
+
+  test("closing a streaming completion after the echoed prompt releases the pipeline", async () => {
+    const { engine, pipeline } = createEngineWithPipeline(2);
+    const stream = await engine.completions.create({
+      model: MODEL_ID,
+      prompt: "Alpha ",
+      echo: true,
+      stream: true,
+    });
+    const iterator = stream[Symbol.asyncIterator]();
+    const first = await iterator.next();
+    expect(first.value.choices[0].text).toBe("Alpha ");
+    await iterator.return!();
+    expect(pipeline.stopped()).toBe(true);
+    expect(pipeline.decodeCallCount).toBe(0);
+    const response = await engine.completions.create({ prompt: "Next" });
+    expect(response.choices[0].text).toContain("Next");
+  });
+
   test("forwardTokensAndSample and runtimeStatsText use mock pipeline", async () => {
     const { engine } = createEngineWithPipeline();
     await expect(
