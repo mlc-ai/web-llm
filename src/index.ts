@@ -1,3 +1,6 @@
+/// <reference types="@webgpu/types" preserve="true" />
+/// <reference types="chrome" preserve="true" />
+
 export {
   ModelRecord,
   AppConfig,
