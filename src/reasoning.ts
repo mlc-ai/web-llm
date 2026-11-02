@@ -94,7 +94,10 @@ export function formatAssistantReasoning(
         : trimSpace(content);
     case "gemma4": {
       // Calls are already formatted by the caller, including their literal argument values.
-      const answer = message.tool_calls?.length
+      const isToolCall = Boolean(
+        message.tool_calls?.length || content.includes("<|tool_call>"),
+      );
+      const answer = isToolCall
         ? content
         : trimSpace(
             content
@@ -102,7 +105,7 @@ export function formatAssistantReasoning(
               .map((part) => part.split("<|channel>")[0])
               .join(""),
           );
-      return reasoning && (current || (preserve && message.tool_calls?.length))
+      return reasoning && (current || (preserve && isToolCall))
         ? "<|channel>thought\n" + reasoning + "\n<channel|>" + answer
         : answer;
     }
