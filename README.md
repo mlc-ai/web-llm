@@ -184,7 +184,10 @@ Notes:
 
 After successfully initializing the engine, you can now invoke chat completions using OpenAI style chat APIs through the `engine.chat.completions` interface. For the full list of parameters and their descriptions, check [section below](#full-openai-compatibility) and [OpenAI API reference](https://platform.openai.com/docs/api-reference/chat/create).
 
-(Note: The `model` parameter is not supported and will be ignored here. Instead, call `CreateMLCEngine(model)` or `engine.reload(model)` instead as shown in the [Create MLCEngine](#create-mlcengine) above.)
+The `model` parameter selects an already loaded model by its `ModelRecord.model_id`.
+It is optional when one model is loaded and required when multiple models are loaded; unknown or unloaded IDs are rejected.
+Load models first with `CreateMLCEngine(...)` or `engine.reload(...)` as shown in [Create MLCEngine](#create-mlcengine).
+Passing `model` in a request does not load a model.
 
 ```typescript
 const messages = [
