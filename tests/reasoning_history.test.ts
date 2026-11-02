@@ -107,12 +107,19 @@ describe("separated reasoning history", () => {
     (value) => {
       const content =
         '<|tool_call>call:lookup{code:<|"|>' + value + '<|"|>}<tool_call|>';
-      const request = history();
-      request.messages[1] = { ...call, content, reasoning_content: "Plan" };
-      expect(conversation(request, "gemma4").messages[1][2]).toBe(
-        "<|channel>thought\nPlan\n<channel|>" + content,
-      );
-      expect(request.messages[1].content).toBe(content);
+      for (const toolCalls of [undefined, call.tool_calls]) {
+        const request = history();
+        request.messages[1] = {
+          ...call,
+          content,
+          reasoning_content: "Plan",
+          tool_calls: toolCalls,
+        };
+        expect(conversation(request, "gemma4").messages[1][2]).toBe(
+          "<|channel>thought\nPlan\n<channel|>" + content,
+        );
+        expect(request.messages[1].content).toBe(content);
+      }
     },
   );
   test("does not broaden unsupported empty-reasoning content validation", () => {
@@ -170,6 +177,24 @@ describe("separated reasoning history", () => {
       expect(output.messages[3][2]).toBe("42");
     },
   );
+  test("Gemma preserves content-only historical tool-call reasoning", () => {
+    const content = '<|tool_call>call:lookup{code:<|"|>A7<|"|>}<tool_call|>';
+    const request = history();
+    request.messages[1] = {
+      ...call,
+      content,
+      tool_calls: undefined,
+    };
+    request.messages.push(
+      { role: "assistant", content: "42", reasoning_content: "Summarize." },
+      { role: "user", content: "Next." },
+    );
+    request.extra_body = { preserve_thinking: true };
+
+    expect(conversation(request, "gemma4").messages[1][2]).toBe(
+      "<|channel>thought\nRead the code.\n<channel|>" + content,
+    );
+  });
   test.each([undefined, "qwen3", "qwen3_5", "ministral3"] as const)(
     "rejects a preservation option unsupported by %s",
     (profile) => {
