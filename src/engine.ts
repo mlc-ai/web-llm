@@ -903,6 +903,22 @@ export class MLCEngine implements MLCEngineInterface {
       } else {
         await this.prefill(request, pipeline, chatConfig, genConfig);
         prefilled = true;
+        if (!("messages" in request) && request.echo) {
+          yield {
+            id: state.id,
+            choices: [
+              {
+                text: request.prompt,
+                finish_reason: null,
+                index: 0,
+                logprobs: null,
+              },
+            ],
+            model,
+            object: "text_completion",
+            created: state.created,
+          };
+        }
         yield* this.streamCurrentGeneration(
           request,
           model,
