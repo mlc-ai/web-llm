@@ -914,10 +914,12 @@ export class LLMChatPipeline {
   }
 
   /**
-   * @returns Prefill tokens per second, starting from the last prefill performed.
+   * @returns Decode tokens per second, or zero when no decoding time has elapsed.
    */
   getCurRoundDecodingTokensPerSec(): number {
-    return this.curRoundDecodingTotalTokens / this.curRoundDecodingTotalTime;
+    return this.curRoundDecodingTotalTime > 0
+      ? this.curRoundDecodingTotalTokens / this.curRoundDecodingTotalTime
+      : 0;
   }
 
   /**

@@ -1,5 +1,9 @@
 import { LLMChatPipeline } from "../src/llm_chat";
 import { MinValueError } from "../src/error";
+import { MLCEngine } from "../src/engine";
+import { getConversation } from "../src/conversation";
+import { CustomLock } from "../src/support";
+import { ChatConfig, ModelType } from "../src/config";
 import { Role } from "../src/config";
 import { jest, test, expect, beforeEach } from "@jest/globals";
 import log from "loglevel";
@@ -195,6 +199,77 @@ test.each([
     ),
   ).rejects.toThrow(message);
 });
+
+test.each([
+  [0, 0, 0],
+  [1, 0, 0],
+  [4, 0.5, 8],
+])("decode rate for %s tokens in %s seconds is %s", (tokens, time, rate) => {
+  const pipeline = createPipeline();
+  pipeline["curRoundDecodingTotalTokens"] = tokens;
+  pipeline["curRoundDecodingTotalTime"] = time;
+  expect(pipeline.getCurRoundDecodingTokensPerSec()).toBe(rate);
+});
+
+for (const endpoint of ["chat", "completion"] as const) {
+  test.each(["length", "stop"] as const)(
+    `${endpoint} streaming usage has zero decode rate when prefill ends with %s`,
+    async (reason) => {
+      // Use the production prefill, token stopping, metrics, and engine stream
+      // paths. Only tokenization/model execution and KV storage are fixtures.
+      const pipeline = createPipeline();
+      const config = {
+        conv_template: {
+          system_template: "{system_message}",
+          system_message: "",
+          roles: { user: "user", assistant: "assistant" },
+          seps: ["\n"],
+          stop_token_ids: [0],
+          stop_str: [],
+        },
+      } as unknown as ChatConfig;
+      pipeline.setConversation(getConversation(config.conv_template));
+      pipeline["resetKVCache"] = jest.fn();
+      pipeline["getInputData"] = jest.fn(
+        async (): Promise<[any[], number, any]> => [[[0]], 1, () => 0],
+      );
+      pipeline["stopTokens"] = [0];
+      pipeline["sampleFromRawLogits"] = jest.fn(async () =>
+        reason === "stop" ? 0 : 2,
+      );
+      const decode = jest.spyOn(pipeline, "decodeStep");
+      const engine = new MLCEngine({ appConfig: { model_list: [] } });
+      const internal = engine as any;
+      internal.loadedModelIdToPipeline.set("fixture", pipeline);
+      internal.loadedModelIdToChatConfig.set("fixture", config);
+      internal.loadedModelIdToModelType.set("fixture", ModelType.LLM);
+      internal.loadedModelIdToLock.set("fixture", new CustomLock());
+      const options = {
+        model: "fixture",
+        stream: true as const,
+        stream_options: { include_usage: true },
+        max_tokens: 1,
+      };
+      const stream =
+        endpoint === "chat"
+          ? await engine.chatCompletion({
+              ...options,
+              messages: [{ role: "user", content: "Hello" }],
+            })
+          : await engine.completion({ ...options, prompt: "Hello" });
+      const chunks = [];
+      for await (const chunk of stream) chunks.push(chunk);
+      expect(decode).not.toHaveBeenCalled();
+      expect(pipeline.getCurRoundDecodingTotalTokens()).toBe(0);
+      expect(pipeline.getCurRoundDecodingTotalTime()).toBe(0);
+      expect(chunks.at(-2)?.choices[0].finish_reason).toBe(reason);
+      const usage = chunks.at(-1)?.usage;
+      expect(usage?.completion_tokens).toBe(1);
+      expect(usage?.extra?.decode_tokens_per_s).toBe(0);
+      expect(usage?.extra?.time_per_output_token_s).toBe(0);
+    },
+  );
+}
 
 test("processNextToken stops on stop token and updates conversation", () => {
   const pipeline = createPipeline();
