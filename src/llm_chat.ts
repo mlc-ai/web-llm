@@ -3133,7 +3133,7 @@ export class LLMChatPipeline {
         .empty([numSeqs], "int32", this.tvm.cpu())
         .copyFrom(sampledTokensDevice),
     );
-    if (logprobs && top_logprobs! > 0) {
+    if (logprobs) {
       this.updateLogitsOnCPU(probs);
     }
     this.tvm.endScope();
@@ -3146,9 +3146,9 @@ export class LLMChatPipeline {
       throw new Error("InternalError: failed to sample a valid token.");
     }
 
-    if (logprobs && top_logprobs! > 0) {
+    if (logprobs) {
       this.tokenLogprobArray.push(
-        this.getTokenLogprob(sampledToken, top_logprobs!),
+        this.getTokenLogprob(sampledToken, top_logprobs ?? 0),
       );
     }
 

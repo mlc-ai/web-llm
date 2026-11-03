@@ -431,6 +431,10 @@ export class ResumableGenerationCoordinator {
       created: Math.floor(Date.now() / 1000),
       prevMessageLength:
         restored.streamDeltaStart ?? pipeline.getMessage().length,
+      prevLogprobLength: Math.max(
+        0,
+        pipeline.getTokenLogprobArray().length - restored.extraEmittedTokens,
+      ),
     };
 
     try {
