@@ -63,6 +63,9 @@ async function simpleStructuredTextExample() {
     response_format: {
       type: "json_object",
       schema: schema2,
+      // Optional: force single-line JSON without optional whitespace. This keeps the
+      // compiled grammar small, which matters for schemas with many optional properties.
+      // whitespace: "compact",
     } as webllm.ResponseFormat,
   };
 

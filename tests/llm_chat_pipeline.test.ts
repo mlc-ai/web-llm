@@ -918,6 +918,69 @@ test("prefillStep instantiates new grammar matcher when schema changes", async (
   expect(pipeline["responseFormatCacheKey"]).toBe("{}");
 });
 
+test("prefillStep compiles json_object with default whitespace arguments", async () => {
+  const pipeline = preparePrefillPipeline();
+  pipeline["grammarMatcher"] = undefined;
+  pipeline["responseFormatCacheKey"] = undefined;
+  pipeline["xgTokenizerInfo"] = undefined;
+  pipeline["grammarCompiler"] = undefined;
+  await pipeline.prefillStep("hello", Role.user, undefined, {
+    response_format: { type: "json_object", schema: "{}", whitespace: "any" },
+  });
+  expect(compileJSONSchemaMock).toHaveBeenCalledWith(
+    "{}",
+    true,
+    undefined,
+    undefined,
+    true,
+    16,
+  );
+  expect(pipeline["responseFormatCacheKey"]).toBe("{}");
+});
+
+test("prefillStep compiles json_object with compact whitespace arguments", async () => {
+  const pipeline = preparePrefillPipeline();
+  pipeline["grammarMatcher"] = undefined;
+  pipeline["responseFormatCacheKey"] = undefined;
+  pipeline["xgTokenizerInfo"] = undefined;
+  pipeline["grammarCompiler"] = undefined;
+  await pipeline.prefillStep("hello", Role.user, undefined, {
+    response_format: {
+      type: "json_object",
+      schema: "{}",
+      whitespace: "compact",
+    },
+  });
+  expect(compileJSONSchemaMock).toHaveBeenCalledWith(
+    "{}",
+    false,
+    -1,
+    [",", ":"],
+    true,
+  );
+  expect(pipeline["responseFormatCacheKey"]).not.toBe("{}");
+});
+
+test("prefillStep recreates grammar matcher when whitespace mode changes", async () => {
+  const pipeline = preparePrefillPipeline();
+  pipeline["grammarMatcher"] = undefined;
+  pipeline["responseFormatCacheKey"] = undefined;
+  pipeline["xgTokenizerInfo"] = undefined;
+  pipeline["grammarCompiler"] = undefined;
+  await pipeline.prefillStep("hello", Role.user, undefined, {
+    response_format: { type: "json_object", schema: "{}" },
+  });
+  expect(compileJSONSchemaMock).toHaveBeenCalledTimes(1);
+  await pipeline.prefillStep("hello", Role.user, undefined, {
+    response_format: {
+      type: "json_object",
+      schema: "{}",
+      whitespace: "compact",
+    },
+  });
+  expect(compileJSONSchemaMock).toHaveBeenCalledTimes(2);
+});
+
 test("prefillStep compiles custom grammar when response type is grammar", async () => {
   const pipeline = preparePrefillPipeline();
   pipeline["grammarMatcher"] = undefined;

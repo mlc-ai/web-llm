@@ -936,7 +936,11 @@ export class LLMChatPipeline {
       return undefined;
     }
     if (responseFormat.type === "json_object") {
-      return responseFormat.schema ?? undefined;
+      const schema = responseFormat.schema ?? undefined;
+      // The whitespace mode changes the compiled grammar, so it is part of the key.
+      return schema !== undefined && responseFormat.whitespace === "compact"
+        ? `compact\n${schema}`
+        : schema;
     }
     if (responseFormat.type === "grammar") {
       return responseFormat.grammar ?? undefined;
@@ -1042,14 +1046,24 @@ export class LLMChatPipeline {
           responseFormat.type === undefined
             ? await this.grammarCompiler!.compileBuiltinJSONGrammar()
             : responseFormat.type === "json_object"
-              ? await this.grammarCompiler!.compileJSONSchema(
-                  responseFormat.schema!,
-                  true,
-                  undefined,
-                  undefined,
-                  true,
-                  16, // Bound whitespace between JSON elements to prevent generation loops.
-                )
+              ? responseFormat.whitespace === "compact"
+                ? // Single-line JSON with fixed separators: no optional whitespace, which
+                  // keeps the compiled grammar (token mask cache) small.
+                  await this.grammarCompiler!.compileJSONSchema(
+                    responseFormat.schema!,
+                    false,
+                    -1,
+                    [",", ":"],
+                    true,
+                  )
+                : await this.grammarCompiler!.compileJSONSchema(
+                    responseFormat.schema!,
+                    true,
+                    undefined,
+                    undefined,
+                    true,
+                    16, // Bound whitespace between JSON elements to prevent generation loops.
+                  )
               : responseFormat.type === "grammar"
                 ? await this.grammarCompiler!.compileGrammar(
                     responseFormat.grammar!,
