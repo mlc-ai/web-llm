@@ -35,6 +35,7 @@ import {
   InvalidResponseFormatError,
   InvalidResponseFormatGrammarError,
   InvalidResponseFormatStructuralTagError,
+  InvalidResponseFormatWhitespaceError,
   InvalidStreamOptionsError,
   MessageOrderError,
   MultipleTextContentError,
@@ -564,6 +565,20 @@ export function postInitAndCheckFields(
   ) {
     if (request.response_format?.type !== "json_object") {
       throw new InvalidResponseFormatError();
+    }
+  }
+
+  // 6.05 `whitespace` can only be `any` or `compact`, and only with type `json_object`.
+  if (
+    request.response_format?.whitespace !== undefined &&
+    request.response_format?.whitespace !== null
+  ) {
+    if (
+      request.response_format.type !== "json_object" ||
+      (request.response_format.whitespace !== "any" &&
+        request.response_format.whitespace !== "compact")
+    ) {
+      throw new InvalidResponseFormatWhitespaceError();
     }
   }
 
@@ -1285,6 +1300,18 @@ export interface ResponseFormat {
    * A schema string in the format of the schema of a JSON file. `type` needs to be `json_object`.
    */
   schema?: string;
+  /**
+   * Whitespace between JSON tokens when `schema` is given. Only valid with `type` `json_object`.
+   *
+   * - `"any"` (default): the model may emit up to 16 whitespace characters between any two
+   *   JSON tokens.
+   * - `"compact"`: single-line JSON without optional whitespace, i.e. separators `,` and `:`.
+   *   Allowing arbitrary whitespace can make the compiled grammar (token mask cache) very
+   *   large for schemas with many optional properties, which costs memory and compile time
+   *   (and can exhaust the wasm heap when many distinct schemas are used). `"compact"`
+   *   produces a much smaller grammar and fewer decode tokens.
+   */
+  whitespace?: "any" | "compact";
   /**
    * An EBNF-formatted string. Needs to be specified when, and only specified when,
    * `type` is `grammar`. The grammar will be normalized (simplified) by default.
