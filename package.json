@@ -55,7 +55,7 @@
     "typescript-eslint": "^8.47.0"
   },
   "dependencies": {
-    "@mlc-ai/web-runtime": "0.28.0-dev1",
+    "@mlc-ai/web-runtime": "0.28.0-dev2",
     "@mlc-ai/web-tokenizers": "^0.1.6",
     "@mlc-ai/web-xgrammar": "0.1.27",
     "@types/chrome": "^0.0.266",
