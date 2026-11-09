@@ -60,6 +60,12 @@ npm run lint
 npm test
 ```
 
+After building, run `npm run test:package-types` to check the published type
+declarations. This installs the packed package with production dependencies in
+an isolated temporary directory and type-checks a browser consumer with
+`skipLibCheck: false` and no implicit ambient types. The printed directory keeps
+the installed package and compiler input available for inspecting failures.
+
 Notes:
 
 - `npm test` runs Jest with coverage thresholds.

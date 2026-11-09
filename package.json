@@ -10,6 +10,7 @@
     "build:browser-tests": "rollup -c tests/browser/rollup.config.js",
     "lint": "npx eslint ./src/ ./tests/ ./examples/ && npx prettier ./src/ ./tests/ ./examples/ --check",
     "test": "jest --coverage",
+    "test:package-types": "node scripts/test-package-types.mjs",
     "test:browser": "npm run build:browser-tests && playwright test --config tests/browser/playwright.config.mjs",
     "format": "prettier --write \"./src/\" \"./examples/\" \"./tests/\"",
     "prepare": "husky"
@@ -31,18 +32,13 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.9.0",
-    "@mlc-ai/web-runtime": "0.28.0-dev1",
-    "@mlc-ai/web-tokenizers": "^0.1.6",
-    "@mlc-ai/web-xgrammar": "0.1.27",
     "@next/eslint-plugin-next": "^16.0.0",
     "@playwright/test": "1.55.1",
     "@rollup/plugin-commonjs": "^29.0.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-typescript": "^12.3.0",
-    "@types/chrome": "^0.0.266",
     "@types/jest": "^30.0.0",
     "@types/serviceworker": "^0.0.86",
-    "@webgpu/types": "^0.1.24",
     "buffer": "^5.7.1",
     "eslint": "^9.39.1",
     "eslint-config-prettier": "^10.1.8",
@@ -59,6 +55,11 @@
     "typescript-eslint": "^8.47.0"
   },
   "dependencies": {
+    "@mlc-ai/web-runtime": "0.28.0-dev2",
+    "@mlc-ai/web-tokenizers": "^0.1.6",
+    "@mlc-ai/web-xgrammar": "0.1.27",
+    "@types/chrome": "^0.0.266",
+    "@webgpu/types": "^0.1.24",
     "loglevel": "^1.9.1"
   },
   "overrides": {

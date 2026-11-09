@@ -84,7 +84,7 @@ export class ServiceWorkerMLCEngineHandler extends WebWorkerMLCEngineHandler {
   }
 
   onmessage(
-    event: ExtendableMessageEvent,
+    event: Pick<MessageEvent, "data">,
     onComplete?: (value: any) => void,
     onError?: () => void,
   ): void {
