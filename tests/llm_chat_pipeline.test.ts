@@ -930,6 +930,26 @@ test("getInputData uses cached prompts when KV cache filled", async () => {
   expect(pipeline["conversation"].getPromptArrayLastRound).toHaveBeenCalled();
 });
 
+test.each([false, true])(
+  "getInputData accepts long token sequences (content array: %s)",
+  async (contentArray) => {
+    const pipeline = createPipeline();
+    const encoded = Int32Array.from({ length: 262144 }, (_, i) => i);
+    pipeline["contextWindowSize"] = encoded.length + 2;
+    pipeline["tokenizer"].encode = jest.fn((prompt: string) =>
+      prompt === "prompt" ? encoded : Int32Array.from([7, 8]),
+    );
+    pipeline["conversation"].getPromptArray = jest.fn(() =>
+      contentArray ? [["prompt", "tail"]] : ["prompt", "tail"],
+    );
+
+    const [input, numPromptTokens] = await (pipeline as any).getInputData();
+
+    expect(numPromptTokens).toBe(encoded.length + 2);
+    expect(input).toEqual([[...encoded, 7, 8]]);
+  },
+);
+
 test("adapter embeddings that fit one chunk are reused without allocation", () => {
   const pipeline = createPipeline();
   const raw = pipeline as any;
