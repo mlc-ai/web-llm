@@ -46,6 +46,22 @@ describe("Check getTopLogprobs correctness", () => {
 });
 
 describe("Test clean model URL", () => {
+  test.each([
+    [
+      "models/demo",
+      "https://app.test/chat/page",
+      "https://app.test/chat/models/demo/",
+    ],
+    ["/models/demo/", "https://app.test", "https://app.test/models/demo/"],
+    [
+      "https://huggingface.co/org/model/resolve/v1",
+      "null",
+      "https://huggingface.co/org/model/resolve/v1/",
+    ],
+  ])("resolves %s against %s", (input, base, expected) => {
+    expect(cleanModelUrl(input, base)).toBe(expected);
+  });
+
   test("Input does not have branch or trailing /", () => {
     const input = "https://huggingface.co/mlc-ai/model";
     const output = cleanModelUrl(input);

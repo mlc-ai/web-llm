@@ -357,10 +357,7 @@ export class MLCEngine implements MLCEngineInterface {
       typeof document !== "undefined"
         ? document.URL
         : globalThis.location.origin;
-    let modelUrl = cleanModelUrl(modelRecord.model);
-    if (!modelUrl.startsWith("http")) {
-      modelUrl = new URL(modelUrl, baseUrl).href;
-    }
+    const modelUrl = cleanModelUrl(modelRecord.model, baseUrl);
     const modelType =
       modelRecord.model_type === undefined || modelRecord.model_type === null
         ? ModelType.LLM
