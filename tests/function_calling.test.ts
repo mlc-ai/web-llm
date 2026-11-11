@@ -10,7 +10,9 @@ import {
   getConversationFromChatCompletionRequest,
   getFunctionCallUsage,
 } from "../src/conversation";
+import { ContentTypeError } from "../src/error";
 import { ChatCompletionRequest } from "../src/openai_api_protocols/chat_completion";
+import { getToolCallFromOutputMessage } from "../src/support";
 
 import { describe, expect, test } from "@jest/globals";
 import { llama3_1ChatConfig } from "./constants";
@@ -258,6 +260,16 @@ describe("Test Hermes2 formatting", () => {
     bos_token_id: 128000,
   };
 
+  function renderPrompt(messages: ChatCompletionRequest["messages"]): string {
+    return getConversationFromChatCompletionRequest(
+      { messages },
+      hermes2LlamaChatConfig,
+    )
+      .getPromptArray()
+      .map((part) => (typeof part === "string" ? part : ""))
+      .join("");
+  }
+
   // Follows https://github.com/NousResearch/Hermes-Function-Calling/blob/96ebfd7c903216b05e1eb7b155f7d5842b0fbce8/README.md#prompt-format
   test("Test formatting", () => {
     const system_prompt = `You are a function calling AI model. You are provided with function signatures within <tools></tools> XML tags. You may call one or more functions to assist with the user query. Don't make assumptions about what values to plug into functions. Here are the available tools: <tools> {"type": "function", "function": {"name": "get_stock_fundamentals", "description": "get_stock_fundamentals(symbol: str) -> dict - Get fundamental data for a given stock symbol using yfinance API.\\n\\n    Args:\\n        symbol (str): The stock symbol.\\n\\n    Returns:\\n        dict: A dictionary containing fundamental data.\\n            Keys:\\n                - \'symbol\': The stock symbol.\\n                - \'company_name\': The long name of the company.\\n                - \'sector\': The sector to which the company belongs.\\n                - \'industry\': The industry to which the company belongs.\\n                - \'market_cap\': The market capitalization of the company.\\n                - \'pe_ratio\': The forward price-to-earnings ratio.\\n                - \'pb_ratio\': The price-to-book ratio.\\n                - \'dividend_yield\': The dividend yield.\\n                - \'eps\': The trailing earnings per share.\\n                - \'beta\': The beta value of the stock.\\n                - \'52_week_high\': The 52-week high price of the stock.\\n                - \'52_week_low\': The 52-week low price of the stock.", "parameters": {"type": "object", "properties": {"symbol": {"type": "string"}}, "required": ["symbol"]}}}  </tools> Use the following pydantic model json schema for each tool call you will make: {"properties": {"arguments": {"title": "Arguments", "type": "object"}, "name": {"title": "Name", "type": "string"}}, "required": ["arguments", "name"], "title": "FunctionCall", "type": "object"} For each function call return a json object with function name and arguments within <tool_call></tool_call> XML tags as follows:\n<tool_call>\n{"arguments": <args-dict>, "name": <function-name>}\n</tool_call>`;
@@ -300,6 +312,53 @@ describe("Test Hermes2 formatting", () => {
       `<|im_start|>tool\n<tool_response>\n{"name": "get_stock_fundamentals", "content": {'symbol': 'TSLA', 'company_name': 'Tesla, Inc.', 'sector': 'Consumer Cyclical', 'industry': 'Auto Manufacturers', 'market_cap': 611384164352, 'pe_ratio': 49.604652, 'pb_ratio': 9.762013, 'dividend_yield': None, 'eps': 4.3, 'beta': 2.427, '52_week_high': 299.29, '52_week_low': 152.37}}\n</tool_response>\n<|im_end|>\n` +
       `<|im_start|>assistant\nSome replies here<|im_end|>\n`;
     expect(finalMessage).toEqual(expected);
+  });
+
+  test("replays a null-content tool-calling assistant message", () => {
+    const outputMessage =
+      '[{"arguments":{"location":"Pittsburgh","unit":"celsius"},"name":"get_current_weather"}]';
+    const prompt = renderPrompt([
+      { role: "user", content: "Weather in Pittsburgh?" },
+      {
+        role: "assistant",
+        content: null,
+        tool_calls: getToolCallFromOutputMessage(outputMessage, false),
+      },
+      { role: "tool", tool_call_id: "0", content: "72F" },
+    ]);
+    expect(prompt).toContain(
+      `<|im_start|>assistant\n${outputMessage}<|im_end|>\n`,
+    );
+  });
+
+  test("keeps string assistant content when tool_calls are also set", () => {
+    const content = '<tool_call>{"name":"get_weather"}</tool_call>';
+    const prompt = renderPrompt([
+      { role: "user", content: "Weather?" },
+      {
+        role: "assistant",
+        content,
+        tool_calls: [
+          {
+            id: "0",
+            type: "function",
+            function: { name: "get_weather", arguments: "{}" },
+          },
+        ],
+      },
+      { role: "user", content: "Thanks" },
+    ]);
+    expect(prompt).toContain(`<|im_start|>assistant\n${content}<|im_end|>\n`);
+  });
+
+  test("still rejects a null assistant message with no tool calls", () => {
+    expect(() =>
+      renderPrompt([
+        { role: "user", content: "Weather in Pittsburgh?" },
+        { role: "assistant", content: null },
+        { role: "user", content: "Still there?" },
+      ]),
+    ).toThrow(ContentTypeError);
   });
 });
 
