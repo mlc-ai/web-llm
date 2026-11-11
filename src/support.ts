@@ -85,16 +85,22 @@ export function getTokenTableFromTokenizer(tokenizer: Tokenizer): string[] {
 }
 
 /**
- * Postprocess the suffix of ModelRecord.model to be "/resolve/main/" if it is not specified otherwise.
- * e.g. https://huggingface.co/mlc-ai/OpenHermes-2.5-Mistral-7B-q4f16_1-MLC/resolve/main/
- * @return the href of the final URL.
+ * Resolve a local model directory or normalize a Hugging Face repository URL.
  */
-export function cleanModelUrl(modelUrl: string): string {
-  // https://huggingface.co/USER/MODEL -> https://huggingface.co/USER/MODEL/
-  modelUrl += modelUrl.endsWith("/") ? "" : "/";
-  if (!modelUrl.match(/.+\/resolve\/.+\//)) modelUrl += "resolve/main/";
-  // https://huggingface.co/USER/MODEL/ -> https://huggingface.co/USER/MODEL/resolve/main/
-  return new URL(modelUrl).href;
+export function cleanModelUrl(
+  modelUrl: string,
+  baseUrl = globalThis.document?.URL ?? globalThis.location?.origin,
+): string {
+  const absolute = /^[a-z][a-z\d+.-]*:/i.test(modelUrl);
+  const url = new URL(modelUrl, absolute ? undefined : baseUrl);
+  if (!url.pathname.endsWith("/")) url.pathname += "/";
+  if (
+    (absolute || modelUrl.startsWith("//")) &&
+    !/\/resolve\/.+\//.test(url.pathname)
+  ) {
+    url.pathname += "resolve/main/";
+  }
+  return url.href;
 }
 
 // Constants for Hermes-2-Pro / Hermes-3 models function calling

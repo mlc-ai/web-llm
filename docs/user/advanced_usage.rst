@@ -1,6 +1,16 @@
 Advanced Use Cases
 ==================
 
+Hosting model files with your app
+--------------------------------
+
+Set ``model`` to a directory such as ``/models/demo/`` and ``model_lib`` to the
+matching compiled WASM file. Place ``mlc-chat-config.json``, the tokenizer,
+``tensor-cache.json`` and its weight shards directly in the model directory.
+Root-relative paths work the same way in a page and a worker. A path such as
+``./models/demo/`` resolves relative to the document URL in a page and to the
+origin in a worker, following the same convention as relative WASM URLs.
+
 Audio Input with a Model Manifest (Experimental)
 ------------------------------------------------
 
