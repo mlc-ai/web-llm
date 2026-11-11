@@ -175,6 +175,7 @@ const engine = await CreateMLCEngine("Llama-3.1-8B-Instruct-q4f32_1-MLC", {
 ```
 
 Notes:
+
 - If `"opfs"` is selected in an environment without OPFS support, cache operations fail with an OPFS availability error.
 - When using `"opfs"`, `appConfig.opfsAccessMode` can be set to `"auto"` to use OPFS sync access handles where supported, or `"sync"` to require sync access handles. The default is `"async"`.
 - The `"cross-origin"` backend requires installing and enabling a compatible browser extension.
@@ -336,7 +337,7 @@ You can also find examples of building Chrome extension with WebLLM in [examples
 WebLLM is designed to be fully compatible with [OpenAI API](https://platform.openai.com/docs/api-reference/chat). Thus, besides building a simple chatbot, you can also have the following functionalities with WebLLM:
 
 - [streaming](examples/streaming): return output as chunks in real-time in the form of an AsyncGenerator
-- [json-mode](examples/json-mode): efficiently ensure output is in JSON format, see [OpenAI Reference](https://platform.openai.com/docs/guides/text-generation/chat-completions-api) for more.
+- [json-mode](examples/json-mode): efficiently ensure output is in JSON format, see [OpenAI Reference](https://platform.openai.com/docs/guides/text-generation/chat-completions-api) for more. With a `schema`, `response_format: { type: "json_object", schema, whitespace: "compact" }` restricts the output to single-line JSON without optional whitespace, which gives a much smaller grammar (less memory and compile time) for schemas with many optional properties; see [json-schema](examples/json-schema).
 - [seed-to-reproduce](examples/seed-to-reproduce): use seeding to ensure a reproducible output with fields `seed`.
 - [function-calling](examples/function-calling) (WIP): function calling with fields `tools` and `tool_choice` (with preliminary support); or manual function calling without `tools` or `tool_choice` (keeps the most flexibility).
 
