@@ -3263,14 +3263,18 @@ export class LLMChatPipeline {
       if (typeof curPrompt === "string") {
         const encoded = this.tokenizer.encode(curPrompt);
         numPromptTokens += encoded.length;
-        curTokens.push(...encoded);
+        for (const tokenId of encoded) {
+          curTokens.push(tokenId);
+        }
       } else {
         for (let j = 0; j < curPrompt.length; j++) {
           const curPromptContent: string | ImageURL = curPrompt[j];
           if (typeof curPromptContent === "string") {
             const encoded = this.tokenizer.encode(curPromptContent);
             numPromptTokens += encoded.length;
-            curTokens.push(...encoded);
+            for (const tokenId of encoded) {
+              curTokens.push(tokenId);
+            }
           } else {
             // Insert BOI token before image if configured
             if (boiToken !== undefined) {
