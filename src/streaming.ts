@@ -2,6 +2,7 @@ export interface StreamGenerationState {
   id: string;
   created: number;
   prevMessageLength: number;
+  prevLogprobLength: number;
 }
 
 export interface StreamContinuationOptions {

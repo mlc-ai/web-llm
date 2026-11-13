@@ -1,5 +1,9 @@
 import { LLMChatPipeline } from "../src/llm_chat";
 import { MinValueError } from "../src/error";
+import { MLCEngine } from "../src/engine";
+import { getConversation } from "../src/conversation";
+import { CustomLock } from "../src/support";
+import { ChatConfig, ModelType } from "../src/config";
 import { Role } from "../src/config";
 import { jest, test, expect, beforeEach } from "@jest/globals";
 import log from "loglevel";
@@ -195,6 +199,77 @@ test.each([
     ),
   ).rejects.toThrow(message);
 });
+
+test.each([
+  [0, 0, 0],
+  [1, 0, 0],
+  [4, 0.5, 8],
+])("decode rate for %s tokens in %s seconds is %s", (tokens, time, rate) => {
+  const pipeline = createPipeline();
+  pipeline["curRoundDecodingTotalTokens"] = tokens;
+  pipeline["curRoundDecodingTotalTime"] = time;
+  expect(pipeline.getCurRoundDecodingTokensPerSec()).toBe(rate);
+});
+
+for (const endpoint of ["chat", "completion"] as const) {
+  test.each(["length", "stop"] as const)(
+    `${endpoint} streaming usage has zero decode rate when prefill ends with %s`,
+    async (reason) => {
+      // Use the production prefill, token stopping, metrics, and engine stream
+      // paths. Only tokenization/model execution and KV storage are fixtures.
+      const pipeline = createPipeline();
+      const config = {
+        conv_template: {
+          system_template: "{system_message}",
+          system_message: "",
+          roles: { user: "user", assistant: "assistant" },
+          seps: ["\n"],
+          stop_token_ids: [0],
+          stop_str: [],
+        },
+      } as unknown as ChatConfig;
+      pipeline.setConversation(getConversation(config.conv_template));
+      pipeline["resetKVCache"] = jest.fn();
+      pipeline["getInputData"] = jest.fn(
+        async (): Promise<[any[], number, any]> => [[[0]], 1, () => 0],
+      );
+      pipeline["stopTokens"] = [0];
+      pipeline["sampleFromRawLogits"] = jest.fn(async () =>
+        reason === "stop" ? 0 : 2,
+      );
+      const decode = jest.spyOn(pipeline, "decodeStep");
+      const engine = new MLCEngine({ appConfig: { model_list: [] } });
+      const internal = engine as any;
+      internal.loadedModelIdToPipeline.set("fixture", pipeline);
+      internal.loadedModelIdToChatConfig.set("fixture", config);
+      internal.loadedModelIdToModelType.set("fixture", ModelType.LLM);
+      internal.loadedModelIdToLock.set("fixture", new CustomLock());
+      const options = {
+        model: "fixture",
+        stream: true as const,
+        stream_options: { include_usage: true },
+        max_tokens: 1,
+      };
+      const stream =
+        endpoint === "chat"
+          ? await engine.chatCompletion({
+              ...options,
+              messages: [{ role: "user", content: "Hello" }],
+            })
+          : await engine.completion({ ...options, prompt: "Hello" });
+      const chunks = [];
+      for await (const chunk of stream) chunks.push(chunk);
+      expect(decode).not.toHaveBeenCalled();
+      expect(pipeline.getCurRoundDecodingTotalTokens()).toBe(0);
+      expect(pipeline.getCurRoundDecodingTotalTime()).toBe(0);
+      expect(chunks.at(-2)?.choices[0].finish_reason).toBe(reason);
+      const usage = chunks.at(-1)?.usage;
+      expect(usage?.completion_tokens).toBe(1);
+      expect(usage?.extra?.decode_tokens_per_s).toBe(0);
+      expect(usage?.extra?.time_per_output_token_s).toBe(0);
+    },
+  );
+}
 
 test("processNextToken stops on stop token and updates conversation", () => {
   const pipeline = createPipeline();
@@ -1593,4 +1668,132 @@ describe("computeImageEmbedSize", () => {
       "Cannot determine image embed size",
     );
   });
+});
+
+// Keep sampling orchestration and logprob extraction real; only device kernels
+// and tensors are deterministic fixtures, so no WebGPU/model is needed.
+function createSamplingPipeline() {
+  const pipeline = createPipeline() as any;
+  function tensor(values: number[], shape = [values.length]) {
+    let data = Float32Array.from(values);
+    return {
+      shape,
+      dtype: "float32",
+      view(nextShape: number[]) {
+        return tensor(Array.from(data), nextShape);
+      },
+      copyFrom(source: any) {
+        data = Float32Array.from(source.toArray?.() ?? source);
+        return this;
+      },
+      toArray: () => data,
+      dispose: jest.fn(),
+    };
+  }
+  pipeline["config"] = {
+    temperature: 1,
+    top_p: 1,
+    repetition_penalty: 1,
+    frequency_penalty: 0,
+    presence_penalty: 0,
+  } as any;
+  pipeline["fullVocabSize"] = 3;
+  pipeline["sampleIndices"] = [0];
+  pipeline["sampleIndicesDevice"] = tensor([0]);
+  pipeline["topPDevice"] = tensor([1]);
+  Object.assign(pipeline["tvm"], {
+    empty: (shape: number[]) => tensor([], shape),
+    cpu: () => "cpu",
+    uniform: () => tensor([0.5]),
+  });
+  pipeline["fsoftmaxWithTemperature"] = () => tensor([0.25, 0.5, 0.25]);
+  pipeline["fargsortProbs"] = () => ({
+    get: (index: number) => tensor(index === 0 ? [0.5, 0.25, 0.25] : [1, 0, 2]),
+  });
+  pipeline["fsampleWithTopP"] = () => tensor([1]);
+  return { pipeline, logits: tensor([9, 8, 7]) };
+}
+
+test.each([undefined, 0, 2])(
+  "sampling records selected-token logprob with top_logprobs=%s",
+  async (top_logprobs) => {
+    const { pipeline, logits } = createSamplingPipeline();
+    const config = { logprobs: true, top_logprobs };
+    const sampled = await (
+      LLMChatPipeline.prototype as any
+    ).sampleFromRawLogits.call(pipeline, logits, config);
+    expect(sampled).toBe(1);
+    const entries = pipeline.getTokenLogprobArray();
+    expect(entries).toHaveLength(1);
+    expect(entries[0].token).toBe("t1");
+    expect(entries[0].bytes).toEqual([116, 49]);
+    expect(entries[0].logprob).toBeCloseTo(Math.log(0.5));
+    expect(entries[0].top_logprobs).toHaveLength(top_logprobs ?? 0);
+    if (top_logprobs === 2) {
+      expect(entries[0].top_logprobs.map((entry: any) => entry.token)).toEqual([
+        "t1",
+        "t0",
+      ]);
+      expect(entries[0].top_logprobs[1].logprob).toBeCloseTo(Math.log(0.25));
+    }
+  },
+);
+
+test("sampling without logprobs does not copy probabilities to CPU", async () => {
+  const { pipeline, logits } = createSamplingPipeline();
+  const copy = jest.spyOn(pipeline as any, "updateLogitsOnCPU");
+  await (LLMChatPipeline.prototype as any).sampleFromRawLogits.call(
+    pipeline,
+    logits,
+    { logprobs: false },
+  );
+  expect(pipeline.getTokenLogprobArray()).toEqual([]);
+  expect(copy).not.toHaveBeenCalled();
+});
+
+test.each([false, true])(
+  "token replay resets stale logprobs and only records a newly sampled token (journaled=%s)",
+  async (journaled) => {
+    const { pipeline, logits } = createSamplingPipeline();
+    pipeline.resetChat = jest.fn();
+    pipeline.setConversation = jest.fn();
+    pipeline.forwardKnownTokens = jest.fn(async () => logits);
+    pipeline.forwardDecodeToken = jest.fn(async () => logits);
+    // Undo createPipeline's sampling stub: replay and sampling stay real.
+    pipeline.sampleFromRawLogits = (
+      LLMChatPipeline.prototype as any
+    ).sampleFromRawLogits;
+    pipeline.tokenLogprobArray = [{ token: "stale" }];
+    const replayed = journaled
+      ? [{ globalTokenPos: 1, tokenId: 0, textDelta: "t0" }]
+      : [];
+    const result = await pipeline.replayGenerationTokens([2], [], replayed, {
+      logprobs: true,
+      top_logprobs: 0,
+    });
+    expect(
+      pipeline.getTokenLogprobArray().map((item: any) => item.token),
+    ).toEqual(journaled ? [] : ["t1"]);
+    expect(result.sampledToken === undefined).toBe(journaled);
+    expect(pipeline.getMessage()).toBe(journaled ? "t0" : "t1");
+  },
+);
+
+test("reusing a pipeline after resetting a generation does not retain prior logprobs", async () => {
+  const { pipeline, logits } = createSamplingPipeline();
+  const sample = () =>
+    (LLMChatPipeline.prototype as any).sampleFromRawLogits.call(
+      pipeline,
+      logits,
+      { logprobs: true, top_logprobs: 0 },
+    );
+  await sample();
+  const previous = pipeline.getTokenLogprobArray();
+  expect(previous).toHaveLength(1);
+  pipeline.resetGenerationRoundState();
+  expect(pipeline.getTokenLogprobArray()).toEqual([]);
+  await sample();
+  expect(pipeline.getTokenLogprobArray()).toHaveLength(1);
+  expect(pipeline.getTokenLogprobArray()).not.toBe(previous);
+  expect(previous).toHaveLength(1);
 });

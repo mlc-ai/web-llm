@@ -1,5 +1,7 @@
 import { LLMChatPipeline } from "../../src/llm_chat.ts";
 import { MLCEngine } from "../../src/engine.ts";
+export { LLMChatPipeline };
+export * as xgrammar from "@mlc-ai/web-xgrammar";
 export {
   WebWorkerMLCEngine,
   WebWorkerMLCEngineHandler,

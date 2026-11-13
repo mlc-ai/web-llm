@@ -621,11 +621,17 @@ export class MLCEngine implements MLCEngineInterface {
       return undefined;
     }
 
-    const logprobs = request.logprobs
+    const tokenLogprobs = request.logprobs
+      ? pipeline.getTokenLogprobArray()
+      : undefined;
+    const logprobs = tokenLogprobs
       ? ({
-          content: pipeline.getTokenLogprobArray().slice(-1),
+          content: tokenLogprobs.slice(state.prevLogprobLength),
         } as ChatCompletionChunk.Choice.Logprobs)
       : null;
+    if (tokenLogprobs !== undefined) {
+      state.prevLogprobLength = tokenLogprobs.length;
+    }
     if ("messages" in request) {
       return {
         id: state.id,
@@ -887,6 +893,7 @@ export class MLCEngine implements MLCEngineInterface {
         id: crypto.randomUUID(),
         created: getUnixTimestampSeconds(),
         prevMessageLength: 0,
+        prevLogprobLength: 0,
       };
       this.interruptSignal = false;
       if (journal !== undefined) {
@@ -903,6 +910,22 @@ export class MLCEngine implements MLCEngineInterface {
       } else {
         await this.prefill(request, pipeline, chatConfig, genConfig);
         prefilled = true;
+        if (!("messages" in request) && request.echo) {
+          yield {
+            id: state.id,
+            choices: [
+              {
+                text: request.prompt,
+                finish_reason: null,
+                index: 0,
+                logprobs: null,
+              },
+            ],
+            model,
+            object: "text_completion",
+            created: state.created,
+          };
+        }
         yield* this.streamCurrentGeneration(
           request,
           model,

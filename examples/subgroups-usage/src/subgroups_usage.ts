@@ -86,7 +86,7 @@ async function main() {
   //       model_lib:
   //         webllm.modelLibURLPrefix +
   //         webllm.modelVersion +
-  //         "/Llama-3_1-8B-Instruct-q4f32_1-ctx4k_cs1k-webgpu.wasm",
+  //         "/Llama-3_1-8B-Instruct-q4f32_1_cs1k-webgpu.wasm",
   //       overrides: {
   //         context_window_size: 2048,
   //       },
