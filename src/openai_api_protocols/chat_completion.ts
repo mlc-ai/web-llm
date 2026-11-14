@@ -825,6 +825,9 @@ export interface ChatCompletionUserMessageParam {
 }
 
 export interface ChatCompletionAssistantMessageParam {
+  /** Structured assistant reasoning preserved by Qwen3.8 templates. */
+  reasoning_content?: string;
+
   /**
    * The role of the messages author, in this case `assistant`.
    */

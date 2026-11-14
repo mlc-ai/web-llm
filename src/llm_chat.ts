@@ -1216,6 +1216,12 @@ export class LLMChatPipeline {
   ): Promise<ForwardPrefillResult> {
     const conversation = this.conversation;
     const assistantPrefixTokenIds: number[] = [];
+    if (
+      conversation.config.reasoning_history_style === "qwen3_8" &&
+      genConfig?.enable_thinking != null
+    ) {
+      throw new Error("Qwen3.8 uses static templates to select thinking mode.");
+    }
 
     // 0. Get inputData from conversation
     if (conversation.isTextCompletion) {

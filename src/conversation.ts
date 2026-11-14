@@ -31,6 +31,23 @@ export type ArtifactPromptSegment =
   | ChatCompletionContentPartImage
   | ChatCompletionContentPartInputAudio;
 
+// Python str.strip (used by the pinned HF template) differs from JavaScript trim.
+function pythonTrim(value: string): string {
+  return value.replace(
+    // eslint-disable-next-line no-control-regex -- Match Python whitespace exactly.
+    /^[\u0009-\u000d\u001c-\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|[\u0009-\u000d\u001c-\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+$/g,
+    "",
+  );
+}
+
+const qwen38Instructions = {
+  xhigh:
+    "Reasoning effort is set to xhigh. Please think carefully through the task, validate key assumptions, consider plausible alternatives, and prioritize correctness, consistency, and clarity in the final answer.",
+  medium: "",
+  low: "Reasoning effort is set to low. Keep your thinking brief and focused, moving directly to the conclusion without unnecessary elaboration.",
+  none: "",
+};
+
 /**
  * Helper to keep track of history conversations.
  */
@@ -69,8 +86,22 @@ export class Conversation {
   }
 
   private getSystemPrompt(): string {
-    const systemMessage =
+    let systemMessage =
       this.override_system_message ?? this.config.system_message;
+    if (this.config.reasoning_history_style === "qwen3_8") {
+      const effort = this.config.qwen3_8_reasoning_effort ?? "xhigh";
+      if (!Object.hasOwn(qwen38Instructions, effort)) {
+        throw new Error("Unsupported Qwen3.8 template reasoning effort");
+      }
+      systemMessage = [qwen38Instructions[effort], pythonTrim(systemMessage)]
+        .filter((part) => part !== "")
+        .join("\n\n");
+      if (systemMessage === "") return "";
+      return this.config.system_template.replace(
+        MessagePlaceholders.system,
+        () => systemMessage,
+      );
+    }
     if (
       systemMessage === "" &&
       this.config.render_empty_system_message === false
@@ -169,17 +200,22 @@ export class Conversation {
       let message_str;
       let role_prefix;
       if (this.config.role_templates !== undefined) {
-        message_str = this.config.role_templates[role]?.replace(
-          MessagePlaceholders[Role[role] as keyof typeof MessagePlaceholders],
-          textContentPart,
-        );
+        const template = this.config.role_templates[role];
+        const placeholder =
+          MessagePlaceholders[Role[role] as keyof typeof MessagePlaceholders];
+        message_str =
+          this.config.reasoning_history_style === "qwen3_8"
+            ? template?.replace(placeholder, () => textContentPart)
+            : template?.replace(placeholder, textContentPart);
         if (this.use_function_calling && this.function_string !== "") {
           message_str = message_str?.replace(
             MessagePlaceholders.function,
             this.function_string,
           );
         }
-        message_str = message_str?.replace(MessagePlaceholders.function, "");
+        if (this.config.reasoning_history_style !== "qwen3_8") {
+          message_str = message_str?.replace(MessagePlaceholders.function, "");
+        }
       }
 
       if (message_str == undefined) {
@@ -480,6 +516,14 @@ export class Conversation {
       throw Error("Role is not supported: " + role);
     }
     const role_name_str = role_name ? role_name : this.config.roles[role];
+    if (this.config.reasoning_history_style === "qwen3_8") {
+      if (typeof message !== "string" || role_name !== undefined) {
+        throw new Error(
+          "Qwen3.8 supports plain text chat without participant names.",
+        );
+      }
+      if (role !== Role.assistant) message = pythonTrim(message);
+    }
     this.messages.push([role, role_name_str, message]);
   }
 
@@ -547,6 +591,13 @@ export function compareConversationObject(
   convB: Conversation,
 ): boolean {
   // NOTE: Update this function whenever a new state is introduced to `Conversation`.
+  // Qwen3.8 history uses structured reasoning, which is not represented by the
+  // raw generated reply cached here. Rebuild from caller history each request.
+  if (
+    convA.config.reasoning_history_style === "qwen3_8" ||
+    convB.config.reasoning_history_style === "qwen3_8"
+  )
+    return false;
   // Check the easy ones first
   if (
     convA.function_string !== convB.function_string ||
@@ -671,6 +722,54 @@ export function getConversationFromChatCompletionRequest(
     config.conv_config,
   );
 
+  const isQwen38 = conversation.config.reasoning_history_style === "qwen3_8";
+  if (isQwen38) {
+    const raw = request as unknown as Record<string, unknown>;
+    const extra = request.extra_body as Record<string, unknown> | undefined;
+    if (extra != null && (typeof extra !== "object" || Array.isArray(extra))) {
+      throw new Error("Qwen3.8 extra_body must be an object or null.");
+    }
+    if (
+      ["enable_thinking", "reasoning_effort", "preserve_thinking"].some(
+        (key) =>
+          Object.hasOwn(raw, key) ||
+          (extra != null && Object.hasOwn(extra, key)),
+      )
+    ) {
+      throw new Error(
+        "Qwen3.8 uses static templates to select thinking and reasoning effort.",
+      );
+    }
+    if (
+      request.tools != null ||
+      request.tool_choice != null ||
+      request.messages.at(-1)?.role !== "user" ||
+      request.messages.some((message, index) => {
+        const m = message as unknown as Record<string, unknown>;
+        return (
+          typeof message.content !== "string" ||
+          !(
+            message.role === "user" ||
+            message.role === "assistant" ||
+            (index === 0 && message.role === "system")
+          ) ||
+          Object.hasOwn(m, "name") ||
+          Object.hasOwn(m, "tool_calls") ||
+          Object.hasOwn(m, "tool_call_id") ||
+          (Object.hasOwn(m, "reasoning_content") &&
+            (message.role !== "assistant" ||
+              typeof m.reasoning_content !== "string")) ||
+          (message.role === "user" &&
+            pythonTrim(message.content).startsWith("<tool_response>") &&
+            pythonTrim(message.content).endsWith("</tool_response>"))
+        );
+      })
+    ) {
+      throw new Error(
+        "Qwen3.8 supports plain text chat ending in a user message, without tools or names.",
+      );
+    }
+  }
   // 1. Populate function-calling-related fields
   // TODO: either remove these or support gorilla-like function calling models.
   // These commented code was used to support gorilla, but we could not use grammar to
@@ -701,7 +800,15 @@ export function getConversationFromChatCompletionRequest(
       if (typeof message.content !== "string") {
         throw new ContentTypeError(message.role + "'s message");
       }
-      conversation.appendMessage(Role.assistant, message.content, message.name);
+      let content = message.content;
+      if (isQwen38) {
+        content =
+          "<think>\n" +
+          pythonTrim(message.reasoning_content ?? "") +
+          "\n</think>\n\n" +
+          pythonTrim(content);
+      }
+      conversation.appendMessage(Role.assistant, content, message.name);
     } else if (message.role === "tool") {
       conversation.appendMessage(Role.tool, message.content);
     } else {

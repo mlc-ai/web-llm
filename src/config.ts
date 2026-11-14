@@ -26,6 +26,8 @@ export interface ConvTemplateConfig {
   stop_token_ids: Array<number>;
   add_role_after_system_message?: boolean;
   render_empty_system_message?: boolean;
+  reasoning_history_style?: "default" | "qwen3_8";
+  qwen3_8_reasoning_effort?: "xhigh" | "medium" | "low" | "none";
 }
 
 /**
