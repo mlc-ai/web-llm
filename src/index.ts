@@ -76,3 +76,5 @@ export {
 } from "./extension_service_worker";
 
 export * from "./openai_api_protocols/index";
+
+export * from "./artifact_manifest_v2";
