@@ -123,6 +123,24 @@ export function areChatOptionsEqual(
   if (options1.top_p !== options2.top_p) return false;
   if (options1.temperature !== options2.temperature) return false;
   if (options1.bos_token_id !== options2.bos_token_id) return false;
+  if (options1.context_window_size !== options2.context_window_size)
+    return false;
+  if (options1.sliding_window_size !== options2.sliding_window_size)
+    return false;
+  if (options1.attention_sink_size !== options2.attention_sink_size)
+    return false;
+  if (options1.max_history_size !== options2.max_history_size) return false;
+  if (options1.vocab_size !== options2.vocab_size) return false;
+  if (options1.model_type !== options2.model_type) return false;
+  if (
+    options1.token_table_postproc_method !==
+    options2.token_table_postproc_method
+  )
+    return false;
+  if (!areObjectsEqual(options1.tokenizer_info, options2.tokenizer_info))
+    return false;
+  if (!areObjectsEqual(options1.model_config, options2.model_config))
+    return false;
 
   // If all checks passed, the options are equal
   return true;
