@@ -311,6 +311,56 @@ describe("Test areChatOptionsListEqual", () => {
     expect(areChatOptionsListEqual(options1, options2)).toEqual(false);
   });
 
+  test.each([
+    [
+      "context_window_size",
+      { context_window_size: 4096 },
+      { context_window_size: 8192 },
+    ],
+    [
+      "sliding_window_size",
+      { sliding_window_size: 1024 },
+      { sliding_window_size: 2048 },
+    ],
+    [
+      "attention_sink_size",
+      { attention_sink_size: 4 },
+      { attention_sink_size: 8 },
+    ],
+    ["max_history_size", { max_history_size: 1 }, { max_history_size: 2 }],
+    ["vocab_size", { vocab_size: 100 }, { vocab_size: 200 }],
+    ["model_type", { model_type: "a" }, { model_type: "b" }],
+    ["model_config", { model_config: { x: 1 } }, { model_config: { x: 2 } }],
+    [
+      "token_table_postproc_method",
+      { token_table_postproc_method: "byte_fallback" },
+      { token_table_postproc_method: "byte_level" },
+    ],
+    [
+      "tokenizer_info",
+      {
+        tokenizer_info: {
+          token_postproc_method: "byte_fallback",
+          prepend_space_in_encode: false,
+          strip_space_in_decode: false,
+        },
+      },
+      {
+        tokenizer_info: {
+          token_postproc_method: "byte_level",
+          prepend_space_in_encode: false,
+          strip_space_in_decode: false,
+        },
+      },
+    ],
+  ] as Array<[string, ChatOptions, ChatOptions]>)(
+    "Differs only in %s",
+    (_name, a, b) => {
+      expect(areChatOptionsListEqual([a], [b])).toEqual(false);
+      expect(areChatOptionsListEqual([a], [{ ...a }])).toEqual(true);
+    },
+  );
+
   test("Same size, equal", () => {
     const options1: ChatOptions[] | undefined = [
       dummyChatOpts1,
