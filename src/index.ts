@@ -78,3 +78,5 @@ export {
 export * from "./openai_api_protocols/index";
 
 export * from "./artifact_manifest_v2";
+
+export * from "./artifact_graph_executor";

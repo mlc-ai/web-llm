@@ -1,4 +1,4 @@
-/** Validated multi-component contracts. Graph execution is not implemented. */
+/** Validated multi-component contracts. MLCEngine graph execution is not implemented. */
 import { ArtifactManifestError } from "./error";
 import {
   loadModelPackageManifest,
