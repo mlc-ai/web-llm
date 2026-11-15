@@ -69,7 +69,7 @@ class Tensor {
     t.data = this.data;
     return t;
   }
-  dispose() {}
+  dispose = jest.fn();
 }
 async function setup(dtype = "float32", maxNewTokens = 3) {
   const calls: { name: string; data?: number[]; shape?: number[] }[] = [];
@@ -100,6 +100,7 @@ async function setup(dtype = "float32", maxNewTokens = 3) {
       return new Tensor([x.shape[0], 128], dtype);
     },
     prefill: (x: Tensor) => {
+      if (faults.forward) throw new Error("original forward failed");
       calls.push({ name: "prefill", shape: x.shape, data: Array.from(x.data) });
       const t = new Tensor([1, 1, 64]);
       t.data[++counter] = 1;
@@ -121,6 +122,9 @@ async function setup(dtype = "float32", maxNewTokens = 3) {
     metadata: { thinker: config },
     params: [],
   });
+  const cpuDevice = {};
+  const cpuTensors: Tensor[] = [];
+  const faults = { endAt: 0, endCalls: 0, forward: false };
   const runtime = {
     beginScope() {},
     endScope() {},
@@ -130,13 +134,22 @@ async function setup(dtype = "float32", maxNewTokens = 3) {
       Object.assign(
         (...args: any[]) => {
           calls.push({ name: name.split("_").at(-1)!, data: args[2] });
+          if (
+            name === "vm.builtin.kv_state_end_forward" &&
+            ++faults.endCalls === faults.endAt
+          )
+            throw new Error("cache end failed");
         },
         { dispose() {} },
       ),
     makeShapeTuple: (x: number[]) => x,
     scalar: (x: number) => x,
-    empty: (shape: number[], dt: string) => new Tensor(shape, dt),
-    cpu: () => ({}),
+    empty: (shape: number[], dt: string, target: unknown) => {
+      const tensor = new Tensor(shape, dt);
+      if (target === cpuDevice) cpuTensors.push(tensor);
+      return tensor;
+    },
+    cpu: () => cpuDevice,
   };
   const device = { sync: jest.fn(async () => {}) };
   const factory = await createThinkerTVMFactory({
@@ -155,7 +168,18 @@ async function setup(dtype = "float32", maxNewTokens = 3) {
     compiled.components.thinker as any,
     signal,
   );
-  return { b, calls, config, device, cache, factory, signal };
+  return {
+    b,
+    calls,
+    config,
+    device,
+    cache,
+    factory,
+    signal,
+    faults,
+    runtime,
+    cpuTensors,
+  };
 }
 async function* input(
   ids = [3, 151646, 7],
@@ -281,5 +305,53 @@ test("abort while paused at output prevents another decode", async () => {
   c.abort();
   await expect(stream.next()).rejects.toThrow("aborted");
   expect(s.calls.filter((x) => x.name === "decode")).toHaveLength(0);
+  s.b.dispose();
+});
+
+test.each([1, 3])(
+  "cache finalization failure %i releases retained CPU tensors",
+  async (endAt) => {
+    const s = await setup();
+    s.faults.endAt = endAt;
+    await expect(collect(s)).rejects.toThrow("cache end failed");
+    expect(s.cpuTensors.length).toBeGreaterThan(0);
+    for (const tensor of s.cpuTensors)
+      expect(tensor.dispose).toHaveBeenCalledTimes(1);
+    s.b.dispose();
+  },
+);
+test.each([1, 2, 5])(
+  "scope teardown failure %i releases retained CPU tensors",
+  async (failAt) => {
+    const s = await setup();
+    let scopes = 0;
+    s.runtime.endScope = () => {
+      if (++scopes === failAt) throw new Error("scope teardown failed");
+    };
+    await expect(collect(s)).rejects.toThrow("scope teardown failed");
+    for (const tensor of s.cpuTensors)
+      expect(tensor.dispose).toHaveBeenCalledTimes(1);
+    s.b.dispose();
+  },
+);
+test("cache cleanup preserves an earlier forward failure", async () => {
+  const s = await setup();
+  s.faults.forward = true;
+  s.faults.endAt = 1;
+  await expect(collect(s)).rejects.toThrow("original forward failed");
+  expect(s.faults.endCalls).toBe(1);
+  s.b.dispose();
+});
+
+test("readback cleanup preserves synchronization failure", async () => {
+  const s = await setup();
+  s.device.sync.mockImplementation(async () => {
+    s.cpuTensors.at(-1)!.dispose.mockImplementation(() => {
+      throw new Error("dispose failed");
+    });
+    throw new Error("sync failed");
+  });
+  await expect(collect(s)).rejects.toThrow("sync failed");
+  expect(s.cpuTensors[0].dispose).toHaveBeenCalledTimes(1);
   s.b.dispose();
 });

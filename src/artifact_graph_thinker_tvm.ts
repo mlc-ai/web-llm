@@ -37,6 +37,27 @@ export function float32ToHalf(value: number): number {
   if (remainder > half || (remainder === half && rounded & 1)) rounded++;
   return sign + (exponent < 113 ? rounded : ((exponent - 112) << 10) + rounded);
 }
+// Cleanup must not replace the error that caused a forward pass to fail.
+function withCleanup(body: () => void, cleanup: () => void): void {
+  let failed = false;
+  let failure: unknown;
+  try {
+    body();
+  } catch (error) {
+    failed = true;
+    failure = error;
+  }
+  try {
+    cleanup();
+  } catch (error) {
+    if (!failed) {
+      failed = true;
+      failure = error;
+    }
+  }
+  if (failed) throw failure;
+}
+
 export async function createThinkerTVMFactory(
   options: ThinkerTVMOptions,
 ): Promise<GraphComponentFactory> {
@@ -284,15 +305,59 @@ export async function createThinkerTVMFactory(
                 !same(logits.shape, [1, 1, config.vocab_size])
               )
                 throw new Error("Unexpected Thinker logits");
-              return tvm.detachFromCurrentScope(
-                tvm.empty(logits.shape, "float32", tvm.cpu()).copyFrom(logits),
-              );
+              return tvm
+                .empty(logits.shape, "float32", tvm.cpu())
+                .copyFrom(logits);
             };
-            const readLogits = async (cpu: tvmjs.Tensor) => {
+            // Retained CPU tensors outlive the TVM scope, including its teardown.
+            // Release them if cache finalization or scope teardown fails.
+            const scopedTensor = (
+              body: (retain: (value: tvmjs.Tensor) => void) => void,
+            ): tvmjs.Tensor => {
+              let retained: tvmjs.Tensor | undefined;
+              tvm.beginScope();
+              try {
+                withCleanup(
+                  () =>
+                    body((value) => {
+                      retained = tvm.detachFromCurrentScope(value);
+                    }),
+                  () => tvm.endScope(),
+                );
+                if (!retained) throw new Error("Missing Thinker result tensor");
+                return retained;
+              } catch (error) {
+                try {
+                  retained?.dispose();
+                } catch {
+                  /* Preserve the original failure. */
+                }
+                throw error;
+              }
+            };
+            const readTensor = async <T>(
+              cpu: tvmjs.Tensor,
+              read: (value: tvmjs.Tensor) => T,
+            ): Promise<T> => {
+              let failed = false;
               try {
                 await device.sync();
                 check();
-                const data = cpu.toArray() as Float32Array;
+                return read(cpu);
+              } catch (error) {
+                failed = true;
+                throw error;
+              } finally {
+                try {
+                  cpu.dispose();
+                } catch (error) {
+                  if (!failed) throw error;
+                }
+              }
+            };
+            const readLogits = (cpu: tvmjs.Tensor) =>
+              readTensor(cpu, (value) => {
+                const data = value.toArray() as Float32Array;
                 let best = 0;
                 for (let i = 0; i < vocab; i++) {
                   if (!Number.isFinite(data[i]))
@@ -300,10 +365,7 @@ export async function createThinkerTVMFactory(
                   if (data[i] > data[best]) best = i;
                 }
                 return best;
-              } finally {
-                cpu.dispose();
-              }
-            };
+              });
             let next = 0,
               audioOffset = 0;
             for (
@@ -318,9 +380,7 @@ export async function createThinkerTVMFactory(
                 ),
                 chunk = tokens.data.slice(start, start + count),
                 safe = chunk.map((x) => (x === config.audio_token_id ? 0 : x));
-              let host: tvmjs.Tensor;
-              tvm.beginScope();
-              try {
+              const host = scopedTensor((retain) => {
                 const embedded = functions.embed(
                   tvm.empty([count], "int32", device).copyFrom(safe),
                   packed,
@@ -330,25 +390,17 @@ export async function createThinkerTVMFactory(
                   !same(embedded.shape, [count, width])
                 )
                   throw new Error("Unexpected Thinker embeddings");
-                host = tvm.detachFromCurrentScope(
+                retain(
                   tvm
                     .empty([count, width], dtype, tvm.cpu())
                     .copyFrom(embedded),
                 );
-              } finally {
-                tvm.endScope();
-              }
-              let data: Float32Array | Uint16Array;
-              try {
-                await device.sync();
-                check();
-                data =
-                  dtype === "float16"
-                    ? new Uint16Array(host.toRawBytes().slice().buffer)
-                    : (host.toArray() as Float32Array);
-              } finally {
-                host.dispose();
-              }
+              });
+              const data = await readTensor(host, (value) =>
+                dtype === "float16"
+                  ? new Uint16Array(value.toRawBytes().slice().buffer)
+                  : (value.toArray() as Float32Array),
+              );
               for (let i = 0; i < count; i++)
                 if (chunk[i] === config.audio_token_id) {
                   for (let j = 0; j < width; j++) {
@@ -358,9 +410,7 @@ export async function createThinkerTVMFactory(
                   }
                   audioOffset++;
                 }
-              let cpu: tvmjs.Tensor;
-              tvm.beginScope();
-              try {
+              const cpu = scopedTensor((retain) => {
                 const input = tvm.empty([1, count, width], dtype, device);
                 if (dtype === "float16")
                   input.copyFromRawBytes(
@@ -376,14 +426,13 @@ export async function createThinkerTVMFactory(
                   tvm.makeShapeTuple([0]),
                   tvm.makeShapeTuple([count]),
                 );
-                try {
-                  cpu = copyLogits(functions.prefill(input, cache, packed));
-                } finally {
-                  functions.end(cache);
-                }
-              } finally {
-                tvm.endScope();
-              }
+                withCleanup(
+                  () => {
+                    retain(copyLogits(functions.prefill(input, cache, packed)));
+                  },
+                  () => functions.end(cache),
+                );
+              });
               next = await readLogits(cpu);
             }
             const budget = Math.min(
@@ -399,9 +448,7 @@ export async function createThinkerTVMFactory(
               };
               check();
               if (generated + 1 === budget) break;
-              let cpu: tvmjs.Tensor;
-              tvm.beginScope();
-              try {
+              const cpu = scopedTensor((retain) => {
                 const embedded = functions.embed(
                   tvm
                     .empty([1], "int32", device)
@@ -418,20 +465,21 @@ export async function createThinkerTVMFactory(
                   tvm.makeShapeTuple([0]),
                   tvm.makeShapeTuple([1]),
                 );
-                try {
-                  cpu = copyLogits(
-                    functions.decode(
-                      embedded.view([1, 1, width]),
-                      cache,
-                      packed,
-                    ),
-                  );
-                } finally {
-                  functions.end(cache);
-                }
-              } finally {
-                tvm.endScope();
-              }
+                withCleanup(
+                  () => {
+                    retain(
+                      copyLogits(
+                        functions.decode(
+                          embedded.view([1, 1, width]),
+                          cache,
+                          packed,
+                        ),
+                      ),
+                    );
+                  },
+                  () => functions.end(cache),
+                );
+              });
               next = await readLogits(cpu);
             }
           },
