@@ -54,7 +54,7 @@ processor capacity. Each template audio marker expands to
 `floor(ceil(ceil(samples / 160) / 2) / 2)` encoder embeddings.
 
 Follow the companion MLC-LLM
-[`examples/python/omni_audio/README.md`](https://github.com/mlc-ai/mlc-llm/tree/main/examples/python/omni_audio)
+[`examples/python/omni_audio/README.md`](https://github.com/JCNTH/mlc-llm/tree/codex/omni-audio-review/examples/python/omni_audio)
 for pinned source download, weight conversion, and the three component-builder
 commands. Use the companion integration branch containing that example until it
 is merged; these standalone builders are not installed `mlc_llm` CLI commands.

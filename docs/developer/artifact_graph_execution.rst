@@ -148,8 +148,9 @@ with its corresponding embedding before chunked prefill, then streams greedy tok
 IDs until an EOS token or the configured generation/context limit. EOS tokens are
 excluded from the output.
 
-The compiled module must export ``embed``, ``prefill``, ``decode``,
-``create_state``, and ``reset_state``. Cache creation uses the standard paged-KV
+The compiled contract must map ``embed``, ``prefill``, ``decode``,
+``create_state``, and ``reset_state`` roles to module exports. The initial
+``create_state`` role maps to ``create_tir_paged_kv_cache``. Cache creation uses the standard paged-KV
 shape arguments; each request gets a fresh cache, resets it, registers sequence
 zero, and brackets every forward operation with the TVM cache globals. Metadata
 binds model dtype, hidden/vocabulary sizes, special tokens, and context/prefill
