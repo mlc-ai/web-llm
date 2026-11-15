@@ -4,10 +4,57 @@ import {
   ChatConfig,
   ModelRecord,
   prebuiltAppConfig,
+  getCacheBackend,
 } from "./config";
 import { cleanModelUrl } from "./support";
 import { ModelNotFoundError, UnsupportedTokenizerFilesError } from "./error";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
+import { ModelIntegrity, verifyIntegrity } from "./integrity";
+
+type CacheScope = "webllm/model" | "webllm/config" | "webllm/wasm";
+type CacheOptions = Pick<
+  tvmjs.TensorCacheAccessOptions,
+  "cacheType" | "opfsAccessMode"
+>;
+
+export function getCacheOptions(appConfig: AppConfig): CacheOptions {
+  const options: CacheOptions = {
+    cacheType: getCacheBackend(appConfig),
+  };
+  if (appConfig.opfsAccessMode !== undefined) {
+    options.opfsAccessMode = appConfig.opfsAccessMode;
+  }
+  return options;
+}
+
+export function getTensorCacheAccessOptions(
+  scope: CacheScope,
+  appConfig: AppConfig,
+): tvmjs.TensorCacheAccessOptions {
+  return {
+    cacheScope: scope,
+    ...getCacheOptions(appConfig),
+  };
+}
+
+function createScopedArtifactCache(
+  scope: CacheScope,
+  appConfig: AppConfig,
+): tvmjs.ArtifactCacheTemplate {
+  return tvmjs.createArtifactCache(scope, getCacheOptions(appConfig));
+}
+
+async function maybeVerifyTokenizerIntegrity(
+  data: ArrayBuffer,
+  filename: string,
+  url: string,
+  integrity?: ModelIntegrity,
+): Promise<void> {
+  const hash = integrity?.tokenizer?.[filename];
+  if (hash) {
+    await verifyIntegrity(data, hash, url, integrity?.onFailure);
+  }
+}
 
 function findModelRecord(modelId: string, appConfig?: AppConfig): ModelRecord {
   const matchedItem = appConfig?.model_list.find(
@@ -28,8 +75,10 @@ export async function hasModelInCache(
   }
   const modelRecord = findModelRecord(modelId, appConfig);
   const modelUrl = cleanModelUrl(modelRecord.model);
-  const cacheType = appConfig.useIndexedDBCache ? "indexeddb" : "cache";
-  return tvmjs.hasTensorInCache(modelUrl, "webllm/model", cacheType);
+  return tvmjs.hasTensorInCache(
+    modelUrl,
+    getTensorCacheAccessOptions("webllm/model", appConfig),
+  );
 }
 
 export async function deleteModelAllInfoInCache(
@@ -58,14 +107,11 @@ export async function deleteModelInCache(
   }
   const modelRecord = findModelRecord(modelId, appConfig);
   const modelUrl = cleanModelUrl(modelRecord.model);
-  let modelCache: tvmjs.ArtifactCacheTemplate;
-  if (appConfig.useIndexedDBCache) {
-    tvmjs.deleteTensorCache(modelUrl, "webllm/model", "indexeddb");
-    modelCache = new tvmjs.ArtifactIndexedDBCache("webllm/model");
-  } else {
-    tvmjs.deleteTensorCache(modelUrl, "webllm/model", "cache");
-    modelCache = new tvmjs.ArtifactCache("webllm/model");
-  }
+  const modelCache = createScopedArtifactCache("webllm/model", appConfig);
+  await tvmjs.deleteTensorCache(
+    modelUrl,
+    getTensorCacheAccessOptions("webllm/model", appConfig),
+  );
   await modelCache.deleteInCache(new URL("tokenizer.model", modelUrl).href);
   await modelCache.deleteInCache(new URL("tokenizer.json", modelUrl).href);
 }
@@ -79,15 +125,15 @@ export async function deleteChatConfigInCache(
     appConfig = prebuiltAppConfig;
   }
   const modelRecord = findModelRecord(modelId, appConfig);
-  let configCache: tvmjs.ArtifactCacheTemplate;
-  if (appConfig.useIndexedDBCache) {
-    configCache = new tvmjs.ArtifactIndexedDBCache("webllm/config");
-  } else {
-    configCache = new tvmjs.ArtifactCache("webllm/config");
-  }
+  const configCache = createScopedArtifactCache("webllm/config", appConfig);
   const modelUrl = cleanModelUrl(modelRecord.model);
   const configUrl = new URL("mlc-chat-config.json", modelUrl).href;
   await configCache.deleteInCache(configUrl);
+  if (modelRecord.model_manifest !== undefined) {
+    await configCache.deleteInCache(
+      new URL(modelRecord.model_manifest, modelUrl).href,
+    );
+  }
 }
 
 export async function deleteModelWasmInCache(
@@ -99,12 +145,7 @@ export async function deleteModelWasmInCache(
     appConfig = prebuiltAppConfig;
   }
   const modelRecord = findModelRecord(modelId, appConfig);
-  let wasmCache: tvmjs.ArtifactCacheTemplate;
-  if (appConfig.useIndexedDBCache) {
-    wasmCache = new tvmjs.ArtifactIndexedDBCache("webllm/wasm");
-  } else {
-    wasmCache = new tvmjs.ArtifactCache("webllm/wasm");
-  }
+  const wasmCache = createScopedArtifactCache("webllm/wasm", appConfig);
   await wasmCache.deleteInCache(modelRecord.model_lib);
 }
 
@@ -114,6 +155,7 @@ export async function deleteModelWasmInCache(
  * @param config A ChatConfig, usually loaded from `mlc-chat-config.json` in `baseUrl`.
  * @param appConfig An AppConfig, usually `webllm.prebuiltAppConfig` if not defined by user.
  * @param logger Logging function, console.log by default.
+ * @param integrity Optional integrity configuration for verifying tokenizer files.
  * @returns
  */
 export async function asyncLoadTokenizer(
@@ -121,17 +163,19 @@ export async function asyncLoadTokenizer(
   config: ChatConfig,
   appConfig: AppConfig,
   logger: (msg: string) => void = console.log,
+  integrity?: ModelIntegrity,
 ): Promise<Tokenizer> {
-  let modelCache: tvmjs.ArtifactCacheTemplate;
-  if (appConfig.useIndexedDBCache) {
-    modelCache = new tvmjs.ArtifactIndexedDBCache("webllm/model");
-  } else {
-    modelCache = new tvmjs.ArtifactCache("webllm/model");
-  }
+  const modelCache = createScopedArtifactCache("webllm/model", appConfig);
 
   if (config.tokenizer_files.includes("tokenizer.json")) {
     const url = new URL("tokenizer.json", baseUrl).href;
     const model = await modelCache.fetchWithCache(url, "arraybuffer");
+    await maybeVerifyTokenizerIntegrity(
+      model,
+      "tokenizer.json",
+      url,
+      integrity,
+    );
     return Tokenizer.fromJSON(model);
   } else if (config.tokenizer_files.includes("tokenizer.model")) {
     logger(
@@ -143,6 +187,12 @@ export async function asyncLoadTokenizer(
     );
     const url = new URL("tokenizer.model", baseUrl).href;
     const model = await modelCache.fetchWithCache(url, "arraybuffer");
+    await maybeVerifyTokenizerIntegrity(
+      model,
+      "tokenizer.model",
+      url,
+      integrity,
+    );
     return Tokenizer.fromSentencePiece(model);
   }
   throw new UnsupportedTokenizerFilesError(config.tokenizer_files);

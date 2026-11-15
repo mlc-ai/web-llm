@@ -2,6 +2,7 @@ module.exports = {
     preset: "ts-jest",
     testEnvironment: "node",
     roots: ["<rootDir>/tests", "<rootDir>/src"],
+    testPathIgnorePatterns: ["<rootDir>/tests/browser/"],
     modulePathIgnorePatterns: ["<rootDir>/examples/"],
     collectCoverageFrom: ["src/**/*.{ts,tsx}", "!src/**/*.d.ts"],
     coverageThreshold: {

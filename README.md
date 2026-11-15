@@ -41,7 +41,7 @@ You can use WebLLM as a base [npm package](https://www.npmjs.com/package/@mlc-ai
 
 - **Structured JSON Generation**: WebLLM supports state-of-the-art JSON mode structured generation, implemented in the WebAssembly portion of the model library for optimal performance. Check [WebLLM JSON Playground](https://huggingface.co/spaces/mlc-ai/WebLLM-JSON-Playground) on HuggingFace to try generating JSON output with custom JSON schema.
 
-- [**Extensive Model Support**](#built-in-models): WebLLM natively supports a range of models including Llama 3, Phi 3, Gemma, Mistral, Qwen(通义千问), and many others, making it versatile for various AI tasks. For the complete supported model list, check [MLC Models](https://webllm.mlc.ai/models).
+- [**Extensive Model Support**](#built-in-models): WebLLM natively supports a range of models including Llama 3, Phi 3, Gemma, Mistral, Qwen(通义千问), and many others, making it versatile for various AI tasks. For the complete supported model list, check [WebLLM Models](https://webllm.mlc.ai/models/).
 
 - [**Custom Model Integration**](#custom-models): Easily integrate and deploy custom models in MLC format, allowing you to adapt WebLLM to specific needs and scenarios, enhancing flexibility in model deployment.
 
@@ -55,7 +55,7 @@ You can use WebLLM as a base [npm package](https://www.npmjs.com/package/@mlc-ai
 
 ## Built-in Models
 
-Check the complete list of available models on [MLC Models](https://webllm.mlc.ai/models). WebLLM supports a subset of these available models and the list can be accessed at [`prebuiltAppConfig.model_list`](https://github.com/mlc-ai/web-llm/blob/main/src/config.ts#L293).
+Check the complete list of built-in models on [WebLLM Models](https://webllm.mlc.ai/models/) or in [`prebuiltAppConfig.model_list`](https://github.com/mlc-ai/web-llm/blob/main/src/config.ts#L293).
 
 Here are the primary families of models currently supported:
 
@@ -154,11 +154,40 @@ const engine = new MLCEngine({
 await engine.reload(selectedModel);
 ```
 
+### Cache Backend Policy
+
+WebLLM supports four cache backends through `AppConfig.cacheBackend`:
+
+- `"cache"`: browser [Cache API](https://developer.mozilla.org/en-US/docs/Web/API/Cache) (default).
+- `"indexeddb"`: browser [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API).
+- `"opfs"`: browser [Origin Private File System (OPFS)](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system).
+- `"cross-origin"`: experimental Chrome [Cross-Origin Storage API](https://github.com/WICG/cross-origin-storage) extension backend. Install the [Cross-Origin Storage extension](https://chromewebstore.google.com/detail/cross-origin-storage/denpnpcgjgikjpoglpjefakmdcbmlgih) to use it. (If the extension isn't installed, WebLLM falls back to the default cache automatically.)
+
+Example:
+
+```typescript
+import { CreateMLCEngine, prebuiltAppConfig } from "@mlc-ai/web-llm";
+
+const appConfig = { ...prebuiltAppConfig, cacheBackend: "cross-origin" };
+const engine = await CreateMLCEngine("Llama-3.1-8B-Instruct-q4f32_1-MLC", {
+  appConfig,
+});
+```
+
+Notes:
+- If `"opfs"` is selected in an environment without OPFS support, cache operations fail with an OPFS availability error.
+- When using `"opfs"`, `appConfig.opfsAccessMode` can be set to `"auto"` to use OPFS sync access handles where supported, or `"sync"` to require sync access handles. The default is `"async"`.
+- The `"cross-origin"` backend requires installing and enabling a compatible browser extension.
+- Cross-origin backend currently does not support programmatic tensor-cache deletion; clearing is extension-managed.
+
 ### Chat Completion
 
 After successfully initializing the engine, you can now invoke chat completions using OpenAI style chat APIs through the `engine.chat.completions` interface. For the full list of parameters and their descriptions, check [section below](#full-openai-compatibility) and [OpenAI API reference](https://platform.openai.com/docs/api-reference/chat/create).
 
-(Note: The `model` parameter is not supported and will be ignored here. Instead, call `CreateMLCEngine(model)` or `engine.reload(model)` instead as shown in the [Create MLCEngine](#create-mlcengine) above.)
+The `model` parameter selects an already loaded model by its `ModelRecord.model_id`.
+It is optional when one model is loaded and required when multiple models are loaded; unknown or unloaded IDs are rejected.
+Load models first with `CreateMLCEngine(...)` or `engine.reload(...)` as shown in [Create MLCEngine](#create-mlcengine).
+Passing `model` in a request does not load a model.
 
 ```typescript
 const messages = [
@@ -263,18 +292,14 @@ your application's offline experience.
 
 (Note, Service Worker's life cycle is managed by the browser and can be killed any time without notifying the webapp. `ServiceWorkerMLCEngine` will try to keep the service worker thread alive by periodically sending heartbeat events, but your application should also include proper error handling. Check `keepAliveMs` and `missedHeatbeat` in [`ServiceWorkerMLCEngine`](https://github.com/mlc-ai/web-llm/blob/main/src/service_worker.ts#L234) for more details.)
 
-We create a handler in the worker thread that communicates with the frontend while handling the requests.
+We create a handler in the worker thread that communicates with the frontend while handling the requests. Instantiate the handler at the top level of the worker script so its message listener is registered during initial script evaluation. Do not instantiate it from an `activate` or `message` listener: the browser can restart an already-active worker without dispatching another `activate` event.
 
 ```typescript
 // sw.ts
 import { ServiceWorkerMLCEngineHandler } from "@mlc-ai/web-llm";
 
-let handler: ServiceWorkerMLCEngineHandler;
-
-self.addEventListener("activate", function (event) {
-  handler = new ServiceWorkerMLCEngineHandler();
-  console.log("Service Worker is ready");
-});
+new ServiceWorkerMLCEngineHandler();
+console.log("Service Worker is ready");
 ```
 
 Then in the main logic, we register the service worker and create the engine using
@@ -314,6 +339,59 @@ WebLLM is designed to be fully compatible with [OpenAI API](https://platform.ope
 - [json-mode](examples/json-mode): efficiently ensure output is in JSON format, see [OpenAI Reference](https://platform.openai.com/docs/guides/text-generation/chat-completions-api) for more.
 - [seed-to-reproduce](examples/seed-to-reproduce): use seeding to ensure a reproducible output with fields `seed`.
 - [function-calling](examples/function-calling) (WIP): function calling with fields `tools` and `tool_choice` (with preliminary support); or manual function calling without `tools` or `tool_choice` (keeps the most flexibility).
+
+## Integrity Verification
+
+WebLLM supports optional integrity verification for model artifacts using
+[SRI (Subresource Integrity)](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity) hashes.
+When the `integrity` field is set on a `ModelRecord`, WebLLM will verify the downloaded config,
+WASM, and tokenizer files against the provided hashes before loading.
+
+```typescript
+import { CreateMLCEngine } from "@mlc-ai/web-llm";
+
+const appConfig = {
+  model_list: [
+    {
+      model: "https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q4f16_1-MLC",
+      model_id: "Llama-3.2-1B-Instruct-q4f16_1-MLC",
+      model_lib:
+        "https://raw.githubusercontent.com/user/model-libs/main/model.wasm",
+      integrity: {
+        config: "sha256-<base64-hash-of-mlc-chat-config.json>",
+        model_lib: "sha256-<base64-hash-of-wasm-file>",
+        tokenizer: {
+          "tokenizer.json": "sha256-<base64-hash-of-tokenizer.json>",
+        },
+        onFailure: "error", // "error" (default) throws IntegrityError, "warn" logs and continues
+      },
+    },
+  ],
+};
+
+const engine = await CreateMLCEngine("Llama-3.2-1B-Instruct-q4f16_1-MLC", {
+  appConfig,
+});
+```
+
+You can generate SRI hashes for model files with:
+
+```bash
+# SHA-256
+openssl dgst -sha256 -binary <file> | openssl base64 -A | sed 's/^/sha256-/'
+# SHA-384
+openssl dgst -sha384 -binary <file> | openssl base64 -A | sed 's/^/sha384-/'
+# SHA-512
+openssl dgst -sha512 -binary <file> | openssl base64 -A | sed 's/^/sha512-/'
+```
+
+> The `openssl` commands require a Unix-like shell (macOS/Linux). On Windows, run `openssl` via [Git Bash](https://gitforwindows.org/) or [WSL](https://learn.microsoft.com/en-us/windows/wsl/).
+
+If a hash does not match, an `IntegrityError` is thrown (or a warning is logged when `onFailure: "warn"`).
+All fields in `integrity` are optional — only specified artifacts will be verified.
+When the `integrity` field is omitted entirely, WebLLM behaves exactly as before (no verification).
+
+See the [integrity-verification example](examples/integrity-verification/) for a complete working demo.
 
 ## Custom Models
 
@@ -378,7 +456,7 @@ npm install
 npm run build
 ```
 
-Then, to test the effects of your code change in an example, inside `examples/get-started/package.json`, change from `"@mlc-ai/web-llm": "^0.2.81"` to `"@mlc-ai/web-llm": ../..`.
+Then, to test the effects of your code change in an example, inside `examples/get-started/package.json`, change from `"@mlc-ai/web-llm": "^0.2.88"` to `"@mlc-ai/web-llm": ../..`.
 
 Then run:
 
@@ -466,10 +544,10 @@ This project is only possible thanks to the shoulders open-source ecosystems tha
 If you find this project to be useful, please cite:
 
 ```
-@misc{ruan2024webllmhighperformanceinbrowserllm,
+@misc{ruan2026webllmhighperformanceinbrowserllm,
       title={WebLLM: A High-Performance In-Browser LLM Inference Engine},
-      author={Charlie F. Ruan and Yucheng Qin and Xun Zhou and Ruihang Lai and Hongyi Jin and Yixin Dong and Bohan Hou and Meng-Shiun Yu and Yiyan Zhai and Sudeep Agarwal and Hangrui Cao and Siyuan Feng and Tianqi Chen},
-      year={2024},
+      author={Charlie F. Ruan and Yucheng Qin and Akaash R. Parthasarathy and Xun Zhou and Ruihang Lai and Hongyi Jin and Yixin Dong and Bohan Hou and Meng-Shiun Yu and Yiyan Zhai and Sudeep Agarwal and Hangrui Cao and Siyuan Feng and Tianqi Chen},
+      year={2026},
       eprint={2412.15803},
       archivePrefix={arXiv},
       primaryClass={cs.LG},

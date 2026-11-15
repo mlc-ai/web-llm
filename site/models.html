@@ -2,6 +2,7 @@
 layout: default
 title: Built-in Models
 notitle: true
+permalink: /models/
 ---
 
 <style>
@@ -321,8 +322,8 @@ notitle: true
   <h1>Built-in Models</h1>
   <p class="models-subtitle">
     All models supported by WebLLM via
-    <code>prebuiltAppConfig.model_list</code>. This page is generated directly
-    from the source — always up to date. Need something not listed?
+    <code>prebuiltAppConfig.model_list</code>. The list is generated from the registry when the site is built.
+    Memory requirements are estimates. Need something not listed?
     <a href="https://github.com/mlc-ai/web-llm/issues/new" target="_blank"
       >Open an issue</a
     >
@@ -483,8 +484,11 @@ notitle: true
   }
 
   // Load data from generated JSON
-  fetch("/models-data.json")
-    .then((r) => r.json())
+  fetch({{ "/models-data.json" | relative_url | jsonify }})
+    .then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    })
     .then((data) => {
       ALL_FAMILIES = data.families;
       document.getElementById("models-loading").style.display = "none";
@@ -494,7 +498,7 @@ notitle: true
     })
     .catch(() => {
       document.getElementById("models-loading").textContent =
-        "⚠️ Could not load model data. Run generate-models-json.mjs first.";
+        "Could not load the model list. Please reload the page.";
     });
 
   document.addEventListener("input", (e) => {

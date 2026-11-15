@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euxo pipefail
 
+npm run build:models
+
 cd examples/simple-chat
 rm -rf lib
 npm run build

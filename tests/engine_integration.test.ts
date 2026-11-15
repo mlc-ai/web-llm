@@ -1,6 +1,13 @@
-/**
- * Deterministic MLCEngine tests that run without WebGPU by mocking LLMChatPipeline.
- */
+import {
+  MODEL_ID,
+  EMBED_MODEL_ID,
+  FIXED_CREATED_DATE,
+  FIXED_CREATED_SECONDS,
+  createEngineWithPipeline,
+  createEngineWithMultiplePipelines,
+  createEngineWithEmbeddingPipeline,
+  mockChatConfig,
+} from "./helpers/engine_fixture";
 import {
   ChatCompletion,
   ChatCompletionRequest,
@@ -10,352 +17,15 @@ import {
   ChatCompletionChunk,
 } from "../src/openai_api_protocols";
 import { MLCEngine } from "../src/engine";
-import { ModelType } from "../src/config";
-import { LLMChatPipeline } from "../src/llm_chat";
-import { EmbeddingPipeline } from "../src/embedding";
-import { CustomLock } from "../src/support";
+import { getConversationFromChatCompletionRequest } from "../src/conversation";
 import { UnclearModelToUseError } from "../src/error";
-import { jest, test, expect, describe } from "@jest/globals";
-
-type ChatConfig = import("../src/config").ChatConfig;
-type Conversation = import("../src/conversation").Conversation;
-type TVMInstance = import("@mlc-ai/web-runtime").Instance;
-type Tokenizer = import("@mlc-ai/web-tokenizers").Tokenizer;
-
-jest.mock("../src/llm_chat", () => {
-  const { getConversation } = jest.requireActual(
-    "../src/conversation",
-  ) as typeof import("../src/conversation");
-
-  class MockLLMChatPipeline {
-    public decodeLimit = 2;
-    public prefillCallCount = 0;
-    public decodeCallCount = 0;
-    public resetCount = 0;
-    private conversation: Conversation = getConversation(
-      {
-        system_template: "{system_message}",
-        system_message: "",
-        roles: { user: "user", assistant: "assistant" },
-        seps: ["\n"],
-        stop_token_ids: [0],
-        stop_str: [],
-      } as any,
-      undefined,
-    );
-    private stopFlag = true;
-    private message = "";
-    private finishReason: string | undefined = undefined;
-    private curRoundPrefillTotalTokens = 0;
-    private curRoundDecodingTotalTokens = 0;
-    private curRoundPrefillTotalTime = 0.001;
-    private curRoundDecodingTotalTime = 0.001;
-    private curRoundGrammarPerTokenTotalTime = 0;
-
-    constructor(_tvm: TVMInstance, _tokenizer: Tokenizer, config: ChatConfig) {
-      this.conversation = getConversation(
-        config.conv_template,
-        config.conv_config,
-      );
-    }
-
-    async asyncLoadWebGPUPipelines() {}
-    dispose() {}
-    async sync() {}
-
-    getConversationObject() {
-      return this.conversation;
-    }
-
-    setConversation(newConv: Conversation) {
-      this.conversation = newConv;
-    }
-
-    resetChat() {
-      this.resetCount++;
-      this.stopFlag = true;
-      this.decodeCallCount = 0;
-    }
-
-    async prefillStep(
-      inp: string,
-      msgRole: string,
-      roleName?: string,
-    ): Promise<void> {
-      this.prefillCallCount++;
-      const roleSuffix = roleName ? `(${roleName})` : "";
-      this.message = `${msgRole}${roleSuffix}:${inp}`;
-      this.stopFlag = false;
-      this.decodeCallCount = 0;
-      this.curRoundPrefillTotalTokens = Math.max(1, inp.length);
-      this.curRoundPrefillTotalTime = 0.01 * this.curRoundPrefillTotalTokens;
-      this.curRoundDecodingTotalTokens = 0;
-      this.curRoundDecodingTotalTime = 0.001;
-      this.curRoundGrammarPerTokenTotalTime = 0;
-      this.finishReason = "length";
-    }
-
-    async decodeStep(genConfig?: { max_tokens?: number | null }) {
-      if (this.stopFlag) return;
-      this.decodeCallCount++;
-      this.message += `|token${this.decodeCallCount}|`;
-      this.curRoundDecodingTotalTokens = this.decodeCallCount;
-      this.curRoundDecodingTotalTime = this.curRoundDecodingTotalTokens * 0.02;
-      this.curRoundGrammarPerTokenTotalTime =
-        this.curRoundDecodingTotalTokens * 0.001;
-      if (
-        this.decodeCallCount >= this.decodeLimit ||
-        (genConfig?.max_tokens !== null &&
-          genConfig?.max_tokens !== undefined &&
-          this.decodeCallCount >= genConfig.max_tokens)
-      ) {
-        this.stopFlag = true;
-        this.finishReason = "stop";
-      }
-    }
-
-    stopped() {
-      return this.stopFlag;
-    }
-
-    triggerStop() {
-      this.stopFlag = true;
-      this.finishReason = "stop";
-    }
-
-    getMessage() {
-      return this.message;
-    }
-
-    getFinishReason() {
-      return this.finishReason ?? "stop";
-    }
-
-    getCurRoundDecodingTotalTokens() {
-      return this.curRoundDecodingTotalTokens;
-    }
-
-    getCurRoundPrefillTotalTokens() {
-      return this.curRoundPrefillTotalTokens;
-    }
-
-    getCurRoundPrefillTokensPerSec() {
-      return this.curRoundPrefillTotalTokens / this.curRoundPrefillTotalTime;
-    }
-
-    getCurRoundDecodingTokensPerSec() {
-      return this.curRoundDecodingTotalTokens / this.curRoundDecodingTotalTime;
-    }
-
-    getCurRoundGrammarInitTotalTime() {
-      return 0.001;
-    }
-
-    getCurRoundPrefillTotalTime() {
-      return this.curRoundPrefillTotalTime;
-    }
-
-    getCurRoundDecodingTotalTime() {
-      return this.curRoundDecodingTotalTime;
-    }
-
-    getCurRoundGrammarPerTokenTotalTime() {
-      return this.curRoundGrammarPerTokenTotalTime;
-    }
-
-    getCurRoundLatencyBreakdown() {
-      return {
-        logitProcessorTime: [0.001],
-        logitBiasTime: [0.001],
-        penaltyTime: [0.001],
-        sampleTime: [0.001],
-        totalTime: [0.001],
-        grammarBitmaskTime: [0.001],
-      };
-    }
-
-    getTokenLogprobArray() {
-      return [];
-    }
-
-    async forwardTokensAndSample(inputIds: Array<number>): Promise<number> {
-      return inputIds[0] ?? 0;
-    }
-
-    async runtimeStatsText() {
-      return `prefills=${this.prefillCallCount}`;
-    }
-  }
-
-  return { LLMChatPipeline: MockLLMChatPipeline };
+import { jest, test, expect, describe, afterEach } from "@jest/globals";
+afterEach(() => {
+  jest.useRealTimers();
 });
-
-jest.mock("../src/embedding", () => {
-  class MockEmbeddingPipeline {
-    public inputs: any;
-    public embedResult: Array<Array<number>> = [[0.1, 0.2, 0.3]];
-    dispose() {}
-    async sync() {}
-    async embedStep(
-      input: string | Array<string> | Array<number> | Array<Array<number>>,
-    ): Promise<Array<Array<number>>> {
-      this.inputs = input;
-      return this.embedResult;
-    }
-    getCurRoundEmbedTotalTokens(): number {
-      if (typeof this.inputs === "string") {
-        return this.inputs.length;
-      } else if (Array.isArray(this.inputs)) {
-        return this.inputs.length;
-      }
-      return 0;
-    }
-    getCurRoundEmbedTokensPerSec(): number {
-      const tokens = this.getCurRoundEmbedTotalTokens();
-      return tokens === 0 ? 0 : tokens / 0.01;
-    }
-  }
-  return { EmbeddingPipeline: MockEmbeddingPipeline };
-});
-
-const MODEL_ID = "mock-model";
-const SECOND_MODEL_ID = "mock-model-2";
-const EMBED_MODEL_ID = "mock-embed";
-const mockChatConfig: ChatConfig = {
-  tokenizer_files: ["tokenizer.json"],
-  vocab_size: 10,
-  conv_template: {
-    system_template: "{system_message}",
-    system_message: "You are a helpful assistant.",
-    system_prefix_token_ids: [1],
-    add_role_after_system_message: false,
-    roles: {
-      user: "User",
-      assistant: "Assistant",
-      tool: "Tool",
-    },
-    role_templates: {
-      user: "{user_message}",
-      assistant: "{assistant_message}",
-      tool: "{tool_message}",
-    },
-    seps: ["\n"],
-    role_content_sep: ": ",
-    role_empty_sep: ": ",
-    stop_str: [],
-    stop_token_ids: [0],
-  },
-  conv_config: undefined,
-  context_window_size: 8,
-  sliding_window_size: -1,
-  attention_sink_size: -1,
-  temperature: 0.8,
-  presence_penalty: 0,
-  frequency_penalty: 0,
-  repetition_penalty: 1,
-  top_p: 1,
-};
-
-function createEngineWithPipeline(decodeLimit = 2, modelId = MODEL_ID) {
-  const engine = new MLCEngine({
-    appConfig: {
-      model_list: [
-        {
-          model: "https://example.com/model",
-          model_id: modelId,
-          model_lib: "https://example.com/model.wasm",
-        },
-      ],
-      useIndexedDBCache: false,
-    },
-  });
-  const pipeline = new LLMChatPipeline(
-    null as unknown as TVMInstance,
-    null as unknown as Tokenizer,
-    mockChatConfig,
-  ) as any;
-  pipeline.decodeLimit = decodeLimit;
-  const internal = engine as any;
-  internal.loadedModelIdToPipeline.set(modelId, pipeline);
-  internal.loadedModelIdToChatConfig.set(modelId, mockChatConfig);
-  internal.loadedModelIdToModelType.set(modelId, ModelType.LLM);
-  internal.loadedModelIdToLock.set(modelId, new CustomLock());
-  return { engine, pipeline };
-}
-
-function createEngineWithMultiplePipelines() {
-  const engine = new MLCEngine({
-    appConfig: {
-      model_list: [
-        {
-          model: "https://example.com/model",
-          model_id: MODEL_ID,
-          model_lib: "https://example.com/model.wasm",
-        },
-        {
-          model: "https://example.com/model2",
-          model_id: SECOND_MODEL_ID,
-          model_lib: "https://example.com/model2.wasm",
-        },
-      ],
-      useIndexedDBCache: false,
-    },
-  });
-  const pipeline1 = new LLMChatPipeline(
-    null as unknown as TVMInstance,
-    null as unknown as Tokenizer,
-    mockChatConfig,
-  ) as any;
-  const pipeline2 = new LLMChatPipeline(
-    null as unknown as TVMInstance,
-    null as unknown as Tokenizer,
-    mockChatConfig,
-  ) as any;
-  const internal = engine as any;
-  internal.loadedModelIdToPipeline.set(MODEL_ID, pipeline1);
-  internal.loadedModelIdToPipeline.set(SECOND_MODEL_ID, pipeline2);
-  internal.loadedModelIdToChatConfig.set(MODEL_ID, mockChatConfig);
-  internal.loadedModelIdToChatConfig.set(SECOND_MODEL_ID, mockChatConfig);
-  internal.loadedModelIdToModelType.set(MODEL_ID, ModelType.LLM);
-  internal.loadedModelIdToModelType.set(SECOND_MODEL_ID, ModelType.LLM);
-  internal.loadedModelIdToLock.set(MODEL_ID, new CustomLock());
-  internal.loadedModelIdToLock.set(SECOND_MODEL_ID, new CustomLock());
-  return engine;
-}
-
-const mockEmbeddingConfig: ChatConfig = {
-  ...mockChatConfig,
-};
-
-function createEngineWithEmbeddingPipeline() {
-  const engine = new MLCEngine({
-    appConfig: {
-      model_list: [
-        {
-          model: "https://example.com/embed",
-          model_id: EMBED_MODEL_ID,
-          model_lib: "https://example.com/embed.wasm",
-          model_type: ModelType.embedding,
-        },
-      ],
-      useIndexedDBCache: false,
-    },
-  });
-  const pipeline = new EmbeddingPipeline(
-    null as unknown as TVMInstance,
-    null as unknown as Tokenizer,
-    mockEmbeddingConfig,
-  ) as any;
-  const internal = engine as any;
-  internal.loadedModelIdToPipeline.set(EMBED_MODEL_ID, pipeline);
-  internal.loadedModelIdToChatConfig.set(EMBED_MODEL_ID, mockEmbeddingConfig);
-  internal.loadedModelIdToModelType.set(EMBED_MODEL_ID, ModelType.embedding);
-  internal.loadedModelIdToLock.set(EMBED_MODEL_ID, new CustomLock());
-  return { engine, pipeline };
-}
-
 describe("MLCEngine deterministic integration", () => {
   test("chatCompletion aggregates usage without WebGPU", async () => {
+    jest.useFakeTimers().setSystemTime(FIXED_CREATED_DATE);
     const { engine, pipeline } = createEngineWithPipeline(3);
     const request: ChatCompletionRequest = {
       model: MODEL_ID,
@@ -371,12 +41,91 @@ describe("MLCEngine deterministic integration", () => {
     response.choices.forEach((choice) => {
       expect(choice.message?.content).toContain("What is new?");
     });
-    expect(response.usage?.completion_tokens).toBe(6);
+    expect(response.created).toBe(FIXED_CREATED_SECONDS);
+    expect(response.usage?.completion_tokens).toBe(8);
     expect(response.usage?.prompt_tokens).toBeGreaterThan(0);
     expect((pipeline as any).prefillCallCount).toBe(2);
   });
 
+  test("usage counts the token sampled after prefill", async () => {
+    const { engine } = createEngineWithPipeline(2);
+    const response = (await engine.chatCompletion({
+      model: MODEL_ID,
+      messages: [{ role: "user", content: "Count" }],
+    })) as ChatCompletion;
+
+    // One token comes from prefill and two from decode steps.
+    expect(response.usage?.completion_tokens).toBe(3);
+    expect(response.usage?.total_tokens).toBe(
+      3 + (response.usage?.prompt_tokens ?? 0),
+    );
+    expect(response.usage?.extra?.time_per_output_token_s).toBeGreaterThan(0);
+    expect(Number.isFinite(response.usage?.extra?.decode_tokens_per_s)).toBe(
+      true,
+    );
+  });
+
+  test("a prior interrupt does not abort the next non-streaming chat request", async () => {
+    const { engine, pipeline } = createEngineWithPipeline(2);
+    await engine.interruptGenerate();
+
+    const response = (await engine.chatCompletion({
+      model: MODEL_ID,
+      messages: [{ role: "user", content: "Continue" }],
+    })) as ChatCompletion;
+
+    expect(response.choices[0].message.content).toContain("Continue");
+    expect(response.choices[0].finish_reason).not.toBe("abort");
+    expect((pipeline as any).prefillCallCount).toBe(1);
+  });
+
+  test("a prior interrupt does not abort the next non-streaming text request", async () => {
+    const { engine, pipeline } = createEngineWithPipeline(2);
+    await engine.interruptGenerate();
+
+    const response = (await engine.completion({
+      model: MODEL_ID,
+      prompt: "Continue",
+    })) as Completion;
+
+    expect(response.choices[0].text).toContain("Continue");
+    expect(response.choices[0].finish_reason).not.toBe("abort");
+    expect((pipeline as any).prefillCallCount).toBe(1);
+  });
+
+  test.each(["abort", "length", "stop"] as const)(
+    "a conversation continued after a reply that ended with %s is rebuilt from the request",
+    async (reason) => {
+      const { engine, pipeline } = createEngineWithPipeline(1);
+      const request: ChatCompletionRequest = {
+        model: MODEL_ID,
+        messages: [
+          { role: "user", content: "First" },
+          { role: "assistant", content: "Partial reply" },
+          { role: "user", content: "Continue" },
+        ],
+      };
+      pipeline.setConversation(
+        getConversationFromChatCompletionRequest(request, mockChatConfig),
+      );
+      jest.spyOn(pipeline, "getFinishReason").mockReturnValue(reason);
+      const reset = jest.spyOn(pipeline, "resetChat");
+      const setConversation = jest.spyOn(pipeline, "setConversation");
+      await engine.prefill(request, pipeline, mockChatConfig, {
+        max_tokens: 32,
+      });
+      const rebuilt = reason === "stop" ? 0 : 1;
+      expect(reset).toHaveBeenCalledTimes(rebuilt);
+      expect(setConversation).toHaveBeenCalledTimes(rebuilt);
+      expect(pipeline.getConversationObject().messages).toEqual(
+        getConversationFromChatCompletionRequest(request, mockChatConfig)
+          .messages,
+      );
+    },
+  );
+
   test("completion echoes prompt when requested", async () => {
+    jest.useFakeTimers().setSystemTime(FIXED_CREATED_DATE);
     const { engine } = createEngineWithPipeline(1);
     const request: CompletionCreateParams = {
       model: MODEL_ID,
@@ -388,8 +137,101 @@ describe("MLCEngine deterministic integration", () => {
 
     expect(response.choices).toHaveLength(1);
     expect(response.choices[0].text.startsWith("Alpha ")).toBe(true);
-    expect(response.usage?.completion_tokens).toBe(1);
+    expect(response.created).toBe(FIXED_CREATED_SECONDS);
+    expect(response.usage?.completion_tokens).toBe(2);
     expect(response.usage?.prompt_tokens).toBeGreaterThan(0);
+  });
+
+  test.each([true, false, null, undefined])(
+    "streaming completion preserves echo=%s across multiple chunks",
+    async (echo) => {
+      const prompt = "Alpha ";
+      const { engine } = createEngineWithPipeline(3);
+      const generated = await engine.completions.create({
+        model: MODEL_ID,
+        prompt,
+        echo: false,
+      });
+      const expected = await engine.completions.create({
+        model: MODEL_ID,
+        prompt,
+        echo,
+      });
+      const stream = await engine.completions.create({
+        model: MODEL_ID,
+        prompt,
+        echo,
+        stream: true,
+        stream_options: { include_usage: true },
+      });
+      const chunks: Completion[] = [];
+      for await (const chunk of stream) chunks.push(chunk);
+      const text = chunks
+        .flatMap((chunk) => chunk.choices)
+        .map((choice) => choice.text)
+        .join("");
+      expect(text).toBe(expected.choices[0].text);
+      expect(text).toBe((echo ? prompt : "") + generated.choices[0].text);
+      const contentChunks = chunks.filter(
+        (chunk) => chunk.choices[0]?.finish_reason === null,
+      );
+      expect(contentChunks).toHaveLength(echo ? 5 : 4);
+      if (echo) {
+        expect(contentChunks[0].choices).toEqual([
+          { text: prompt, index: 0, finish_reason: null, logprobs: null },
+        ]);
+      }
+      for (const chunk of chunks) {
+        expect(chunk.id).toBe(chunks[0].id);
+        expect(chunk.created).toBe(chunks[0].created);
+        expect(chunk.model).toBe(MODEL_ID);
+        expect(chunk.object).toBe("text_completion");
+      }
+      expect(chunks[chunks.length - 2].choices[0]).toMatchObject({
+        text: "",
+        finish_reason: expected.choices[0].finish_reason,
+      });
+      expect(chunks[chunks.length - 1].usage).toMatchObject({
+        completion_tokens: generated.usage!.completion_tokens,
+        prompt_tokens: generated.usage!.prompt_tokens,
+        total_tokens: generated.usage!.total_tokens,
+      });
+    },
+  );
+
+  test("streaming completion echoes the prompt even when generated text is empty", async () => {
+    const { engine, pipeline } = createEngineWithPipeline();
+    jest.spyOn(pipeline, "getMessage").mockReturnValue("");
+    jest.spyOn(pipeline, "stopped").mockReturnValue(true);
+    const stream = await engine.completions.create({
+      model: MODEL_ID,
+      prompt: "Alpha ",
+      echo: true,
+      stream: true,
+    });
+    const texts: string[] = [];
+    for await (const chunk of stream) texts.push(chunk.choices[0].text);
+    expect(texts.join("")).toBe("Alpha ");
+    expect(texts[texts.length - 1]).toBe("");
+    expect(pipeline.decodeCallCount).toBe(0);
+  });
+
+  test("closing a streaming completion after the echoed prompt releases the pipeline", async () => {
+    const { engine, pipeline } = createEngineWithPipeline(2);
+    const stream = await engine.completions.create({
+      model: MODEL_ID,
+      prompt: "Alpha ",
+      echo: true,
+      stream: true,
+    });
+    const iterator = stream[Symbol.asyncIterator]();
+    const first = await iterator.next();
+    expect(first.value.choices[0].text).toBe("Alpha ");
+    await iterator.return!();
+    expect(pipeline.stopped()).toBe(true);
+    expect(pipeline.decodeCallCount).toBe(0);
+    const response = await engine.completions.create({ prompt: "Next" });
+    expect(response.choices[0].text).toContain("Next");
   });
 
   test("forwardTokensAndSample and runtimeStatsText use mock pipeline", async () => {
@@ -403,6 +245,7 @@ describe("MLCEngine deterministic integration", () => {
   });
 
   test("chatCompletion streaming yields chunks, final delta, and usage data", async () => {
+    jest.useFakeTimers().setSystemTime(FIXED_CREATED_DATE);
     const { engine } = createEngineWithPipeline(2);
     const request: ChatCompletionRequest = {
       model: MODEL_ID,
@@ -422,6 +265,9 @@ describe("MLCEngine deterministic integration", () => {
     }
     expect(chunks.length).toBeGreaterThanOrEqual(3);
     expect(chunks[0].choices[0].delta?.content).toContain("Stream please");
+    expect(
+      chunks.every((chunk) => chunk.created === FIXED_CREATED_SECONDS),
+    ).toBe(true);
     const finalChunk = chunks[chunks.length - 2];
     expect(finalChunk.choices[0].finish_reason).toEqual("stop");
     const usageChunk = chunks[chunks.length - 1];
@@ -452,4 +298,147 @@ describe("MLCEngine deterministic integration", () => {
     expect(response.usage?.prompt_tokens).toBeGreaterThan(0);
     expect(response.usage?.extra?.prefill_tokens_per_s).toBeGreaterThan(0);
   });
+});
+
+describe("ordinary stream lifecycle", () => {
+  for (const endpoint of ["chat", "completion"] as const) {
+    const start = async (engine: MLCEngine, seed?: number) => {
+      const stream =
+        endpoint === "chat"
+          ? await engine.chatCompletion({
+              model: MODEL_ID,
+              messages: [{ role: "user", content: "Stream" }],
+              stream: true,
+              seed,
+            })
+          : await engine.completion({
+              model: MODEL_ID,
+              prompt: "Stream",
+              stream: true,
+              seed,
+            });
+      return stream[Symbol.asyncIterator]();
+    };
+
+    test(`${endpoint}: unconsumed stream owns no lock, including return before next`, async () => {
+      const { engine } = createEngineWithPipeline(4);
+      const lock = (engine as any).loadedModelIdToLock.get(MODEL_ID);
+      const acquire = jest.spyOn(lock, "acquire");
+      const release = jest.spyOn(lock, "release");
+      const iterator = await start(engine);
+      expect(acquire).not.toHaveBeenCalled();
+      await iterator.return!();
+      expect(acquire).not.toHaveBeenCalled();
+      expect(release).not.toHaveBeenCalled();
+      expect(await iterator.next()).toMatchObject({ done: true });
+    });
+
+    test(`${endpoint}: return releases a started stream exactly once`, async () => {
+      const { engine } = createEngineWithPipeline(4);
+      const lock = (engine as any).loadedModelIdToLock.get(MODEL_ID);
+      const release = jest.spyOn(lock, "release");
+      const iterator = await start(engine);
+      await iterator.next();
+      await iterator.return!();
+      await iterator.return!();
+      expect(release).toHaveBeenCalledTimes(1);
+      const next = await start(engine);
+      expect(await next.next()).toMatchObject({ done: false });
+      await next.return!();
+    });
+
+    test(`${endpoint}: closing an unused seeded stream leaves pipeline state untouched`, async () => {
+      const { engine, pipeline } = createEngineWithPipeline(4);
+      const seed = jest.spyOn(pipeline, "setSeed");
+      const stop = jest.spyOn(pipeline, "triggerStop");
+      const iterator = await start(engine, 17);
+      await iterator.return!();
+      expect(seed).not.toHaveBeenCalled();
+      expect(stop).not.toHaveBeenCalled();
+    });
+
+    test(`${endpoint}: cancellation stops the reply and resets its seed before releasing the lock`, async () => {
+      jest.useFakeTimers().setSystemTime(FIXED_CREATED_DATE);
+      const { engine, pipeline } = createEngineWithPipeline(4);
+      const seed = jest.spyOn(pipeline, "setSeed");
+      const stop = jest.spyOn(pipeline, "triggerStop");
+      const lock = (engine as any).loadedModelIdToLock.get(MODEL_ID);
+      const release = jest.spyOn(lock, "release");
+      const iterator = await start(engine, 17);
+      await iterator.next();
+      await iterator.return!();
+      await iterator.return!();
+      expect(pipeline.stopped()).toBe(true);
+      expect(stop).toHaveBeenCalledTimes(1);
+      expect(seed.mock.calls).toEqual([[17], [FIXED_CREATED_DATE.getTime()]]);
+      expect(seed.mock.invocationCallOrder[1]).toBeLessThan(
+        release.mock.invocationCallOrder[0],
+      );
+      expect(stop.mock.invocationCallOrder[0]).toBeLessThan(
+        release.mock.invocationCallOrder[0],
+      );
+      const next = await start(engine);
+      await next.next();
+      await next.return!();
+      expect(seed).toHaveBeenCalledTimes(2);
+    });
+
+    test(`${endpoint}: normal completion resets the seed without aborting the reply`, async () => {
+      jest.useFakeTimers().setSystemTime(FIXED_CREATED_DATE);
+      const { engine, pipeline } = createEngineWithPipeline(2);
+      const seed = jest.spyOn(pipeline, "setSeed");
+      const stop = jest.spyOn(pipeline, "triggerStop");
+      const iterator = await start(engine, 17);
+      while (!(await iterator.next()).done) {
+        // Consume through the final chunk so normal cleanup runs.
+      }
+      expect(seed.mock.calls).toEqual([[17], [FIXED_CREATED_DATE.getTime()]]);
+      expect(stop).not.toHaveBeenCalled();
+    });
+
+    for (const stage of ["prefill", "decode"] as const) {
+      test(`${endpoint}: ${stage} failure releases the model lock`, async () => {
+        const { engine, pipeline } = createEngineWithPipeline(4);
+        const seed = jest.spyOn(pipeline, "setSeed");
+        const stop = jest.spyOn(pipeline, "triggerStop");
+        const lock = (engine as any).loadedModelIdToLock.get(MODEL_ID);
+        const release = jest.spyOn(lock, "release");
+        const error = new Error("inference failed");
+        const fail = jest
+          .spyOn(engine as any, stage)
+          .mockRejectedValueOnce(error);
+        const iterator = await start(engine, 17);
+        if (stage === "decode") await iterator.next();
+        await expect(iterator.next()).rejects.toBe(error);
+        expect(release).toHaveBeenCalledTimes(1);
+        expect(seed).toHaveBeenCalledTimes(2);
+        expect(seed.mock.calls[0]).toEqual([17]);
+        expect(seed.mock.calls[1][0]).not.toBe(17);
+        expect(stop).toHaveBeenCalledTimes(stage === "decode" ? 1 : 0);
+        fail.mockRestore();
+        const next = await start(engine);
+        expect(await next.next()).toMatchObject({ done: false });
+        await next.return!();
+      });
+    }
+
+    test(`${endpoint}: concurrent iterators wait for the active stream`, async () => {
+      const { engine, pipeline } = createEngineWithPipeline(4);
+      const first = await start(engine);
+      const second = await start(engine);
+      await first.next();
+      let secondStarted = false;
+      const pending = second.next().then((value) => {
+        secondStarted = true;
+        return value;
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(secondStarted).toBe(false);
+      expect(pipeline.prefillCallCount).toBe(1);
+      await first.return!();
+      expect(await pending).toMatchObject({ done: false });
+      expect(pipeline.prefillCallCount).toBe(2);
+      await second.return!();
+    });
+  }
 });

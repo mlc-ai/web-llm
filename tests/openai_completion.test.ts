@@ -33,6 +33,22 @@ describe("Conversation object with text completion", () => {
 });
 
 describe("Check completion unsupported requests", () => {
+  test("resumable extra_body is rejected", () => {
+    const request = {
+      prompt: "Hello, ",
+      extra_body: {
+        resumable: {
+          enabled: true,
+          sessionId: "session-a",
+          durabilityMode: "exact",
+        },
+      },
+    } as unknown as CompletionCreateParams;
+    expect(() =>
+      postInitAndCheckFields(request, "Llama-3.1-8B-Instruct-q4f32_1-MLC"),
+    ).toThrow("extra_body.resumable");
+  });
+
   test("stream_options without stream specified", () => {
     expect(() => {
       const request: CompletionCreateParams = {

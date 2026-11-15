@@ -338,6 +338,21 @@ export const CompletionCreateParamsUnsupportedFields: Array<string> = [
   "best_of",
 ];
 
+export function rejectCompletionResumable(
+  request: CompletionCreateParams,
+): void {
+  const extraBody = request.extra_body as
+    | { resumable?: unknown }
+    | null
+    | undefined;
+  if (extraBody?.resumable !== undefined && extraBody.resumable !== null) {
+    throw new UnsupportedFieldsError(
+      ["extra_body.resumable"],
+      "CompletionCreateParams",
+    );
+  }
+}
+
 /**
  * Post init and verify whether the input of the request is valid. Thus, this function can throw
  * error or in-place update request.
@@ -349,6 +364,8 @@ export function postInitAndCheckFields(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   currentModelId: string,
 ): void {
+  rejectCompletionResumable(request);
+
   // 1. Check unsupported fields in request
   const unsupported: Array<string> = [];
   CompletionCreateParamsUnsupportedFields.forEach((field) => {

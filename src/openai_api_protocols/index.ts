@@ -28,6 +28,10 @@ export {
   ChatCompletionContentPart,
   ChatCompletionContentPartText,
   ChatCompletionContentPartImage,
+  ChatCompletionContentPartInputAudio,
+  ChatCompletionAudioInput,
+  ChatCompletionAudioInputWav,
+  ChatCompletionAudioInputPCM,
   ChatCompletionMessageToolCall,
   ChatCompletionRole,
   ChatCompletionSystemMessageParam,
@@ -57,6 +61,7 @@ export {
   Completion,
   CompletionChoice,
   postInitAndCheckFields as postInitAndCheckFieldsCompletion,
+  rejectCompletionResumable,
 } from "./completion";
 
 export {

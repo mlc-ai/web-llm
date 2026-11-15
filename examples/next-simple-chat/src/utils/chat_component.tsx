@@ -11,7 +11,7 @@ const ChatComponent = () => {
   const [chat_ui] = useState(new ChatUI(new MLCEngine()));
   const updateMessage = (kind: string, text: string, append: boolean) => {
     if (kind == "init") {
-      text = "[System Initalize] " + text;
+      text = "[System Initialize] " + text;
     }
     const msgCopy = [...messages];
     if (msgCopy.length == 0 || append) {
@@ -39,7 +39,7 @@ const ChatComponent = () => {
           {messages.map((value, index) => (
             <div key={index} className={`msg ${value.kind}-msg`}>
               <div className="msg-bubble">
-                <div className="msg-text">${value.text}</div>
+                <div className="msg-text">{value.text}</div>
               </div>
             </div>
           ))}

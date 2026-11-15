@@ -36,3 +36,6 @@ jobs:
 
       - name: Validate package contents
         run: npm pack --dry-run
+
+      - name: Type-check an installed package
+        run: npm run test:package-types

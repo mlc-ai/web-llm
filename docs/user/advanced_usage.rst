@@ -1,6 +1,85 @@
 Advanced Use Cases
 ==================
 
+Audio Input with a Model Manifest (Experimental)
+------------------------------------------------
+
+A custom MLC model directory can include ``mlc-model-manifest.json``.  The
+manifest describes the task, the audio format the model expects, the compiled
+function that embeds audio, the prompt tokens around it, and two hashes that
+must match the compiled library.  WebLLM reads the manifest only when the
+model record sets ``model_manifest``, so other models load as before.  A
+manifest that is missing, invalid or does not match the library fails the
+load.
+
+Weights are read from ``tensor-cache.json``.  WebLLM never asks WebGPU for a
+buffer over 1 GiB, so conversion has to split any weight larger than that.
+
+To send audio, pass a base64 WAV or a WAV data URL as an ``input_audio``
+content part:
+
+.. code-block:: typescript
+
+   const response = await engine.chat.completions.create({
+     messages: [{
+       role: "user",
+       content: [
+         {
+           type: "input_audio",
+           input_audio: { format: "wav", data: wavBase64 },
+         },
+         { type: "text", text: "What do you hear?" },
+       ],
+     }],
+   });
+
+Callers that already have samples can pass mono PCM as a ``Float32Array`` and
+skip WAV encoding:
+
+.. code-block:: typescript
+
+   const inputAudio = {
+     type: "input_audio" as const,
+     input_audio: {
+       format: "pcm_f32" as const,
+       data: samples, // Float32Array
+       sample_rate: 48000,
+     },
+   };
+
+WebLLM downmixes to mono and resamples to the rate the manifest asks for.
+Feature extraction happens in the compiled model.
+
+This works with custom ``google/gemma-4-E2B-it`` q4f16_1 builds.  There is no
+prebuilt model record yet.  Audio URLs and compressed formats are not
+supported.
+
+A manifest may declare an image input instead of or next to the audio one.
+It names the size the model expects, whether the image is stretched or
+scaled and center cropped to that size, the compiled function that embeds
+it, and the prompt tokens around it.  Send an image as an ``image_url``
+content part with an ``http`` URL or a ``data:image`` URL, the same part the
+prebuilt vision models take.  WebLLM decodes and resizes the image, and the
+compiled model normalizes it.  This works with custom
+``llava-hf/llava-1.5-7b-hf`` builds.  Models that pick a resolution per
+image, such as Phi-3.5-vision, keep loading without a manifest.
+
+A model that keeps a recurrent state next to the KV cache, such as Qwen3.5,
+declares ``create_rnn_state`` in its program, and WebLLM passes both states
+to prefill and decode.  The record needs the same ``max_history_size``
+override as the prebuilt Qwen3.5 records.
+
+``model_manifest`` is a URL relative to the model URL:
+
+.. code-block:: typescript
+
+   const modelRecord = {
+     model_id: "gemma-4-E2B-it-q4f16_1-MLC",
+     model: modelUrl,
+     model_lib: modelLibUrl,
+     model_manifest: "mlc-model-manifest.json",
+   };
+
 Using Workers
 -------------
 
@@ -54,17 +133,15 @@ WebLLM also supports offloading computation using `Service Workers <https://deve
 
 (Note, the lifecycle of a Service Worker is managed by the browser and can be killed any time without notifying the web application. WebLLM's ``ServiceWorkerMLCEngine`` attempts to keep the service worker thread alive by periodically sending heartbeat events. However, the script could still be killed at any time by Chrome, and your application should include proper error handling. Check `keepAliveMs` and `missedHeartbeat` in `ServiceWorkerMLCEngine <https://github.com/mlc-ai/web-llm/blob/main/src/service_worker.ts#L218>`_ for more details.)
 
-In the worker script, import and instantiate ``ServiceWorkerMLCEngineHandler``, which handles communication with page scripts and processes incoming requests.
+In the worker script, import and instantiate ``ServiceWorkerMLCEngineHandler``, which handles communication with page scripts and processes incoming requests. Instantiate it at the top level so its message listener is registered during initial script evaluation. Do not instantiate it from an ``activate`` or ``message`` listener: the browser can restart an already-active worker without dispatching another ``activate`` event.
 
 .. code-block:: typescript
 
    // sw.ts
    import { ServiceWorkerMLCEngineHandler } from "@mlc-ai/web-llm";
 
-   self.addEventListener("activate", () => {
-       const handler = new ServiceWorkerMLCEngineHandler();
-       console.log("Service Worker activated!");
-   });
+   new ServiceWorkerMLCEngineHandler();
+   console.log("Service Worker is ready!");
 
 
 Then, in the main page script, register the service worker and instantiate the engine using the ``CreateServiceWorkerMLCEngine`` factory function that implements the same ``MLCEngineInterface`` and exposes the same APIs. Then, simply use it as you would a normal ``MLCEngine``.
@@ -103,17 +180,37 @@ Additional Customization
 Using IndexedDB Cache
 ^^^^^^^^^^^^^^^^^^^^^
 
-By default, WebLLM caches model artifacts using the `Cache API <https://developer.mozilla.org/en-US/docs/Web/API/Cache>`_ for faster subsequent model loads. You can alternatively use `IndexedDB caching <https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API>`_ by setting the `useIndexedDBCache` field in `appConfig` of `MLCEngineConfig` to `true`.
+By default, WebLLM caches model artifacts using the `Cache API <https://developer.mozilla.org/en-US/docs/Web/API/Cache>`_ for faster subsequent model loads. You can alternatively use `IndexedDB caching <https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API>`_ by setting ``appConfig.cacheBackend = "indexeddb"``. When changing only the cache backend, preserve the prebuilt model list by spreading ``prebuiltAppConfig``.
 
 .. code-block:: typescript
 
-   const engine = await CreateMLCEngine("Llama-3.1-8B-Instruct", {
-       appConfig: {
-           useIndexedDBCache: true,
-           models: [
-               { model_id: "Llama-3.1-8B", model_path: "/models/llama3" },
-           ],
-       },
+   import { AppConfig, CreateMLCEngine, prebuiltAppConfig } from "@mlc-ai/web-llm";
+
+   const appConfig: AppConfig = {
+       ...prebuiltAppConfig,
+       cacheBackend: "indexeddb",
+   };
+
+   const engine = await CreateMLCEngine("Llama-3.1-8B-Instruct-q4f32_1-MLC", {
+       appConfig,
+   });
+
+Using Cross-Origin Storage Cache
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+WebLLM also supports caching model artifacts across different origins using the experimental Cross-Origin Storage API. You can enable this cache backend by setting ``appConfig.cacheBackend = "cross-origin"``. For users with the `Cross-Origin Storage browser extension <https://chromewebstore.google.com/detail/cross-origin-storage/denpnpcgjgikjpoglpjefakmdcbmlgih>`_ installed, resources will then be cached and shared across origins. This means two independent apps opted into this cache backend using the same AI model will download and cache the required resources only once. See the `cache usage example <https://github.com/mlc-ai/web-llm/tree/main/examples/cache-usage>`_ for more details. If Cross-Origin Storage isn't available, WebLLM will automatically fall back to using the default cache.
+
+.. code-block:: typescript
+
+   import { AppConfig, CreateMLCEngine, prebuiltAppConfig } from "@mlc-ai/web-llm";
+
+   const appConfig: AppConfig = {
+       ...prebuiltAppConfig,
+       cacheBackend: "cross-origin",
+   };
+
+   const engine = await CreateMLCEngine("Llama-3.1-8B-Instruct-q4f32_1-MLC", {
+       appConfig,
    });
 
 Customizing Token Behavior

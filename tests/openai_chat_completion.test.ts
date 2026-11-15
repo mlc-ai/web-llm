@@ -12,6 +12,103 @@ import { MessagePlaceholders, ModelType } from "../src/config";
 import { describe, expect, test } from "@jest/globals";
 
 describe("Check chat completion unsupported requests", () => {
+  test("resumable extra_body is accepted", () => {
+    const request: ChatCompletionRequest = {
+      messages: [{ role: "user", content: "Hello! " }],
+      extra_body: {
+        resumable: {
+          enabled: true,
+          sessionId: "session-a",
+          durabilityMode: "exact",
+        },
+      },
+    };
+    expect(() =>
+      postInitAndCheckFields(
+        request,
+        "Llama-3.1-8B-Instruct-q4f32_1-MLC",
+        ModelType.LLM,
+      ),
+    ).not.toThrow();
+  });
+
+  test("manifest capabilities admit WAV and native PCM audio", () => {
+    for (const input_audio of [
+      { format: "wav" as const, data: "UklGRg==" },
+      {
+        format: "pcm_f32" as const,
+        data: new Float32Array([0, 0.5]),
+        sample_rate: 16000,
+      },
+    ]) {
+      const request: ChatCompletionRequest = {
+        messages: [
+          { role: "user", content: [{ type: "input_audio", input_audio }] },
+        ],
+      };
+      expect(() =>
+        postInitAndCheckFields(
+          request,
+          "manifest-model",
+          ModelType.LLM,
+          new Set(["audio"]),
+        ),
+      ).not.toThrow();
+    }
+  });
+
+  test("manifest capabilities admit image_url parts only when declared", () => {
+    const request: ChatCompletionRequest = {
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: { url: "data:image/png;base64,AA" },
+            },
+            { type: "text", text: "What is this?" },
+          ],
+        },
+      ],
+    };
+    expect(() =>
+      postInitAndCheckFields(
+        request,
+        "manifest-model",
+        ModelType.LLM,
+        new Set(["image"]),
+      ),
+    ).not.toThrow();
+    expect(() =>
+      postInitAndCheckFields(
+        request,
+        "manifest-model",
+        ModelType.LLM,
+        new Set(["audio"]),
+      ),
+    ).toThrow(/does not declare support/);
+  });
+
+  test("audio content requires a manifest-declared audio input", () => {
+    const request: ChatCompletionRequest = {
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_audio",
+              input_audio: { format: "wav", data: "UklGRg==" },
+            },
+          ],
+        },
+      ],
+    };
+    expect(() =>
+      postInitAndCheckFields(request, "legacy-model", ModelType.LLM, new Set()),
+    ).toThrow(/does not declare support/);
+  });
+
   test("stream_options without stream specified", () => {
     expect(() => {
       const request: ChatCompletionRequest = {

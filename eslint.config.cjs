@@ -44,6 +44,29 @@ module.exports = defineConfig([{
         "no-undef": "off",
         "@typescript-eslint/no-unused-vars": "off",
     },
+}, {
+    files: [
+        "examples/**/*.js",
+        "examples/**/*.jsx",
+        "examples/**/*.ts",
+        "examples/**/*.tsx",
+    ],
+
+    "rules": {
+        "no-restricted-syntax": ["error", {
+            selector: "AssignmentExpression[left.property.name='innerHTML']",
+            message: "Render example text with textContent or DOM nodes instead of innerHTML.",
+        }, {
+            selector: "AssignmentExpression[left.property.name='outerHTML']",
+            message: "Render example text with textContent or DOM nodes instead of outerHTML.",
+        }, {
+            selector: "CallExpression[callee.property.name='insertAdjacentHTML']",
+            message: "Build example DOM nodes directly instead of parsing strings with insertAdjacentHTML.",
+        }, {
+            selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+            message: "Render example text as JSX text or DOM nodes instead of dangerouslySetInnerHTML.",
+        }],
+    },
 }, globalIgnores([
     "**/dist",
     "**/debug",
