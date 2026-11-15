@@ -135,3 +135,29 @@ GPU device, but their lifetimes must be managed together: disposing a runtime ma
 destroy that shared device. Dispose runtimes only after all graph work has ended.
 The initial graph copies mel features through host memory; it is not a zero-copy
 multimodal pipeline or complete Omni chat integration.
+
+Text/audio Thinker binding
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``createThinkerTVMFactory`` binds the restricted
+``qwen2_5_omni.thinker_audio.v1`` contract to a preloaded TVM runtime. It accepts
+explicit token IDs and audio embeddings, verifies that audio placeholder counts
+match, and rejects image/video tokens. Callers remain responsible for the pinned
+chat template and audio preprocessing. The adapter replaces each audio placeholder
+with its corresponding embedding before chunked prefill, then streams greedy token
+IDs until an EOS token or the configured generation/context limit. EOS tokens are
+excluded from the output.
+
+The compiled module must export ``embed``, ``prefill``, ``decode``,
+``create_state``, and ``reset_state``. Cache creation uses the standard paged-KV
+shape arguments; each request gets a fresh cache, resets it, registers sequence
+zero, and brackets every forward operation with the TVM cache globals. Metadata
+binds model dtype, hidden/vocabulary sizes, special tokens, and context/prefill
+limits. Float32 audio is converted to float16 with nearest-even rounding when
+required; nonfinite or overflowing values are rejected before embedding.
+
+This initial implementation stages prompt embeddings and logits through CPU memory
+for correctness and does not promise optimized throughput. Runtime and GPU-device
+ownership follow the audio bindings above. Synthetic-weight Chrome tests cover
+real VM execution, audio insertion, greedy decoding, and repeated requests; those
+tests do not establish pretrained Omni quality or complete multimodal support.

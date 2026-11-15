@@ -87,3 +87,8 @@ export {
   type WhisperAudioTVMOptions,
   type AudioEncoderTVMOptions,
 } from "./artifact_graph_tvm";
+
+export {
+  createThinkerTVMFactory,
+  type ThinkerTVMOptions,
+} from "./artifact_graph_thinker_tvm";

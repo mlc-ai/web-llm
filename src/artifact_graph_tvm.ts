@@ -65,6 +65,18 @@ function aborted(signal: AbortSignal): void {
   if (signal.aborted) throw new Error("Audio encoder execution aborted");
 }
 interface ComponentMetadata {
+  thinker: {
+    model_dtype: string;
+    hidden_size: number;
+    vocab_size: number;
+    active_vocab_size: number | null;
+    audio_token_id: number;
+    image_token_id: number;
+    video_token_id: number;
+    eos_token_ids: number[];
+    context_window_size: number;
+    prefill_chunk_size: number;
+  };
   artifact: unknown;
   params: Parameter[];
   audio_encoder: {
@@ -595,3 +607,6 @@ export async function createWhisperAudioTVMFactory(
     },
   };
 }
+
+// Shared internally by component-specific adapters; not a generic artifact loader.
+export { loadComponent, same, aborted };
