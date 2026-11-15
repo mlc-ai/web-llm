@@ -340,20 +340,26 @@ export async function createThinkerTVMFactory(
               read: (value: tvmjs.Tensor) => T,
             ): Promise<T> => {
               let failed = false;
+              let failure: unknown;
+              let value: T | undefined;
               try {
                 await device.sync();
                 check();
-                return read(cpu);
+                value = read(cpu);
               } catch (error) {
                 failed = true;
-                throw error;
-              } finally {
-                try {
-                  cpu.dispose();
-                } catch (error) {
-                  if (!failed) throw error;
+                failure = error;
+              }
+              try {
+                cpu.dispose();
+              } catch (error) {
+                if (!failed) {
+                  failed = true;
+                  failure = error;
                 }
               }
+              if (failed) throw failure;
+              return value as T;
             };
             const readLogits = (cpu: tvmjs.Tensor) =>
               readTensor(cpu, (value) => {
