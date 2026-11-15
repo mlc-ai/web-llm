@@ -229,6 +229,7 @@ generate.onclick = async () => {
       await runtime.fetchTensorCache(
         new URL(base, location.href).href,
         runtime.webgpu(),
+        { signal },
       );
       signal.throwIfAborted();
       const options = {

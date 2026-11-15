@@ -35,9 +35,9 @@ The single-turn prompt follows Qwen2.5-Omni's pinned audio-then-text template;
 reserved control/media tokens in user text are rejected.
 
 The unquantized components require several GB of downloads and GPU memory.
-Each request releases its runtimes afterward. Cancel interrupts graph generation;
-a tensor-cache download already in progress finishes before its runtime is
-released. Closing the page also releases resources. No audio is uploaded: artifacts
+Each request releases its runtimes afterward. Cancel interrupts model downloads
+and graph generation; cleanup waits for in-flight work to settle before releasing
+its runtime. Closing the page also releases resources. No audio is uploaded: artifacts
 are fetched from your configured server and inference runs locally.
 
 The initial verification uses fixed synthetic PCM probes and independent HF
