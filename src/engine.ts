@@ -1620,6 +1620,8 @@ export class MLCEngine implements MLCEngineInterface {
       );
       const previousFinishReason = pipeline.getFinishReason();
       if (
+        // Historical reasoning is replaced in LFM3 prompts, so rebuild the cache.
+        newConv.config.reasoning_history_style === "lfm3" ||
         !reuseKVCache ||
         previousFinishReason === "abort" ||
         previousFinishReason === "length" ||

@@ -671,6 +671,34 @@ export function getConversationFromChatCompletionRequest(
     config.conv_config,
   );
 
+  const isLfm3 = conversation.config.reasoning_history_style === "lfm3";
+  if (isLfm3) {
+    if (request.extra_body?.enable_thinking != null) {
+      throw new Error(
+        "LFM3 uses the lfm3 or lfm3_nothink template to select thinking mode.",
+      );
+    }
+    if (
+      request.tools != null ||
+      request.messages.at(-1)?.role !== "user" ||
+      request.messages.some(
+        (message, index) =>
+          typeof message.content !== "string" ||
+          !(
+            message.role === "user" ||
+            message.role === "assistant" ||
+            (index === 0 && message.role === "system")
+          ) ||
+          ("name" in message && message.name != null) ||
+          ("tool_calls" in message && message.tool_calls != null),
+      )
+    ) {
+      throw new Error(
+        "LFM3 supports plain text chat ending in a user message.",
+      );
+    }
+  }
+
   // 1. Populate function-calling-related fields
   // TODO: either remove these or support gorilla-like function calling models.
   // These commented code was used to support gorilla, but we could not use grammar to
@@ -701,7 +729,20 @@ export function getConversationFromChatCompletionRequest(
       if (typeof message.content !== "string") {
         throw new ContentTypeError(message.role + "'s message");
       }
-      conversation.appendMessage(Role.assistant, message.content, message.name);
+      let content = message.content;
+      if (isLfm3) {
+        const close = content.lastIndexOf("</think>");
+        if (close !== -1) {
+          // Match Python str.strip used by the source chat template.
+          content = content.slice(close + "</think>".length).replace(
+            // eslint-disable-next-line no-control-regex -- Match Python whitespace exactly.
+            /^[\u0009-\u000d\u001c-\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|[\u0009-\u000d\u001c-\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+$/g,
+            "",
+          );
+        }
+        content = "<think></think>" + content;
+      }
+      conversation.appendMessage(Role.assistant, content, message.name);
     } else if (message.role === "tool") {
       conversation.appendMessage(Role.tool, message.content);
     } else {

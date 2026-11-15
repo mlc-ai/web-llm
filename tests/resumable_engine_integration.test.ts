@@ -337,6 +337,32 @@ describe("MLCEngine resumable integration", () => {
     expect(pipeline.resetCount).toBe(1);
   });
 
+  test("LFM3 rebuilds even a matching historical cache", () => {
+    const { engine, pipeline } = createEngineWithPipeline(1);
+    const config = {
+      ...mockChatConfig,
+      conv_template: {
+        ...mockChatConfig.conv_template,
+        reasoning_history_style: "lfm3" as const,
+      },
+    };
+    const request: ChatCompletionRequest = {
+      messages: [
+        { role: "user", content: "First" },
+        { role: "assistant", content: "<think>private</think>Answer" },
+        { role: "user", content: "Second" },
+      ],
+    };
+    const internal = engine as any;
+    internal.preparePrefillInput(request, pipeline, config, true);
+    pipeline.resetCount = 0;
+    internal.preparePrefillInput(request, pipeline, config, true);
+    expect(pipeline.resetCount).toBe(1);
+    expect(pipeline.getConversationObject().messages[1][2]).toBe(
+      "<think></think>Answer",
+    );
+  });
+
   test("a resumable session persists the complete multi-turn request", async () => {
     const { engine } = createEngineWithPipeline(1);
     const files = new MemoryFileStore();
