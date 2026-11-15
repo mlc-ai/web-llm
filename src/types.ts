@@ -30,6 +30,53 @@ export interface InitProgressReport {
  */
 export type InitProgressCallback = (report: InitProgressReport) => void;
 
+export interface ResumableGenerationConfig {
+  /** When false, generation uses the ordinary non-persistent path. */
+  enabled: boolean;
+  /**
+   * Single-use identity for this generation. Resuming appends to the same
+   * session; delete the persisted session before reusing this identifier for a
+   * new generation. A random identifier is generated when omitted.
+   */
+  sessionId?: string;
+  /** Decode-token interval between KV checkpoints. Defaults to 512. */
+  checkpointIntervalTokens?: number;
+  /** Capture a checkpoint after prompt prefill when supported. Defaults to true. */
+  checkpointPrompt?: boolean;
+  /** Exact persists each token before exposure; relaxed batches writes. Defaults to exact. */
+  durabilityMode?: "exact" | "relaxed";
+  /** Surface persistence failures instead of continuing best-effort. Defaults to false. */
+  strictPersistence?: boolean;
+  /** Store checkpoint logits for recovery before the next token. Defaults to true. */
+  storeCheckpointLogits?: boolean;
+}
+
+export interface ResumeProbeResult {
+  sessionId: string;
+  resumable: boolean;
+  reason?: string;
+  modelId: string;
+  emittedTokens: number;
+  processedSeqLen: number;
+  recoveryMode: "kv" | "token_replay" | "text_only" | "none";
+}
+
+export type ResumableSessionInfo = ResumeProbeResult;
+
+export interface ResumeResult {
+  sessionId: string;
+  recoveredText: string;
+  emittedTokens: number;
+  processedSeqLen: number;
+  replayedTokens: number;
+  recoveryMode: "kv" | "token_replay" | "text_only";
+}
+
+export interface ResumeChatCompletionOptions {
+  continueGeneration?: boolean;
+  stream?: boolean;
+}
+
 /**
  * A stateful logitProcessor used to post-process logits after forwarding the input and before
  * sampling the next token. If used with `GenerationConfig.logit_bias`, logit_bias is applied after
@@ -172,11 +219,25 @@ export interface MLCEngineInterface {
    */
   embedding(request: EmbeddingCreateParams): Promise<CreateEmbeddingResponse>;
 
+  listResumableSessions(): Promise<ResumeProbeResult[]>;
+
+  resumeChatCompletion(
+    sessionId: string,
+    options?: ResumeChatCompletionOptions,
+  ): Promise<ResumeResult | AsyncIterable<ChatCompletionChunk>>;
+
+  deleteResumableSession(sessionId: string): Promise<void>;
+
   /**
-   * Exposes the tokenizer for clients to avoid needing to load it twice
+   * Encode raw text with a loaded model's tokenizer, without applying a chat template.
+   * @param modelId Required when multiple models are loaded.
    */
-  tokenize(input: string): Promise<Int32Array>;
-  decodeTokens(input: Int32Array): Promise<string>;
+  tokenize(input: string, modelId?: string): Promise<Int32Array>;
+  /**
+   * Decode token IDs with a loaded model's tokenizer. Does not change generation state.
+   * @param modelId Required when multiple models are loaded.
+   */
+  decodeTokens(input: Int32Array, modelId?: string): Promise<string>;
 
   /**
    * @returns A text summarizing the runtime stats.
@@ -257,3 +318,12 @@ export const LOG_LEVELS = {
   SILENT: 5,
 };
 export type LogLevel = keyof typeof LOG_LEVELS;
+
+export type LatencyBreakdown = {
+  logitProcessorTime: number[];
+  logitBiasTime: number[];
+  penaltyTime: number[];
+  sampleTime: number[];
+  totalTime: number[];
+  grammarBitmaskTime: number[];
+};

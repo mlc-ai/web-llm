@@ -49,7 +49,7 @@ export class EmbeddingPipeline {
     // 2. Get json stored in the vm's metadata function
     const fgetMetadata = this.vm.getFunction("_metadata");
     const ret_value = fgetMetadata();
-    const metadataStr = this.tvm.detachFromCurrentScope(ret_value).toString();
+    const metadataStr = ret_value.toString();
     const metadata = JSON.parse(metadataStr);
 
     // 3. Load parameters by name
@@ -204,7 +204,7 @@ export class EmbeddingPipeline {
       maskNDArray = maskNDArray.view([curBatchSize, maxInputSize]);
 
       // 3.5 Actual forwarding on GPU, logits of shape (curBatchSize, maxInputSize, hidden_size)
-      const logitsCurBatchOnGPU: tvmjs.NDArray = this.prefill(
+      const logitsCurBatchOnGPU: tvmjs.Tensor = this.prefill(
         inputNDArray,
         maskNDArray,
         this.params,
@@ -213,7 +213,7 @@ export class EmbeddingPipeline {
 
       // 3.6 Copy logits to CPU, flatten to curBatchSize * maxInputSize * hidden_size
       const hidden_size = logitsCurBatchOnGPU.shape[2];
-      let logitsCurBatchOnCPU: tvmjs.NDArray = this.tvm.empty(
+      let logitsCurBatchOnCPU: tvmjs.Tensor = this.tvm.empty(
         logitsCurBatchOnGPU.shape,
         logitsCurBatchOnGPU.dtype,
         this.tvm.cpu(),
@@ -247,6 +247,10 @@ export class EmbeddingPipeline {
     this.curRoundEmbedTotalTime = (embedEnd - embedStart) / 1e3;
 
     return result;
+  }
+
+  getTokenizer(): Tokenizer {
+    return this.tokenizer;
   }
 
   dispose() {

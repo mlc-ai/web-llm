@@ -324,5 +324,8 @@ node_modules
 lib
 .parcel-cache
 
-examples/tests
 **/.next
+coverage
+.browser-test/
+playwright-report/
+test-results/

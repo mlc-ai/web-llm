@@ -1,6 +1,7 @@
 import { ChatOptions } from "../src/config";
 import {
   ModelNotLoadedError,
+  PrefillChunkSizeSmallerThanImageError,
   SpecifiedModelNotFoundError,
   UnclearModelToUseError,
 } from "../src/error";
@@ -10,10 +11,12 @@ import {
   getModelIdToUse,
   getChunkedPrefillInputData,
   getTopProbs,
+  planImageResize,
 } from "../src/support";
 import { areChatOptionsListEqual } from "../src/utils";
 import { MLCEngine } from "../src/engine";
 import { ChatCompletionContentPartImage } from "../src/openai_api_protocols";
+import { test, expect, describe } from "@jest/globals";
 
 describe("Check getTopLogprobs correctness", () => {
   test("Correctness test 1", () => {
@@ -328,6 +331,7 @@ describe("Test getChunkedPrefillInputData", () => {
   const prefillChunkSize = 2048;
   const image1 = { url: "url1" } as ImageURL;
   const image2 = { url: "url2" } as ImageURL;
+  const getImageEmbedSize = () => 1921;
 
   test("With image data", async () => {
     const inputData = [
@@ -335,7 +339,11 @@ describe("Test getChunkedPrefillInputData", () => {
       image1, // 1921 size
       rangeArr(0, 10),
     ];
-    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const chunks = getChunkedPrefillInputData(
+      inputData,
+      prefillChunkSize,
+      getImageEmbedSize,
+    );
     const expectedChunks = [[rangeArr(0, 200)], [image1, rangeArr(0, 10)]];
     const expectedChunkLens = [200, 1931];
     expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
@@ -343,7 +351,11 @@ describe("Test getChunkedPrefillInputData", () => {
 
   test("Single image data", async () => {
     const inputData = [image1];
-    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const chunks = getChunkedPrefillInputData(
+      inputData,
+      prefillChunkSize,
+      getImageEmbedSize,
+    );
     const expectedChunks = [[image1]];
     const expectedChunkLens = [1921];
     expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
@@ -351,7 +363,11 @@ describe("Test getChunkedPrefillInputData", () => {
 
   test("Two images", async () => {
     const inputData = [image1, image2];
-    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const chunks = getChunkedPrefillInputData(
+      inputData,
+      prefillChunkSize,
+      getImageEmbedSize,
+    );
     const expectedChunks = [[image1], [image2]];
     const expectedChunkLens = [1921, 1921];
     expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
@@ -359,7 +375,11 @@ describe("Test getChunkedPrefillInputData", () => {
 
   test("Single token array that needs to be chunked", async () => {
     const inputData = [rangeArr(0, 4097)];
-    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const chunks = getChunkedPrefillInputData(
+      inputData,
+      prefillChunkSize,
+      getImageEmbedSize,
+    );
     const expectedChunks = [
       [rangeArr(0, 2048)],
       [rangeArr(2048, 4096)],
@@ -371,7 +391,11 @@ describe("Test getChunkedPrefillInputData", () => {
 
   test("Single token array that does not need to be chunked", async () => {
     const inputData = [rangeArr(0, 2048)];
-    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const chunks = getChunkedPrefillInputData(
+      inputData,
+      prefillChunkSize,
+      getImageEmbedSize,
+    );
     const expectedChunks = [[rangeArr(0, 2048)]];
     const expectedChunkLens = [2048];
     expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
@@ -383,7 +407,11 @@ describe("Test getChunkedPrefillInputData", () => {
       rangeArr(0, 2300),
       image2,
     ];
-    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const chunks = getChunkedPrefillInputData(
+      inputData,
+      prefillChunkSize,
+      getImageEmbedSize,
+    );
     const expectedChunks = [
       [image1, rangeArr(0, 127)], // 127 = 2048 - 1921
       [rangeArr(127, 2175)], // 2175 = 127 + 2048
@@ -399,9 +427,42 @@ describe("Test getChunkedPrefillInputData", () => {
       rangeArr(0, 127),
       image2,
     ];
-    const chunks = getChunkedPrefillInputData(inputData, prefillChunkSize);
+    const chunks = getChunkedPrefillInputData(
+      inputData,
+      prefillChunkSize,
+      getImageEmbedSize,
+    );
     const expectedChunks = [[image1, rangeArr(0, 127)], [image2]];
     const expectedChunkLens = [2048, 1921];
+    expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
+  });
+
+  test("Throws when image embed size exceeds prefill chunk size", () => {
+    const inputData = [image1];
+    expect(() =>
+      getChunkedPrefillInputData(inputData, 100, () => 1921),
+    ).toThrow(PrefillChunkSizeSmallerThanImageError);
+  });
+
+  test("Dynamic per-image embed sizes", () => {
+    const sizeMap: Record<string, number> = { url1: 500, url2: 1500 };
+    const getDynamicSize = (img: ImageURL) => sizeMap[img.url];
+    const inputData = [
+      rangeArr(0, 100),
+      image1, // 500
+      rangeArr(0, 50),
+      image2, // 1500
+    ];
+    const chunks = getChunkedPrefillInputData(
+      inputData,
+      prefillChunkSize,
+      getDynamicSize,
+    );
+    const expectedChunks = [
+      [rangeArr(0, 100), image1, rangeArr(0, 50)],
+      [image2],
+    ];
+    const expectedChunkLens = [650, 1500];
     expect(chunks).toEqual([expectedChunks, expectedChunkLens]);
   });
 });
@@ -421,5 +482,40 @@ describe("Test CustomLock", () => {
     }
     await Promise.all([addOne(), addOne(), addOne(), addOne(), addOne()]);
     expect(value).toEqual(5); // without a lock, most likely less than 5
+  });
+});
+
+describe("planImageResize", () => {
+  test("stretch draws at the target size and keeps the origin", () => {
+    expect(
+      planImageResize(640, 480, { mode: "stretch", height: 336, width: 336 }),
+    ).toEqual({ width: 336, height: 336, left: 0, top: 0 });
+  });
+
+  test("center_crop scales until the image covers the target, then centers", () => {
+    // 640x480 scales by 336/480 to 448x336, then keeps the middle 336 columns.
+    expect(
+      planImageResize(640, 480, {
+        mode: "center_crop",
+        height: 336,
+        width: 336,
+      }),
+    ).toEqual({ width: 448, height: 336, left: 56, top: 0 });
+    // A tall image scales by its width and crops rows.
+    expect(
+      planImageResize(100, 300, { mode: "center_crop", height: 20, width: 10 }),
+    ).toEqual({ width: 10, height: 30, left: 0, top: 5 });
+    // An odd leftover rounds down, as the reference driver does.
+    expect(
+      planImageResize(7, 5, { mode: "center_crop", height: 5, width: 4 }),
+    ).toEqual({ width: 7, height: 5, left: 1, top: 0 });
+    // The target size is the identity.
+    expect(
+      planImageResize(336, 336, {
+        mode: "center_crop",
+        height: 336,
+        width: 336,
+      }),
+    ).toEqual({ width: 336, height: 336, left: 0, top: 0 });
   });
 });

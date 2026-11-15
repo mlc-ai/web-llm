@@ -8,7 +8,7 @@
     "strict": true,
     "moduleResolution": "Node",
     "esModuleInterop": true,
-    "lib": ["dom", "WebWorker"]
+    "lib": ["dom", "WebWorker", "es2022"]
   },
   "typeRoots": ["./node_modules/@webgpu/types", "./node_modules/@types"],
   "include": ["src"],

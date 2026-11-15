@@ -107,6 +107,10 @@ s .chatui-header {
   margin-right: auto;
 }
 
+.msg-text {
+  white-space: pre-wrap;
+}
+
 .left-msg .msg-bubble {
   background-color: #343541;
   color: #ececec;

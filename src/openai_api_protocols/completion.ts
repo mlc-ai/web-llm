@@ -138,6 +138,13 @@ export interface CompletionCreateParamsBase {
   presence_penalty?: number | null;
 
   /**
+   * Penalizes new tokens based on whether they appear in the prompt and the
+   * generated text so far. Values greater than 1.0 encourage the model to use new
+   * tokens, while values less than 1.0 encourage the model to repeat tokens.
+   */
+  repetition_penalty?: number | null;
+
+  /**
    * If specified, our system will make a best effort to sample deterministically,
    * such that repeated requests with the same `seed` and parameters should return
    * the same result.
@@ -183,6 +190,12 @@ export interface CompletionCreateParamsBase {
   top_p?: number | null;
 
   /**
+   * If true, will ignore stop string and stop token and generate until max_tokens hit.
+   * If unset, will treat as false.
+   */
+  ignore_eos?: boolean;
+
+  /**
    * ID of the model to use. This equals to `ModelRecord.model_id`, which needs to either be in
    * `webllm.prebuiltAppConfig` or in `engineConfig.appConfig`.
    *
@@ -219,6 +232,17 @@ export interface CompletionCreateParamsBase {
    * @note This field is not supported.
    */
   best_of?: number | null;
+
+  /**
+   * Fields specific to WebLLM, not present in OpenAI.
+   */
+  extra_body?: {
+    /**
+     * If set to true, the response will include a breakdown of the time spent in various
+     * stages of token sampling.
+     */
+    enable_latency_breakdown?: boolean | null;
+  };
 }
 
 export type CompletionCreateParams =
@@ -314,6 +338,21 @@ export const CompletionCreateParamsUnsupportedFields: Array<string> = [
   "best_of",
 ];
 
+export function rejectCompletionResumable(
+  request: CompletionCreateParams,
+): void {
+  const extraBody = request.extra_body as
+    | { resumable?: unknown }
+    | null
+    | undefined;
+  if (extraBody?.resumable !== undefined && extraBody.resumable !== null) {
+    throw new UnsupportedFieldsError(
+      ["extra_body.resumable"],
+      "CompletionCreateParams",
+    );
+  }
+}
+
 /**
  * Post init and verify whether the input of the request is valid. Thus, this function can throw
  * error or in-place update request.
@@ -325,6 +364,8 @@ export function postInitAndCheckFields(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   currentModelId: string,
 ): void {
+  rejectCompletionResumable(request);
+
   // 1. Check unsupported fields in request
   const unsupported: Array<string> = [];
   CompletionCreateParamsUnsupportedFields.forEach((field) => {

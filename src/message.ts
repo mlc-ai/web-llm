@@ -1,5 +1,6 @@
 import { AppConfig, ChatOptions } from "./config";
 import { InitProgressReport, LogLevel } from "./types";
+import { ResumeProbeResult, ResumeResult } from "./types";
 import {
   ChatCompletionRequestStreaming,
   ChatCompletionRequestNonStreaming,
@@ -27,10 +28,15 @@ type RequestKind =
   | "chatCompletionNonStreaming"
   | "completionNonStreaming"
   | "embedding"
+  | "listResumableSessions"
+  | "resumeChatCompletion"
+  | "resumeChatCompletionStreamInit"
+  | "deleteResumableSession"
   | "getMessage"
   | "chatCompletionStreamInit"
   | "completionStreamInit"
   | "completionStreamNextChunk"
+  | "completionStreamReturn"
   | "customRequest"
   | "keepAlive"
   | "setLogLevel"
@@ -62,9 +68,11 @@ export interface ForwardTokensAndSampleParams {
 }
 export interface TokenizeParams {
   text: string;
+  modelId?: string;
 }
 export interface DecodeTokensParams {
-  inputIds: Int32Array;
+  inputIds: number[];
+  modelId?: string;
 }
 
 // Notes on the following Params with modelId and chatOpts:
@@ -86,6 +94,7 @@ export interface ChatCompletionNonStreamingParams {
 export interface ChatCompletionStreamInitParams {
   request: ChatCompletionRequestStreaming;
   selectedModelId: string;
+  streamId: string;
   modelId: string[];
   chatOpts?: ChatOptions[];
 }
@@ -97,6 +106,7 @@ export interface CompletionNonStreamingParams {
 export interface CompletionStreamInitParams {
   request: CompletionCreateParamsStreaming;
   selectedModelId: string;
+  streamId: string;
   modelId: string[];
   chatOpts?: ChatOptions[];
 }
@@ -106,7 +116,15 @@ export interface EmbeddingParams {
   chatOpts?: ChatOptions[];
 }
 export interface CompletionStreamNextChunkParams {
-  selectedModelId: string;
+  streamId: string;
+}
+export interface ResumeChatCompletionParams {
+  sessionId: string;
+  options?: { continueGeneration?: boolean; stream?: boolean };
+  streamId?: string;
+}
+export interface DeleteResumableSessionParams {
+  sessionId: string;
 }
 
 export interface CustomRequestParams {
@@ -114,6 +132,9 @@ export interface CustomRequestParams {
   requestMessage: string;
 }
 export type MessageContent =
+  | TokenizeParams
+  | DecodeTokensParams
+  | number[]
   | ReloadParams
   | ResetChatParams
   | GetMessageParams
@@ -124,6 +145,8 @@ export type MessageContent =
   | CompletionNonStreamingParams
   | CompletionStreamInitParams
   | EmbeddingParams
+  | ResumeChatCompletionParams
+  | DeleteResumableSessionParams
   | CompletionStreamNextChunkParams
   | CustomRequestParams
   | InitProgressReport
@@ -135,8 +158,9 @@ export type MessageContent =
   | ChatCompletionChunk
   | CreateEmbeddingResponse
   | Completion
+  | ResumeProbeResult[]
+  | ResumeResult
   | AppConfig
-  | Int32Array
   | void;
 /**
  * The message used in exchange between worker

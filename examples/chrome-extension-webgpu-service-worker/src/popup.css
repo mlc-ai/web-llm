@@ -159,6 +159,7 @@ p {
 
 #answer {
   color: #333333;
+  white-space: pre-wrap;
 }
 
 #answerWrapper {

@@ -12,7 +12,10 @@ async function main() {
   const initProgressCallback = (report: webllm.InitProgressReport) => {
     setLabel("init-label", report.text);
   };
-  const selectedModel = "Llama-3.1-8B-Instruct-q4f32_1-MLC";
+  // Pick any one of these models to start trying -- most models in WebLLM support grammar
+  const selectedModel = "Llama-3.2-3B-Instruct-q4f16_1-MLC";
+  // const selectedModel = "Qwen2.5-1.5B-Instruct-q4f16_1-MLC";
+  // const selectedModel = "Phi-3.5-mini-instruct-q4f16_1-MLC";
   const engine: webllm.MLCEngineInterface = await webllm.CreateMLCEngine(
     selectedModel,
     { initProgressCallback: initProgressCallback },

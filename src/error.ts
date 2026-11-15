@@ -7,6 +7,20 @@ export class ModelNotFoundError extends Error {
   }
 }
 
+export class ArtifactManifestError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+    this.name = "ArtifactManifestError";
+  }
+}
+
+export class AudioInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AudioInputError";
+  }
+}
+
 export class ConfigValueError extends Error {
   constructor(message: string) {
     super(message);
@@ -139,6 +153,15 @@ export class UserMessageContentErrorForNonVLM extends Error {
         `Loaded modelId: ${modelId}, modelType: ${modelType}`,
     );
     this.name = "UserMessageContentErrorForNonVLM";
+  }
+}
+
+export class UnsupportedContentPartError extends Error {
+  constructor(modelId: string, contentType: string) {
+    super(
+      `Model ${modelId} does not declare support for user content type ${JSON.stringify(contentType)}.`,
+    );
+    this.name = "UnsupportedContentPartError";
   }
 }
 
@@ -411,6 +434,38 @@ export class InvalidResponseFormatError extends Error {
   }
 }
 
+export class InvalidResponseFormatGrammarError extends Error {
+  constructor() {
+    super(
+      "When ResponseFormat.type is `grammar`, ResponseFormat.grammar needs to be specified.\n" +
+        "When ResponseFormat.grammar is specified, ResponseFormat.type needs to be grammar.",
+    );
+    this.name = "InvalidResponseFormatGrammarError";
+  }
+}
+
+export class InvalidResponseFormatStructuralTagError extends Error {
+  constructor() {
+    super(
+      "When ResponseFormat.type is `structural_tag`, ResponseFormat.structural_tag needs to be specified.\n" +
+        "When ResponseFormat.structural_tag is specified, ResponseFormat.type needs to be structural_tag.",
+    );
+    this.name = "InvalidResponseFormatStructuralTagError";
+  }
+}
+
+export class GrammarMatcherInitError extends Error {
+  constructor(responseFormatType: string, cause: unknown) {
+    const causeMessage = cause instanceof Error ? cause.message : String(cause);
+    super(
+      `Failed to initialize the grammar matcher for response format ` +
+        `\`${responseFormatType}\`: ${causeMessage}`,
+    );
+    this.name = "GrammarMatcherInitError";
+    this.cause = cause;
+  }
+}
+
 export class CustomResponseFormatError extends Error {
   constructor(currentFormat: any) {
     super(
@@ -589,5 +644,21 @@ export class ReloadModelIdNotUniqueError extends Error {
         `different model_id. Received modelId: ${modelId}`,
     );
     this.name = "ReloadModelIdNotUniqueError";
+  }
+}
+
+export class IntegrityError extends Error {
+  constructor(
+    readonly url: string,
+    readonly expected: string,
+    readonly actual: string,
+  ) {
+    super(
+      `Integrity verification failed for ${url}\n` +
+        `  Expected: ${expected}\n` +
+        `  Actual: ${actual}\n` +
+        `This may indicate file corruption or tampering.`,
+    );
+    this.name = "IntegrityError";
   }
 }
