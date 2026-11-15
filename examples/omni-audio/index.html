@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Audio to text with WebLLM</title>
+  </head>
+  <body>
+    <main>
+      <h1>Audio to text</h1>
+      <p>
+        Local Qwen2.5-Omni audio input and text output. Clips up to 30 seconds;
+        the example converts audio to mono, 16 kHz. Loading the unquantized
+        components requires several GB of memory.
+      </p>
+      <label
+        >Audio file <input id="audio" type="file" accept="audio/*"
+      /></label>
+      <p>
+        <label
+          >Prompt
+          <textarea id="prompt" rows="3" cols="60">
+Describe the sound briefly.</textarea
+          >
+        </label>
+      </p>
+      <button id="generate">Generate</button>
+      <button id="cancel" disabled>Cancel</button>
+      <p id="status" role="status">Choose an audio file.</p>
+      <pre id="output" aria-live="polite" style="white-space: pre-wrap"></pre>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
