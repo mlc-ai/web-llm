@@ -224,8 +224,8 @@ test("chunked prefill splices audio, brackets cache forwards and decodes greedil
   ]);
   expect(prefill[0].data![128]).toBe(0.25);
   expect(s.calls.filter((x) => x.name === "forward")).toHaveLength(8);
-  s.b.dispose();
-  s.b.dispose();
+  await s.b.dispose();
+  await s.b.dispose();
   expect(s.cache.dispose).toHaveBeenCalledTimes(1);
 });
 test.each([[151655], [151656], [151652], [-1], [64]])(
@@ -236,13 +236,13 @@ test.each([[151655], [151656], [151652], [-1], [64]])(
       "Unsupported Thinker token",
     );
     expect(s.calls.filter((x) => x.name === "embed")).toHaveLength(0);
-    s.b.dispose();
+    await s.b.dispose();
   },
 );
 test("rejects audio count mismatch before embedding", async () => {
   const s = await setup();
   await expect(collect(s, input([3], 1))).rejects.toThrow("placeholder count");
-  s.b.dispose();
+  await s.b.dispose();
 });
 test("rejects half overflow before embedding", async () => {
   const s = await setup("float16");
@@ -250,7 +250,7 @@ test("rejects half overflow before embedding", async () => {
     "overflow float16",
   );
   expect(s.calls.filter((x) => x.name === "embed")).toHaveLength(0);
-  s.b.dispose();
+  await s.b.dispose();
 });
 test("aborting synchronization prevents output", async () => {
   const s = await setup();
@@ -261,33 +261,33 @@ test("aborting synchronization prevents output", async () => {
   await expect(
     s.b.run(input(), c.signal)[Symbol.asyncIterator]().next(),
   ).rejects.toThrow("aborted");
-  s.b.dispose();
+  await s.b.dispose();
 });
 test("stop token is excluded and prevents decode", async () => {
   const s = await setup();
   s.config.eos_token_ids = [2];
   expect(await collect(s)).toEqual([]);
   expect(s.calls.filter((x) => x.name === "decode")).toHaveLength(0);
-  s.b.dispose();
+  await s.b.dispose();
 });
 test("generation reserves bounded context", async () => {
   const s = await setup("float32", 8);
   expect(await collect(s, input(Array(31).fill(3), 0))).toHaveLength(1);
   expect(s.calls.filter((x) => x.name === "decode")).toHaveLength(0);
-  s.b.dispose();
+  await s.b.dispose();
 });
 test("factory remains exclusive until disposal", async () => {
   const s = await setup();
   await expect(
     s.factory.create("thinker", compiled.components.thinker, s.signal),
   ).rejects.toThrow("already in use");
-  s.b.dispose();
+  await s.b.dispose();
   const b = await s.factory.create(
     "thinker",
     compiled.components.thinker,
     s.signal,
   );
-  b.dispose();
+  await b.dispose();
 });
 test("full context rejects prompt before embedding", async () => {
   const s = await setup();
@@ -295,7 +295,7 @@ test("full context rejects prompt before embedding", async () => {
     "prompt tensors",
   );
   expect(s.calls.filter((x) => x.name === "embed")).toHaveLength(0);
-  s.b.dispose();
+  await s.b.dispose();
 });
 test("abort while paused at output prevents another decode", async () => {
   const s = await setup();
@@ -305,7 +305,7 @@ test("abort while paused at output prevents another decode", async () => {
   c.abort();
   await expect(stream.next()).rejects.toThrow("aborted");
   expect(s.calls.filter((x) => x.name === "decode")).toHaveLength(0);
-  s.b.dispose();
+  await s.b.dispose();
 });
 
 test.each([1, 3])(
@@ -317,7 +317,7 @@ test.each([1, 3])(
     expect(s.cpuTensors.length).toBeGreaterThan(0);
     for (const tensor of s.cpuTensors)
       expect(tensor.dispose).toHaveBeenCalledTimes(1);
-    s.b.dispose();
+    await s.b.dispose();
   },
 );
 test.each([1, 2, 5])(
@@ -331,7 +331,7 @@ test.each([1, 2, 5])(
     await expect(collect(s)).rejects.toThrow("scope teardown failed");
     for (const tensor of s.cpuTensors)
       expect(tensor.dispose).toHaveBeenCalledTimes(1);
-    s.b.dispose();
+    await s.b.dispose();
   },
 );
 test("cache cleanup preserves an earlier forward failure", async () => {
@@ -340,7 +340,7 @@ test("cache cleanup preserves an earlier forward failure", async () => {
   s.faults.endAt = 1;
   await expect(collect(s)).rejects.toThrow("original forward failed");
   expect(s.faults.endCalls).toBe(1);
-  s.b.dispose();
+  await s.b.dispose();
 });
 
 test("readback cleanup preserves synchronization failure", async () => {
@@ -353,5 +353,19 @@ test("readback cleanup preserves synchronization failure", async () => {
   });
   await expect(collect(s)).rejects.toThrow("sync failed");
   expect(s.cpuTensors[0].dispose).toHaveBeenCalledTimes(1);
-  s.b.dispose();
+  await s.b.dispose();
 });
+
+import { verifyPendingTVMDisposal } from "./tvm_lifecycle_test_utils";
+test.each([false, true])(
+  "pending GPU disposal preserves Thinker cache (%s)",
+  async (fail) => {
+    const s = await setup();
+    await verifyPendingTVMDisposal(
+      { ...s, component: compiled.components.thinker },
+      "thinker",
+      input(),
+      fail,
+    );
+  },
+);

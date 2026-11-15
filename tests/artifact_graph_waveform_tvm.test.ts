@@ -295,3 +295,12 @@ test("sync failure releases detached CPU output", async () => {
   await expect(execute(s)).rejects.toThrow("sync failed");
   expect(s.tensors.every((t) => t.disposed)).toBe(true);
 });
+
+import { verifyPendingTVMDisposal } from "./tvm_lifecycle_test_utils";
+test.each([false, true])(
+  "pending GPU disposal preserves resources and sync error (%s)",
+  async (fail) => {
+    const s = await setup();
+    await verifyPendingTVMDisposal(s, "audio", input(), fail);
+  },
+);

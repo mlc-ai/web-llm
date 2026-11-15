@@ -1,5 +1,6 @@
 /** Bounded synthesis-mel to waveform binding; Talker and DiT are separate stages. */
 import type * as tvmjs from "@mlc-ai/web-runtime";
+import { createTVMRequestDrain } from "./artifact_graph_tvm_lifecycle";
 import {
   AudioEncoderTVMOptions,
   loadComponent,
@@ -59,7 +60,9 @@ export async function createWaveformDecoderTVMFactory(
   let active = false;
   return {
     async create(id, requested, signal) {
+      let disposed = false;
       const check = (runSignal?: AbortSignal) => {
+        if (disposed) throw new Error("TVM request disposed");
         if (signal.aborted || runSignal?.aborted)
           throw new Error("Waveform execution aborted");
       };
@@ -74,20 +77,25 @@ export async function createWaveformDecoderTVMFactory(
         owned.push(v);
         return v;
       };
-      let disposed = false;
-      const dispose = () => {
-        if (disposed) return;
+      const drain = createTVMRequestDrain(device);
+      let disposal: Promise<void> | undefined;
+      const dispose = (): Promise<void> => {
+        if (disposal) return disposal;
         disposed = true;
-        let error: unknown;
-        for (const v of owned.reverse()) {
-          try {
-            v.dispose();
-          } catch (e) {
-            error ??= e;
+        disposal = (async () => {
+          await drain.wait();
+          let error: unknown;
+          for (const v of owned.reverse()) {
+            try {
+              v.dispose();
+            } catch (e) {
+              error ??= e;
+            }
           }
-        }
-        active = false;
-        if (error) throw error;
+          active = false;
+          if (error) throw error;
+        })();
+        return disposal;
       };
       try {
         const { vm, metadata, params } = await loadComponent(
@@ -200,7 +208,7 @@ export async function createWaveformDecoderTVMFactory(
                 }
               }
               if (failed) throw failure;
-              await device.sync();
+              await drain.sync();
               check(runSignal);
               const raw = cpu!.toArray();
               if (!(raw instanceof Float32Array))
@@ -233,7 +241,7 @@ export async function createWaveformDecoderTVMFactory(
         };
       } catch (error) {
         try {
-          dispose();
+          await dispose();
         } catch {
           /* Preserve setup error. */
         }

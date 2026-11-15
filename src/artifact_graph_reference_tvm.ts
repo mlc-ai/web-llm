@@ -1,5 +1,6 @@
 /** Bounded reference-mel conditioner; null mel is evaluated by the same network. */
 import type * as tvmjs from "@mlc-ai/web-runtime";
+import { createTVMRequestDrain } from "./artifact_graph_tvm_lifecycle";
 import {
   AudioEncoderTVMOptions,
   loadComponent,
@@ -63,7 +64,9 @@ export async function createReferenceConditionerTVMFactory(
   let active = false;
   return {
     async create(id, requested, signal) {
+      let disposed = false;
       const check = (runSignal?: AbortSignal) => {
+        if (disposed) throw new Error("TVM request disposed");
         if (signal.aborted || runSignal?.aborted)
           throw new Error("Reference conditioner execution aborted");
       };
@@ -79,20 +82,25 @@ export async function createReferenceConditionerTVMFactory(
         owned.push(v);
         return v;
       };
-      let disposed = false;
-      const dispose = () => {
-        if (disposed) return;
+      const drain = createTVMRequestDrain(device);
+      let disposal: Promise<void> | undefined;
+      const dispose = (): Promise<void> => {
+        if (disposal) return disposal;
         disposed = true;
-        let error: unknown;
-        for (const v of owned.reverse()) {
-          try {
-            v.dispose();
-          } catch (e) {
-            error ??= e;
+        disposal = (async () => {
+          await drain.wait();
+          let error: unknown;
+          for (const v of owned.reverse()) {
+            try {
+              v.dispose();
+            } catch (e) {
+              error ??= e;
+            }
           }
-        }
-        active = false;
-        if (error) throw error;
+          active = false;
+          if (error) throw error;
+        })();
+        return disposal;
       };
       try {
         const { vm, metadata, params } = await loadComponent(
@@ -209,7 +217,7 @@ export async function createReferenceConditionerTVMFactory(
                 }
               }
               if (failed) throw failure;
-              await device.sync();
+              await drain.sync();
               check(runSignal);
               const raw = cpu!.toArray();
               if (!(raw instanceof Float32Array))
@@ -242,7 +250,7 @@ export async function createReferenceConditionerTVMFactory(
         };
       } catch (error) {
         try {
-          dispose();
+          await dispose();
         } catch {
           /* Preserve setup error. */
         }

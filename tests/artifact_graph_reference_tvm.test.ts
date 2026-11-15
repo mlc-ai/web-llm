@@ -335,3 +335,12 @@ test("rejects invalid compiled minimum and embedding dimensions", async () => {
     await expect(execute(s)).rejects.toThrow("metadata");
   }
 });
+
+import { verifyPendingTVMDisposal } from "./tvm_lifecycle_test_utils";
+test.each([false, true])(
+  "pending GPU disposal preserves resources and sync error (%s)",
+  async (fail) => {
+    const s = await setup();
+    await verifyPendingTVMDisposal(s, "audio", input(), fail);
+  },
+);

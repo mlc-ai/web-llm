@@ -1,5 +1,6 @@
 /** TVM binding for the stateless Qwen2.5 Omni audio encoder component. */
 import type * as tvmjs from "@mlc-ai/web-runtime";
+import { createTVMRequestDrain } from "./artifact_graph_tvm_lifecycle";
 import {
   GraphComponentBackend,
   GraphComponentFactory,
@@ -223,19 +224,25 @@ export async function createAudioEncoderTVMFactory(
         return value;
       };
       let disposed = false;
-      const dispose = () => {
-        if (disposed) return;
+      const drain = createTVMRequestDrain(device);
+      let disposal: Promise<void> | undefined;
+      const dispose = (): Promise<void> => {
+        if (disposal) return disposal;
         disposed = true;
-        let failure: unknown;
-        for (const value of owned.reverse()) {
-          try {
-            value.dispose();
-          } catch (error) {
-            failure ??= error;
+        disposal = (async () => {
+          await drain.wait();
+          let failure: unknown;
+          for (const value of owned.reverse()) {
+            try {
+              value.dispose();
+            } catch (error) {
+              failure ??= error;
+            }
           }
-        }
-        active = false;
-        if (failure) throw failure;
+          active = false;
+          if (failure) throw failure;
+        })();
+        return disposal;
       };
       try {
         const { vm, metadata, params } = await loadComponent(
@@ -284,6 +291,7 @@ export async function createAudioEncoderTVMFactory(
         }
         let executionSignal: AbortSignal | undefined;
         const checkAbort = () => {
+          if (disposed) throw new Error("TVM request disposed");
           aborted(signal);
           if (executionSignal) aborted(executionSignal);
         };
@@ -319,7 +327,7 @@ export async function createAudioEncoderTVMFactory(
             tvm.endScope();
           }
           try {
-            await device.sync();
+            await drain.sync();
             checkAbort();
             return cpu.toArray() as Float32Array;
           } finally {
@@ -416,7 +424,7 @@ export async function createAudioEncoderTVMFactory(
         };
       } catch (error) {
         try {
-          dispose();
+          await dispose();
         } catch {
           /* Preserve the setup failure. */
         }
@@ -481,19 +489,25 @@ export async function createWhisperAudioTVMFactory(
         return value;
       };
       let disposed = false;
-      const dispose = () => {
-        if (disposed) return;
+      const drain = createTVMRequestDrain(device);
+      let disposal: Promise<void> | undefined;
+      const dispose = (): Promise<void> => {
+        if (disposal) return disposal;
         disposed = true;
-        let error: unknown;
-        for (const value of owned.reverse()) {
-          try {
-            value.dispose();
-          } catch (e) {
-            error ??= e;
+        disposal = (async () => {
+          await drain.wait();
+          let error: unknown;
+          for (const value of owned.reverse()) {
+            try {
+              value.dispose();
+            } catch (e) {
+              error ??= e;
+            }
           }
-        }
-        active = false;
-        if (error) throw error;
+          active = false;
+          if (error) throw error;
+        })();
+        return disposal;
       };
       try {
         const { vm, metadata, params } = await loadComponent(
@@ -542,6 +556,7 @@ export async function createWhisperAudioTVMFactory(
               throw new Error("Whisper backend can run once");
             used = true;
             const checkAbort = () => {
+              if (disposed) throw new Error("TVM request disposed");
               aborted(signal);
               aborted(runSignal);
             };
@@ -597,7 +612,7 @@ export async function createWhisperAudioTVMFactory(
             }
             let raw: Float32Array;
             try {
-              await device.sync();
+              await drain.sync();
               checkAbort();
               raw = cpu.toArray() as Float32Array;
             } finally {
@@ -618,7 +633,7 @@ export async function createWhisperAudioTVMFactory(
         };
       } catch (error) {
         try {
-          dispose();
+          await dispose();
         } catch {
           /* Preserve original setup error. */
         }

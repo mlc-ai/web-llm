@@ -1,5 +1,6 @@
 /** Restricted text/audio Thinker generation through actual TVM exports. */
 import type * as tvmjs from "@mlc-ai/web-runtime";
+import { createTVMRequestDrain } from "./artifact_graph_tvm_lifecycle";
 import {
   AudioEncoderTVMOptions,
   loadComponent,
@@ -126,19 +127,25 @@ export async function createThinkerTVMFactory(
         return v;
       };
       let disposed = false;
-      const dispose = () => {
-        if (disposed) return;
+      const drain = createTVMRequestDrain(device);
+      let disposal: Promise<void> | undefined;
+      const dispose = (): Promise<void> => {
+        if (disposal) return disposal;
         disposed = true;
-        let failure: unknown;
-        for (const v of owned.reverse()) {
-          try {
-            v.dispose();
-          } catch (e) {
-            failure ??= e;
+        disposal = (async () => {
+          await drain.wait();
+          let failure: unknown;
+          for (const v of owned.reverse()) {
+            try {
+              v.dispose();
+            } catch (e) {
+              failure ??= e;
+            }
           }
-        }
-        active = false;
-        if (failure) throw failure;
+          active = false;
+          if (failure) throw failure;
+        })();
+        return disposal;
       };
       try {
         const { vm, metadata, params } = await loadComponent(
@@ -221,6 +228,7 @@ export async function createThinkerTVMFactory(
               throw new Error("Thinker backend can run once");
             used = true;
             const check = () => {
+              if (disposed) throw new Error("TVM request disposed");
               aborted(signal);
               aborted(runSignal);
             };
@@ -314,6 +322,7 @@ export async function createThinkerTVMFactory(
             const scopedTensor = (
               body: (retain: (value: tvmjs.Tensor) => void) => void,
             ): tvmjs.Tensor => {
+              check();
               let retained: tvmjs.Tensor | undefined;
               tvm.beginScope();
               try {
@@ -343,7 +352,7 @@ export async function createThinkerTVMFactory(
               let failure: unknown;
               let value: T | undefined;
               try {
-                await device.sync();
+                await drain.sync();
                 check();
                 value = read(cpu);
               } catch (error) {
@@ -492,7 +501,7 @@ export async function createThinkerTVMFactory(
         };
       } catch (error) {
         try {
-          dispose();
+          await dispose();
         } catch {
           /* Preserve setup failure. */
         }

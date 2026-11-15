@@ -429,3 +429,12 @@ test("snapshots caller inputs while prediction is pending", async () => {
   expect(Array.from((await result).data)).toEqual(Array(8).fill(4));
   expect(calls).toBe(16);
 });
+
+import { verifyPendingTVMDisposal } from "./tvm_lifecycle_test_utils";
+test.each([false, true])(
+  "pending GPU disposal preserves resources and sync error (%s)",
+  async (fail) => {
+    const s = await setup();
+    await verifyPendingTVMDisposal(s, "audio", events(), fail);
+  },
+);

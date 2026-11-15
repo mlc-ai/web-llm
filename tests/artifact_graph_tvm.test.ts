@@ -262,8 +262,8 @@ test("real ABI calls preserve channel-major chunk slices and pool once per clip"
   expect(s.calls[1].data[1]).toBe(0);
   expect(outputs[0].tensor.shape).toEqual([50, 3]);
   expect(s.device.sync).toHaveBeenCalledTimes(3);
-  b.dispose();
-  b.dispose();
+  await b.dispose();
+  await b.dispose();
   expect(s.vm.dispose).toHaveBeenCalledTimes(1);
   expect(s.packed.dispose).toHaveBeenCalledTimes(1);
 });
@@ -281,7 +281,7 @@ test.each([1, 2])(
       result.push(x);
     expect(result[0].tensor.shape).toEqual([0, 3]);
     expect(s.calls).toEqual([]);
-    b.dispose();
+    await b.dispose();
   },
 );
 test("metadata mismatch fails before parameter binding and releases VM", async () => {
@@ -313,7 +313,7 @@ test("exclusive factory and abort before upload", async () => {
     b.run(input(201), c.signal)[Symbol.asyncIterator]().next(),
   ).rejects.toThrow("aborted");
   expect(s.calls).toEqual([]);
-  b.dispose();
+  await b.dispose();
 });
 test("oversized clip fails before GPU allocation", async () => {
   const s = await setup();
@@ -329,7 +329,7 @@ test("oversized clip fails before GPU allocation", async () => {
       .next(),
   ).rejects.toThrow("Invalid mel");
   expect(s.calls).toEqual([]);
-  b.dispose();
+  await b.dispose();
 });
 
 test("abort during device synchronization prevents output delivery", async () => {
@@ -347,7 +347,7 @@ test("abort during device synchronization prevents output delivery", async () =>
     backend.run(input(201), controller.signal)[Symbol.asyncIterator]().next(),
   ).rejects.toThrow("aborted");
   expect(s.calls).toHaveLength(1);
-  backend.dispose();
+  await backend.dispose();
 });
 
 test("VM artifact mismatch fails before binding", async () => {
@@ -378,7 +378,7 @@ test("run cancellation is respected even when distinct from factory signal", asy
     backend.run(input(200), controller.signal)[Symbol.asyncIterator]().next(),
   ).rejects.toThrow("aborted");
   expect(s.calls).toHaveLength(0);
-  backend.dispose();
+  await backend.dispose();
 });
 
 test("compiled projection bound limits accepted clip capacity", async () => {
@@ -419,7 +419,7 @@ test("PCM binding zero-pads once and crops each mel row using ceiling", async ()
   expect(Array.from(rows[0].tensor.data).slice(0, 6)).toEqual([
     0, 1, 4, 5, 8, 9,
   ]);
-  b.dispose();
+  await b.dispose();
   expect(s.vm.dispose).toHaveBeenCalledTimes(1);
 });
 test.each([0, 641])(
@@ -438,7 +438,7 @@ test.each([0, 641])(
         .next(),
     ).rejects.toThrow("Invalid PCM");
     expect(s.calls).toHaveLength(0);
-    b.dispose();
+    await b.dispose();
   },
 );
 test("PCM rejects incompatible processor metadata before binding weights", async () => {
@@ -453,3 +453,27 @@ test("PCM rejects incompatible processor metadata before binding weights", async
   ).rejects.toThrow("processor metadata");
   expect(s.runtime.getParamsFromCacheByName).not.toHaveBeenCalled();
 });
+
+import { verifyPendingTVMDisposal } from "./tvm_lifecycle_test_utils";
+test.each([false, true])(
+  "pending GPU disposal preserves audio VM (%s)",
+  async (fail) => {
+    const s = await setup();
+    await verifyPendingTVMDisposal(s, "audio", input(201), fail);
+  },
+);
+test.each([false, true])(
+  "pending GPU disposal preserves PCM VM (%s)",
+  async (fail) => {
+    const s = await setup(true);
+    async function* pcm(): AsyncIterable<GraphInputEvent> {
+      yield {
+        kind: "data",
+        port: "pcm",
+        tensor: { shape: [400], data: new Float32Array(400) },
+      };
+      yield { kind: "end", port: "pcm" };
+    }
+    await verifyPendingTVMDisposal(s, "audio", pcm(), fail);
+  },
+);
