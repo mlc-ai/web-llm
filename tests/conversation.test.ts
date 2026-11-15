@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { ChatConfig, Role } from "../src/config";
 import {
   compareConversationObject,
@@ -486,9 +488,13 @@ describe("Manifest prompt segments preserve modality order", () => {
   });
 });
 
+const lfm3Conversation = JSON.parse(
+  readFileSync(join(__dirname, "fixtures/lfm3-conversation.json"), "utf8"),
+) as ChatConfig["conv_template"];
+
 describe("LFM3 history", () => {
   const config = JSON.parse(qwen3ChatConfigJSONString) as ChatConfig;
-  config.conv_template.reasoning_history_style = "lfm3";
+  config.conv_template = lfm3Conversation;
 
   test.each([
     ["answer", "<think></think>answer"],
@@ -573,4 +579,31 @@ describe("LFM3 history", () => {
       ),
     ).toThrow("plain text");
   });
+});
+
+test("LFM3 serialized template preserves literal replacement syntax", () => {
+  const literal =
+    "$& $` $' $$ {system_message} {user_message} {assistant_message} {tool_message} {function_string}";
+  const config = JSON.parse(qwen3ChatConfigJSONString) as ChatConfig;
+  config.conv_template = lfm3Conversation;
+  const conv = getConversationFromChatCompletionRequest(
+    {
+      messages: [
+        { role: "system", content: literal },
+        { role: "user", content: literal },
+        { role: "assistant", content: literal },
+        { role: "user", content: literal },
+      ],
+    },
+    config,
+    true,
+  );
+  conv.appendReplyHeader(Role.assistant);
+  expect(conv.getPromptArray().join("")).toBe(
+    `<|im_start|>system\n${literal}<|im_end|>\n` +
+      `<|im_start|>user\n${literal}<|im_end|>\n` +
+      `<|im_start|>assistant\n<think></think>${literal}<|im_end|>\n` +
+      `<|im_start|>user\n${literal}<|im_end|>\n` +
+      "<|im_start|>assistant\n<think>",
+  );
 });

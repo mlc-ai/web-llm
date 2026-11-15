@@ -77,6 +77,12 @@ export class Conversation {
     ) {
       return "";
     }
+    if (this.config.reasoning_history_style === "lfm3") {
+      return this.config.system_template.replace(
+        MessagePlaceholders.system,
+        () => systemMessage,
+      );
+    }
     return this.config.system_template.replace(
       MessagePlaceholders.system,
       systemMessage,
@@ -169,17 +175,22 @@ export class Conversation {
       let message_str;
       let role_prefix;
       if (this.config.role_templates !== undefined) {
-        message_str = this.config.role_templates[role]?.replace(
-          MessagePlaceholders[Role[role] as keyof typeof MessagePlaceholders],
-          textContentPart,
-        );
+        const template = this.config.role_templates[role];
+        const placeholder =
+          MessagePlaceholders[Role[role] as keyof typeof MessagePlaceholders];
+        message_str =
+          this.config.reasoning_history_style === "lfm3"
+            ? template?.replace(placeholder, () => textContentPart)
+            : template?.replace(placeholder, textContentPart);
         if (this.use_function_calling && this.function_string !== "") {
           message_str = message_str?.replace(
             MessagePlaceholders.function,
             this.function_string,
           );
         }
-        message_str = message_str?.replace(MessagePlaceholders.function, "");
+        if (this.config.reasoning_history_style !== "lfm3") {
+          message_str = message_str?.replace(MessagePlaceholders.function, "");
+        }
       }
 
       if (message_str == undefined) {
