@@ -6,7 +6,7 @@ import {
   getConversationFromChatCompletionRequest,
 } from "../src/conversation";
 import { ChatCompletionRequest } from "../src/openai_api_protocols";
-import { minicpm5ChatConfigJSONString } from "./constants";
+import { qwen3ChatConfigJSONString } from "./constants";
 
 type Effort = "xhigh" | "medium" | "low" | "none";
 const serializedTemplates = JSON.parse(
@@ -20,7 +20,7 @@ export function qwenConfig(effort: Effort): ChatConfig {
     none: "qwen3_8_nothink",
   }[effort];
   return {
-    ...JSON.parse(minicpm5ChatConfigJSONString),
+    ...JSON.parse(qwen3ChatConfigJSONString),
     conv_template: serializedTemplates[name],
   };
 }
