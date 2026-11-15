@@ -7,6 +7,10 @@ import {
   CompiledProgramArtifactV2,
 } from "../src/artifact_manifest_v2";
 import { GraphInputEvent } from "../src/artifact_graph_executor";
+import {
+  verifyExceptionalTVMReadback,
+  verifyPendingTVMDisposal,
+} from "./tvm_lifecycle_test_utils";
 beforeAll(() =>
   Object.defineProperty(globalThis, "crypto", {
     value: webcrypto,
@@ -336,7 +340,6 @@ test("rejects invalid compiled minimum and embedding dimensions", async () => {
   }
 });
 
-import { verifyPendingTVMDisposal } from "./tvm_lifecycle_test_utils";
 test.each([false, true])(
   "pending GPU disposal preserves resources and sync error (%s)",
   async (fail) => {
@@ -345,7 +348,6 @@ test.each([false, true])(
   },
 );
 
-import { verifyExceptionalTVMReadback } from "./tvm_lifecycle_test_utils";
 test.each(["scope", "copy", "microtask"] as const)(
   "queued readback survives %s failure",
   async (kind) => {

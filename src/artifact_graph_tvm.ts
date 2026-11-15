@@ -69,6 +69,17 @@ function aborted(signal: AbortSignal): void {
   if (signal.aborted) throw new Error("Audio encoder execution aborted");
 }
 interface ComponentMetadata {
+  talker: {
+    model_dtype: string;
+    hidden_size: number;
+    embedding_size: number;
+    vocab_size: number;
+    codec_bos_token_id: number;
+    codec_pad_token_id: number;
+    codec_eos_token_id: number;
+    context_window_size: number;
+    prefill_chunk_size: number;
+  };
   flow_predictor: {
     mel_dim: number;
     reference_dim: number;

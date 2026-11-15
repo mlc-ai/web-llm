@@ -1,4 +1,15 @@
 import { float32ToHalf } from "../src/artifact_graph_thinker_tvm";
+import { webcrypto } from "crypto";
+import type * as tvmjs from "@mlc-ai/web-runtime";
+import { createThinkerTVMFactory } from "../src/artifact_graph_thinker_tvm";
+import { loadComponent } from "../src/artifact_graph_tvm";
+import { GraphInputEvent } from "../src/artifact_graph_executor";
+import { readFileSync } from "fs";
+import { join } from "path";
+import {
+  verifyExceptionalTVMReadback,
+  verifyPendingTVMDisposal,
+} from "./tvm_lifecycle_test_utils";
 // Bit patterns below are IEEE 754 binary16, independent of the TVM runtime.
 test.each([
   [0, 0],
@@ -23,13 +34,6 @@ test("NaN remains NaN", () => {
   expect(float32ToHalf(NaN) & 0x3ff).not.toBe(0);
 });
 
-import { webcrypto } from "crypto";
-import type * as tvmjs from "@mlc-ai/web-runtime";
-import { createThinkerTVMFactory } from "../src/artifact_graph_thinker_tvm";
-import { loadComponent } from "../src/artifact_graph_tvm";
-import { GraphInputEvent } from "../src/artifact_graph_executor";
-import { readFileSync } from "fs";
-import { join } from "path";
 const fixture = (name: string) =>
   JSON.parse(
     readFileSync(
@@ -356,7 +360,6 @@ test("readback cleanup preserves synchronization failure", async () => {
   await s.b.dispose();
 });
 
-import { verifyPendingTVMDisposal } from "./tvm_lifecycle_test_utils";
 test.each([false, true])(
   "pending GPU disposal preserves Thinker cache (%s)",
   async (fail) => {
@@ -370,7 +373,6 @@ test.each([false, true])(
   },
 );
 
-import { verifyExceptionalTVMReadback } from "./tvm_lifecycle_test_utils";
 test.each(["scope", "copy", "microtask"] as const)(
   "queued readback survives %s failure",
   async (kind) => {

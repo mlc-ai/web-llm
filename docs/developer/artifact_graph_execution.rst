@@ -218,5 +218,37 @@ and does not promise optimized sampling throughput.
 The null reference embedding must come from evaluating the reference conditioner
 on zero reference mels, rather than substituting a zero vector. The output mel
 array is shaped ``[frames, mel_dim]`` and must be transposed before passing it to
-the separate waveform decoder. These components do not supply Talker codec
-generation or a complete text-to-speech interface.
+the separate waveform decoder. The codec-generation binding below is a separate
+component; callers still supply the cross-component conditioning and sequencing.
+
+Cached codec generation
+~~~~~~~~~~~~~~~~~~~~~~~
+
+``createTalkerTVMFactory`` binds ``qwen2_5_omni.talker.v1`` to a preloaded FP32
+Talker runtime. Inputs are value tensors ``prefix_embeddings[prefix, 2048]`` and
+``reply_embeddings[reply, 2048]``; the value output is int32 ``code[codes]``. The
+caller prepares Thinker hidden-state/token-embedding alignment, speaker BOS and
+text EOS/PAD conditioning using the pinned HF generation contract. The factory
+adds codec PAD/BOS embeddings to the final two prefix rows and advances through
+reply conditioning as it decodes, repeating the last row when needed. This
+component does not infer alignment from text or implement vision/video input.
+
+Options require ``contextWindowSize`` and ``maxCodes`` (at most 256 for the
+current 512-frame flow predictor). Neutral greedy decoding is the default.
+Optional ``sampling`` takes ``temperature``, ``topK``, ``topP``,
+``repetitionPenalty`` and a caller-provided ``random()`` returning a finite value
+in ``[0, 1)``. Sampling applies full-history repetition penalty, codec BOS
+suppression, temperature, top-k and top-p, then inverse-CDF selection. Controlled
+uniforms reproduce the categorical policy, not PyTorch's seeded RNG algorithm.
+Equal-score ties use token-ID order; floating-point filtering near boundaries can
+differ from HF.
+Codec PAD/EOS stop generation and are stripped; unsupported codec IDs reject.
+A cap-limited result is bounded output and does not establish natural EOS.
+
+The verified completed-answer fixture uses captured FP32 Chrome Thinker states
+and matches all 125 HF codec IDs and natural EOS. FP16 Thinker hidden-state
+parity is not established by token agreement. The full 60,000-sample waveform
+experiment has RMSE 8.01e-6 and maximum absolute error 5.57e-4; nine samples exceed
+the predeclared pointwise tolerance. That composed waveform gate remains failed,
+separate from the passing codec comparison. One independent ASR smoke check
+recovers the expected sentence; it is not a speech-quality benchmark.

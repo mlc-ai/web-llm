@@ -112,3 +112,8 @@ export {
   FlowPrediction,
   FlowLimits,
 } from "./artifact_graph_flow_tvm";
+
+export {
+  createTalkerTVMFactory,
+  TalkerTVMOptions,
+} from "./artifact_graph_talker_tvm";

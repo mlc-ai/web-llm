@@ -10,6 +10,10 @@ import {
   CompiledProgramArtifactV2,
 } from "../src/artifact_manifest_v2";
 import { GraphInputEvent } from "../src/artifact_graph_executor";
+import {
+  verifyExceptionalTVMReadback,
+  verifyPendingTVMDisposal,
+} from "./tvm_lifecycle_test_utils";
 beforeAll(() =>
   Object.defineProperty(globalThis, "crypto", {
     value: webcrypto,
@@ -454,7 +458,6 @@ test("PCM rejects incompatible processor metadata before binding weights", async
   expect(s.runtime.getParamsFromCacheByName).not.toHaveBeenCalled();
 });
 
-import { verifyPendingTVMDisposal } from "./tvm_lifecycle_test_utils";
 test.each([false, true])(
   "pending GPU disposal preserves audio VM (%s)",
   async (fail) => {
@@ -478,7 +481,6 @@ test.each([false, true])(
   },
 );
 
-import { verifyExceptionalTVMReadback } from "./tvm_lifecycle_test_utils";
 test.each(["scope", "copy", "microtask"] as const)(
   "queued audio readback survives %s failure",
   async (kind) => {
