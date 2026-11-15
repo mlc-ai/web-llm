@@ -1,7 +1,7 @@
 {
   "schema": "mlc.model-package",
   "schema_version": 2,
-  "interface_id": "sha256:1ba666b8b328b33b7fe338b0d40dfb14ba17858b4f604c9cc6d71aa1e1aa6bbe",
+  "interface_id": "sha256:3e90e5df8a5b729111b28d619c4e05bc1b57c7af8fbea480dc611374244367f8",
   "components": {
     "thinker": {
       "kind": "autoregressive",
@@ -16,7 +16,7 @@
         "audio_embeddings": {
           "semantic": "audio.embeddings.v1",
           "dtype": "float32",
-          "shape": ["audio_tokens", 128],
+          "shape": ["tokens", 128],
           "delivery": "value"
         }
       },
@@ -59,7 +59,7 @@
           "spec": {
             "semantic": "audio.embeddings.v1",
             "dtype": "float32",
-            "shape": ["audio_tokens", 128],
+            "shape": ["tokens", 128],
             "delivery": "value"
           },
           "targets": [
