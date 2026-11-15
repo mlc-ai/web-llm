@@ -74,3 +74,43 @@ code.  The original request failure is preserved if cleanup also fails.
 The deterministic test backends demonstrate mixed text, audio, image and video
 inputs feeding both text and audio outputs.  They do not verify any real model's
 processors, logits, codec output, waveform quality or browser memory fit.
+
+Qwen2.5 Omni audio component binding
+----------------------------------
+
+``createAudioEncoderTVMFactory`` binds the
+``qwen2_5_omni.audio_encoder.v1`` contract to actual TVM VM exports. The caller
+provides a dedicated initialized runtime, device, validated package/compiled
+manifests, device capabilities and an already populated parameter cache. The
+adapter verifies embedded ``_metadata.artifact``, hashes the parameter schema,
+and checks every cached parameter's shape and dtype before binding packed
+parameters in compiler order. These checks establish schema agreement, not
+weight-file integrity: acquisition must independently verify the weight bytes.
+
+The initial ABI uses float32 mel features ``[mel_bins, frames]`` and returns
+float32 embeddings ``[tokens, output_dim]``. ``_metadata.audio_encoder`` supplies
+``hidden_size``, ``n_window`` and ``max_pooled_frames``. The caller's clip limit must fit the compiled projection bound. ``encode_chunk`` receives a zero-padded
+``[1, mel_bins, 2 * n_window]`` tensor, an int32 ``[1]`` valid-frame tensor, and the
+packed parameter tuple. Its output is ``[n_window, hidden_size]``; only the first
+``ceil(valid_frames / 2)`` rows are retained. Padding is masked inside the model.
+The adapter concatenates valid chunk outputs for one clip before calling
+``project(pairs, packed_params)`` once, with pairs shaped
+``[floor(valid_hidden_rows / 2), 2, hidden_size]`` and any odd final row dropped.
+``project`` performs pair pooling,
+normalization and projection. Clips with fewer than two hidden rows yield an
+empty result without a zero-extent GPU call. The required manifest ``run`` export
+aliases ``encode_chunk`` as the primary entry point; this contract-specific
+adapter invokes both exports and does not treat ``run`` as a whole-clip function.
+
+Each backend owns its VM, parameter tuple and temporary tensors. The caller
+retains ownership of the runtime, device and cached weights. Only one request may
+use the factory at a time, and its dedicated runtime must not be shared with
+other work. Consume through ``createArtifactGraphExecution`` for cancellation
+and disposal. GPU synchronization is cooperative, not forcibly interruptible.
+``maxFrames`` bounds accepted clips; it is not a global GPU memory admission
+policy. Chunk outputs are explicitly copied through host memory, so this binding
+does not claim zero-copy execution or throughput improvements.
+
+This is an audio encoder binding, not a complete Omni model: PCM preprocessing,
+Thinker/Talker/vocoder integration and model-quality validation are separate.
+The ordinary MLCEngine v2 loading gate remains unchanged.
