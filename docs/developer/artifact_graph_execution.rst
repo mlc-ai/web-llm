@@ -182,3 +182,41 @@ follow the audio bindings above. A request owns one complete bounded clip; split
 clips into independent calls changes convolution boundary behavior and is not
 streaming synthesis. Talker codec generation and DiT codec-to-mel sampling are
 separate stages; this binding alone does not turn text or codec tokens into speech.
+
+Reference conditioning
+~~~~~~~~~~~~~~~~~~~~~~
+
+``createReferenceConditionerTVMFactory`` binds the separate
+``qwen2_5_omni.reference_conditioner.v1`` encoder. It accepts finite float32
+reference mels shaped ``[frames, 80]`` and returns a 128-dimensional embedding.
+The frame count must be at least five for reflection padding and no greater than
+the compiled limit. Null conditioning evaluates the same network on zero mels;
+it does not replace the output with zeros. The factory checks the artifact,
+parameter schema, input/output shapes and cancellation like the audio bindings.
+
+Explicit flow prediction and integration
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``createFlowPredictorTVMFactory`` binds
+``qwen2_5_omni.flow_predictor.v1`` to a preloaded runtime. Its five value inputs
+are ``noise[frames, mel_dim]``, ``time[1]``, int32 ``code[frames / repeats]``,
+``reference[reference_dim]`` and ``speaker[speaker_dim]``. It validates finite
+float32 values, time within ``[0, 1]``, codec IDs within the checkpoint vocabulary,
+exact repeat counts and the compiled frame limit before invoking the VM. The
+``velocity`` output has the same shape as the noise input.
+
+``integrateFlowRK4`` orchestrates a supplied asynchronous predictor using the
+pinned RK4 3/8 method. The caller supplies initial noise, a strictly increasing
+float32 time grid, a time-point limit, model dimensions/bounds, guidance scale,
+and distinct conditional/null reference embeddings. A predictor can execute the
+standalone component graph for each call. Every conditional and null result is
+checked independently for dtype, shape and finite values before guidance.
+Cancellation is checked before and after each prediction. No random noise or
+time warping is implicit. This implementation stages values through host memory
+and does not promise optimized sampling throughput.
+
+The null reference embedding must come from evaluating the reference conditioner
+on zero reference mels, rather than substituting a zero vector. The output mel
+array is shaped ``[frames, mel_dim]`` and must be transposed before passing it to
+the separate waveform decoder. These components do not supply Talker codec
+generation or a complete text-to-speech interface.

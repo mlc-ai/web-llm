@@ -97,3 +97,18 @@ export {
   createWaveformDecoderTVMFactory,
   WaveformDecoderTVMOptions,
 } from "./artifact_graph_waveform_tvm";
+
+export {
+  createReferenceConditionerTVMFactory,
+  ReferenceConditionerTVMOptions,
+} from "./artifact_graph_reference_tvm";
+
+export {
+  createFlowPredictorTVMFactory,
+  integrateFlowRK4,
+  FlowPredictorTVMOptions,
+  FlowSamplingOptions,
+  FlowInputs,
+  FlowPrediction,
+  FlowLimits,
+} from "./artifact_graph_flow_tvm";
