@@ -88,6 +88,20 @@ export class Conversation {
   private getSystemPrompt(): string {
     let systemMessage =
       this.override_system_message ?? this.config.system_message;
+    if (this.config.reasoning_history_style === "qwen3_6") {
+      systemMessage = pythonTrim(systemMessage);
+      // An explicitly supplied empty system turn is rendered by the HF template.
+      if (
+        systemMessage === "" &&
+        this.override_system_message === undefined &&
+        this.config.render_empty_system_message === false
+      )
+        return "";
+      return this.config.system_template.replace(
+        MessagePlaceholders.system,
+        () => systemMessage,
+      );
+    }
     if (this.config.reasoning_history_style === "qwen3_8") {
       const effort = this.config.qwen3_8_reasoning_effort ?? "xhigh";
       if (!Object.hasOwn(qwen38Instructions, effort)) {
@@ -204,7 +218,8 @@ export class Conversation {
         const placeholder =
           MessagePlaceholders[Role[role] as keyof typeof MessagePlaceholders];
         message_str =
-          this.config.reasoning_history_style === "qwen3_8"
+          this.config.reasoning_history_style === "qwen3_8" ||
+          this.config.reasoning_history_style === "qwen3_6"
             ? template?.replace(placeholder, () => textContentPart)
             : template?.replace(placeholder, textContentPart);
         if (this.use_function_calling && this.function_string !== "") {
@@ -213,7 +228,10 @@ export class Conversation {
             this.function_string,
           );
         }
-        if (this.config.reasoning_history_style !== "qwen3_8") {
+        if (
+          this.config.reasoning_history_style !== "qwen3_8" &&
+          this.config.reasoning_history_style !== "qwen3_6"
+        ) {
           message_str = message_str?.replace(MessagePlaceholders.function, "");
         }
       }
@@ -516,10 +534,13 @@ export class Conversation {
       throw Error("Role is not supported: " + role);
     }
     const role_name_str = role_name ? role_name : this.config.roles[role];
-    if (this.config.reasoning_history_style === "qwen3_8") {
+    if (
+      this.config.reasoning_history_style === "qwen3_8" ||
+      this.config.reasoning_history_style === "qwen3_6"
+    ) {
       if (typeof message !== "string" || role_name !== undefined) {
         throw new Error(
-          "Qwen3.8 supports plain text chat without participant names.",
+          "Qwen templates support plain text chat without participant names.",
         );
       }
       if (role !== Role.assistant) message = pythonTrim(message);
@@ -595,7 +616,9 @@ export function compareConversationObject(
   // raw generated reply cached here. Rebuild from caller history each request.
   if (
     convA.config.reasoning_history_style === "qwen3_8" ||
-    convB.config.reasoning_history_style === "qwen3_8"
+    convB.config.reasoning_history_style === "qwen3_8" ||
+    convA.config.reasoning_history_style === "qwen3_6" ||
+    convB.config.reasoning_history_style === "qwen3_6"
   )
     return false;
   // Check the easy ones first
@@ -723,11 +746,12 @@ export function getConversationFromChatCompletionRequest(
   );
 
   const isQwen38 = conversation.config.reasoning_history_style === "qwen3_8";
-  if (isQwen38) {
+  const isQwen36 = conversation.config.reasoning_history_style === "qwen3_6";
+  if (isQwen38 || isQwen36) {
     const raw = request as unknown as Record<string, unknown>;
     const extra = request.extra_body as Record<string, unknown> | undefined;
     if (extra != null && (typeof extra !== "object" || Array.isArray(extra))) {
-      throw new Error("Qwen3.8 extra_body must be an object or null.");
+      throw new Error("Qwen template extra_body must be an object or null.");
     }
     if (
       ["enable_thinking", "reasoning_effort", "preserve_thinking"].some(
@@ -737,7 +761,7 @@ export function getConversationFromChatCompletionRequest(
       )
     ) {
       throw new Error(
-        "Qwen3.8 uses static templates to select thinking and reasoning effort.",
+        "Qwen uses static templates to select thinking and reasoning effort.",
       );
     }
     if (
@@ -766,7 +790,7 @@ export function getConversationFromChatCompletionRequest(
       })
     ) {
       throw new Error(
-        "Qwen3.8 supports plain text chat ending in a user message, without tools or names.",
+        "Qwen templates support plain text chat ending in a user message, without tools or names.",
       );
     }
   }
@@ -807,6 +831,17 @@ export function getConversationFromChatCompletionRequest(
           pythonTrim(message.reasoning_content ?? "") +
           "\n</think>\n\n" +
           pythonTrim(content);
+      }
+      if (isQwen36) {
+        content = pythonTrim(content);
+        if (
+          message.reasoning_content === undefined &&
+          content.includes("</think>")
+        ) {
+          content = content
+            .slice(content.lastIndexOf("</think>") + "</think>".length)
+            .replace(/^\n+/, "");
+        }
       }
       conversation.appendMessage(Role.assistant, content, message.name);
     } else if (message.role === "tool") {
