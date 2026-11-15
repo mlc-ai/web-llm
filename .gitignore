@@ -325,3 +325,7 @@ lib
 .parcel-cache
 
 **/.next
+coverage
+.browser-test/
+playwright-report/
+test-results/

@@ -15,7 +15,11 @@
  * limitations under the License.
  */
 
-import { MLCEngineInterface, LatencyBreakdown } from "../types";
+import {
+  MLCEngineInterface,
+  LatencyBreakdown,
+  ResumableGenerationConfig,
+} from "../types";
 import {
   functionCallingModelIds,
   MessagePlaceholders,
@@ -30,6 +34,7 @@ import {
   CustomSystemPromptError,
   InvalidResponseFormatError,
   InvalidResponseFormatGrammarError,
+  InvalidResponseFormatStructuralTagError,
   InvalidStreamOptionsError,
   MessageOrderError,
   MultipleTextContentError,
@@ -40,8 +45,10 @@ import {
   UnsupportedFieldsError,
   UnsupportedImageURLError,
   UnsupportedModelIdError,
+  UnsupportedContentPartError,
   UserMessageContentErrorForNonVLM,
 } from "../error";
+import type { StructuralTagLike } from "@mlc-ai/web-xgrammar";
 
 /* eslint-disable @typescript-eslint/no-namespace */
 
@@ -84,7 +91,10 @@ export class Completions {
  * API reference: https://platform.openai.com/docs/api-reference/chat/create
  * Followed: https://github.com/openai/openai-node/blob/master/src/resources/chat/completions.ts
  *
- * @note `model` is excluded. Instead, call `CreateMLCEngine(model)` or `engine.reload(model)` explicitly before calling this API.
+ * @note Load models with `CreateMLCEngine(...)` or `engine.reload(...)` before calling this API.
+ * The `model` field selects an already loaded model by its `ModelRecord.model_id`. It is optional
+ * when one model is loaded and required when multiple models are loaded. Unknown or unloaded IDs
+ * are rejected; this field does not load a model.
  */
 export interface ChatCompletionRequestBase {
   /**
@@ -281,6 +291,11 @@ export interface ChatCompletionRequestBase {
      * stages of token sampling.
      */
     enable_latency_breakdown?: boolean | null;
+
+    /**
+     * Enables WebLLM crash-resumable generation for this request.
+     */
+    resumable?: ResumableGenerationConfig | null;
   };
 }
 
@@ -417,6 +432,7 @@ export function postInitAndCheckFields(
   request: ChatCompletionRequest,
   currentModelId: string,
   currentModelType: ModelType,
+  supportedInputKinds?: ReadonlySet<"image" | "audio">,
 ): void {
   // Generation-related checks and post inits are in `postInitAndCheckGenerationConfigValues()`
   // 1. Check unsupported fields in request
@@ -435,7 +451,10 @@ export function postInitAndCheckFields(
     (message: ChatCompletionMessageParam, index: number) => {
       // Check content array messages (that are not simple string)
       if (message.role === "user" && typeof message.content !== "string") {
-        if (currentModelType !== ModelType.VLM) {
+        if (
+          supportedInputKinds === undefined &&
+          currentModelType !== ModelType.VLM
+        ) {
           // Only VLM can handle non-string content (i.e. message with image)
           throw new UserMessageContentErrorForNonVLM(
             currentModelId,
@@ -447,6 +466,15 @@ export function postInitAndCheckFields(
         for (let i = 0; i < message.content.length; i++) {
           const curContent = message.content[i];
           if (curContent.type === "image_url") {
+            if (
+              supportedInputKinds !== undefined &&
+              !supportedInputKinds.has("image")
+            ) {
+              throw new UnsupportedContentPartError(
+                currentModelId,
+                curContent.type,
+              );
+            }
             // Do not support image_url.detail
             const detail = curContent.image_url.detail;
             if (detail !== undefined && detail !== null) {
@@ -456,6 +484,38 @@ export function postInitAndCheckFields(
             const url = curContent.image_url.url;
             if (!url.startsWith("data:image") && !url.startsWith("http")) {
               throw new UnsupportedImageURLError(url);
+            }
+          } else if (curContent.type === "input_audio") {
+            if (
+              supportedInputKinds === undefined ||
+              !supportedInputKinds.has("audio")
+            ) {
+              throw new UnsupportedContentPartError(
+                currentModelId,
+                curContent.type,
+              );
+            }
+            if (curContent.input_audio.format === "pcm_f32") {
+              if (!(curContent.input_audio.data instanceof Float32Array)) {
+                throw new TypeError(
+                  "pcm_f32 input_audio.data must be a Float32Array",
+                );
+              }
+              if (
+                !Number.isSafeInteger(curContent.input_audio.sample_rate) ||
+                curContent.input_audio.sample_rate <= 0
+              ) {
+                throw new TypeError(
+                  "pcm_f32 input_audio.sample_rate must be a positive integer",
+                );
+              }
+            } else if (
+              typeof curContent.input_audio.data !== "string" ||
+              /^https?:/i.test(curContent.input_audio.data)
+            ) {
+              throw new TypeError(
+                "WAV input_audio.data must be raw base64 or a WAV data URL",
+              );
             }
           } else {
             numTextContent += 1;
@@ -527,6 +587,24 @@ export function postInitAndCheckFields(
     }
   }
 
+  if (
+    request.response_format?.structural_tag !== undefined &&
+    request.response_format?.structural_tag !== null
+  ) {
+    if (request.response_format?.type !== "structural_tag") {
+      throw new InvalidResponseFormatStructuralTagError();
+    }
+  }
+
+  if (request.response_format?.type === "structural_tag") {
+    if (
+      request.response_format?.structural_tag === undefined ||
+      request.response_format?.structural_tag === null
+    ) {
+      throw new InvalidResponseFormatStructuralTagError();
+    }
+  }
+
   // 7. Function calling hardcoded handlings
   if (request.tools !== undefined && request.tools !== null) {
     // 7.1 Check if model supports function calling
@@ -537,10 +615,14 @@ export function postInitAndCheckFields(
       );
     }
 
-    // 7.2 Hard coded support for Hermes2Pro following
+    // 7.2 Hard coded support for Hermes2Pro / Hermes3 following
     // https://huggingface.co/NousResearch/Hermes-2-Pro-Llama-3-8B#prompt-format-for-function-calling
-    if (currentModelId.startsWith("Hermes-2-Pro-")) {
-      // 7.2.1 Update response format for Hermes2Pro function calling to use json schema
+    // https://huggingface.co/NousResearch/Hermes-3-Llama-3.1-8B#prompt-format-for-function-calling
+    if (
+      currentModelId.startsWith("Hermes-2-Pro-") ||
+      currentModelId.startsWith("Hermes-3-")
+    ) {
+      // 7.2.1 Update response format for Hermes2Pro / Hermes3 function calling to use json schema
       if (
         request.response_format !== undefined &&
         request.response_format !== null
@@ -588,7 +670,8 @@ export function postInitAndCheckFields(
 
 export type ChatCompletionContentPart =
   | ChatCompletionContentPartText
-  | ChatCompletionContentPartImage;
+  | ChatCompletionContentPartImage
+  | ChatCompletionContentPartInputAudio;
 
 export interface ChatCompletionContentPartText {
   /**
@@ -622,6 +705,28 @@ export interface ChatCompletionContentPartImage {
    * The type of the content part.
    */
   type: "image_url";
+}
+
+/** Base64 WAV, as in the OpenAI API. */
+export interface ChatCompletionAudioInputWav {
+  data: string;
+  format: "wav";
+}
+
+/** Mono PCM samples. A Float32Array can be posted to a worker as is. */
+export interface ChatCompletionAudioInputPCM {
+  data: Float32Array;
+  format: "pcm_f32";
+  sample_rate: number;
+}
+
+export type ChatCompletionAudioInput =
+  | ChatCompletionAudioInputWav
+  | ChatCompletionAudioInputPCM;
+
+export interface ChatCompletionContentPartInputAudio {
+  input_audio: ChatCompletionAudioInput;
+  type: "input_audio";
 }
 
 //////////////////////////////// 1.2. MESSAGE TOOL CALL ////////////////////////////////
@@ -1157,6 +1262,10 @@ export namespace ChatCompletionChunk {
  * Setting to `{ "type": "grammar" }` requires you to also specify the `grammar` field, which
  * is a BNFGrammar string.
  *
+ * Setting to `{ "type": "structural_tag" }` requires a `structural_tag` definition that
+ * applies trigger-based constraints (e.g. tag-delimited blocks) while allowing free-form text
+ * outside the triggered spans.
+ *
  * Setting `schema` specifies the output format of the json object such as properties to include.
  *
  * **Important:** when using JSON mode, you **must** also instruct the model to produce JSON
@@ -1169,9 +1278,9 @@ export namespace ChatCompletionChunk {
  */
 export interface ResponseFormat {
   /**
-   * Must be one of `text`, `json_object`, or `grammar`.
+   * Must be one of `text`, `json_object`, `grammar`, or `structural_tag`.
    */
-  type?: "text" | "json_object" | "grammar";
+  type?: "text" | "json_object" | "grammar" | "structural_tag";
   /**
    * A schema string in the format of the schema of a JSON file. `type` needs to be `json_object`.
    */
@@ -1191,4 +1300,10 @@ export interface ResponseFormat {
       The assertion (=[a-z]) means a must be followed by [a-z].
    */
   grammar?: string;
+  /**
+   * A structural tag definition. Needs to be specified when, and only when,
+   * `type` is `structural_tag`. A `json_schema` format nested in the definition must contain
+   * the schema object or boolean directly, rather than a JSON-encoded schema string.
+   */
+  structural_tag?: StructuralTagLike | string;
 }

@@ -5,6 +5,8 @@ import {
   InitProgressReport,
   LogLevel,
   LogitProcessor,
+  ResumeProbeResult,
+  ResumeResult,
 } from "./types";
 import {
   ChatCompletionRequest,
@@ -37,8 +39,11 @@ import {
   GetMessageParams,
   RuntimeStatsTextParams,
   CompletionStreamNextChunkParams,
+  ResumeChatCompletionParams,
+  DeleteResumableSessionParams,
 } from "./message";
 import log from "loglevel";
+import { isAsyncIterable } from "./streaming";
 import { MLCEngine } from "./engine";
 import {
   UnknownMessageKindError,
@@ -72,10 +77,10 @@ export class WebWorkerMLCEngineHandler {
   chatOpts?: ChatOptions[];
 
   public engine: MLCEngine;
-  /** ChatCompletion and Completion share the same chunk generator. Each loaded model has its own. */
-  protected loadedModelIdToAsyncGenerator: Map<
+  /** ChatCompletion and Completion streams keyed by a request-unique id. */
+  protected streamIdToAsyncGenerator: Map<
     string,
-    AsyncGenerator<ChatCompletionChunk | Completion, void, void>
+    AsyncIterableIterator<ChatCompletionChunk | Completion>
   >;
 
   /**
@@ -83,9 +88,9 @@ export class WebWorkerMLCEngineHandler {
    */
   constructor() {
     this.engine = new MLCEngine();
-    this.loadedModelIdToAsyncGenerator = new Map<
+    this.streamIdToAsyncGenerator = new Map<
       string,
-      AsyncGenerator<ChatCompletionChunk | Completion, void, void>
+      AsyncIterableIterator<ChatCompletionChunk | Completion>
     >();
     this.engine.setInitProgressCallback((report: InitProgressReport) => {
       const msg: WorkerResponse = {
@@ -189,10 +194,7 @@ export class WebWorkerMLCEngineHandler {
           const curGenerator = (await this.engine.chatCompletion(
             params.request,
           )) as AsyncGenerator<ChatCompletionChunk, void, void>;
-          this.loadedModelIdToAsyncGenerator.set(
-            params.selectedModelId,
-            curGenerator,
-          );
+          this.streamIdToAsyncGenerator.set(params.streamId, curGenerator);
           onComplete?.(null);
           return null;
         });
@@ -220,10 +222,7 @@ export class WebWorkerMLCEngineHandler {
           const curGenerator = (await this.engine.completion(
             params.request,
           )) as AsyncGenerator<Completion, void, void>;
-          this.loadedModelIdToAsyncGenerator.set(
-            params.selectedModelId,
-            curGenerator,
-          );
+          this.streamIdToAsyncGenerator.set(params.streamId, curGenerator);
           onComplete?.(null);
           return null;
         });
@@ -235,8 +234,8 @@ export class WebWorkerMLCEngineHandler {
         // For any subsequent request, we return whatever `next()` yields
         this.handleTask(msg.uuid, async () => {
           const params = msg.content as CompletionStreamNextChunkParams;
-          const curGenerator = this.loadedModelIdToAsyncGenerator.get(
-            params.selectedModelId,
+          const curGenerator = this.streamIdToAsyncGenerator.get(
+            params.streamId,
           );
           if (curGenerator === undefined) {
             throw Error(
@@ -244,9 +243,33 @@ export class WebWorkerMLCEngineHandler {
             );
           }
           // Yield the next chunk
-          const { value } = await curGenerator.next();
-          onComplete?.(value);
-          return value;
+          try {
+            const { value, done } = await curGenerator.next();
+            if (done) {
+              this.streamIdToAsyncGenerator.delete(params.streamId);
+            }
+            onComplete?.(value);
+            return value;
+          } catch (err) {
+            this.streamIdToAsyncGenerator.delete(params.streamId);
+            throw err;
+          }
+        });
+        return;
+      }
+      case "completionStreamReturn": {
+        this.handleTask(msg.uuid, async () => {
+          const params = msg.content as CompletionStreamNextChunkParams;
+          const curGenerator = this.streamIdToAsyncGenerator.get(
+            params.streamId,
+          );
+          try {
+            await curGenerator?.return?.();
+          } finally {
+            this.streamIdToAsyncGenerator.delete(params.streamId);
+          }
+          onComplete?.(null);
+          return null;
         });
         return;
       }
@@ -259,6 +282,57 @@ export class WebWorkerMLCEngineHandler {
           const res = await this.engine.embedding(params.request);
           onComplete?.(res);
           return res;
+        });
+        return;
+      }
+      case "listResumableSessions": {
+        this.handleTask(msg.uuid, async () => {
+          const res = await this.engine.listResumableSessions();
+          onComplete?.(res);
+          return res;
+        });
+        return;
+      }
+      case "resumeChatCompletion": {
+        this.handleTask(msg.uuid, async () => {
+          const params = msg.content as ResumeChatCompletionParams;
+          const res = await this.engine.resumeChatCompletion(
+            params.sessionId,
+            params.options,
+          );
+          onComplete?.(res);
+          return res as ResumeResult;
+        });
+        return;
+      }
+      case "resumeChatCompletionStreamInit": {
+        this.handleTask(msg.uuid, async () => {
+          const params = msg.content as ResumeChatCompletionParams;
+          const res = await this.engine.resumeChatCompletion(
+            params.sessionId,
+            params.options,
+          );
+          if (isAsyncIterable<ChatCompletionChunk>(res)) {
+            this.streamIdToAsyncGenerator.set(
+              params.streamId!,
+              res[Symbol.asyncIterator]() as AsyncIterableIterator<
+                ChatCompletionChunk | Completion
+              >,
+            );
+            onComplete?.(null);
+            return null;
+          }
+          onComplete?.(res);
+          return res;
+        });
+        return;
+      }
+      case "deleteResumableSession": {
+        this.handleTask(msg.uuid, async () => {
+          const params = msg.content as DeleteResumableSessionParams;
+          await this.engine.deleteResumableSession(params.sessionId);
+          onComplete?.(null);
+          return null;
         });
         return;
       }
@@ -288,7 +362,7 @@ export class WebWorkerMLCEngineHandler {
           // This may not be cleaned properly when one asyncGenerator finishes.
           // We only clear at unload(), which may not be called upon reload().
           // However, service_worker may skip reload(). Will leave as is for now.
-          this.loadedModelIdToAsyncGenerator.clear();
+          this.streamIdToAsyncGenerator.clear();
           onComplete?.(null);
           return null;
         });
@@ -373,6 +447,8 @@ export class WebWorkerMLCEngineHandler {
           "Reloading engine in WebWorkerMLCEngineHandler.",
       );
       await this.engine.reload(expectedModelId, expectedChatOpts);
+      this.modelId = expectedModelId;
+      this.chatOpts = expectedChatOpts;
     }
   }
 }
@@ -639,30 +715,61 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
    * the worker which we yield. The last message is `void`, meaning the generator has nothing
    * to yield anymore.
    *
-   * @param selectedModelId: The model of whose async generator to call next() to get next chunk.
-   *   Needed because an engine can load multiple models.
+   * @param streamId: Request-unique identity of the worker-side iterator.
    *
    * @note ChatCompletion and Completion share the same chunk generator.
    */
-  async *asyncGenerate(
-    selectedModelId: string,
+  asyncGenerate(
+    streamId: string,
   ): AsyncGenerator<ChatCompletionChunk | Completion, void, void> {
-    // Every time it gets called, sends message to worker, asking for the next chunk
-    while (true) {
-      const msg: WorkerRequest = {
-        kind: "completionStreamNextChunk",
-        uuid: crypto.randomUUID(),
-        content: {
-          selectedModelId: selectedModelId,
-        } as CompletionStreamNextChunkParams,
-      };
-      const ret = await this.getPromise<ChatCompletionChunk>(msg);
-      // If the worker's generator reached the end, it would return a `void`
-      if (typeof ret !== "object") {
-        break;
+    let completed = false;
+    let closePromise: Promise<void> | undefined;
+    const close = (): Promise<void> => {
+      closePromise ??= (async () => {
+        if (completed) {
+          return;
+        }
+        completed = true;
+        const msg: WorkerRequest = {
+          kind: "completionStreamReturn",
+          uuid: crypto.randomUUID(),
+          content: { streamId } as CompletionStreamNextChunkParams,
+        };
+        await this.getPromise<null>(msg);
+      })();
+      return closePromise;
+    };
+
+    const getPromise = this.getPromise.bind(this);
+    // Native generators serialize next/return/throw, including reads at EOF.
+    const iterator = (async function* () {
+      try {
+        while (true) {
+          const msg: WorkerRequest = {
+            kind: "completionStreamNextChunk",
+            uuid: crypto.randomUUID(),
+            content: { streamId } as CompletionStreamNextChunkParams,
+          };
+          const ret = await getPromise<ChatCompletionChunk | Completion | void>(
+            msg,
+          );
+          if (typeof ret !== "object") {
+            completed = true;
+            return;
+          }
+          yield ret;
+        }
+      } finally {
+        await close();
       }
-      yield ret;
-    }
+    })();
+
+    // A generator closed before its first next() never enters its finally.
+    const returnSource = iterator.return.bind(iterator);
+    const throwSource = iterator.throw.bind(iterator);
+    iterator.return = (value) => returnSource(value).finally(close);
+    iterator.throw = (err) => throwSource(err).finally(close);
+    return iterator;
   }
 
   async chatCompletion(
@@ -690,6 +797,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
     );
 
     if (request.stream) {
+      const streamId = crypto.randomUUID();
       // First let worker instantiate a generator
       const msg: WorkerRequest = {
         kind: "chatCompletionStreamInit",
@@ -697,6 +805,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
         content: {
           request: request,
           selectedModelId: selectedModelId,
+          streamId,
           modelId: this.modelId,
           chatOpts: this.chatOpts,
         },
@@ -704,7 +813,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
       await this.getPromise<null>(msg);
 
       // Then return an async chunk generator that resides on the client side
-      return this.asyncGenerate(selectedModelId) as AsyncGenerator<
+      return this.asyncGenerate(streamId) as AsyncGenerator<
         ChatCompletionChunk,
         void,
         void
@@ -749,6 +858,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
     );
 
     if (request.stream) {
+      const streamId = crypto.randomUUID();
       // First let worker instantiate a generator
       const msg: WorkerRequest = {
         kind: "completionStreamInit",
@@ -756,6 +866,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
         content: {
           request: request,
           selectedModelId: selectedModelId,
+          streamId,
           modelId: this.modelId,
           chatOpts: this.chatOpts,
         },
@@ -763,7 +874,7 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
       await this.getPromise<null>(msg);
 
       // Then return an async chunk generator that resides on the client side
-      return this.asyncGenerate(selectedModelId) as AsyncGenerator<
+      return this.asyncGenerate(streamId) as AsyncGenerator<
         Completion,
         void,
         void
@@ -799,6 +910,57 @@ export class WebWorkerMLCEngine implements MLCEngineInterface {
       },
     };
     return await this.getPromise<CreateEmbeddingResponse>(msg);
+  }
+
+  async listResumableSessions(): Promise<ResumeProbeResult[]> {
+    const msg: WorkerRequest = {
+      kind: "listResumableSessions",
+      uuid: crypto.randomUUID(),
+      content: null,
+    };
+    return await this.getPromise<ResumeProbeResult[]>(msg);
+  }
+
+  async resumeChatCompletion(
+    sessionId: string,
+    options?: { continueGeneration?: boolean; stream?: boolean },
+  ): Promise<ResumeResult | AsyncIterable<ChatCompletionChunk>> {
+    if (options?.continueGeneration === true && options.stream === true) {
+      const streamId = crypto.randomUUID();
+      const msg: WorkerRequest = {
+        kind: "resumeChatCompletionStreamInit",
+        uuid: crypto.randomUUID(),
+        content: {
+          sessionId,
+          options,
+          streamId,
+        } as ResumeChatCompletionParams,
+      };
+      const result = await this.getPromise<ResumeResult | null>(msg);
+      if (result !== null) {
+        return result;
+      }
+      return this.asyncGenerate(streamId) as AsyncGenerator<
+        ChatCompletionChunk,
+        void,
+        void
+      >;
+    }
+    const msg: WorkerRequest = {
+      kind: "resumeChatCompletion",
+      uuid: crypto.randomUUID(),
+      content: { sessionId, options } as ResumeChatCompletionParams,
+    };
+    return await this.getPromise<ResumeResult>(msg);
+  }
+
+  async deleteResumableSession(sessionId: string): Promise<void> {
+    const msg: WorkerRequest = {
+      kind: "deleteResumableSession",
+      uuid: crypto.randomUUID(),
+      content: { sessionId } as DeleteResumableSessionParams,
+    };
+    await this.getPromise<null>(msg);
   }
 
   onmessage(event: any) {

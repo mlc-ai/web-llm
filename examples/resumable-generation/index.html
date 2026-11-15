@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebLLM Resumable Generation</title>
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <div>
+          <h1>Resumable Generation</h1>
+          <p id="environment">Checking browser support...</p>
+        </div>
+        <div class="status" id="status">Idle</div>
+      </header>
+
+      <section class="panel controls">
+        <div class="field wide">
+          <label>Model</label>
+          <div class="static-field" id="model-name"></div>
+        </div>
+        <div class="field wide">
+          <label>Runtime Wasm</label>
+          <a
+            class="static-link"
+            id="model-lib"
+            target="_blank"
+            rel="noreferrer"
+          ></a>
+        </div>
+        <div class="field">
+          <label for="engine-mode">Engine</label>
+          <select id="engine-mode">
+            <option value="worker">Dedicated Worker</option>
+            <option value="main">Main Thread</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="session-id">Session ID</label>
+          <input id="session-id" type="text" autocomplete="off" />
+        </div>
+        <div class="field">
+          <label for="checkpoint-interval">Checkpoint Tokens</label>
+          <input
+            id="checkpoint-interval"
+            type="number"
+            min="1"
+            step="1"
+            value="64"
+          />
+        </div>
+        <div class="field">
+          <label for="durability">Durability</label>
+          <select id="durability">
+            <option value="exact">Exact</option>
+            <option value="relaxed">Relaxed</option>
+          </select>
+        </div>
+        <label class="check">
+          <input id="checkpoint-prompt" type="checkbox" checked />
+          Prompt checkpoint
+        </label>
+        <label class="check">
+          <input id="strict-persistence" type="checkbox" />
+          Strict persistence
+        </label>
+        <label class="check">
+          <input id="auto-reload-enabled" type="checkbox" />
+          Reload after chunks
+        </label>
+        <div class="field small">
+          <label for="auto-reload-chunks">Chunks</label>
+          <input
+            id="auto-reload-chunks"
+            type="number"
+            min="1"
+            step="1"
+            value="8"
+          />
+        </div>
+      </section>
+
+      <section class="panel prompt-panel">
+        <div class="field wide">
+          <label for="prompt">Prompt</label>
+          <textarea id="prompt" rows="5"></textarea>
+        </div>
+        <div class="actions">
+          <button id="load-model">Load</button>
+          <button id="start">Start</button>
+          <button id="interrupt">Interrupt</button>
+          <button id="reload-page">Reload Page</button>
+          <button id="list-sessions">List Sessions</button>
+          <button id="resume-text">Text Restore</button>
+          <button id="resume-continue">Resume Continue</button>
+          <button id="delete-session">Delete Session</button>
+        </div>
+      </section>
+
+      <section class="panel validation-panel">
+        <div class="panel-title">Validation</div>
+        <div class="validation-actions">
+          <button id="run-validation">Run Validation</button>
+        </div>
+        <pre id="validation"></pre>
+      </section>
+
+      <section class="grid">
+        <div class="panel">
+          <div class="panel-title">Output</div>
+          <pre id="output"></pre>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Sessions</div>
+          <pre id="sessions"></pre>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Metrics</div>
+          <pre id="metrics"></pre>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Log</div>
+          <pre id="log"></pre>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

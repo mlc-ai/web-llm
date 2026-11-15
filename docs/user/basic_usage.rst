@@ -6,14 +6,14 @@ Model Records in WebLLM
 
 Each of the model available WebLLM is registered as an instance of
 ``ModelRecord`` and can be accessed at
-`webllm.prebuiltAppConfig.model_list <https://github.com/mlc-ai/web-llm/blob/main/src/config.ts#L293>`__.
+`webllm.prebuiltAppConfig.model_list <https://github.com/mlc-ai/web-llm/blob/main/src/config.ts#L313>`__.
 
 Creating an MLCEngine
 ---------------------
 
-WebLLM APIs are exposed through the ``MLCEngine`` interface. You can create an ``MLCEngine`` instance and loading the model by calling the CreateMLCEngine() factory function.
+WebLLM APIs are exposed through the ``MLCEngine`` interface. You can create an ``MLCEngine`` instance and load the model by calling the CreateMLCEngine() factory function.
 
-(Note that loading models requires downloading and it can take a significant amount of time for the very first run without caching previously. You should properly handle this asynchronous call.)
+(Note that loading models requires downloading and it can take a significant amount of time for the very first run without previous caching. You should properly handle this asynchronous call.)
 
 ``MLCEngine`` can be instantiated in two ways:
 1. Using the factory function ``CreateMLCEngine``.
@@ -53,9 +53,9 @@ Under the hood, this factory function ``CreateMLCEngine`` does the following ste
 Chat Completion
 ---------------
 
-Chat completions can be invoked using OpenAI style chat APIs through the ``engine.chat.completions`` interface of an initialized ``MLCEgnine``. For the full list of parameters and their descriptions, check :ref:`api-reference` for full list of parameters.
+Chat completions can be invoked using OpenAI style chat APIs through the ``engine.chat.completions`` interface of an initialized ``MLCEngine``. For the full list of parameters and their descriptions, check :ref:`api-reference` for full list of parameters.
 
-(Note: As model is determined at the ``MLCEngine`` initialization time, ``model`` parameter is not supported and will be **ignored**. Instead, call ``CreateMLCEngine(model)`` or ``engine.reload(model)`` to reinitialize the engine to use a specific model.)
+(Note: Since the model is determined during ``MLCEngine`` instantiation, the ``model`` parameter is not supported and will be **ignored**. Instead, call ``CreateMLCEngine(model)`` or ``engine.reload(model)`` to reinitialize the engine to use a specific model.)
 
 .. code-block:: typescript
 
@@ -84,7 +84,7 @@ Streaming chat completion could be enabled by passsing ``stream: true`` paramete
         { role: "user", content: "Hello!" },
     ]
 
-    // Chunks is an AsyncGenerator object
+    // chunks is an AsyncGenerator object
     const chunks = await engine.chat.completions.create({
         messages,
         temperature: 1,
@@ -113,8 +113,8 @@ Learn how to use WebLLM to integrate large language models into your application
 - `Example in JSFiddle <https://jsfiddle.net/neetnestor/4nmgvsa2/>`_
 - `Example in CodePen <https://codepen.io/neetnestor/pen/vYwgZaG>`_
 
-For an advanced example of a larger, more complicated project, check `WebLLM Chat <https://github.com/mlc-ai/web-llm-chat/blob/main/app/client/webllm.ts>`_.
+For an advanced example of a larger, more complicated project, look at `WebLLM Chat <https://github.com/mlc-ai/web-llm-chat/blob/main/app/client/webllm.ts>`_.
 
-More examples for different use cases are available in the examples folder.
+More examples for different use cases are available in the `WebLLM examples folder <https://github.com/mlc-ai/web-llm/tree/main/examples>`_.
 
 

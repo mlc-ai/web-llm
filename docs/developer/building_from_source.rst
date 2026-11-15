@@ -23,13 +23,13 @@ Build the Project
 Test Changes
 ------------
 
-To test you changes, you can reuse any existing example or create a new example for your new functionality to test.
+To test your changes, you can reuse an existing example or create a new example that specifically tests the new functionality you wish to provide.
 
-Then, to test the effects of your code change in an example, inside ``examples/<example>/package.json``, change from ``"@mlc-ai/web-llm": "^0.2.xx"`` to ``"@mlc-ai/web-llm": ../...`` to let it reference you local code.
+To test the effects of your code change in an example, inside ``examples/<example>/package.json``, change ``"@mlc-ai/web-llm": "^0.2.xx"`` to ``"@mlc-ai/web-llm": "../.."`` to let it reference your local code. Note that sometimes you may need to switch between ``"file:../.."`` and ``"../.."`` to trigger npm to recognize new changes.
 
 .. code-block:: bash
 
    cd examples/<example>
-   # Modify the package.json
+   # Modify package.json as described
    npm install
    npm start

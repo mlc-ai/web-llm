@@ -1,6 +1,7 @@
 /** Util methods. */
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
 import { AppConfig, MessagePlaceholders, ModelRecord } from "./config";
+import { ImageResize } from "./artifact_manifest";
 import {
   ChatCompletionChunk,
   ChatCompletionContentPartImage,
@@ -9,6 +10,7 @@ import {
 import {
   ModelNotFoundError,
   ModelNotLoadedError,
+  PrefillChunkSizeSmallerThanImageError,
   SpecifiedModelNotFoundError,
   ToolCallOutputInvalidTypeError,
   ToolCallOutputMissingFieldsError,
@@ -95,8 +97,9 @@ export function cleanModelUrl(modelUrl: string): string {
   return new URL(modelUrl).href;
 }
 
-// Constants for Hermes-2-Pro models function calling
+// Constants for Hermes-2-Pro / Hermes-3 models function calling
 // Follows https://huggingface.co/NousResearch/Hermes-2-Pro-Llama-3-8B#prompt-format-for-function-calling
+//         https://huggingface.co/NousResearch/Hermes-3-Llama-3.1-8B#prompt-format-for-function-calling
 
 /**
  * Json schema used to prompt the model for function calling; directly copied from the official guide.
@@ -111,7 +114,7 @@ export const officialHermes2FunctionCallSchema = `{"properties": {"arguments": {
 export const officialHermes2FunctionCallSchemaArray = `{"type":"array","items":${officialHermes2FunctionCallSchema}}`;
 
 /**
- * Full system prompt for Hermes-2-Pro function calling.
+ * Full system prompt for Hermes-2-Pro and Hermes-3 function calling.
  */
 export const hermes2FunctionCallingSystemPrompt = `You are a function calling AI model. You are 
 provided with function signatures within <tools></tools> XML tags. You may call one or more functions 
@@ -278,11 +281,12 @@ export function getModelIdToUse(
  * Chunk the inputData such that each chunk's total input length is smaller than prefill
  * chunk size.
  * @returns [the data chunks, the input length of each chunk]
- * @note precondition: if inputData has image in it, then prefillChunkSize >= IMAGE_EMBED_SIZE.
+ * @note precondition: if inputData has image in it, then prefillChunkSize >= imageEmbedSize.
  */
 export function getChunkedPrefillInputData(
   inputData: Array<Array<number> | ImageURL>,
   prefillChunkSize: number,
+  getImageEmbedSize: (image: ImageURL) => number,
 ): [Array<Array<number> | ImageURL>[], Array<number>] {
   const chunks: Array<Array<number> | ImageURL>[] = [];
   const chunkLens: Array<number> = [];
@@ -292,7 +296,13 @@ export function getChunkedPrefillInputData(
     let curData: Array<number> | ImageURL = inputData[i];
     const curDataLen = Array.isArray(curData)
       ? curData.length
-      : IMAGE_EMBED_SIZE;
+      : getImageEmbedSize(curData);
+    if (!Array.isArray(curData) && curDataLen > prefillChunkSize) {
+      throw new PrefillChunkSizeSmallerThanImageError(
+        prefillChunkSize,
+        curDataLen,
+      );
+    }
     // 1. curData can fit into this chunk
     if (curChunkLen + curDataLen <= prefillChunkSize) {
       curChunk.push(curData);
@@ -338,7 +348,7 @@ export function getChunkedPrefillInputData(
       chunkLens.push(curChunkLen);
       // 2.2.2. Then push image to the new chunk
       curChunk = [curData];
-      curChunkLen = IMAGE_EMBED_SIZE;
+      curChunkLen = curDataLen;
       if (curChunkLen === prefillChunkSize) {
         chunks.push([...curChunk]);
         chunkLens.push(curChunkLen);
@@ -405,9 +415,6 @@ export class CustomLock {
 // Image related
 type ImageURL = ChatCompletionContentPartImage.ImageURL;
 
-// TODO(Charlie): currently hardcoded for phi3.5-vision num_crops 16
-export const IMAGE_EMBED_SIZE = 1921;
-
 /**
  * Given a url, get the image data. The url can either start with `http` or `data:image`.
  */
@@ -440,4 +447,60 @@ export function getRGBArrayFromImageData(
     newData[offset++] = imageData.data[i + 2];
   }
   return newData;
+}
+
+/** The size to draw an image at and the corner of the region to keep. */
+export interface ImageResizePlan {
+  width: number;
+  height: number;
+  left: number;
+  top: number;
+}
+
+/**
+ * Plan a manifest resize. `stretch` draws at the target size. `center_crop`
+ * scales uniformly until the image covers the target, then keeps the center.
+ */
+export function planImageResize(
+  sourceWidth: number,
+  sourceHeight: number,
+  resize: ImageResize,
+): ImageResizePlan {
+  if (resize.mode === "stretch") {
+    return { width: resize.width, height: resize.height, left: 0, top: 0 };
+  }
+  const scale = Math.max(
+    resize.height / sourceHeight,
+    resize.width / sourceWidth,
+  );
+  const width = Math.round(sourceWidth * scale);
+  const height = Math.round(sourceHeight * scale);
+  return {
+    width,
+    height,
+    left: Math.floor((width - resize.width) / 2),
+    top: Math.floor((height - resize.height) / 2),
+  };
+}
+
+/** Load an image and return its RGB bytes at the size the manifest asks for. */
+export async function getResizedRGBArrayFromURL(
+  url: string,
+  resize: ImageResize,
+): Promise<Uint8ClampedArray> {
+  const response = await fetch(url, { mode: "cors" });
+  const img = await createImageBitmap(await response.blob());
+  const plan = planImageResize(img.width, img.height, resize);
+  // Only the target rectangle is read, so draw the scaled image offset into a
+  // target-sized canvas instead of allocating the whole scaled image.
+  const canvas = new OffscreenCanvas(resize.width, resize.height);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Could not get 2d context");
+  }
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(img, -plan.left, -plan.top, plan.width, plan.height);
+  return getRGBArrayFromImageData(
+    ctx.getImageData(0, 0, resize.width, resize.height),
+  );
 }

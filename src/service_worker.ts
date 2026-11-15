@@ -22,18 +22,17 @@ type IServiceWorker = globalThis.ServiceWorker;
 /**
  * Worker handler that can be used in a ServiceWorker.
  *
+ * Construct the handler during the service worker script's initial evaluation.
+ * Registering it from an `activate` or `message` listener is too late: the
+ * browser can restart an already-active worker without dispatching `activate`,
+ * and service worker event listeners must be registered synchronously on startup.
+ *
  * @example
  *
- * const engine = new MLCEngine();
- * let handler;
- * chrome.runtime.onConnect.addListener(function (port) {
- *   if (handler === undefined) {
- *     handler = new ServiceWorkerMLCEngineHandler(engine, port);
- *   } else {
- *     handler.setPort(port);
- *   }
- *   port.onMessage.addListener(handler.onmessage.bind(handler));
- * });
+ * // sw.ts
+ * import { ServiceWorkerMLCEngineHandler } from "@mlc-ai/web-llm";
+ *
+ * new ServiceWorkerMLCEngineHandler();
  */
 export class ServiceWorkerMLCEngineHandler extends WebWorkerMLCEngineHandler {
   private clientRegistry = new Map<
@@ -85,7 +84,7 @@ export class ServiceWorkerMLCEngineHandler extends WebWorkerMLCEngineHandler {
   }
 
   onmessage(
-    event: ExtendableMessageEvent,
+    event: Pick<MessageEvent, "data">,
     onComplete?: (value: any) => void,
     onError?: () => void,
   ): void {
@@ -216,7 +215,7 @@ export async function CreateServiceWorkerMLCEngine(
  * A client of MLCEngine that exposes the same interface
  */
 export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
-  missedHeatbeat = 0;
+  missedHeartbeat = 0;
 
   constructor(engineConfig?: MLCEngineConfig, keepAliveMs = 10000) {
     if (!("serviceWorker" in navigator)) {
@@ -227,8 +226,8 @@ export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
     // Keep alive through periodical heartbeat signals
     setInterval(() => {
       this.worker.postMessage({ kind: "keepAlive", uuid: crypto.randomUUID() });
-      this.missedHeatbeat += 1;
-      log.trace("missedHeatbeat", this.missedHeatbeat);
+      this.missedHeartbeat += 1;
+      log.trace("missedHeartbeat", this.missedHeartbeat);
     }, keepAliveMs);
   }
 
@@ -239,7 +238,7 @@ export class ServiceWorkerMLCEngine extends WebWorkerMLCEngine {
     );
     try {
       if (msg.kind === "heartbeat") {
-        this.missedHeatbeat = 0;
+        this.missedHeartbeat = 0;
         return;
       }
       super.onmessage(msg);
