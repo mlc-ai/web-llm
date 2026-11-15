@@ -64,6 +64,64 @@ async function schemaId(params: Parameter[]): Promise<string> {
 function aborted(signal: AbortSignal): void {
   if (signal.aborted) throw new Error("Audio encoder execution aborted");
 }
+interface ComponentMetadata {
+  artifact: unknown;
+  params: Parameter[];
+  audio_encoder: {
+    hidden_size: number;
+    n_window: number;
+    max_pooled_frames: number;
+  };
+  audio_processor: {
+    num_samples: number;
+    sampling_rate: number;
+    hop_length: number;
+    num_mel_bins: number;
+  };
+}
+async function loadComponent(
+  tvm: tvmjs.Instance,
+  device: tvmjs.DLDevice,
+  compiled: CompiledProgramArtifactV2,
+  component: Component,
+  own: <T extends { dispose(): void }>(value: T) => T,
+): Promise<{
+  vm: tvmjs.VirtualMachine;
+  metadata: ComponentMetadata;
+  params: Parameter[];
+}> {
+  let vm: tvmjs.VirtualMachine;
+  let metadata: ComponentMetadata;
+  tvm.beginScope();
+  try {
+    vm = own(tvm.createVirtualMachine(device));
+    metadata = JSON.parse(vm.getFunction("_metadata")().toString());
+  } finally {
+    tvm.endScope();
+  }
+  if (!same(parseCompiledProgramArtifactV2(metadata.artifact), compiled))
+    throw new Error("VM metadata does not match compiled graph");
+  if (!Array.isArray(metadata.params) || !metadata.params.length)
+    throw new Error("Missing parameter metadata");
+  const params: Parameter[] = metadata.params.map((p) => {
+    if (
+      typeof p.name !== "string" ||
+      !p.name ||
+      typeof p.dtype !== "string" ||
+      !Array.isArray(p.shape) ||
+      p.shape.some((n) => !Number.isSafeInteger(n) || n < 0)
+    )
+      throw new Error("Invalid parameter metadata");
+    return { name: p.name, shape: p.shape, dtype: p.dtype };
+  });
+  if (
+    new Set(params.map((p) => p.name)).size !== params.length ||
+    (await schemaId(params)) !== component.spec.weights!.parameter_schema_id
+  )
+    throw new Error("Parameter schema mismatch");
+  return { vm, metadata, params };
+}
+
 /**
  * Bind real VM exports and packed parameters. Caller owns runtime/device/cache;
  * backend owns VM, parameter tuple and temporaries. Use a dedicated runtime and
@@ -148,44 +206,13 @@ export async function createAudioEncoderTVMFactory(
         if (failure) throw failure;
       };
       try {
-        let vm: tvmjs.VirtualMachine;
-        let metadata: {
-          artifact: unknown;
-          params: Parameter[];
-          audio_encoder: {
-            hidden_size: number;
-            n_window: number;
-            max_pooled_frames: number;
-          };
-        };
-        tvm.beginScope();
-        try {
-          vm = own(tvm.createVirtualMachine(device));
-          metadata = JSON.parse(vm.getFunction("_metadata")().toString());
-        } finally {
-          tvm.endScope();
-        }
-        if (!same(parseCompiledProgramArtifactV2(metadata.artifact), compiled))
-          throw new Error("VM metadata does not match compiled graph");
-        if (!Array.isArray(metadata.params) || !metadata.params.length)
-          throw new Error("Missing parameter metadata");
-        const params: Parameter[] = metadata.params.map((p) => {
-          if (
-            typeof p.name !== "string" ||
-            !p.name ||
-            typeof p.dtype !== "string" ||
-            !Array.isArray(p.shape) ||
-            p.shape.some((n) => !Number.isSafeInteger(n) || n < 0)
-          )
-            throw new Error("Invalid parameter metadata");
-          return { name: p.name, shape: p.shape, dtype: p.dtype };
-        });
-        if (
-          new Set(params.map((p) => p.name)).size !== params.length ||
-          (await schemaId(params)) !==
-            component.spec.weights!.parameter_schema_id
-        )
-          throw new Error("Parameter schema mismatch");
+        const { vm, metadata, params } = await loadComponent(
+          tvm,
+          device,
+          compiled,
+          component,
+          own,
+        );
         const width = metadata.audio_encoder?.hidden_size,
           window = metadata.audio_encoder?.n_window;
         if (
@@ -360,6 +387,208 @@ export async function createAudioEncoderTVMFactory(
           dispose();
         } catch {
           /* Preserve the setup failure. */
+        }
+        throw error;
+      }
+    },
+  };
+}
+
+export type WhisperAudioTVMOptions = Omit<AudioEncoderTVMOptions, "maxFrames">;
+
+/** Bind the pinned mono 16 kHz PCM frontend; no implicit resampling or truncation. */
+export async function createWhisperAudioTVMFactory(
+  options: WhisperAudioTVMOptions,
+): Promise<GraphComponentFactory> {
+  const { runtime: tvm, device, componentId } = options;
+  const model = parseModelPackageManifestV2(options.model),
+    compiled = parseCompiledProgramArtifactV2(options.compiled);
+  await validateGraphArtifactPair(model, compiled);
+  const component = compiled.components[componentId],
+    input = component?.spec.inputs.pcm,
+    output = component?.spec.outputs.mel_features;
+  if (
+    !component ||
+    component.spec.contract !== "qwen2_5_omni.audio_features.v1" ||
+    component.spec.kind !== "transform" ||
+    component.spec.state.kind !== "none" ||
+    !component.spec.weights ||
+    Object.keys(component.spec.inputs).length !== 1 ||
+    Object.keys(component.spec.outputs).length !== 1 ||
+    input?.dtype !== "float32" ||
+    input.delivery !== "value" ||
+    input.shape.length !== 1 ||
+    output?.dtype !== "float32" ||
+    output.delivery !== "value" ||
+    output.shape.length !== 2 ||
+    output.shape[0] !== 128 ||
+    !component.exports.forward ||
+    component.exports.run !== component.exports.forward
+  )
+    throw new Error("Unsupported Whisper audio component ABI");
+  for (const feature of component.resources.required_features)
+    if (!options.capabilities.features.has(feature))
+      throw new Error(`Missing device feature ${feature}`);
+  if (
+    component.resources.max_storage_buffer_binding_size >
+    options.capabilities.maxStorageBufferBindingSize
+  )
+    throw new Error("Whisper frontend exceeds device buffer binding limit");
+  let active = false;
+  return {
+    async create(id, requested, signal) {
+      aborted(signal);
+      if (id !== componentId || !same(requested, component))
+        throw new Error("Unexpected compiled component");
+      if (active) throw new Error("Whisper runtime is already in use");
+      active = true;
+      const owned: { dispose(): void }[] = [];
+      const own = <T extends { dispose(): void }>(value: T): T => {
+        tvm.detachFromCurrentScope(value);
+        owned.push(value);
+        return value;
+      };
+      let disposed = false;
+      const dispose = () => {
+        if (disposed) return;
+        disposed = true;
+        let error: unknown;
+        for (const value of owned.reverse()) {
+          try {
+            value.dispose();
+          } catch (e) {
+            error ??= e;
+          }
+        }
+        active = false;
+        if (error) throw error;
+      };
+      try {
+        const { vm, metadata, params } = await loadComponent(
+          tvm,
+          device,
+          compiled,
+          component,
+          own,
+        );
+        const processor = metadata.audio_processor;
+        if (
+          !processor ||
+          processor.sampling_rate !== 16000 ||
+          processor.hop_length !== 160 ||
+          processor.num_mel_bins !== 128 ||
+          !Number.isSafeInteger(processor.num_samples) ||
+          processor.num_samples < 400 ||
+          processor.num_samples % 160 !== 0
+        )
+          throw new Error("Invalid Whisper processor metadata");
+        const capacity = processor.num_samples,
+          frames = capacity / 160;
+        aborted(signal);
+        let packed: tvmjs.TVMObject, forward: tvmjs.PackedFunc;
+        tvm.beginScope();
+        try {
+          for (const p of params) {
+            const tensor = tvm.tensorCacheGet(p.name);
+            if (
+              !tensor ||
+              tensor.dtype !== p.dtype ||
+              !same(tensor.shape, p.shape)
+            )
+              throw new Error(`Cached parameter mismatch: ${p.name}`);
+          }
+          packed = own(tvm.getParamsFromCacheByName(params.map((p) => p.name)));
+          forward = own(vm.getFunction(component.exports.forward));
+        } finally {
+          tvm.endScope();
+        }
+        let used = false;
+        return {
+          dispose,
+          async *run(events, runSignal) {
+            if (used || disposed)
+              throw new Error("Whisper backend can run once");
+            used = true;
+            const checkAbort = () => {
+              aborted(signal);
+              aborted(runSignal);
+            };
+            let samples: Float32Array | undefined,
+              ended = false;
+            for await (const event of events) {
+              checkAbort();
+              if (event.port !== "pcm" || ended)
+                throw new Error("Invalid PCM input event");
+              if (event.kind === "end") {
+                ended = true;
+                continue;
+              }
+              const tensor = event.tensor;
+              if (
+                samples ||
+                !(tensor.data instanceof Float32Array) ||
+                tensor.shape.length !== 1 ||
+                tensor.shape[0] !== tensor.data.length ||
+                tensor.data.length === 0 ||
+                tensor.data.length > capacity ||
+                !tensor.data.every(Number.isFinite)
+              )
+                throw new Error(
+                  "Invalid PCM samples; empty and oversized clips are unsupported",
+                );
+              samples = new Float32Array(tensor.data);
+            }
+            checkAbort();
+            if (!samples || !ended)
+              throw new Error("Missing PCM samples or end event");
+            const padded = new Float32Array(capacity);
+            padded.set(samples);
+            let cpu: tvmjs.Tensor;
+            tvm.beginScope();
+            try {
+              const arg = tvm
+                .empty([capacity], "float32", device)
+                .copyFrom(padded);
+              const result = forward(arg, packed) as tvmjs.Tensor;
+              if (
+                result.dtype !== "float32" ||
+                !same(result.shape, [128, frames])
+              )
+                throw new Error(
+                  "Whisper export returned unexpected shape or dtype",
+                );
+              cpu = tvm.detachFromCurrentScope(
+                tvm.empty([128, frames], "float32", tvm.cpu()).copyFrom(result),
+              );
+            } finally {
+              tvm.endScope();
+            }
+            let raw: Float32Array;
+            try {
+              await device.sync();
+              checkAbort();
+              raw = cpu.toArray() as Float32Array;
+            } finally {
+              cpu.dispose();
+            }
+            const valid = Math.ceil(samples.length / 160),
+              mel = new Float32Array(128 * valid);
+            for (let bin = 0; bin < 128; bin++)
+              mel.set(
+                raw.subarray(bin * frames, bin * frames + valid),
+                bin * valid,
+              );
+            yield {
+              port: "mel_features",
+              tensor: { shape: [128, valid], data: mel },
+            };
+          },
+        };
+      } catch (error) {
+        try {
+          dispose();
+        } catch {
+          /* Preserve original setup error. */
         }
         throw error;
       }

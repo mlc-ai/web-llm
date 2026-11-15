@@ -1,6 +1,9 @@
 import { createHash, webcrypto } from "crypto";
 import type * as tvmjs from "@mlc-ai/web-runtime";
-import { createAudioEncoderTVMFactory } from "../src/artifact_graph_tvm";
+import {
+  createAudioEncoderTVMFactory,
+  createWhisperAudioTVMFactory,
+} from "../src/artifact_graph_tvm";
 import {
   computeGraphInterfaceId,
   ModelPackageManifestV2,
@@ -13,7 +16,7 @@ beforeAll(() =>
     configurable: true,
   }),
 );
-async function fixture() {
+async function fixture(processor = false) {
   const schema =
     "sha256:" +
     createHash("sha256")
@@ -63,6 +66,40 @@ async function fixture() {
       },
     },
   };
+  if (processor) {
+    const pcm = {
+      semantic: "audio.pcm.v1",
+      dtype: "float32" as const,
+      shape: ["samples"],
+      delivery: "value" as const,
+    };
+    const mel = {
+      semantic: "audio.log_mel.v1",
+      dtype: "float32" as const,
+      shape: [128, "frames"],
+      delivery: "value" as const,
+    };
+    model.components.audio = {
+      ...spec,
+      kind: "transform",
+      contract: "qwen2_5_omni.audio_features.v1",
+      inputs: { pcm },
+      outputs: { mel_features: mel },
+    };
+    model.tasks.encode = {
+      inputs: {
+        pcm: { spec: pcm, targets: [{ component: "audio", port: "pcm" }] },
+      },
+      outputs: {
+        mel_features: {
+          spec: mel,
+          source: { component: "audio", port: "mel_features" },
+          optional: false,
+        },
+      },
+      edges: [],
+    };
+  }
   model.interface_id = await computeGraphInterfaceId(model);
   const compiled: CompiledProgramArtifactV2 = {
     schema: "mlc.compiled-program",
@@ -70,7 +107,7 @@ async function fixture() {
     interface_id: model.interface_id,
     components: {
       audio: {
-        spec,
+        spec: model.components.audio,
         module: "audio.wasm",
         exports: {
           run: "encode_chunk",
@@ -85,6 +122,8 @@ async function fixture() {
       },
     },
   };
+  if (processor)
+    compiled.components.audio.exports = { run: "forward", forward: "forward" };
   return { model, compiled };
 }
 class Tensor {
@@ -107,12 +146,18 @@ class Tensor {
     this.disposed = true;
   }
 }
-async function setup() {
-  const { model, compiled } = await fixture();
+async function setup(processor = false) {
+  const { model, compiled } = await fixture(processor);
   const metadata = {
     artifact: compiled,
     params: [{ name: "weight", shape: [1], dtype: "float32" }],
     audio_encoder: { hidden_size: 2, n_window: 100, max_pooled_frames: 7500 },
+    audio_processor: {
+      num_samples: 640,
+      sampling_rate: 16000,
+      hop_length: 160,
+      num_mel_bins: 128,
+    },
   };
   const calls: { name: string; shape: number[]; data: number[] }[] = [];
   const packed = { dispose: jest.fn() };
@@ -123,6 +168,13 @@ async function setup() {
   };
   const funcs = {
     _metadata: () => ({ toString: () => JSON.stringify(metadata) }),
+    forward: (x: Tensor, p: unknown) => {
+      expect(p).toBe(packed);
+      calls.push({ name: "forward", shape: x.shape, data: Array.from(x.data) });
+      const out = track(new Tensor([128, 4]));
+      out.data = Float32Array.from({ length: 512 }, (_, i) => i);
+      return out;
+    },
     encode_chunk: (x: Tensor, valid: Tensor, p: unknown) => {
       expect(valid.shape).toEqual([1]);
       expect(p).toBe(packed);
@@ -165,7 +217,9 @@ async function setup() {
     empty: (shape: number[], dtype: string) => track(new Tensor(shape, dtype)),
     cpu: () => ({}),
   };
-  const factory = await createAudioEncoderTVMFactory({
+  const factory = await (
+    processor ? createWhisperAudioTVMFactory : createAudioEncoderTVMFactory
+  )({
     runtime: runtime as unknown as tvmjs.Instance,
     device: device as unknown as tvmjs.DLDevice,
     model,
@@ -337,5 +391,65 @@ test("compiled projection bound limits accepted clip capacity", async () => {
       new AbortController().signal,
     ),
   ).rejects.toThrow("compiled projection bound");
+  expect(s.runtime.getParamsFromCacheByName).not.toHaveBeenCalled();
+});
+
+async function* pcmInput(length: number): AsyncIterable<GraphInputEvent> {
+  yield {
+    kind: "data",
+    port: "pcm",
+    tensor: { shape: [length], data: new Float32Array(length).fill(0.25) },
+  };
+  yield { kind: "end", port: "pcm" };
+}
+test("PCM binding zero-pads once and crops each mel row using ceiling", async () => {
+  const s = await setup(true);
+  const b = await s.factory.create(
+    "audio",
+    s.compiled.components.audio,
+    new AbortController().signal,
+  );
+  const rows = [];
+  for await (const out of b.run(pcmInput(161), new AbortController().signal))
+    rows.push(out);
+  expect(s.calls[0].shape).toEqual([640]);
+  expect(s.calls[0].data[160]).toBe(0.25);
+  expect(s.calls[0].data[161]).toBe(0);
+  expect(rows[0].tensor.shape).toEqual([128, 2]);
+  expect(Array.from(rows[0].tensor.data).slice(0, 6)).toEqual([
+    0, 1, 4, 5, 8, 9,
+  ]);
+  b.dispose();
+  expect(s.vm.dispose).toHaveBeenCalledTimes(1);
+});
+test.each([0, 641])(
+  "PCM rejects unsupported length %i before GPU call",
+  async (length) => {
+    const s = await setup(true);
+    const b = await s.factory.create(
+      "audio",
+      s.compiled.components.audio,
+      new AbortController().signal,
+    );
+    await expect(
+      b
+        .run(pcmInput(length), new AbortController().signal)
+        [Symbol.asyncIterator]()
+        .next(),
+    ).rejects.toThrow("Invalid PCM");
+    expect(s.calls).toHaveLength(0);
+    b.dispose();
+  },
+);
+test("PCM rejects incompatible processor metadata before binding weights", async () => {
+  const s = await setup(true);
+  s.metadata.audio_processor.sampling_rate = 48000;
+  await expect(
+    s.factory.create(
+      "audio",
+      s.compiled.components.audio,
+      new AbortController().signal,
+    ),
+  ).rejects.toThrow("processor metadata");
   expect(s.runtime.getParamsFromCacheByName).not.toHaveBeenCalled();
 });

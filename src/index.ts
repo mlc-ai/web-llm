@@ -83,5 +83,7 @@ export * from "./artifact_graph_executor";
 
 export {
   createAudioEncoderTVMFactory,
+  createWhisperAudioTVMFactory,
+  type WhisperAudioTVMOptions,
   type AudioEncoderTVMOptions,
 } from "./artifact_graph_tvm";

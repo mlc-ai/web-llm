@@ -114,3 +114,24 @@ does not claim zero-copy execution or throughput improvements.
 This is an audio encoder binding, not a complete Omni model: PCM preprocessing,
 Thinker/Talker/vocoder integration and model-quality validation are separate.
 The ordinary MLCEngine v2 loading gate remains unchanged.
+
+``createWhisperAudioTVMFactory`` binds the separate
+``qwen2_5_omni.audio_features.v1`` transform contract. Its value input ``pcm``
+contains finite float32 mono samples at 16 kHz; empty clips, oversized clips and
+unsupported processor metadata are rejected. It pads to the compiled processor
+capacity, calls ``forward(padded_pcm, packed_params)``, then crops each mel row
+to ``ceil(valid_samples / 160)`` frames. It does not silently truncate, normalize
+or resample input. Metadata ``audio_processor`` specifies ``num_samples``,
+``sampling_rate``, ``hop_length`` and ``num_mel_bins``. The pinned Qwen2.5 Omni
+processor capacity is 4,800,000 samples (300 seconds); this differs from the
+ordinary Whisper default of 30 seconds.
+
+A caller may compose this transform with the audio encoder through the
+``mel_features`` edge. Each factory validates its own module's embedded standalone
+manifest, while the host executor independently validates the composed graph.
+Route each component ID to its corresponding factory; resource URLs and weight
+integrity remain the caller's responsibility. Separate TVM runtimes may share one
+GPU device, but their lifetimes must be managed together: disposing a runtime may
+destroy that shared device. Dispose runtimes only after all graph work has ended.
+The initial graph copies mel features through host memory; it is not a zero-copy
+multimodal pipeline or complete Omni chat integration.
