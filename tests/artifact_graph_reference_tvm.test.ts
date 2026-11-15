@@ -344,3 +344,11 @@ test.each([false, true])(
     await verifyPendingTVMDisposal(s, "audio", input(), fail);
   },
 );
+
+import { verifyExceptionalTVMReadback } from "./tvm_lifecycle_test_utils";
+test.each(["scope", "copy", "microtask"] as const)(
+  "queued readback survives %s failure",
+  async (kind) => {
+    await verifyExceptionalTVMReadback(await setup(), "audio", input(), kind);
+  },
+);

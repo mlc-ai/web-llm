@@ -251,37 +251,72 @@ export async function createFlowPredictorTVMFactory(
               throw new Error("Missing flow data or end event");
             const inputs = values as FlowInputs,
               frames = validate(inputs, limits);
-            let cpu: tvmjs.Tensor | undefined, result: Float32Array | undefined;
-            let failed = false,
-              failure: unknown;
-            try {
-              tvm.beginScope();
+            const result = await drain.run(async () => {
+              let syncAttempted = false;
+              let cpu: tvmjs.Tensor | undefined,
+                result: Float32Array | undefined;
+              let failed = false,
+                failure: unknown;
               try {
-                const args = ports.map((name) => {
-                  const t = inputs[name];
-                  return tvm
-                    .empty(
-                      t.shape,
-                      name === "code" ? "int32" : "float32",
-                      device,
-                    )
-                    .copyFrom(t.data as Float32Array | Int32Array);
-                });
-                const out = forward(...args, packed) as tvmjs.Tensor;
+                tvm.beginScope();
+                try {
+                  const args = ports.map((name) => {
+                    const t = inputs[name];
+                    return tvm
+                      .empty(
+                        t.shape,
+                        name === "code" ? "int32" : "float32",
+                        device,
+                      )
+                      .copyFrom(t.data as Float32Array | Int32Array);
+                  });
+                  const out = forward(...args, packed) as tvmjs.Tensor;
+                  if (
+                    out.dtype !== "float32" ||
+                    !same(out.shape, [frames, m.mel_dim])
+                  )
+                    throw new Error("Unexpected flow velocity shape or dtype");
+                  cpu = tvm.detachFromCurrentScope(
+                    tvm.empty(out.shape, "float32", tvm.cpu()),
+                  );
+                  cpu.copyFrom(out);
+                } catch (e) {
+                  failed = true;
+                  failure = e;
+                }
+                try {
+                  tvm.endScope();
+                } catch (e) {
+                  if (!failed) {
+                    failed = true;
+                    failure = e;
+                  }
+                }
+                if (failed) throw failure;
+                syncAttempted = true;
+                await drain.sync();
+                check();
+                const data = cpu!.toArray();
                 if (
-                  out.dtype !== "float32" ||
-                  !same(out.shape, [frames, m.mel_dim])
+                  !(data instanceof Float32Array) ||
+                  data.length !== frames * m.mel_dim ||
+                  !data.every(Number.isFinite)
                 )
-                  throw new Error("Unexpected flow velocity shape or dtype");
-                cpu = tvm.detachFromCurrentScope(
-                  tvm.empty(out.shape, "float32", tvm.cpu()).copyFrom(out),
-                );
+                  throw new Error("Invalid flow velocity");
+                result = data;
               } catch (e) {
                 failed = true;
                 failure = e;
               }
+              if (failed && !syncAttempted) {
+                try {
+                  await drain.sync();
+                } catch {
+                  /* Preserve the original operation error. */
+                }
+              }
               try {
-                tvm.endScope();
+                cpu?.dispose();
               } catch (e) {
                 if (!failed) {
                   failed = true;
@@ -289,29 +324,8 @@ export async function createFlowPredictorTVMFactory(
                 }
               }
               if (failed) throw failure;
-              await drain.sync();
-              check();
-              const data = cpu!.toArray();
-              if (
-                !(data instanceof Float32Array) ||
-                data.length !== frames * m.mel_dim ||
-                !data.every(Number.isFinite)
-              )
-                throw new Error("Invalid flow velocity");
-              result = data;
-            } catch (e) {
-              failed = true;
-              failure = e;
-            }
-            try {
-              cpu?.dispose();
-            } catch (e) {
-              if (!failed) {
-                failed = true;
-                failure = e;
-              }
-            }
-            if (failed) throw failure;
+              return result!;
+            });
             yield {
               port: "velocity",
               tensor: { shape: [frames, m.mel_dim], data: result! },

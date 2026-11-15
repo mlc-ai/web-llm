@@ -1,6 +1,9 @@
 /** TVM binding for the stateless Qwen2.5 Omni audio encoder component. */
 import type * as tvmjs from "@mlc-ai/web-runtime";
-import { createTVMRequestDrain } from "./artifact_graph_tvm_lifecycle";
+import {
+  createTVMRequestDrain,
+  readTVMFloat32,
+} from "./artifact_graph_tvm_lifecycle";
 import {
   GraphComponentBackend,
   GraphComponentFactory,
@@ -303,36 +306,32 @@ export async function createAudioEncoderTVMFactory(
           validFrames?: number,
         ) => {
           checkAbort();
-          let cpu: tvmjs.Tensor;
-          tvm.beginScope();
-          try {
-            const arg = tvm.empty(shape, "float32", device).copyFrom(data);
-            const valid =
-              validFrames === undefined
-                ? undefined
-                : tvm
-                    .empty([1], "int32", device)
-                    .copyFrom(new Int32Array([validFrames]));
-            const result = (
-              valid ? fn(arg, valid, packed) : fn(arg, packed)
-            ) as tvmjs.Tensor;
-            if (result.dtype !== "float32" || !same(result.shape, resultShape))
-              throw new Error(
-                "Audio encoder export returned unexpected shape or dtype",
-              );
-            cpu = tvm.detachFromCurrentScope(
-              tvm.empty(resultShape, "float32", tvm.cpu()).copyFrom(result),
-            );
-          } finally {
-            tvm.endScope();
-          }
-          try {
-            await drain.sync();
-            checkAbort();
-            return cpu.toArray() as Float32Array;
-          } finally {
-            cpu.dispose();
-          }
+          return readTVMFloat32(
+            tvm,
+            drain,
+            resultShape,
+            () => {
+              const arg = tvm.empty(shape, "float32", device).copyFrom(data);
+              const valid =
+                validFrames === undefined
+                  ? undefined
+                  : tvm
+                      .empty([1], "int32", device)
+                      .copyFrom(new Int32Array([validFrames]));
+              const result = (
+                valid ? fn(arg, valid, packed) : fn(arg, packed)
+              ) as tvmjs.Tensor;
+              if (
+                result.dtype !== "float32" ||
+                !same(result.shape, resultShape)
+              )
+                throw new Error(
+                  "Audio encoder export returned unexpected shape or dtype",
+                );
+              return result;
+            },
+            checkAbort,
+          );
         };
         let used = false;
         return {
@@ -590,34 +589,26 @@ export async function createWhisperAudioTVMFactory(
               throw new Error("Missing PCM samples or end event");
             const padded = new Float32Array(capacity);
             padded.set(samples);
-            let cpu: tvmjs.Tensor;
-            tvm.beginScope();
-            try {
-              const arg = tvm
-                .empty([capacity], "float32", device)
-                .copyFrom(padded);
-              const result = forward(arg, packed) as tvmjs.Tensor;
-              if (
-                result.dtype !== "float32" ||
-                !same(result.shape, [128, frames])
-              )
-                throw new Error(
-                  "Whisper export returned unexpected shape or dtype",
-                );
-              cpu = tvm.detachFromCurrentScope(
-                tvm.empty([128, frames], "float32", tvm.cpu()).copyFrom(result),
-              );
-            } finally {
-              tvm.endScope();
-            }
-            let raw: Float32Array;
-            try {
-              await drain.sync();
-              checkAbort();
-              raw = cpu.toArray() as Float32Array;
-            } finally {
-              cpu.dispose();
-            }
+            const raw = await readTVMFloat32(
+              tvm,
+              drain,
+              [128, frames],
+              () => {
+                const arg = tvm
+                  .empty([capacity], "float32", device)
+                  .copyFrom(padded);
+                const result = forward(arg, packed) as tvmjs.Tensor;
+                if (
+                  result.dtype !== "float32" ||
+                  !same(result.shape, [128, frames])
+                )
+                  throw new Error(
+                    "Whisper export returned unexpected shape or dtype",
+                  );
+                return result;
+              },
+              checkAbort,
+            );
             const valid = Math.ceil(samples.length / 160),
               mel = new Float32Array(128 * valid);
             for (let bin = 0; bin < 128; bin++)

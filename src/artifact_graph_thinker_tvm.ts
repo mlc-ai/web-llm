@@ -304,7 +304,10 @@ export async function createThinkerTVMFactory(
               throw new Error("Audio embeddings overflow float16");
             // Audio placeholders are replaced before embedding, so their semantic
             // ID need not occur in a reduced vocabulary used by test models.
-            const copyLogits = (result: tvmjs.TVMObject) => {
+            const copyLogits = (
+              result: tvmjs.TVMObject,
+              retain: (value: tvmjs.Tensor) => void,
+            ) => {
               const logits = (
                 result as unknown as { get(i: number): tvmjs.Tensor }
               ).get(0);
@@ -313,15 +316,15 @@ export async function createThinkerTVMFactory(
                 !same(logits.shape, [1, 1, config.vocab_size])
               )
                 throw new Error("Unexpected Thinker logits");
-              return tvm
-                .empty(logits.shape, "float32", tvm.cpu())
-                .copyFrom(logits);
+              const cpu = tvm.empty(logits.shape, "float32", tvm.cpu());
+              retain(cpu);
+              cpu.copyFrom(logits);
             };
             // Retained CPU tensors outlive the TVM scope, including its teardown.
             // Release them if cache finalization or scope teardown fails.
-            const scopedTensor = (
+            const scopedTensor = async (
               body: (retain: (value: tvmjs.Tensor) => void) => void,
-            ): tvmjs.Tensor => {
+            ): Promise<tvmjs.Tensor> => {
               check();
               let retained: tvmjs.Tensor | undefined;
               tvm.beginScope();
@@ -336,6 +339,11 @@ export async function createThinkerTVMFactory(
                 if (!retained) throw new Error("Missing Thinker result tensor");
                 return retained;
               } catch (error) {
+                try {
+                  await drain.sync();
+                } catch {
+                  /* Preserve the original operation error. */
+                }
                 try {
                   retained?.dispose();
                 } catch {
@@ -395,27 +403,27 @@ export async function createThinkerTVMFactory(
                 ),
                 chunk = tokens.data.slice(start, start + count),
                 safe = chunk.map((x) => (x === config.audio_token_id ? 0 : x));
-              const host = scopedTensor((retain) => {
-                const embedded = functions.embed(
-                  tvm.empty([count], "int32", device).copyFrom(safe),
-                  packed,
-                ) as tvmjs.Tensor;
-                if (
-                  embedded.dtype !== dtype ||
-                  !same(embedded.shape, [count, width])
-                )
-                  throw new Error("Unexpected Thinker embeddings");
-                retain(
-                  tvm
-                    .empty([count, width], dtype, tvm.cpu())
-                    .copyFrom(embedded),
+              const data = await drain.run(async () => {
+                const host = await scopedTensor((retain) => {
+                  const embedded = functions.embed(
+                    tvm.empty([count], "int32", device).copyFrom(safe),
+                    packed,
+                  ) as tvmjs.Tensor;
+                  if (
+                    embedded.dtype !== dtype ||
+                    !same(embedded.shape, [count, width])
+                  )
+                    throw new Error("Unexpected Thinker embeddings");
+                  const cpu = tvm.empty([count, width], dtype, tvm.cpu());
+                  retain(cpu);
+                  cpu.copyFrom(embedded);
+                });
+                return await readTensor(host, (value) =>
+                  dtype === "float16"
+                    ? new Uint16Array(value.toRawBytes().slice().buffer)
+                    : (value.toArray() as Float32Array),
                 );
               });
-              const data = await readTensor(host, (value) =>
-                dtype === "float16"
-                  ? new Uint16Array(value.toRawBytes().slice().buffer)
-                  : (value.toArray() as Float32Array),
-              );
               for (let i = 0; i < count; i++)
                 if (chunk[i] === config.audio_token_id) {
                   for (let j = 0; j < width; j++) {
@@ -425,30 +433,35 @@ export async function createThinkerTVMFactory(
                   }
                   audioOffset++;
                 }
-              const cpu = scopedTensor((retain) => {
-                const input = tvm.empty([1, count, width], dtype, device);
-                if (dtype === "float16")
-                  input.copyFromRawBytes(
-                    new Uint8Array(
-                      data.buffer,
-                      data.byteOffset,
-                      data.byteLength,
-                    ),
+              next = await drain.run(async () => {
+                const cpu = await scopedTensor((retain) => {
+                  const input = tvm.empty([1, count, width], dtype, device);
+                  if (dtype === "float16")
+                    input.copyFromRawBytes(
+                      new Uint8Array(
+                        data.buffer,
+                        data.byteOffset,
+                        data.byteLength,
+                      ),
+                    );
+                  else input.copyFrom(data as Float32Array);
+                  functions.begin(
+                    cache,
+                    tvm.makeShapeTuple([0]),
+                    tvm.makeShapeTuple([count]),
                   );
-                else input.copyFrom(data as Float32Array);
-                functions.begin(
-                  cache,
-                  tvm.makeShapeTuple([0]),
-                  tvm.makeShapeTuple([count]),
-                );
-                withCleanup(
-                  () => {
-                    retain(copyLogits(functions.prefill(input, cache, packed)));
-                  },
-                  () => functions.end(cache),
-                );
+                  withCleanup(
+                    () => {
+                      copyLogits(
+                        functions.prefill(input, cache, packed),
+                        retain,
+                      );
+                    },
+                    () => functions.end(cache),
+                  );
+                });
+                return await readLogits(cpu);
               });
-              next = await readLogits(cpu);
             }
             const budget = Math.min(
               maxNewTokens,
@@ -463,39 +476,40 @@ export async function createThinkerTVMFactory(
               };
               check();
               if (generated + 1 === budget) break;
-              const cpu = scopedTensor((retain) => {
-                const embedded = functions.embed(
-                  tvm
-                    .empty([1], "int32", device)
-                    .copyFrom(new Int32Array([next])),
-                  packed,
-                ) as tvmjs.Tensor;
-                if (
-                  embedded.dtype !== dtype ||
-                  !same(embedded.shape, [1, width])
-                )
-                  throw new Error("Unexpected decode embeddings");
-                functions.begin(
-                  cache,
-                  tvm.makeShapeTuple([0]),
-                  tvm.makeShapeTuple([1]),
-                );
-                withCleanup(
-                  () => {
-                    retain(
+              next = await drain.run(async () => {
+                const cpu = await scopedTensor((retain) => {
+                  const embedded = functions.embed(
+                    tvm
+                      .empty([1], "int32", device)
+                      .copyFrom(new Int32Array([next])),
+                    packed,
+                  ) as tvmjs.Tensor;
+                  if (
+                    embedded.dtype !== dtype ||
+                    !same(embedded.shape, [1, width])
+                  )
+                    throw new Error("Unexpected decode embeddings");
+                  functions.begin(
+                    cache,
+                    tvm.makeShapeTuple([0]),
+                    tvm.makeShapeTuple([1]),
+                  );
+                  withCleanup(
+                    () => {
                       copyLogits(
                         functions.decode(
                           embedded.view([1, 1, width]),
                           cache,
                           packed,
                         ),
-                      ),
-                    );
-                  },
-                  () => functions.end(cache),
-                );
+                        retain,
+                      );
+                    },
+                    () => functions.end(cache),
+                  );
+                });
+                return await readLogits(cpu);
               });
-              next = await readLogits(cpu);
             }
           },
         };

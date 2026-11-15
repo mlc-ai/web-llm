@@ -174,33 +174,71 @@ export async function createWaveformDecoderTVMFactory(
             if (!mel || !ended)
               throw new Error("Missing synthesis-mel data or end event");
             const samples = frames * config.samples_per_frame;
-            let cpu: tvmjs.Tensor | undefined;
-            let waveform: Float32Array | undefined;
-            let failure: unknown,
-              failed = false;
-            try {
-              tvm.beginScope();
+            const waveform = await drain.run(async () => {
+              let syncAttempted = false;
+              let cpu: tvmjs.Tensor | undefined;
+              let waveform: Float32Array | undefined;
+              let failure: unknown,
+                failed = false;
               try {
-                const arg = tvm
-                  .empty([config.mel_dim, frames], "float32", device)
-                  .copyFrom(mel);
-                const result = forward(arg, packed) as tvmjs.Tensor;
-                if (
-                  result.dtype !== "float32" ||
-                  !same(result.shape, [samples])
-                )
-                  throw new Error(
-                    "Waveform export returned unexpected shape or dtype",
+                tvm.beginScope();
+                try {
+                  const arg = tvm
+                    .empty([config.mel_dim, frames], "float32", device)
+                    .copyFrom(mel);
+                  const result = forward(arg, packed) as tvmjs.Tensor;
+                  if (
+                    result.dtype !== "float32" ||
+                    !same(result.shape, [samples])
+                  )
+                    throw new Error(
+                      "Waveform export returned unexpected shape or dtype",
+                    );
+                  cpu = tvm.detachFromCurrentScope(
+                    tvm.empty([samples], "float32", tvm.cpu()),
                   );
-                cpu = tvm.detachFromCurrentScope(
-                  tvm.empty([samples], "float32", tvm.cpu()).copyFrom(result),
-                );
+                  cpu.copyFrom(result);
+                } catch (error) {
+                  failed = true;
+                  failure = error;
+                }
+                try {
+                  tvm.endScope();
+                } catch (error) {
+                  if (!failed) {
+                    failed = true;
+                    failure = error;
+                  }
+                }
+                if (failed) throw failure;
+                syncAttempted = true;
+                await drain.sync();
+                check(runSignal);
+                const raw = cpu!.toArray();
+                if (!(raw instanceof Float32Array))
+                  throw new Error("Invalid waveform dtype");
+                waveform = raw;
+                if (
+                  !(waveform instanceof Float32Array) ||
+                  waveform.length !== samples ||
+                  !waveform.every(
+                    (v) => Number.isFinite(v) && v >= -1 && v <= 1,
+                  )
+                )
+                  throw new Error("Invalid waveform output");
               } catch (error) {
                 failed = true;
                 failure = error;
               }
+              if (failed && !syncAttempted) {
+                try {
+                  await drain.sync();
+                } catch {
+                  /* Preserve the original operation error. */
+                }
+              }
               try {
-                tvm.endScope();
+                cpu?.dispose();
               } catch (error) {
                 if (!failed) {
                   failed = true;
@@ -208,31 +246,8 @@ export async function createWaveformDecoderTVMFactory(
                 }
               }
               if (failed) throw failure;
-              await drain.sync();
-              check(runSignal);
-              const raw = cpu!.toArray();
-              if (!(raw instanceof Float32Array))
-                throw new Error("Invalid waveform dtype");
-              waveform = raw;
-              if (
-                !(waveform instanceof Float32Array) ||
-                waveform.length !== samples ||
-                !waveform.every((v) => Number.isFinite(v) && v >= -1 && v <= 1)
-              )
-                throw new Error("Invalid waveform output");
-            } catch (error) {
-              failed = true;
-              failure = error;
-            }
-            try {
-              cpu?.dispose();
-            } catch (error) {
-              if (!failed) {
-                failed = true;
-                failure = error;
-              }
-            }
-            if (failed) throw failure;
+              return waveform!;
+            });
             yield {
               port: "pcm",
               tensor: { shape: [samples], data: waveform! },

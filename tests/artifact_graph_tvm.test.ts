@@ -477,3 +477,68 @@ test.each([false, true])(
     await verifyPendingTVMDisposal(s, "audio", pcm(), fail);
   },
 );
+
+import { verifyExceptionalTVMReadback } from "./tvm_lifecycle_test_utils";
+test.each(["scope", "copy", "microtask"] as const)(
+  "queued audio readback survives %s failure",
+  async (kind) => {
+    await verifyExceptionalTVMReadback(
+      await setup(),
+      "audio",
+      input(201),
+      kind,
+    );
+  },
+);
+async function* lifecyclePCM(): AsyncIterable<GraphInputEvent> {
+  yield {
+    kind: "data",
+    port: "pcm",
+    tensor: { shape: [400], data: new Float32Array(400) },
+  };
+  yield { kind: "end", port: "pcm" };
+}
+test.each(["scope", "copy", "microtask"] as const)(
+  "queued PCM readback survives %s failure",
+  async (kind) => {
+    await verifyExceptionalTVMReadback(
+      await setup(true),
+      "audio",
+      lifecyclePCM(),
+      kind,
+    );
+  },
+);
+test.each([false, true])(
+  "CPU cleanup preserves original sync error (PCM=%s)",
+  async (processor) => {
+    const s = await setup(processor);
+    const b = await s.factory.create(
+      "audio",
+      s.compiled.components.audio,
+      new AbortController().signal,
+    );
+    const cpuDevice = s.runtime.cpu();
+    s.runtime.cpu = () => cpuDevice;
+    const empty = s.runtime.empty;
+    s.runtime.empty = ((...args: any[]) => {
+      const value = (empty as any)(...args);
+      if (args[2] === s.runtime.cpu())
+        value.dispose = jest.fn(() => {
+          throw Error("cleanup failure");
+        });
+      return value;
+    }) as any;
+    s.device.sync.mockRejectedValue(Error("original sync failure"));
+    await expect(
+      b
+        .run(
+          processor ? lifecyclePCM() : input(201),
+          new AbortController().signal,
+        )
+        [Symbol.asyncIterator]()
+        .next(),
+    ).rejects.toThrow("original sync failure");
+    await b.dispose();
+  },
+);

@@ -369,3 +369,17 @@ test.each([false, true])(
     );
   },
 );
+
+import { verifyExceptionalTVMReadback } from "./tvm_lifecycle_test_utils";
+test.each(["scope", "copy", "microtask"] as const)(
+  "queued readback survives %s failure",
+  async (kind) => {
+    const s = await setup();
+    await verifyExceptionalTVMReadback(
+      { ...s, component: compiled.components.thinker },
+      "thinker",
+      input(),
+      kind,
+    );
+  },
+);

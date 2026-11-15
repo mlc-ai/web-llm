@@ -181,35 +181,69 @@ export async function createReferenceConditionerTVMFactory(
             if (!mel || !ended)
               throw new Error("Missing reference-mel data or end event");
             const dimensions = config.embedding_dim;
-            let cpu: tvmjs.Tensor | undefined;
-            let embedding: Float32Array | undefined;
-            let failure: unknown,
-              failed = false;
-            try {
-              tvm.beginScope();
+            const embedding = await drain.run(async () => {
+              let syncAttempted = false;
+              let cpu: tvmjs.Tensor | undefined;
+              let embedding: Float32Array | undefined;
+              let failure: unknown,
+                failed = false;
               try {
-                const arg = tvm
-                  .empty([frames, config.mel_dim], "float32", device)
-                  .copyFrom(mel);
-                const result = forward(arg, packed) as tvmjs.Tensor;
-                if (
-                  result.dtype !== "float32" ||
-                  !same(result.shape, [dimensions])
-                )
-                  throw new Error(
-                    "Reference conditioner export returned unexpected shape or dtype",
+                tvm.beginScope();
+                try {
+                  const arg = tvm
+                    .empty([frames, config.mel_dim], "float32", device)
+                    .copyFrom(mel);
+                  const result = forward(arg, packed) as tvmjs.Tensor;
+                  if (
+                    result.dtype !== "float32" ||
+                    !same(result.shape, [dimensions])
+                  )
+                    throw new Error(
+                      "Reference conditioner export returned unexpected shape or dtype",
+                    );
+                  cpu = tvm.detachFromCurrentScope(
+                    tvm.empty([dimensions], "float32", tvm.cpu()),
                   );
-                cpu = tvm.detachFromCurrentScope(
-                  tvm
-                    .empty([dimensions], "float32", tvm.cpu())
-                    .copyFrom(result),
-                );
+                  cpu.copyFrom(result);
+                } catch (error) {
+                  failed = true;
+                  failure = error;
+                }
+                try {
+                  tvm.endScope();
+                } catch (error) {
+                  if (!failed) {
+                    failed = true;
+                    failure = error;
+                  }
+                }
+                if (failed) throw failure;
+                syncAttempted = true;
+                await drain.sync();
+                check(runSignal);
+                const raw = cpu!.toArray();
+                if (!(raw instanceof Float32Array))
+                  throw new Error("Invalid embedding dtype");
+                embedding = raw;
+                if (
+                  !(embedding instanceof Float32Array) ||
+                  embedding.length !== dimensions ||
+                  !embedding.every((v) => Number.isFinite(v))
+                )
+                  throw new Error("Invalid embedding output");
               } catch (error) {
                 failed = true;
                 failure = error;
               }
+              if (failed && !syncAttempted) {
+                try {
+                  await drain.sync();
+                } catch {
+                  /* Preserve the original operation error. */
+                }
+              }
               try {
-                tvm.endScope();
+                cpu?.dispose();
               } catch (error) {
                 if (!failed) {
                   failed = true;
@@ -217,31 +251,8 @@ export async function createReferenceConditionerTVMFactory(
                 }
               }
               if (failed) throw failure;
-              await drain.sync();
-              check(runSignal);
-              const raw = cpu!.toArray();
-              if (!(raw instanceof Float32Array))
-                throw new Error("Invalid embedding dtype");
-              embedding = raw;
-              if (
-                !(embedding instanceof Float32Array) ||
-                embedding.length !== dimensions ||
-                !embedding.every((v) => Number.isFinite(v))
-              )
-                throw new Error("Invalid embedding output");
-            } catch (error) {
-              failed = true;
-              failure = error;
-            }
-            try {
-              cpu?.dispose();
-            } catch (error) {
-              if (!failed) {
-                failed = true;
-                failure = error;
-              }
-            }
-            if (failed) throw failure;
+              return embedding!;
+            });
             yield {
               port: "embedding",
               tensor: { shape: [dimensions], data: embedding! },
