@@ -92,3 +92,8 @@ export {
   createThinkerTVMFactory,
   type ThinkerTVMOptions,
 } from "./artifact_graph_thinker_tvm";
+
+export {
+  createWaveformDecoderTVMFactory,
+  WaveformDecoderTVMOptions,
+} from "./artifact_graph_waveform_tvm";

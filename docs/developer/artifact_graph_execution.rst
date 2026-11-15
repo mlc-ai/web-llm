@@ -162,3 +162,23 @@ for correctness and does not promise optimized throughput. Runtime and GPU-devic
 ownership follow the audio bindings above. Synthetic-weight Chrome tests cover
 real VM execution, audio insertion, greedy decoding, and repeated requests; those
 tests do not establish pretrained Omni quality or complete multimodal support.
+
+Bounded waveform decoder
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+``createWaveformDecoderTVMFactory`` binds the separate
+``qwen2_5_omni.waveform_decoder.v1`` contract to a preloaded TVM runtime.
+Its ``log_mel`` value input contains finite float32 synthesis features shaped
+``[80, frames]``; these are distinct from the 128-bin Whisper input features.
+The factory calls ``forward(log_mel, packed_params)`` and returns one ``pcm``
+value containing ``240 * frames`` float32 samples at 24 kHz. Metadata
+``waveform_decoder`` binds ``mel_dim``, ``sampling_rate``, ``samples_per_frame``
+and ``max_mel_frames``. The caller's positive ``maxFrames`` option must not exceed
+that compiled limit. Empty, oversized, nonfinite and malformed clips are rejected.
+
+The factory validates the named ports, embedded manifest, parameter schema and
+cached parameter shapes before execution. Runtime/device ownership and cancellation
+follow the audio bindings above. A request owns one complete bounded clip; splitting
+clips into independent calls changes convolution boundary behavior and is not
+streaming synthesis. Talker codec generation and DiT codec-to-mel sampling are
+separate stages; this binding alone does not turn text or codec tokens into speech.

@@ -65,6 +65,12 @@ function aborted(signal: AbortSignal): void {
   if (signal.aborted) throw new Error("Audio encoder execution aborted");
 }
 interface ComponentMetadata {
+  waveform_decoder: {
+    mel_dim: number;
+    sampling_rate: number;
+    samples_per_frame: number;
+    max_mel_frames: number;
+  };
   thinker: {
     model_dtype: string;
     hidden_size: number;
