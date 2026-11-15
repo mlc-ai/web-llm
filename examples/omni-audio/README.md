@@ -53,7 +53,7 @@ The example's 30-second input limit is deliberately smaller than its 300-second
 processor capacity. Each template audio marker expands to
 `floor(ceil(ceil(samples / 160) / 2) / 2)` encoder embeddings.
 
-Follow the companion MLC-LLM
+Follow [the companion MLC-LLM integration](https://github.com/mlc-ai/mlc-llm/pull/3600) and its
 [`examples/python/omni_audio/README.md`](https://github.com/JCNTH/mlc-llm/tree/codex/omni-audio-review/examples/python/omni_audio)
 for pinned source download, weight conversion, and the three component-builder
 commands. Use the companion integration branch containing that example until it
