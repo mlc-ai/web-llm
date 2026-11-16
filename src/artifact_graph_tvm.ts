@@ -123,6 +123,8 @@ interface ComponentMetadata {
     hidden_size: number;
     n_window: number;
     max_pooled_frames: number;
+    n_window_infer: number;
+    max_encoded_window: number;
   };
   audio_processor: {
     num_samples: number;
@@ -189,9 +191,17 @@ export async function createAudioEncoderTVMFactory(
   const component = compiled.components[componentId];
   const input = component?.spec.inputs.mel_features,
     output = component?.spec.outputs.embeddings;
+  const windowed = component?.spec.contract === "qwen3_omni.audio_encoder.v1";
+  const encodeName = windowed
+    ? component?.exports.stem
+    : component?.exports.encode_chunk;
+  const projectName = windowed
+    ? component?.exports.encode_window
+    : component?.exports.project;
   if (
     !component ||
-    component.spec.contract !== "qwen2_5_omni.audio_encoder.v1" ||
+    (!windowed &&
+      component.spec.contract !== "qwen2_5_omni.audio_encoder.v1") ||
     component.spec.kind !== "encoder" ||
     component.spec.state.kind !== "none" ||
     !component.spec.weights ||
@@ -205,9 +215,9 @@ export async function createAudioEncoderTVMFactory(
     output.shape.length !== 2 ||
     typeof input.shape[0] !== "number" ||
     typeof output.shape[1] !== "number" ||
-    !component.exports.encode_chunk ||
-    !component.exports.project ||
-    component.exports.run !== component.exports.encode_chunk ||
+    !encodeName ||
+    !projectName ||
+    component.exports.run !== (windowed ? projectName : encodeName) ||
     !Number.isSafeInteger(maxFrames) ||
     maxFrames < 1
   )
@@ -280,11 +290,26 @@ export async function createAudioEncoderTVMFactory(
           window <= 0
         )
           throw new Error("Missing audio encoder dimensions");
+        const chunkLength = 2 * window;
+        const subsample = (count: number) =>
+          Math.ceil(count / (windowed ? 8 : 2));
         const maxPooled = metadata.audio_encoder.max_pooled_frames;
-        if (
+        const maxEncoded = metadata.audio_encoder.max_encoded_window;
+        const windowRatio = windowed
+          ? metadata.audio_encoder.n_window_infer / chunkLength
+          : 1;
+        if (windowed) {
+          if (
+            !Number.isSafeInteger(windowRatio) ||
+            windowRatio < 1 ||
+            !Number.isSafeInteger(maxEncoded) ||
+            subsample(chunkLength) * windowRatio > maxEncoded
+          )
+            throw new Error("Audio encoder exceeds the compiled window bound");
+        } else if (
           !Number.isSafeInteger(maxPooled) ||
           maxPooled < 1 ||
-          Math.floor(Math.ceil(maxFrames / 2) / 2) > maxPooled
+          Math.floor(subsample(maxFrames) / 2) > maxPooled
         )
           throw new Error("Audio clip limit exceeds compiled projection bound");
         aborted(signal);
@@ -303,8 +328,8 @@ export async function createAudioEncoderTVMFactory(
               throw new Error(`Cached parameter mismatch: ${p.name}`);
           }
           packed = own(tvm.getParamsFromCacheByName(params.map((p) => p.name)));
-          encode = own(vm.getFunction(component.exports.encode_chunk));
-          project = own(vm.getFunction(component.exports.project));
+          encode = own(vm.getFunction(encodeName));
+          project = own(vm.getFunction(projectName));
         } finally {
           tvm.endScope();
         }
@@ -385,9 +410,14 @@ export async function createAudioEncoderTVMFactory(
               clip.data.length !== melBins * clip.shape[1]
             )
               throw new Error("Invalid mel features");
-            const frames = clip.shape[1],
-              total = Math.ceil(frames / 2);
-            if (total < 2) {
+            const frames = clip.shape[1];
+            const padded = windowed
+              ? Math.min(frames, chunkLength)
+              : chunkLength;
+            const total =
+              Math.floor(frames / chunkLength) * subsample(chunkLength) +
+              subsample(frames % chunkLength);
+            if (!windowed && total < 2) {
               yield {
                 port: "embeddings",
                 tensor: {
@@ -399,27 +429,47 @@ export async function createAudioEncoderTVMFactory(
             }
             const hidden = new Float32Array(total * width);
             let offset = 0;
-            for (let start = 0; start < frames; start += 2 * window) {
-              const count = Math.min(2 * window, frames - start),
-                chunk = new Float32Array(melBins * 2 * window);
+            for (let start = 0; start < frames; start += chunkLength) {
+              const count = Math.min(chunkLength, frames - start);
+              const chunk = new Float32Array(melBins * padded);
               for (let row = 0; row < melBins; row++)
                 chunk.set(
                   clip.data.subarray(
                     row * frames + start,
                     row * frames + start + count,
                   ),
-                  row * 2 * window,
+                  row * padded,
                 );
               const result = await call(
                 encode,
                 chunk,
-                [1, melBins, 2 * window],
-                [window, width],
-                count,
+                windowed ? [1, 1, melBins, padded] : [1, melBins, padded],
+                [subsample(padded), width],
+                windowed ? undefined : count,
               );
-              const valid = result.subarray(0, Math.ceil(count / 2) * width);
+              const valid = result.subarray(0, subsample(count) * width);
               hidden.set(valid, offset);
               offset += valid.length;
+            }
+            if (windowed) {
+              const windowRows = subsample(padded) * windowRatio;
+              const data = new Float32Array(total * outputWidth);
+              for (let start = 0; start < total; start += windowRows) {
+                const rows = Math.min(windowRows, total - start);
+                const encoded = await call(
+                  project,
+                  hidden.subarray(start * width, (start + rows) * width),
+                  [rows, width],
+                  [rows, outputWidth],
+                  rows * 2,
+                );
+                data.set(encoded, start * outputWidth);
+              }
+              yield {
+                port: "embeddings",
+                tensor: { shape: [total, outputWidth], data },
+              };
+              return;
             }
             const rows = Math.floor(total / 2),
               embeddings = await call(

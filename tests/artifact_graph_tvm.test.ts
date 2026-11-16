@@ -20,7 +20,7 @@ beforeAll(() =>
     configurable: true,
   }),
 );
-async function fixture(processor = false) {
+async function fixture(processor = false, windowed = false) {
   const schema =
     "sha256:" +
     createHash("sha256")
@@ -40,7 +40,9 @@ async function fixture(processor = false) {
   };
   const spec = {
     kind: "encoder" as const,
-    contract: "qwen2_5_omni.audio_encoder.v1",
+    contract: windowed
+      ? "qwen3_omni.audio_encoder.v1"
+      : "qwen2_5_omni.audio_encoder.v1",
     inputs: { mel_features: input },
     outputs: { embeddings: output },
     weights: { manifest: "tensor-cache.json", parameter_schema_id: schema },
@@ -128,6 +130,12 @@ async function fixture(processor = false) {
   };
   if (processor)
     compiled.components.audio.exports = { run: "forward", forward: "forward" };
+  if (windowed)
+    compiled.components.audio.exports = {
+      run: "encode_window",
+      stem: "stem",
+      encode_window: "encode_window",
+    };
   return { model, compiled };
 }
 class Tensor {
@@ -150,12 +158,18 @@ class Tensor {
     this.disposed = true;
   }
 }
-async function setup(processor = false) {
-  const { model, compiled } = await fixture(processor);
+async function setup(processor = false, windowed = false) {
+  const { model, compiled } = await fixture(processor, windowed);
   const metadata = {
     artifact: compiled,
     params: [{ name: "weight", shape: [1], dtype: "float32" }],
-    audio_encoder: { hidden_size: 2, n_window: 100, max_pooled_frames: 7500 },
+    audio_encoder: {
+      hidden_size: 2,
+      n_window: windowed ? 50 : 100,
+      max_pooled_frames: 7500,
+      n_window_infer: 800,
+      max_encoded_window: 104,
+    },
     audio_processor: {
       num_samples: 640,
       sampling_rate: 16000,
@@ -190,6 +204,17 @@ async function setup(processor = false) {
     project: (x: Tensor, p: unknown) => {
       expect(p).toBe(packed);
       calls.push({ name: "project", shape: x.shape, data: Array.from(x.data) });
+      return track(new Tensor([x.shape[0], 3]));
+    },
+    stem: (x: Tensor, p: unknown) => {
+      expect(p).toBe(packed);
+      calls.push({ name: "stem", shape: x.shape, data: Array.from(x.data) });
+      return track(new Tensor([Math.ceil(x.shape[3] / 8), 2]));
+    },
+    encode_window: (x: Tensor, valid: Tensor, p: unknown) => {
+      expect(p).toBe(packed);
+      expect(Array.from(valid.data)).toEqual([2 * x.shape[0]]);
+      calls.push({ name: "window", shape: x.shape, data: Array.from(x.data) });
       return track(new Tensor([x.shape[0], 3]));
     },
   };
@@ -229,7 +254,7 @@ async function setup(processor = false) {
     model,
     compiled,
     componentId: "audio",
-    maxFrames: 500,
+    maxFrames: windowed ? 1000 : 500,
     capabilities: { features: new Set(), maxStorageBufferBindingSize: 1024 },
   });
   return { factory, compiled, metadata, calls, device, vm, packed, runtime };
@@ -271,6 +296,39 @@ test("real ABI calls preserve channel-major chunk slices and pool once per clip"
   expect(s.vm.dispose).toHaveBeenCalledTimes(1);
   expect(s.packed.dispose).toHaveBeenCalledTimes(1);
 });
+test.each([
+  [7, 7, 1, [1]],
+  [100, 100, 1, [13]],
+  [101, 100, 2, [14]],
+  [801, 100, 9, [104, 1]],
+] as const)(
+  "Qwen3 audio uses the padded CNN and attention windows at %i frames",
+  async (frames, paddedFrames, chunks, windows) => {
+    const s = await setup(false, true);
+    const signal = new AbortController().signal;
+    const backend = await s.factory.create(
+      "audio",
+      s.compiled.components.audio,
+      signal,
+    );
+    const outputs = [];
+    for await (const value of backend.run(input(frames), signal))
+      outputs.push(value);
+    expect(s.calls.map((call) => [call.name, call.shape])).toEqual([
+      ...Array.from({ length: chunks }, () => [
+        "stem",
+        [1, 1, 2, paddedFrames],
+      ]),
+      ...windows.map((rows) => ["window", [rows, 2]]),
+    ]);
+    expect(outputs[0].tensor.shape).toEqual([
+      windows.reduce<number>((sum, rows) => sum + rows, 0),
+      3,
+    ]);
+    expect(s.calls[0].data[paddedFrames]).toBe(frames);
+    await backend.dispose();
+  },
+);
 test.each([1, 2])(
   "short clip %i yields empty without GPU invocation",
   async (frames) => {

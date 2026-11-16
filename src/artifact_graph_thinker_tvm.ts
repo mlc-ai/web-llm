@@ -76,9 +76,10 @@ export async function createThinkerTVMFactory(
     ids = component?.spec.inputs.token_ids,
     audio = component?.spec.inputs.audio_embeddings,
     output = component?.spec.outputs.token_ids;
+  const qwen3 = component?.spec.contract === "qwen3_omni.thinker_audio.v1";
   if (
     !component ||
-    component.spec.contract !== "qwen2_5_omni.thinker_audio.v1" ||
+    (!qwen3 && component.spec.contract !== "qwen2_5_omni.thinker_audio.v1") ||
     component.spec.kind !== "autoregressive" ||
     component.spec.state.kind !== "kv_cache" ||
     !component.spec.weights ||
@@ -166,10 +167,10 @@ export async function createThinkerTVMFactory(
           config.prefill_chunk_size < 1 ||
           !Number.isSafeInteger(config.context_window_size) ||
           contextWindowSize > config.context_window_size ||
-          config.audio_token_id !== 151646 ||
+          config.audio_token_id !== (qwen3 ? 151675 : 151646) ||
           config.image_token_id !== 151655 ||
           config.video_token_id !== 151656 ||
-          !same(config.eos_token_ids, [151643, 151645])
+          !same(config.eos_token_ids, qwen3 ? [151645] : [151643, 151645])
         )
           throw new Error("Invalid Thinker metadata");
         const vocab = config.active_vocab_size ?? config.vocab_size;

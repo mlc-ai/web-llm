@@ -4,6 +4,7 @@ import type * as tvmjs from "@mlc-ai/web-runtime";
 import { createThinkerTVMFactory } from "../src/artifact_graph_thinker_tvm";
 import { loadComponent } from "../src/artifact_graph_tvm";
 import { GraphInputEvent } from "../src/artifact_graph_executor";
+import { computeGraphInterfaceId } from "../src/artifact_manifest_v2";
 import { readFileSync } from "fs";
 import { join } from "path";
 import {
@@ -65,6 +66,15 @@ class Tensor {
     this.data.set(x instanceof Tensor ? x.data : x);
     return this;
   }
+  copyFromRawBytes(bytes: Uint8Array) {
+    this.data.set(
+      new Uint16Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 2),
+    );
+    return this;
+  }
+  toRawBytes() {
+    return new Uint8Array(Uint16Array.from(this.data).buffer);
+  }
   toArray() {
     return this.data.slice();
   }
@@ -75,17 +85,17 @@ class Tensor {
   }
   dispose = jest.fn();
 }
-async function setup(dtype = "float32", maxNewTokens = 3) {
+async function setup(dtype = "float32", maxNewTokens = 3, qwen3 = false) {
   const calls: { name: string; data?: number[]; shape?: number[] }[] = [];
   const config = {
     model_dtype: dtype,
     hidden_size: 128,
-    vocab_size: 64,
-    active_vocab_size: 64,
-    audio_token_id: 151646,
+    vocab_size: qwen3 ? 152064 : 64,
+    active_vocab_size: qwen3 ? 152064 : 64,
+    audio_token_id: qwen3 ? 151675 : 151646,
     image_token_id: 151655,
     video_token_id: 151656,
-    eos_token_ids: [151643, 151645],
+    eos_token_ids: qwen3 ? [151645] : [151643, 151645],
     context_window_size: 32,
     prefill_chunk_size: 2,
   };
@@ -106,14 +116,14 @@ async function setup(dtype = "float32", maxNewTokens = 3) {
     prefill: (x: Tensor) => {
       if (faults.forward) throw new Error("original forward failed");
       calls.push({ name: "prefill", shape: x.shape, data: Array.from(x.data) });
-      const t = new Tensor([1, 1, 64]);
+      const t = new Tensor([1, 1, config.vocab_size]);
       t.data[++counter] = 1;
       return { get: () => t };
     },
     decode: (x: Tensor) => {
       calls.push({ name: "decode", shape: x.shape });
-      const t = new Tensor([1, 1, 64]);
-      t.data[++counter] = 1;
+      const t = new Tensor([1, 1, config.vocab_size]);
+      t.data[qwen3 ? config.eos_token_ids[0] : ++counter] = 1;
       return { get: () => t };
     },
   };
@@ -156,10 +166,19 @@ async function setup(dtype = "float32", maxNewTokens = 3) {
     cpu: () => cpuDevice,
   };
   const device = { sync: jest.fn(async () => {}) };
+  const requestModel = qwen3 ? fixture("model") : model;
+  const requestCompiled = qwen3 ? fixture("compiled") : compiled;
+  if (qwen3) {
+    const spec = requestModel.components.thinker;
+    spec.contract = "qwen3_omni.thinker_audio.v1";
+    requestModel.interface_id = await computeGraphInterfaceId(requestModel);
+    requestCompiled.interface_id = requestModel.interface_id;
+    requestCompiled.components.thinker.spec = spec;
+  }
   const factory = await createThinkerTVMFactory({
     runtime: runtime as unknown as tvmjs.Instance,
-    model,
-    compiled,
+    model: requestModel,
+    compiled: requestCompiled,
     componentId: "thinker",
     device: device as unknown as tvmjs.DLDevice,
     contextWindowSize: 32,
@@ -169,7 +188,7 @@ async function setup(dtype = "float32", maxNewTokens = 3) {
   const signal = new AbortController().signal;
   const b = await factory.create(
     "thinker",
-    compiled.components.thinker as any,
+    requestCompiled.components.thinker,
     signal,
   );
   return {
@@ -231,6 +250,16 @@ test("chunked prefill splices audio, brackets cache forwards and decodes greedil
   await s.b.dispose();
   await s.b.dispose();
   expect(s.cache.dispose).toHaveBeenCalledTimes(1);
+});
+test("Qwen3 audio placeholder is replaced and its EOS terminates generation", async () => {
+  const s = await setup("float16", 3, true);
+  expect(await collect(s, input([3, 151675, 7]))).toEqual([2]);
+  expect(
+    s.calls.filter((call) => call.name === "embed").map((call) => call.data),
+  ).toEqual([[3, 0], [7], [2]]);
+  const first = s.calls.find((call) => call.name === "prefill");
+  expect(first?.data?.[128]).toBe(float32ToHalf(0.25));
+  await s.b.dispose();
 });
 test.each([[151655], [151656], [151652], [-1], [64]])(
   "rejects unsupported token %s",
