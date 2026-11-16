@@ -7,6 +7,7 @@ import {
 import { describe, expect, test } from "@jest/globals";
 import {
   llama2ChatConfigJSONString,
+  minicpm5ChatConfigJSONString,
   phi3_5VisionChatConfigJSONString,
   qwen3ChatConfigJSONString,
 } from "./constants";
@@ -80,6 +81,31 @@ describe("Test getConversationFromChatCompletionRequest with Qwen3", () => {
     conversation.finishReply(message);
     expect(conversation.messages[conversation.messages.length - 1][2]).toEqual(
       message,
+    );
+  });
+});
+
+describe("Test getConversationFromChatCompletionRequest with MiniCPM5", () => {
+  test("Test MiniCPM5 appendEmptyThinkingReplyHeader matches enable_thinking=false", () => {
+    const config_json = JSON.parse(minicpm5ChatConfigJSONString);
+    const config = { ...config_json } as ChatConfig;
+    const conversation = getConversation(config.conv_template);
+    const emptyThinkingBlockStr = "<think>\n\n</think>\n\n";
+
+    conversation.appendMessage(Role.user, "test1");
+    conversation.appendMessage(Role.assistant, emptyThinkingBlockStr + "test2");
+    conversation.appendMessage(Role.user, "test3");
+    conversation.appendEmptyThinkingReplyHeader(
+      Role.assistant,
+      emptyThinkingBlockStr,
+    );
+    // The HF chat template with enable_thinking=false, minus the BOS that WebLLM adds as a
+    // token id (system_prefix_token_ids).
+    expect(conversation.getPromptArray().join("")).toEqual(
+      "<|im_start|>user\ntest1<|im_end|>\n" +
+        "<|im_start|>assistant\n<think>\n\n</think>\n\ntest2<|im_end|>\n" +
+        "<|im_start|>user\ntest3<|im_end|>\n" +
+        "<|im_start|>assistant\n<think>\n\n</think>\n\n",
     );
   });
 });

@@ -306,3 +306,93 @@ export const qwen3ChatConfigJSONString = String.raw`{
     151643
   ]
 }`;
+
+export const minicpm5ChatConfigJSONString = String.raw`{
+  "version": "0.1.0",
+  "model_type": "llama",
+  "quantization": "q4f16_1",
+  "model_config": {
+    "hidden_size": 2048,
+    "intermediate_size": 6144,
+    "num_attention_heads": 16,
+    "num_hidden_layers": 42,
+    "rms_norm_eps": 1e-06,
+    "vocab_size": 130560,
+    "tie_word_embeddings": false,
+    "position_embedding_base": 5000000,
+    "rope_scaling": null,
+    "context_window_size": 4096,
+    "prefill_chunk_size": 1024,
+    "num_key_value_heads": 2,
+    "head_dim": 128,
+    "tensor_parallel_shards": 1,
+    "pipeline_parallel_stages": 1,
+    "max_batch_size": 128,
+    "disaggregation": false
+  },
+  "vocab_size": 130560,
+  "context_window_size": 4096,
+  "sliding_window_size": -1,
+  "prefill_chunk_size": 1024,
+  "attention_sink_size": -1,
+  "tensor_parallel_shards": 1,
+  "pipeline_parallel_stages": 1,
+  "active_vocab_size": 130560,
+  "temperature": 1.0,
+  "presence_penalty": 0.0,
+  "frequency_penalty": 0.0,
+  "repetition_penalty": 1.0,
+  "top_p": 0.95,
+  "tokenizer_files": [
+    "tokenizer.json",
+    "tokenizer_config.json"
+  ],
+  "tokenizer_info": {
+    "token_postproc_method": "byte_level",
+    "prepend_space_in_encode": false,
+    "strip_space_in_decode": false
+  },
+  "conv_template": {
+    "name": "minicpm5",
+    "system_template": "<|im_start|>system\n{system_message}<|im_end|>\n",
+    "system_message": "",
+    "render_empty_system_message": false,
+    "system_prefix_token_ids": [
+      0
+    ],
+    "add_role_after_system_message": true,
+    "roles": {
+      "user": "<|im_start|>user",
+      "assistant": "<|im_start|>assistant"
+    },
+    "role_templates": {
+      "user": "{user_message}",
+      "assistant": "{assistant_message}",
+      "tool": "{tool_message}"
+    },
+    "messages": [],
+    "seps": [
+      "<|im_end|>\n"
+    ],
+    "role_content_sep": "\n",
+    "role_empty_sep": "\n",
+    "stop_str": [
+      "<|im_end|>"
+    ],
+    "stop_token_ids": [
+      1,
+      130073
+    ],
+    "strip_reasoning_in_history": false,
+    "function_string": "",
+    "use_function_calling": false
+  },
+  "pad_token_id": 1,
+  "bos_token_id": 0,
+  "eos_token_id": [
+    1,
+    130073
+  ],
+  "model_task": "chat",
+  "embedding_metadata": null
+}`;
