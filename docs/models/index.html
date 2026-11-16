@@ -1,0 +1,2052 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>WebLLM | Built-in Models</title>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no"
+    />
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/css/bootstrap.min.css"
+      integrity="sha384-PsH8R72JQ3SOdhVi3uxftmaW6Vc51MKb0q5P2rRUpPvrszuE4W1povHYgTpBfshb"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="stylesheet"
+      href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css"
+    />
+    <link rel="stylesheet" href="/assets/css/main.css" />
+    <link rel="stylesheet" href="/assets/css/group.css" />
+    <!-- <link rel="stylesheet" href="/css/table.css">          -->
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="/assets/img/logo/mlc-favicon-32x32.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="16x16"
+      href="/assets/img/logo/mlc-favicon-16x16.png"
+    />
+    <link
+      rel="icon"
+      type="image/x-icon"
+      sizes="48x48"
+      href="/assets/img/logo/mlc-favicon.ico"
+    />
+    <meta name="description" content="WebLLM: High-Performance In-Browser LLM Inference Engine">
+<meta
+  http-equiv="origin-trial"
+  content="Agx76XA0ITxMPF0Z8rbbcMllwuxsyp9qdtQaXlLqu1JUrdHB6FPonuyIKJ3CsBREUkeioJck4nn3KO0c0kkwqAMAAABJeyJvcmlnaW4iOiJodHRwOi8vbG9jYWxob3N0Ojg4ODgiLCJmZWF0dXJlIjoiV2ViR1BVIiwiZXhwaXJ5IjoxNjkxNzExOTk5fQ=="
+/>
+<meta
+  http-equiv="origin-trial"
+  content="AnmwqQ1dtYDQTYkZ5iMtHdINCaxjE94uWQBKp2yOz1wPTcjSRtOHUGQG+r2BxsEuM0qhxTVnuTjyh31HgTeA8gsAAABZeyJvcmlnaW4iOiJodHRwczovL21sYy5haTo0NDMiLCJmZWF0dXJlIjoiV2ViR1BVIiwiZXhwaXJ5IjoxNjkxNzExOTk5LCJpc1N1YmRvbWFpbiI6dHJ1ZX0="
+/>
+<script src="https://code.jquery.com/jquery-3.6.3.min.js" integrity="sha256-pvPw+upLPUjgMXY0G+8O0xUf+/Im1MZjXxxgOcBQBXU=" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="/assets/css/hero.css" />
+  </head>
+  <body>
+    <div class="container">
+      <!-- This is a bit nasty, but it basically says be a column first, and on larger screens be a spaced out row -->
+      <div
+        class="header d-flex flex-column flex-md-row justify-content-md-between"
+      >
+        <a href="/" id="navtitle">
+          <img
+            src="/assets/img/logo/mlc-logo-with-text-landscape.svg"
+            height="70px"
+            alt="MLC"
+            id="logo"
+          />
+        </a>
+        <ul id="navbar" class="nav nav-pills justify-content-center">
+               
+
+          <li class="nav-item">
+            
+            <a
+              class="nav-link "
+              href="/"
+            >
+              Home
+            </a>
+            
+          </li>
+
+              
+
+          <li class="nav-item">
+            
+            <a
+              class="nav-link active"
+              href="/models/"
+            >
+              Models
+            </a>
+            
+          </li>
+
+              
+
+          <li class="nav-item">
+            
+            <a class="nav-link " href="https://github.com/mlc-ai/web-llm">
+              GitHub
+            </a>
+            
+          </li>
+
+          
+        </ul>
+      </div>
+
+       
+      <h2>Built-in Models</h2>
+      
+      <!-- Schedule  -->
+      
+      <p>
+  Models in <code>prebuiltAppConfig.model_list</code>. Memory requirements are
+  estimates; context sizes are WebLLM defaults.
+</p>
+
+<div class="form-row">
+  <div class="form-group col-md-8">
+    <label for="model-search">Search models</label>
+    <input type="search" id="model-search" class="form-control" />
+  </div>
+  <div class="form-group col-md-4">
+    <label for="model-family">Model family</label>
+    <select id="model-family" class="form-control">
+      <option value="">All</option>
+      
+      <option value="deepseek">DeepSeek</option>
+      
+      <option value="llama3">Llama 3</option>
+      
+      <option value="llama2">Llama 2</option>
+      
+      <option value="qwen3">Qwen3</option>
+      
+      <option value="qwen25">Qwen 2.5</option>
+      
+      <option value="qwen2">Qwen 2</option>
+      
+      <option value="phi">Phi</option>
+      
+      <option value="gemma">Gemma</option>
+      
+      <option value="mistral">Mistral</option>
+      
+      <option value="smollm">SmolLM</option>
+      
+      <option value="stablelm">StableLM</option>
+      
+      <option value="tinyllama">TinyLlama</option>
+      
+      <option value="redpajama">RedPajama</option>
+      
+      <option value="embedding">Embedding</option>
+      
+      <option value="other">Other</option>
+      
+    </select>
+  </div>
+</div>
+
+<p id="model-count" aria-live="polite">173 models</p>
+<p id="models-empty" hidden>No models match your search.</p>
+
+
+<section class="model-family" data-family="deepseek">
+  <h3>DeepSeek</h3>
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th scope="col">Model</th>
+          <th scope="col">Estimated VRAM</th>
+          <th scope="col">Context</th>
+          <th scope="col">Type / requirements</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr data-model-id="deepseek-r1-distill-qwen-7b-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/DeepSeek-R1-Distill-Qwen-7B-q4f16_1-MLC">DeepSeek-R1-Distill-Qwen-7B-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">5.0 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="deepseek-r1-distill-qwen-7b-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/DeepSeek-R1-Distill-Qwen-7B-q4f32_1-MLC">DeepSeek-R1-Distill-Qwen-7B-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">5.8 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="deepseek-r1-distill-llama-8b-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/DeepSeek-R1-Distill-Llama-8B-q4f32_1-MLC">DeepSeek-R1-Distill-Llama-8B-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">6.0 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="deepseek-r1-distill-llama-8b-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/DeepSeek-R1-Distill-Llama-8B-q4f16_1-MLC">DeepSeek-R1-Distill-Llama-8B-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">4.9 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="model-family" data-family="llama3">
+  <h3>Llama 3</h3>
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th scope="col">Model</th>
+          <th scope="col">Estimated VRAM</th>
+          <th scope="col">Context</th>
+          <th scope="col">Type / requirements</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr data-model-id="llama-3.2-1b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q4f32_1-MLC">Llama-3.2-1B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.1 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="llama-3.2-1b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q4f16_1-MLC">Llama-3.2-1B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">879 MB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="llama-3.2-1b-instruct-q0f32-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q0f32-MLC">Llama-3.2-1B-Instruct-q0f32-MLC</a>
+          </td>
+          <td class="text-nowrap">5.0 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="llama-3.2-1b-instruct-q0f16-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q0f16-MLC">Llama-3.2-1B-Instruct-q0f16-MLC</a>
+          </td>
+          <td class="text-nowrap">2.5 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="llama-3.2-3b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-3.2-3B-Instruct-q4f32_1-MLC">Llama-3.2-3B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.9 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="llama-3.2-3b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-3.2-3B-Instruct-q4f16_1-MLC">Llama-3.2-3B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.2 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="llama-3.1-8b-instruct-q4f32_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-3.1-8B-Instruct-q4f32_1-MLC">Llama-3.1-8B-Instruct-q4f32_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">5.2 GB</td>
+          <td>1K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="llama-3.1-8b-instruct-q4f16_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-3.1-8B-Instruct-q4f16_1-MLC">Llama-3.1-8B-Instruct-q4f16_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">4.5 GB</td>
+          <td>1K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="llama-3.1-8b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-3.1-8B-Instruct-q4f32_1-MLC">Llama-3.1-8B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">6.0 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="llama-3.1-8b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-3.1-8B-Instruct-q4f16_1-MLC">Llama-3.1-8B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">4.9 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="hermes-2-theta-llama-3-8b-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Hermes-2-Theta-Llama-3-8B-q4f16_1-MLC">Hermes-2-Theta-Llama-3-8B-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">4.9 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="hermes-2-theta-llama-3-8b-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Hermes-2-Theta-Llama-3-8B-q4f32_1-MLC">Hermes-2-Theta-Llama-3-8B-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">5.9 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="hermes-2-pro-llama-3-8b-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC">Hermes-2-Pro-Llama-3-8B-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">4.9 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="hermes-2-pro-llama-3-8b-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Hermes-2-Pro-Llama-3-8B-q4f32_1-MLC">Hermes-2-Pro-Llama-3-8B-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">5.9 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="hermes-3-llama-3.2-3b-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Hermes-3-Llama-3.2-3B-q4f32_1-MLC">Hermes-3-Llama-3.2-3B-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.9 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="hermes-3-llama-3.2-3b-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Hermes-3-Llama-3.2-3B-q4f16_1-MLC">Hermes-3-Llama-3.2-3B-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.2 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="hermes-3-llama-3.1-8b-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Hermes-3-Llama-3.1-8B-q4f32_1-MLC">Hermes-3-Llama-3.1-8B-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">5.6 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="hermes-3-llama-3.1-8b-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Hermes-3-Llama-3.1-8B-q4f16_1-MLC">Hermes-3-Llama-3.1-8B-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">4.8 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="hermes-2-pro-mistral-7b-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Hermes-2-Pro-Mistral-7B-q4f16_1-MLC">Hermes-2-Pro-Mistral-7B-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">3.9 GB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16</td>
+        </tr>
+        
+        <tr data-model-id="llama-3.1-70b-instruct-q3f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-3.1-70B-Instruct-q3f16_1-MLC">Llama-3.1-70B-Instruct-q3f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">30.4 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="llama-3-8b-instruct-q4f32_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f32_1-MLC">Llama-3-8B-Instruct-q4f32_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">5.2 GB</td>
+          <td>1K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="llama-3-8b-instruct-q4f16_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f16_1-MLC">Llama-3-8B-Instruct-q4f16_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">4.5 GB</td>
+          <td>1K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="llama-3-8b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f32_1-MLC">Llama-3-8B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">6.0 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="llama-3-8b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-3-8B-Instruct-q4f16_1-MLC">Llama-3-8B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">4.9 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="llama-3-70b-instruct-q3f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-3-70B-Instruct-q3f16_1-MLC">Llama-3-70B-Instruct-q3f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">30.4 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="model-family" data-family="llama2">
+  <h3>Llama 2</h3>
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th scope="col">Model</th>
+          <th scope="col">Estimated VRAM</th>
+          <th scope="col">Context</th>
+          <th scope="col">Type / requirements</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr data-model-id="llama-2-7b-chat-hf-q4f32_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f32_1-MLC">Llama-2-7b-chat-hf-q4f32_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">5.2 GB</td>
+          <td>1K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="llama-2-7b-chat-hf-q4f16_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f16_1-MLC">Llama-2-7b-chat-hf-q4f16_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">4.5 GB</td>
+          <td>1K</td>
+          <td>LLM, shader-f16</td>
+        </tr>
+        
+        <tr data-model-id="llama-2-7b-chat-hf-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f32_1-MLC">Llama-2-7b-chat-hf-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">8.9 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="llama-2-7b-chat-hf-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-2-7b-chat-hf-q4f16_1-MLC">Llama-2-7b-chat-hf-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">6.6 GB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16</td>
+        </tr>
+        
+        <tr data-model-id="llama-2-13b-chat-hf-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Llama-2-13b-chat-hf-q4f16_1-MLC">Llama-2-13b-chat-hf-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">11.5 GB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="model-family" data-family="qwen3">
+  <h3>Qwen3</h3>
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th scope="col">Model</th>
+          <th scope="col">Estimated VRAM</th>
+          <th scope="col">Context</th>
+          <th scope="col">Type / requirements</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr data-model-id="qwen3-0.6b-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen3-0.6B-q4f16_1-MLC">Qwen3-0.6B-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.4 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen3-0.6b-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen3-0.6B-q4f32_1-MLC">Qwen3-0.6B-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.9 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen3-0.6b-q0f16-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen3-0.6B-q0f16-MLC">Qwen3-0.6B-q0f16-MLC</a>
+          </td>
+          <td class="text-nowrap">2.2 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen3-0.6b-q0f32-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen3-0.6B-q0f32-MLC">Qwen3-0.6B-q0f32-MLC</a>
+          </td>
+          <td class="text-nowrap">3.8 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen3-1.7b-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen3-1.7B-q4f16_1-MLC">Qwen3-1.7B-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.0 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen3-1.7b-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen3-1.7B-q4f32_1-MLC">Qwen3-1.7B-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.6 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen3-4b-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen3-4B-q4f16_1-MLC">Qwen3-4B-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">3.4 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen3-4b-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen3-4B-q4f32_1-MLC">Qwen3-4B-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">4.2 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen3-8b-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen3-8B-q4f16_1-MLC">Qwen3-8B-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">5.6 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="qwen3-8b-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen3-8B-q4f32_1-MLC">Qwen3-8B-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">6.7 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="qwen3.5-0.8b-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen3.5-0.8B-q4f16_1-MLC">Qwen3.5-0.8B-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.6 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen3.5-0.8b-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen3.5-0.8B-q4f32_1-MLC">Qwen3.5-0.8B-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.8 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen3.5-0.8b-q0f16-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen3.5-0.8B-q0f16-MLC">Qwen3.5-0.8B-q0f16-MLC</a>
+          </td>
+          <td class="text-nowrap">2.6 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen3.5-2b-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen3.5-2B-q4f16_1-MLC">Qwen3.5-2B-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.2 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="qwen3.5-2b-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen3.5-2B-q4f32_1-MLC">Qwen3.5-2B-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.5 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="qwen3.5-4b-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen3.5-4B-q4f16_1-MLC">Qwen3.5-4B-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">3.8 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="qwen3.5-4b-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen3.5-4B-q4f32_1-MLC">Qwen3.5-4B-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">4.6 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="qwen3.5-9b-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen3.5-9B-q4f16_1-MLC">Qwen3.5-9B-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">6.3 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="qwen3.5-9b-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen3.5-9B-q4f32_1-MLC">Qwen3.5-9B-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">7.4 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="model-family" data-family="qwen25">
+  <h3>Qwen 2.5</h3>
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th scope="col">Model</th>
+          <th scope="col">Estimated VRAM</th>
+          <th scope="col">Context</th>
+          <th scope="col">Type / requirements</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr data-model-id="qwen2.5-0.5b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q4f16_1-MLC">Qwen2.5-0.5B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">945 MB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-0.5b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q4f32_1-MLC">Qwen2.5-0.5B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.0 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-0.5b-instruct-q0f16-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q0f16-MLC">Qwen2.5-0.5B-Instruct-q0f16-MLC</a>
+          </td>
+          <td class="text-nowrap">1.6 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-0.5b-instruct-q0f32-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q0f32-MLC">Qwen2.5-0.5B-Instruct-q0f32-MLC</a>
+          </td>
+          <td class="text-nowrap">2.6 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-1.5b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-1.5B-Instruct-q4f16_1-MLC">Qwen2.5-1.5B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.6 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-1.5b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-1.5B-Instruct-q4f32_1-MLC">Qwen2.5-1.5B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.8 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-3b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-3B-Instruct-q4f16_1-MLC">Qwen2.5-3B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.4 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-3b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-3B-Instruct-q4f32_1-MLC">Qwen2.5-3B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.8 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-7b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-7B-Instruct-q4f16_1-MLC">Qwen2.5-7B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">5.0 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-7b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-7B-Instruct-q4f32_1-MLC">Qwen2.5-7B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">5.8 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-coder-0.5b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-Coder-0.5B-Instruct-q4f16_1-MLC">Qwen2.5-Coder-0.5B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">945 MB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-coder-0.5b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-Coder-0.5B-Instruct-q4f32_1-MLC">Qwen2.5-Coder-0.5B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.0 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-coder-0.5b-instruct-q0f16-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-Coder-0.5B-Instruct-q0f16-MLC">Qwen2.5-Coder-0.5B-Instruct-q0f16-MLC</a>
+          </td>
+          <td class="text-nowrap">1.6 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-coder-0.5b-instruct-q0f32-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-Coder-0.5B-Instruct-q0f32-MLC">Qwen2.5-Coder-0.5B-Instruct-q0f32-MLC</a>
+          </td>
+          <td class="text-nowrap">2.6 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-coder-1.5b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-Coder-1.5B-Instruct-q4f16_1-MLC">Qwen2.5-Coder-1.5B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.6 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-coder-1.5b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-Coder-1.5B-Instruct-q4f32_1-MLC">Qwen2.5-Coder-1.5B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.8 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-coder-3b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-Coder-3B-Instruct-q4f16_1-MLC">Qwen2.5-Coder-3B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.4 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-coder-3b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-Coder-3B-Instruct-q4f32_1-MLC">Qwen2.5-Coder-3B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.8 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-coder-7b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-Coder-7B-Instruct-q4f16_1-MLC">Qwen2.5-Coder-7B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">5.0 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-coder-7b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-Coder-7B-Instruct-q4f32_1-MLC">Qwen2.5-Coder-7B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">5.8 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-math-1.5b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-Math-1.5B-Instruct-q4f16_1-MLC">Qwen2.5-Math-1.5B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.6 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2.5-math-1.5b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2.5-Math-1.5B-Instruct-q4f32_1-MLC">Qwen2.5-Math-1.5B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.8 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="model-family" data-family="qwen2">
+  <h3>Qwen 2</h3>
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th scope="col">Model</th>
+          <th scope="col">Estimated VRAM</th>
+          <th scope="col">Context</th>
+          <th scope="col">Type / requirements</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr data-model-id="qwen2-0.5b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2-0.5B-Instruct-q4f16_1-MLC">Qwen2-0.5B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">945 MB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2-0.5b-instruct-q0f16-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2-0.5B-Instruct-q0f16-MLC">Qwen2-0.5B-Instruct-q0f16-MLC</a>
+          </td>
+          <td class="text-nowrap">1.6 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2-0.5b-instruct-q0f32-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2-0.5B-Instruct-q0f32-MLC">Qwen2-0.5B-Instruct-q0f32-MLC</a>
+          </td>
+          <td class="text-nowrap">2.6 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2-1.5b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2-1.5B-Instruct-q4f16_1-MLC">Qwen2-1.5B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.6 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2-1.5b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2-1.5B-Instruct-q4f32_1-MLC">Qwen2-1.5B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.8 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2-7b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2-7B-Instruct-q4f16_1-MLC">Qwen2-7B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">5.0 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2-7b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2-7B-Instruct-q4f32_1-MLC">Qwen2-7B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">5.8 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2-math-1.5b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2-Math-1.5B-Instruct-q4f16_1-MLC">Qwen2-Math-1.5B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.6 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2-math-1.5b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2-Math-1.5B-Instruct-q4f32_1-MLC">Qwen2-Math-1.5B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.8 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2-math-7b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2-Math-7B-Instruct-q4f16_1-MLC">Qwen2-Math-7B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">5.0 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="qwen2-math-7b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Qwen2-Math-7B-Instruct-q4f32_1-MLC">Qwen2-Math-7B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">5.8 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="model-family" data-family="phi">
+  <h3>Phi</h3>
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th scope="col">Model</th>
+          <th scope="col">Estimated VRAM</th>
+          <th scope="col">Context</th>
+          <th scope="col">Type / requirements</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr data-model-id="phi-3.5-mini-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Phi-3.5-mini-instruct-q4f16_1-MLC">Phi-3.5-mini-instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">3.6 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="phi-3.5-mini-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Phi-3.5-mini-instruct-q4f32_1-MLC">Phi-3.5-mini-instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">5.4 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="phi-3.5-mini-instruct-q4f16_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Phi-3.5-mini-instruct-q4f16_1-MLC">Phi-3.5-mini-instruct-q4f16_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">2.5 GB</td>
+          <td>1K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="phi-3.5-mini-instruct-q4f32_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Phi-3.5-mini-instruct-q4f32_1-MLC">Phi-3.5-mini-instruct-q4f32_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">3.1 GB</td>
+          <td>1K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="phi-3.5-vision-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Phi-3.5-vision-instruct-q4f16_1-MLC">Phi-3.5-vision-instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">4.4 GB</td>
+          <td>4K</td>
+          <td>Vision</td>
+        </tr>
+        
+        <tr data-model-id="phi-3.5-vision-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Phi-3.5-vision-instruct-q4f32_1-MLC">Phi-3.5-vision-instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">6.9 GB</td>
+          <td>4K</td>
+          <td>Vision</td>
+        </tr>
+        
+        <tr data-model-id="phi-4-mini-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Phi-4-mini-instruct-q4f16_1-MLC">Phi-4-mini-instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">3.4 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="phi-4-mini-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Phi-4-mini-instruct-q4f32_1-MLC">Phi-4-mini-instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">4.1 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="phi-3-mini-4k-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC">Phi-3-mini-4k-instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">3.6 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="phi-3-mini-4k-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f32_1-MLC">Phi-3-mini-4k-instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">5.4 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="phi-3-mini-4k-instruct-q4f16_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f16_1-MLC">Phi-3-mini-4k-instruct-q4f16_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">2.5 GB</td>
+          <td>1K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="phi-3-mini-4k-instruct-q4f32_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Phi-3-mini-4k-instruct-q4f32_1-MLC">Phi-3-mini-4k-instruct-q4f32_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">3.1 GB</td>
+          <td>1K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="phi-2-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/phi-2-q4f16_1-MLC">phi-2-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">3.0 GB</td>
+          <td>2K</td>
+          <td>LLM, shader-f16</td>
+        </tr>
+        
+        <tr data-model-id="phi-2-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/phi-2-q4f32_1-MLC">phi-2-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">3.9 GB</td>
+          <td>2K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="phi-2-q4f16_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/phi-2-q4f16_1-MLC">phi-2-q4f16_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">2.1 GB</td>
+          <td>1K</td>
+          <td>LLM, shader-f16, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="phi-2-q4f32_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/phi-2-q4f32_1-MLC">phi-2-q4f32_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">2.7 GB</td>
+          <td>1K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="phi-1_5-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/phi-1_5-q4f16_1-MLC">phi-1_5-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.2 GB</td>
+          <td>2K</td>
+          <td>LLM, shader-f16, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="phi-1_5-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/phi-1_5-q4f32_1-MLC">phi-1_5-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.6 GB</td>
+          <td>2K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="phi-1_5-q4f16_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/phi-1_5-q4f16_1-MLC">phi-1_5-q4f16_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">1.2 GB</td>
+          <td>1K</td>
+          <td>LLM, shader-f16, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="phi-1_5-q4f32_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/phi-1_5-q4f32_1-MLC">phi-1_5-q4f32_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">1.6 GB</td>
+          <td>1K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="model-family" data-family="gemma">
+  <h3>Gemma</h3>
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th scope="col">Model</th>
+          <th scope="col">Estimated VRAM</th>
+          <th scope="col">Context</th>
+          <th scope="col">Type / requirements</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr data-model-id="gemma-4-e2b-it-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/gemma-4-E2B-it-q4f16_1-MLC">gemma-4-E2B-it-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">3.3 GB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16</td>
+        </tr>
+        
+        <tr data-model-id="gemma-4-e2b-it-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/gemma-4-E2B-it-q4f32_1-MLC">gemma-4-E2B-it-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">3.8 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="gemma-2-2b-it-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/gemma-2-2b-it-q4f16_1-MLC">gemma-2-2b-it-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.9 GB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16</td>
+        </tr>
+        
+        <tr data-model-id="gemma-2-2b-it-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/gemma-2-2b-it-q4f32_1-MLC">gemma-2-2b-it-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.4 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="gemma-2-2b-it-q4f16_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/gemma-2-2b-it-q4f16_1-MLC">gemma-2-2b-it-q4f16_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">1.5 GB</td>
+          <td>1K</td>
+          <td>LLM, shader-f16, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="gemma-2-2b-it-q4f32_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/gemma-2-2b-it-q4f32_1-MLC">gemma-2-2b-it-q4f32_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">1.8 GB</td>
+          <td>1K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="gemma-2-9b-it-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/gemma-2-9b-it-q4f16_1-MLC">gemma-2-9b-it-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">6.3 GB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16</td>
+        </tr>
+        
+        <tr data-model-id="gemma-2-9b-it-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/gemma-2-9b-it-q4f32_1-MLC">gemma-2-9b-it-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">8.2 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="gemma-2-2b-jpn-it-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/gemma-2-2b-jpn-it-q4f16_1-MLC">gemma-2-2b-jpn-it-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.9 GB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="gemma-2-2b-jpn-it-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/gemma-2-2b-jpn-it-q4f32_1-MLC">gemma-2-2b-jpn-it-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.4 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="gemma3-1b-it-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/gemma3-1b-it-q4f16_1-MLC">gemma3-1b-it-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">711 MB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="gemma-2b-it-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC">gemma-2b-it-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.4 GB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16</td>
+        </tr>
+        
+        <tr data-model-id="gemma-2b-it-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/gemma-2b-it-q4f32_1-MLC">gemma-2b-it-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.7 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="gemma-2b-it-q4f16_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/gemma-2b-it-q4f16_1-MLC">gemma-2b-it-q4f16_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">1.4 GB</td>
+          <td>1K</td>
+          <td>LLM, shader-f16, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="gemma-2b-it-q4f32_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/gemma-2b-it-q4f32_1-MLC">gemma-2b-it-q4f32_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">1.7 GB</td>
+          <td>1K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="model-family" data-family="mistral">
+  <h3>Mistral</h3>
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th scope="col">Model</th>
+          <th scope="col">Estimated VRAM</th>
+          <th scope="col">Context</th>
+          <th scope="col">Type / requirements</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr data-model-id="mistral-7b-instruct-v0.3-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Mistral-7B-Instruct-v0.3-q4f16_1-MLC">Mistral-7B-Instruct-v0.3-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">4.5 GB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16</td>
+        </tr>
+        
+        <tr data-model-id="mistral-7b-instruct-v0.3-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Mistral-7B-Instruct-v0.3-q4f32_1-MLC">Mistral-7B-Instruct-v0.3-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">5.5 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="mistral-7b-instruct-v0.2-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Mistral-7B-Instruct-v0.2-q4f16_1-MLC">Mistral-7B-Instruct-v0.2-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">4.5 GB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16</td>
+        </tr>
+        
+        <tr data-model-id="openhermes-2.5-mistral-7b-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/OpenHermes-2.5-Mistral-7B-q4f16_1-MLC">OpenHermes-2.5-Mistral-7B-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">4.5 GB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16</td>
+        </tr>
+        
+        <tr data-model-id="neuralhermes-2.5-mistral-7b-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/NeuralHermes-2.5-Mistral-7B-q4f16_1-MLC">NeuralHermes-2.5-Mistral-7B-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">4.5 GB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16</td>
+        </tr>
+        
+        <tr data-model-id="wizardmath-7b-v1.1-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/WizardMath-7B-V1.1-q4f16_1-MLC">WizardMath-7B-V1.1-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">4.5 GB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16</td>
+        </tr>
+        
+        <tr data-model-id="ministral-3-3b-base-2512-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Ministral-3-3B-Base-2512-q4f16_1-MLC">Ministral-3-3B-Base-2512-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.8 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="ministral-3-3b-base-2512-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Ministral-3-3B-Base-2512-q4f32_1-MLC">Ministral-3-3B-Base-2512-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">3.4 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="ministral-3-3b-reasoning-2512-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Ministral-3-3B-Reasoning-2512-q4f16_1-MLC">Ministral-3-3B-Reasoning-2512-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.8 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="ministral-3-3b-reasoning-2512-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Ministral-3-3B-Reasoning-2512-q4f32_1-MLC">Ministral-3-3B-Reasoning-2512-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">3.4 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="ministral-3-3b-instruct-2512-bf16-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Ministral-3-3B-Instruct-2512-BF16-q4f16_1-MLC">Ministral-3-3B-Instruct-2512-BF16-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.8 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="ministral-3-3b-instruct-2512-bf16-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/Ministral-3-3B-Instruct-2512-BF16-q4f32_1-MLC">Ministral-3-3B-Instruct-2512-BF16-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">3.4 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="model-family" data-family="smollm">
+  <h3>SmolLM</h3>
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th scope="col">Model</th>
+          <th scope="col">Estimated VRAM</th>
+          <th scope="col">Context</th>
+          <th scope="col">Type / requirements</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr data-model-id="smollm3-3b-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/SmolLM3-3B-q4f16_1-MLC">SmolLM3-3B-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.0 GB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16</td>
+        </tr>
+        
+        <tr data-model-id="smollm3-3b-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/SmolLM3-3B-q4f32_1-MLC">SmolLM3-3B-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.5 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="smollm2-1.7b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/SmolLM2-1.7B-Instruct-q4f16_1-MLC">SmolLM2-1.7B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.7 GB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="smollm2-1.7b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/SmolLM2-1.7B-Instruct-q4f32_1-MLC">SmolLM2-1.7B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.6 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="smollm2-360m-instruct-q0f16-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/SmolLM2-360M-Instruct-q0f16-MLC">SmolLM2-360M-Instruct-q0f16-MLC</a>
+          </td>
+          <td class="text-nowrap">872 MB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="smollm2-360m-instruct-q0f32-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/SmolLM2-360M-Instruct-q0f32-MLC">SmolLM2-360M-Instruct-q0f32-MLC</a>
+          </td>
+          <td class="text-nowrap">1.7 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="smollm2-360m-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/SmolLM2-360M-Instruct-q4f16_1-MLC">SmolLM2-360M-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">376 MB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="smollm2-360m-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/SmolLM2-360M-Instruct-q4f32_1-MLC">SmolLM2-360M-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">580 MB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="smollm2-135m-instruct-q0f16-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/SmolLM2-135M-Instruct-q0f16-MLC">SmolLM2-135M-Instruct-q0f16-MLC</a>
+          </td>
+          <td class="text-nowrap">360 MB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="smollm2-135m-instruct-q0f32-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/SmolLM2-135M-Instruct-q0f32-MLC">SmolLM2-135M-Instruct-q0f32-MLC</a>
+          </td>
+          <td class="text-nowrap">719 MB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="model-family" data-family="stablelm">
+  <h3>StableLM</h3>
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th scope="col">Model</th>
+          <th scope="col">Estimated VRAM</th>
+          <th scope="col">Context</th>
+          <th scope="col">Type / requirements</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr data-model-id="stablelm-2-zephyr-1_6b-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f16_1-MLC">stablelm-2-zephyr-1_6b-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.0 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="stablelm-2-zephyr-1_6b-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f32_1-MLC">stablelm-2-zephyr-1_6b-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.9 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="stablelm-2-zephyr-1_6b-q4f16_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f16_1-MLC">stablelm-2-zephyr-1_6b-q4f16_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">1.5 GB</td>
+          <td>1K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="stablelm-2-zephyr-1_6b-q4f32_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/stablelm-2-zephyr-1_6b-q4f32_1-MLC">stablelm-2-zephyr-1_6b-q4f32_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">1.8 GB</td>
+          <td>1K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="model-family" data-family="tinyllama">
+  <h3>TinyLlama</h3>
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th scope="col">Model</th>
+          <th scope="col">Estimated VRAM</th>
+          <th scope="col">Context</th>
+          <th scope="col">Type / requirements</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr data-model-id="tinyllama-1.1b-chat-v1.0-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC">TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">697 MB</td>
+          <td>2K</td>
+          <td>LLM, shader-f16, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="tinyllama-1.1b-chat-v1.0-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC">TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">840 MB</td>
+          <td>2K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="tinyllama-1.1b-chat-v1.0-q4f16_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC">TinyLlama-1.1B-Chat-v1.0-q4f16_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">675 MB</td>
+          <td>1K</td>
+          <td>LLM, shader-f16, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="tinyllama-1.1b-chat-v1.0-q4f32_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC">TinyLlama-1.1B-Chat-v1.0-q4f32_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">796 MB</td>
+          <td>1K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="tinyllama-1.1b-chat-v0.4-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC">TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">697 MB</td>
+          <td>2K</td>
+          <td>LLM, shader-f16, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="tinyllama-1.1b-chat-v0.4-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC">TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">840 MB</td>
+          <td>2K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="tinyllama-1.1b-chat-v0.4-q4f16_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC">TinyLlama-1.1B-Chat-v0.4-q4f16_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">675 MB</td>
+          <td>1K</td>
+          <td>LLM, shader-f16, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="tinyllama-1.1b-chat-v0.4-q4f32_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC">TinyLlama-1.1B-Chat-v0.4-q4f32_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">796 MB</td>
+          <td>1K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="model-family" data-family="redpajama">
+  <h3>RedPajama</h3>
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th scope="col">Model</th>
+          <th scope="col">Estimated VRAM</th>
+          <th scope="col">Context</th>
+          <th scope="col">Type / requirements</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr data-model-id="redpajama-incite-chat-3b-v1-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC">RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.9 GB</td>
+          <td>2K</td>
+          <td>LLM, shader-f16</td>
+        </tr>
+        
+        <tr data-model-id="redpajama-incite-chat-3b-v1-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC">RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">3.8 GB</td>
+          <td>2K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="redpajama-incite-chat-3b-v1-q4f16_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC">RedPajama-INCITE-Chat-3B-v1-q4f16_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">2.0 GB</td>
+          <td>1K</td>
+          <td>LLM, shader-f16, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="redpajama-incite-chat-3b-v1-q4f32_1-mlc-1k">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC">RedPajama-INCITE-Chat-3B-v1-q4f32_1-MLC-1k</a>
+          </td>
+          <td class="text-nowrap">2.5 GB</td>
+          <td>1K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="model-family" data-family="embedding">
+  <h3>Embedding</h3>
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th scope="col">Model</th>
+          <th scope="col">Estimated VRAM</th>
+          <th scope="col">Context</th>
+          <th scope="col">Type / requirements</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr data-model-id="snowflake-arctic-embed-m-q0f32-mlc-b32">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/snowflake-arctic-embed-m-q0f32-MLC">snowflake-arctic-embed-m-q0f32-MLC-b32</a>
+          </td>
+          <td class="text-nowrap">1.4 GB</td>
+          <td>—</td>
+          <td>Embedding</td>
+        </tr>
+        
+        <tr data-model-id="snowflake-arctic-embed-m-q0f32-mlc-b4">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/snowflake-arctic-embed-m-q0f32-MLC">snowflake-arctic-embed-m-q0f32-MLC-b4</a>
+          </td>
+          <td class="text-nowrap">539 MB</td>
+          <td>—</td>
+          <td>Embedding</td>
+        </tr>
+        
+        <tr data-model-id="snowflake-arctic-embed-s-q0f32-mlc-b32">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/snowflake-arctic-embed-s-q0f32-MLC">snowflake-arctic-embed-s-q0f32-MLC-b32</a>
+          </td>
+          <td class="text-nowrap">1023 MB</td>
+          <td>—</td>
+          <td>Embedding</td>
+        </tr>
+        
+        <tr data-model-id="snowflake-arctic-embed-s-q0f32-mlc-b4">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/snowflake-arctic-embed-s-q0f32-MLC">snowflake-arctic-embed-s-q0f32-MLC-b4</a>
+          </td>
+          <td class="text-nowrap">239 MB</td>
+          <td>—</td>
+          <td>Embedding</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="model-family" data-family="other">
+  <h3>Other</h3>
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th scope="col">Model</th>
+          <th scope="col">Estimated VRAM</th>
+          <th scope="col">Context</th>
+          <th scope="col">Type / requirements</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr data-model-id="olmo-2-1124-7b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/OLMo-2-1124-7B-Instruct-q4f16_1-MLC">OLMo-2-1124-7B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">6.3 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="olmo-2-1124-7b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/OLMo-2-1124-7B-Instruct-q4f32_1-MLC">OLMo-2-1124-7B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">8.9 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="olmo-2-0425-1b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/OLMo-2-0425-1B-Instruct-q4f16_1-MLC">OLMo-2-0425-1B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.7 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="olmo-2-0425-1b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/OLMo-2-0425-1B-Instruct-q4f32_1-MLC">OLMo-2-0425-1B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">2.4 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="minicpm5-2b-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/MiniCPM5-2B-q4f16_1-MLC">MiniCPM5-2B-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.5 GB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16</td>
+        </tr>
+        
+        <tr data-model-id="minicpm5-2b-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/MiniCPM5-2B-q4f32_1-MLC">MiniCPM5-2B-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.9 GB</td>
+          <td>4K</td>
+          <td>LLM</td>
+        </tr>
+        
+        <tr data-model-id="lfm2.5-1.2b-instruct-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/LFM2.5-1.2B-Instruct-q4f16_1-MLC">LFM2.5-1.2B-Instruct-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1001 MB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="lfm2.5-1.2b-instruct-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/LFM2.5-1.2B-Instruct-q4f32_1-MLC">LFM2.5-1.2B-Instruct-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">1.1 GB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="lfm2.5-350m-q4f16_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/LFM2.5-350M-q4f16_1-MLC">LFM2.5-350M-q4f16_1-MLC</a>
+          </td>
+          <td class="text-nowrap">532 MB</td>
+          <td>4K</td>
+          <td>LLM, shader-f16, low VRAM</td>
+        </tr>
+        
+        <tr data-model-id="lfm2.5-350m-q4f32_1-mlc">
+          <td class="text-nowrap">
+            <a href="https://huggingface.co/mlc-ai/LFM2.5-350M-q4f32_1-MLC">LFM2.5-350M-q4f32_1-MLC</a>
+          </td>
+          <td class="text-nowrap">632 MB</td>
+          <td>4K</td>
+          <td>LLM, low VRAM</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+</section>
+
+
+<p>
+  See <a href="https://github.com/mlc-ai/web-llm#custom-models">custom models</a>
+  to use your own model, or
+  <a href="https://github.com/mlc-ai/web-llm/issues/new">request a model</a>.
+</p>
+
+<script type="module">
+  const search = document.getElementById("model-search");
+  const family = document.getElementById("model-family");
+  const sections = document.querySelectorAll(".model-family");
+
+  function filterModels() {
+    const query = search.value.trim().toLowerCase();
+    let count = 0;
+    for (const section of sections) {
+      const matchesFamily = !family.value || section.dataset.family === family.value;
+      let visible = 0;
+      for (const row of section.querySelectorAll("[data-model-id]")) {
+        row.hidden = !matchesFamily || !row.dataset.modelId.includes(query);
+        if (!row.hidden) visible++;
+      }
+      section.hidden = visible === 0;
+      count += visible;
+    }
+    document.getElementById("model-count").textContent =
+      `${count} model${count === 1 ? "" : "s"}`;
+    document.getElementById("models-empty").hidden = count !== 0;
+  }
+
+  search.addEventListener("input", filterModels);
+  family.addEventListener("change", filterModels);
+  filterModels();
+</script>
+ 
+    </div>
+    <!-- /container -->
+
+    <!-- Support retina images. -->
+    <script
+      type="text/javascript"
+      src="/assets/js/srcset-polyfill.js"
+    ></script>
+  </body>
+</html>
