@@ -331,6 +331,6 @@ playwright-report/
 test-results/
 
 # Generated model inventory
-site/models-data.json
+site/_data/models.json
 site/_site/
 site/.jekyll-cache/

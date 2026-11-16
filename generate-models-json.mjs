@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { ModelType, prebuiltAppConfig } from "./lib/index.js";
 
 // Run after building WebLLM so the page uses the same registry as the package.
@@ -31,111 +31,42 @@ const entries = prebuiltAppConfig.model_list.map((model) => {
   };
 });
 
-const FAMILIES = [
-  {
-    id: "deepseek",
-    label: "DeepSeek",
-    emoji: "🧠",
-    match: (id) => id.startsWith("DeepSeek"),
-  },
-  {
-    id: "llama3",
-    label: "Llama 3",
-    emoji: "🦙",
-    match: (id) => /^(Llama-3|Hermes-[23]|Hermes-2-Theta)/.test(id),
-  },
-  {
-    id: "llama2",
-    label: "Llama 2",
-    emoji: "🦙",
-    match: (id) => id.startsWith("Llama-2"),
-  },
-  {
-    id: "qwen3",
-    label: "Qwen3",
-    emoji: "🌊",
-    match: (id) => id.startsWith("Qwen3"),
-  },
-  {
-    id: "qwen25",
-    label: "Qwen 2.5",
-    emoji: "🌊",
-    match: (id) => id.startsWith("Qwen2.5"),
-  },
-  {
-    id: "qwen2",
-    label: "Qwen 2",
-    emoji: "🌊",
-    match: (id) => id.startsWith("Qwen2-") || id.startsWith("Qwen2."),
-  },
-  { id: "phi", label: "Phi", emoji: "🔷", match: (id) => /^[Pp]hi/.test(id) },
-  {
-    id: "gemma",
-    label: "Gemma",
-    emoji: "💎",
-    match: (id) => /^gemma/i.test(id),
-  },
-  {
-    id: "mistral",
-    label: "Mistral & Friends",
-    emoji: "💨",
-    match: (id) =>
-      ["Mistral", "OpenHermes", "NeuralHermes", "WizardMath", "Ministral"].some(
-        (p) => id.startsWith(p),
-      ),
-  },
-  {
-    id: "smollm",
-    label: "SmolLM",
-    emoji: "🔬",
-    match: (id) => id.startsWith("SmolLM"),
-  },
-  {
-    id: "stablelm",
-    label: "StableLM",
-    emoji: "🔩",
-    match: (id) => id.startsWith("stablelm"),
-  },
-  {
-    id: "tinyllama",
-    label: "TinyLlama",
-    emoji: "🐣",
-    match: (id) => id.startsWith("TinyLlama"),
-  },
-  {
-    id: "redpajama",
-    label: "RedPajama",
-    emoji: "🟥",
-    match: (id) => id.startsWith("RedPajama"),
-  },
-  {
-    id: "embedding",
-    label: "Embedding",
-    emoji: "📐",
-    match: (id) => id.startsWith("snowflake"),
-  },
-];
-
-const familyMap = new Map(FAMILIES.map((f) => [f.id, { ...f, models: [] }]));
-const other = { id: "other", label: "Other", emoji: "📦", models: [] };
+const families = [
+  ["deepseek", "DeepSeek", /^DeepSeek/],
+  ["llama3", "Llama 3", /^(Llama-3|Hermes-[23]|Hermes-2-Theta)/],
+  ["llama2", "Llama 2", /^Llama-2/],
+  ["qwen3", "Qwen3", /^Qwen3/],
+  ["qwen25", "Qwen 2.5", /^Qwen2\.5/],
+  ["qwen2", "Qwen 2", /^Qwen2[-.]/],
+  ["phi", "Phi", /^[Pp]hi/],
+  ["gemma", "Gemma", /^gemma/i],
+  [
+    "mistral",
+    "Mistral",
+    /^(Mistral|OpenHermes|NeuralHermes|WizardMath|Ministral)/,
+  ],
+  ["smollm", "SmolLM", /^SmolLM/],
+  ["stablelm", "StableLM", /^stablelm/],
+  ["tinyllama", "TinyLlama", /^TinyLlama/],
+  ["redpajama", "RedPajama", /^RedPajama/],
+  ["embedding", "Embedding", /^snowflake/],
+  ["other", "Other", /.*/],
+].map(([id, label, pattern]) => ({ id, label, pattern, models: [] }));
 
 for (const entry of entries) {
-  const family = FAMILIES.find((f) => f.match(entry.model_id));
-  if (family) {
-    familyMap.get(family.id).models.push(entry);
-  } else {
-    other.models.push(entry);
-  }
+  const family = families.find((family) => family.pattern.test(entry.model_id));
+  family.models.push(entry);
 }
 
-const families = [
-  ...familyMap.values(),
-  ...(other.models.length ? [other] : []),
-].filter((f) => f.models.length > 0);
-
-const output = { total_models: entries.length, families };
+const output = {
+  total_models: entries.length,
+  families: families
+    .filter((family) => family.models.length > 0)
+    .map(({ id, label, models }) => ({ id, label, models })),
+};
+mkdirSync(new URL("./site/_data/", import.meta.url), { recursive: true });
 writeFileSync(
-  new URL("./site/models-data.json", import.meta.url),
+  new URL("./site/_data/models.json", import.meta.url),
   JSON.stringify(output, null, 2) + "\n",
 );
-console.log(`Wrote ${entries.length} models to site/models-data.json`);
+console.log(`Wrote ${entries.length} models to site/_data/models.json`);
