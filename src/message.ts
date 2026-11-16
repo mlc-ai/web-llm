@@ -40,7 +40,9 @@ type RequestKind =
   | "customRequest"
   | "keepAlive"
   | "setLogLevel"
-  | "setAppConfig";
+  | "setAppConfig"
+  | "tokenize"
+  | "decodeTokens";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 type ResponseKind = "return" | "throw" | "initProgressCallback";
@@ -62,6 +64,14 @@ export interface RuntimeStatsTextParams {
 export interface ForwardTokensAndSampleParams {
   inputIds: Array<number>;
   isPrefill: boolean;
+  modelId?: string;
+}
+export interface TokenizeParams {
+  text: string;
+  modelId?: string;
+}
+export interface DecodeTokensParams {
+  inputIds: number[];
   modelId?: string;
 }
 
@@ -122,6 +132,9 @@ export interface CustomRequestParams {
   requestMessage: string;
 }
 export type MessageContent =
+  | TokenizeParams
+  | DecodeTokensParams
+  | number[]
   | ReloadParams
   | ResetChatParams
   | GetMessageParams

@@ -1542,6 +1542,23 @@ export class MLCEngine implements MLCEngineInterface {
     return selectedPipeline.getMessage();
   }
 
+  async tokenize(text: string, modelId?: string): Promise<Int32Array> {
+    return this.getTokenizer("tokenize", modelId).encode(text);
+  }
+
+  async decodeTokens(ids: Int32Array, modelId?: string): Promise<string> {
+    return this.getTokenizer("decodeTokens", modelId).decode(ids);
+  }
+
+  private getTokenizer(requestName: string, modelId?: string) {
+    const selectedModelId = getModelIdToUse(
+      Array.from(this.loadedModelIdToPipeline.keys()),
+      modelId,
+      requestName,
+    );
+    return this.loadedModelIdToPipeline.get(selectedModelId)!.getTokenizer();
+  }
+
   async runtimeStatsText(modelId?: string): Promise<string> {
     log.warn(
       "WARNING: `runtimeStatsText()` will soon be deprecated. " +

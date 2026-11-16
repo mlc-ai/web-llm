@@ -229,6 +229,17 @@ export interface MLCEngineInterface {
   deleteResumableSession(sessionId: string): Promise<void>;
 
   /**
+   * Encode raw text with a loaded model's tokenizer, without applying a chat template.
+   * @param modelId Required when multiple models are loaded.
+   */
+  tokenize(input: string, modelId?: string): Promise<Int32Array>;
+  /**
+   * Decode token IDs with a loaded model's tokenizer. Does not change generation state.
+   * @param modelId Required when multiple models are loaded.
+   */
+  decodeTokens(input: Int32Array, modelId?: string): Promise<string>;
+
+  /**
    * @returns A text summarizing the runtime stats.
    * @param modelId Only required when multiple models are loaded.
    * @note This is an async function

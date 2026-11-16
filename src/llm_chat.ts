@@ -723,6 +723,10 @@ export class LLMChatPipeline {
     tvm.endScope();
   }
 
+  getTokenizer(): Tokenizer {
+    return this.tokenizer;
+  }
+
   dispose() {
     // TODO: Do we need to dispose all PackedFuncs here?
     this.grammarMatcher?.dispose();

@@ -249,6 +249,10 @@ export class EmbeddingPipeline {
     return result;
   }
 
+  getTokenizer(): Tokenizer {
+    return this.tokenizer;
+  }
+
   dispose() {
     this.params.dispose();
     this.prefill.dispose();
