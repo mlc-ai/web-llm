@@ -329,3 +329,8 @@ coverage
 .browser-test/
 playwright-report/
 test-results/
+
+# Generated model inventory
+site/_data/models.json
+site/_site/
+site/.jekyll-cache/

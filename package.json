@@ -13,7 +13,8 @@
     "test:package-types": "node scripts/test-package-types.mjs",
     "test:browser": "npm run build:browser-tests && playwright test --config tests/browser/playwright.config.mjs",
     "format": "prettier --write \"./src/\" \"./examples/\" \"./tests/\"",
-    "prepare": "husky"
+    "prepare": "husky",
+    "build:models": "npm run build && node generate-models-json.mjs"
   },
   "files": [
     "lib"

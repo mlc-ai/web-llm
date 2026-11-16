@@ -1,0 +1,101 @@
+---
+layout: default
+title: Built-in Models
+permalink: /models/
+---
+
+<p>
+  Models in <code>prebuiltAppConfig.model_list</code>. Memory requirements are
+  estimates; context sizes are WebLLM defaults.
+</p>
+
+<div class="form-row">
+  <div class="form-group col-md-8">
+    <label for="model-search">Search models</label>
+    <input type="search" id="model-search" class="form-control" />
+  </div>
+  <div class="form-group col-md-4">
+    <label for="model-family">Model family</label>
+    <select id="model-family" class="form-control">
+      <option value="">All</option>
+      {% for family in site.data.models.families %}
+      <option value="{{ family.id | escape }}">{{ family.label | escape }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+<p id="model-count" aria-live="polite">{{ site.data.models.total_models }} models</p>
+<p id="models-empty" hidden>No models match your search.</p>
+
+{% for family in site.data.models.families %}
+<section class="model-family" data-family="{{ family.id | escape }}">
+  <h3>{{ family.label | escape }}</h3>
+  <div class="table-responsive">
+    <table class="table table-sm">
+      <thead>
+        <tr>
+          <th scope="col">Model</th>
+          <th scope="col">Estimated VRAM</th>
+          <th scope="col">Context</th>
+          <th scope="col">Type / requirements</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for model in family.models %}
+        <tr data-model-id="{{ model.model_id | downcase | escape }}">
+          <td class="text-nowrap">
+            <a href="{{ model.hf_url | escape }}">{{ model.model_id | escape }}</a>
+          </td>
+          <td class="text-nowrap">{{ model.vram | default: "—" | escape }}</td>
+          <td>{{ model.context_window | default: "—" | escape }}</td>
+          <td>
+            {%- case model.model_type -%}
+            {%- when "vlm" -%}Vision
+            {%- when "embedding" -%}Embedding
+            {%- else -%}LLM
+            {%- endcase -%}
+            {%- for feature in model.required_features -%}, {{ feature | escape }}{%- endfor -%}
+            {%- if model.low_resource -%}, low VRAM{%- endif -%}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endfor %}
+
+<p>
+  See <a href="https://github.com/mlc-ai/web-llm#custom-models">custom models</a>
+  to use your own model, or
+  <a href="https://github.com/mlc-ai/web-llm/issues/new">request a model</a>.
+</p>
+
+<script type="module">
+  const search = document.getElementById("model-search");
+  const family = document.getElementById("model-family");
+  const sections = document.querySelectorAll(".model-family");
+
+  function filterModels() {
+    const query = search.value.trim().toLowerCase();
+    let count = 0;
+    for (const section of sections) {
+      const matchesFamily = !family.value || section.dataset.family === family.value;
+      let visible = 0;
+      for (const row of section.querySelectorAll("[data-model-id]")) {
+        row.hidden = !matchesFamily || !row.dataset.modelId.includes(query);
+        if (!row.hidden) visible++;
+      }
+      section.hidden = visible === 0;
+      count += visible;
+    }
+    document.getElementById("model-count").textContent =
+      `${count} model${count === 1 ? "" : "s"}`;
+    document.getElementById("models-empty").hidden = count !== 0;
+  }
+
+  search.addEventListener("input", filterModels);
+  family.addEventListener("change", filterModels);
+  filterModels();
+</script>
