@@ -1,0 +1,120 @@
+{
+  "model": {
+    "schema": "mlc.model-package",
+    "schema_version": 2,
+    "interface_id": "sha256:6d942e547efa521d584c0c07abd51c6b41bc4fc0263a0aa43c534ee726f6a593",
+    "components": {
+      "features": {
+        "kind": "transform",
+        "contract": "qwen2_5_omni.audio_features.v1",
+        "inputs": {
+          "pcm": {
+            "semantic": "audio.pcm_16khz.v1",
+            "dtype": "float32",
+            "shape": ["samples"],
+            "delivery": "value"
+          }
+        },
+        "outputs": {
+          "mel_features": {
+            "semantic": "audio.log_mel.v1",
+            "dtype": "float32",
+            "shape": [128, "frames"],
+            "delivery": "value"
+          }
+        },
+        "weights": {
+          "manifest": "tensor-cache.json",
+          "parameter_schema_id": "sha256:0cd60ce5dab43c5449d361825c0729d825a9309fabc030ef03a6c9762f02f03e"
+        },
+        "state": {
+          "kind": "none",
+          "scope": "request"
+        }
+      }
+    },
+    "tasks": {
+      "audio.features": {
+        "inputs": {
+          "pcm": {
+            "spec": {
+              "semantic": "audio.pcm_16khz.v1",
+              "dtype": "float32",
+              "shape": ["samples"],
+              "delivery": "value"
+            },
+            "targets": [
+              {
+                "component": "features",
+                "port": "pcm"
+              }
+            ]
+          }
+        },
+        "outputs": {
+          "mel_features": {
+            "spec": {
+              "semantic": "audio.log_mel.v1",
+              "dtype": "float32",
+              "shape": [128, "frames"],
+              "delivery": "value"
+            },
+            "source": {
+              "component": "features",
+              "port": "mel_features"
+            },
+            "optional": false
+          }
+        },
+        "edges": []
+      }
+    }
+  },
+  "compiled": {
+    "schema": "mlc.compiled-program",
+    "schema_version": 2,
+    "interface_id": "sha256:6d942e547efa521d584c0c07abd51c6b41bc4fc0263a0aa43c534ee726f6a593",
+    "components": {
+      "features": {
+        "spec": {
+          "kind": "transform",
+          "contract": "qwen2_5_omni.audio_features.v1",
+          "inputs": {
+            "pcm": {
+              "semantic": "audio.pcm_16khz.v1",
+              "dtype": "float32",
+              "shape": ["samples"],
+              "delivery": "value"
+            }
+          },
+          "outputs": {
+            "mel_features": {
+              "semantic": "audio.log_mel.v1",
+              "dtype": "float32",
+              "shape": [128, "frames"],
+              "delivery": "value"
+            }
+          },
+          "weights": {
+            "manifest": "tensor-cache.json",
+            "parameter_schema_id": "sha256:0cd60ce5dab43c5449d361825c0729d825a9309fabc030ef03a6c9762f02f03e"
+          },
+          "state": {
+            "kind": "none",
+            "scope": "request"
+          }
+        },
+        "module": "features.wasm",
+        "exports": {
+          "run": "forward",
+          "forward": "forward"
+        },
+        "resources": {
+          "required_features": [],
+          "max_storage_buffer_binding_size": 48240000,
+          "estimated_device_memory_bytes": 746112
+        }
+      }
+    }
+  }
+}

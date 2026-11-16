@@ -1,64 +1,72 @@
-# Audio input to text output
+# Text and audio to speech
 
-A local developer example for the restricted Qwen2.5-Omni audio graph:
-PCM → Whisper features → audio encoder → Thinker text generation. It uses the
-public component factories and validates the exact standalone and composed
-manifests. It does not enable ordinary `MLCEngine` v2 loading, image/video input,
-or speech output.
+This local Qwen2.5-Omni-3B example generates text and speech from a text prompt,
+with an optional audio clip. It uses the public component factories and
+`createOmniSpeechGraph`: PCM features and audio encoding feed the Thinker;
+its actual hidden states condition the Talker, followed by reference conditioning,
+DiT flow integration and waveform decoding. No prerecorded hidden states are used.
 
 ## Run
 
-Build the three component artifacts with the matching compiler/runtime. Place
-(or symlink for local development) these directories in `public/artifacts/`:
+Build the component artifacts with the matching compiler/runtime from the
+[companion MLC integration](https://github.com/mlc-ai/mlc-llm/pull/3600).
+Place these directories in `public/artifacts/` (local symlinks are also suitable):
 
-- `omni-features/`: feature WASM, model/compiled manifests and tensor cache.
-- `omni-audio/`: pretrained audio encoder WASM, manifests and tensor cache.
-- `omni-thinker-f32accum-q0f16/`: pretrained Thinker WASM, manifests and tensor cache.
-- `omni-reference/tokenizer.json`: tokenizer from the same pinned base model.
+- `omni-features/` and `omni-audio/`: PCM features and audio encoder artifacts.
+- `omni-public-thinker-speech/`: `build_thinker.py --talker --quantization q0f32` artifacts.
+- `omni-talker-graph-webgpu/`: cached Talker artifacts.
+- `omni-ecapa-webgpu/`: reference conditioner artifacts.
+- `omni-dit-webgpu-512/`: flow predictor compiled for 512 mel frames.
+- `omni-vocoder-webgpu-512/`: waveform decoder compiled for 512 mel frames.
+- `omni-public-speakers/`: `speakers.json` from the pinned `export_speakers.py`.
+- `omni-reference/tokenizer.json`: tokenizer from the same pinned model revision.
 
-Each component directory must retain its generated filenames and weight shards.
-The encoder output and Thinker audio input ports must match exactly, including
-symbolic dimension names. Edit `src/config.ts` for other local artifact URLs;
-no hosted or published model package is assumed.
+Retain each component's generated filenames, manifests and tensor-cache shards.
+Edit `src/config.ts` to use other local artifact URLs. No hosted model package is
+assumed. Ordinary chat libraries do not expose these component contracts.
 
 ```sh
 npm install
 npm run dev
 ```
 
-Open the displayed localhost URL in Google Chrome with WebGPU and `shader-f16`
-support. Select an audio file, enter a plain-text prompt, and click Generate.
-Web Audio decodes, downmixes to mono, and resamples to 16 kHz. This example limits
-clips to **30 seconds**, despite the feature component's 300-second capacity,
-and reserves room for up to 128 generated tokens in the 4096-token context.
-The single-turn prompt follows Qwen2.5-Omni's pinned audio-then-text template;
-reserved control/media tokens in user text are rejected.
+Open the localhost URL in Google Chrome with WebGPU, enter a prompt, select Ethan
+or Chelsie, and click Generate. Audio input is optional; Web Audio decodes,
+downmixes and resamples uploaded clips to mono 16 kHz. Clips are limited to
+30 seconds. The example uses a 4096-token context, at most 64 Thinker tokens and
+256 codec tokens. Reserved control/media tokens in user text are rejected.
 
-The unquantized components require several GB of downloads and GPU memory.
-Each request releases its runtimes afterward. Cancel interrupts model downloads
-and graph generation; cleanup waits for in-flight work to settle before releasing
-its runtime. Closing the page also releases resources. No audio is uploaded: artifacts
-are fetched from your configured server and inference runs locally.
+Text appears while the Thinker runs. Speech becomes available as a 24 kHz WAV
+once synthesis finishes. An immediate text EOS produces a clear empty-response
+message instead of fabricated speech conditioning. A generation cap is reported
+separately from natural completion.
 
-The initial verification uses fixed synthetic PCM probes and independent HF
-references; it is not a general audio-quality benchmark.
+The FP32 Thinker requires a storage buffer larger than 1 GiB; the example checks
+adapter limits and requests sufficient limits before loading weights. These
+unquantized components require substantial downloads and GPU memory. Each request
+releases its runtimes. Cancel interrupts downloads and generation, and cleanup
+waits for queued GPU work before disposing resources. Input audio stays local;
+only configured model artifacts are downloaded.
+
+## Numerical scope
+
+The fixed text and synthetic-audio probes produced 125 and 166 reference codec
+tokens respectively, both with natural EOS. Their composed waveforms exceeded
+the strict pointwise gate at 9 of 60,000 and 41 of 79,680 samples respectively
+(maximum absolute errors 0.000557 and 0.001775; RMSE 0.00000801 and 0.00001728).
+This is a component integration example, not an audio-quality benchmark.
+Sampling uses temperature 0.9, top-k 40, top-p 0.8 and repetition penalty 1.05.
+Equal-score ties use token-ID order; floating-point filtering near boundaries can
+differ from HF. The example uses fresh randomness rather than fixture uniforms.
 
 ## Source of truth
 
-The prompt is the audio-then-text subset of the pinned
+The single-turn prompt follows the pinned
 [Qwen2.5-Omni-3B chat template](https://huggingface.co/Qwen/Qwen2.5-Omni-3B/blob/f75b40e3da2003cdd6e1829b1f420ca70797c34e/chat_template.json).
-Audio preprocessing follows that revision's
+Audio preprocessing follows the same revision's
 [preprocessor configuration](https://huggingface.co/Qwen/Qwen2.5-Omni-3B/blob/f75b40e3da2003cdd6e1829b1f420ca70797c34e/preprocessor_config.json).
-The example's 30-second input limit is deliberately smaller than its 300-second
-processor capacity. Each template audio marker expands to
-`floor(ceil(ceil(samples / 160) / 2) / 2)` encoder embeddings.
-
-Follow [the companion MLC-LLM integration](https://github.com/mlc-ai/mlc-llm/pull/3600) and its
-[`examples/python/omni_audio/README.md`](https://github.com/JCNTH/mlc-llm/tree/codex/omni-audio-review/examples/python/omni_audio)
-for pinned source download, weight conversion, and the three component-builder
-commands. Use the companion integration branch containing that example until it
-is merged; these standalone builders are not installed `mlc_llm` CLI commands.
-Use its matching artifact builder and runtime revision; ordinary chat libraries
-do not provide these component contracts. See
-[the graph execution guide](../../docs/developer/artifact_graph_execution.rst)
-for the required export roles, metadata, parameter-schema checks, and ownership.
+The audio marker count is `floor(ceil(ceil(samples / 160) / 2) / 2)`.
+See the compiler integration's `examples/python/omni_audio` builders and
+[graph execution guide](../../docs/developer/artifact_graph_execution.rst) for
+export roles, manifest validation and resource ownership. Image/video input and
+ordinary `MLCEngine` loading are outside this example's contract.

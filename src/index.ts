@@ -117,3 +117,21 @@ export {
   createTalkerTVMFactory,
   TalkerTVMOptions,
 } from "./artifact_graph_talker_tvm";
+
+export {
+  createThinkerSpeechTVMFactory,
+  EmptyThinkerResponseError,
+  type ThinkerSpeechTVMOptions,
+} from "./artifact_graph_thinker_speech_tvm";
+export {
+  alignThinkerSpeechTrace,
+  type ThinkerSpeechTrace,
+} from "./omni_thinker_alignment";
+export {
+  createOmniSpeechGraph,
+  type OmniSpeechGraph,
+  type OmniSpeechOptions,
+  type OmniSpeechParts,
+  type OmniSpeechPart,
+} from "./omni_speech";
+export { renderOmniPrompt } from "./omni_prompt";

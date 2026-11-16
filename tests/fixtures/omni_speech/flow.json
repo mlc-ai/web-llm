@@ -1,0 +1,224 @@
+{
+  "model": {
+    "schema": "mlc.model-package",
+    "schema_version": 2,
+    "interface_id": "sha256:5586a8e15badad69b70c4a3d9d38bd66ac748875ede3b6725fc5b46cbaf96b45",
+    "components": {
+      "dit": {
+        "kind": "transform",
+        "contract": "qwen2_5_omni.flow_predictor.v1",
+        "inputs": {
+          "noise": {
+            "semantic": "audio.flow_state.v1",
+            "dtype": "float32",
+            "shape": ["frames", 80],
+            "delivery": "value"
+          },
+          "time": {
+            "semantic": "flow.time.v1",
+            "dtype": "float32",
+            "shape": [1],
+            "delivery": "value"
+          },
+          "code": {
+            "semantic": "audio.codec_ids.v1",
+            "dtype": "int32",
+            "shape": ["codes"],
+            "delivery": "value"
+          },
+          "reference": {
+            "semantic": "audio.reference_embedding.v1",
+            "dtype": "float32",
+            "shape": [128],
+            "delivery": "value"
+          },
+          "speaker": {
+            "semantic": "audio.speaker_embedding.v1",
+            "dtype": "float32",
+            "shape": [192],
+            "delivery": "value"
+          }
+        },
+        "outputs": {
+          "velocity": {
+            "semantic": "audio.flow_velocity.v1",
+            "dtype": "float32",
+            "shape": ["frames", 80],
+            "delivery": "value"
+          }
+        },
+        "weights": {
+          "manifest": "tensor-cache.json",
+          "parameter_schema_id": "sha256:defef2b07d5880e6fbb2fcb2ea642662118d362e3f7016b3b7d9b7200ac40f06"
+        },
+        "state": {
+          "kind": "none",
+          "scope": "request"
+        }
+      }
+    },
+    "tasks": {
+      "audio.predict_flow": {
+        "inputs": {
+          "noise": {
+            "spec": {
+              "semantic": "audio.flow_state.v1",
+              "dtype": "float32",
+              "shape": ["frames", 80],
+              "delivery": "value"
+            },
+            "targets": [
+              {
+                "component": "dit",
+                "port": "noise"
+              }
+            ]
+          },
+          "time": {
+            "spec": {
+              "semantic": "flow.time.v1",
+              "dtype": "float32",
+              "shape": [1],
+              "delivery": "value"
+            },
+            "targets": [
+              {
+                "component": "dit",
+                "port": "time"
+              }
+            ]
+          },
+          "code": {
+            "spec": {
+              "semantic": "audio.codec_ids.v1",
+              "dtype": "int32",
+              "shape": ["codes"],
+              "delivery": "value"
+            },
+            "targets": [
+              {
+                "component": "dit",
+                "port": "code"
+              }
+            ]
+          },
+          "reference": {
+            "spec": {
+              "semantic": "audio.reference_embedding.v1",
+              "dtype": "float32",
+              "shape": [128],
+              "delivery": "value"
+            },
+            "targets": [
+              {
+                "component": "dit",
+                "port": "reference"
+              }
+            ]
+          },
+          "speaker": {
+            "spec": {
+              "semantic": "audio.speaker_embedding.v1",
+              "dtype": "float32",
+              "shape": [192],
+              "delivery": "value"
+            },
+            "targets": [
+              {
+                "component": "dit",
+                "port": "speaker"
+              }
+            ]
+          }
+        },
+        "outputs": {
+          "velocity": {
+            "spec": {
+              "semantic": "audio.flow_velocity.v1",
+              "dtype": "float32",
+              "shape": ["frames", 80],
+              "delivery": "value"
+            },
+            "source": {
+              "component": "dit",
+              "port": "velocity"
+            },
+            "optional": false
+          }
+        },
+        "edges": []
+      }
+    }
+  },
+  "compiled": {
+    "schema": "mlc.compiled-program",
+    "schema_version": 2,
+    "interface_id": "sha256:5586a8e15badad69b70c4a3d9d38bd66ac748875ede3b6725fc5b46cbaf96b45",
+    "components": {
+      "dit": {
+        "spec": {
+          "kind": "transform",
+          "contract": "qwen2_5_omni.flow_predictor.v1",
+          "inputs": {
+            "noise": {
+              "semantic": "audio.flow_state.v1",
+              "dtype": "float32",
+              "shape": ["frames", 80],
+              "delivery": "value"
+            },
+            "time": {
+              "semantic": "flow.time.v1",
+              "dtype": "float32",
+              "shape": [1],
+              "delivery": "value"
+            },
+            "code": {
+              "semantic": "audio.codec_ids.v1",
+              "dtype": "int32",
+              "shape": ["codes"],
+              "delivery": "value"
+            },
+            "reference": {
+              "semantic": "audio.reference_embedding.v1",
+              "dtype": "float32",
+              "shape": [128],
+              "delivery": "value"
+            },
+            "speaker": {
+              "semantic": "audio.speaker_embedding.v1",
+              "dtype": "float32",
+              "shape": [192],
+              "delivery": "value"
+            }
+          },
+          "outputs": {
+            "velocity": {
+              "semantic": "audio.flow_velocity.v1",
+              "dtype": "float32",
+              "shape": ["frames", 80],
+              "delivery": "value"
+            }
+          },
+          "weights": {
+            "manifest": "tensor-cache.json",
+            "parameter_schema_id": "sha256:defef2b07d5880e6fbb2fcb2ea642662118d362e3f7016b3b7d9b7200ac40f06"
+          },
+          "state": {
+            "kind": "none",
+            "scope": "request"
+          }
+        },
+        "module": "dit.wasm",
+        "exports": {
+          "run": "forward",
+          "forward": "forward"
+        },
+        "resources": {
+          "required_features": [],
+          "max_storage_buffer_binding_size": 33554432,
+          "estimated_device_memory_bytes": 1595949504
+        }
+      }
+    }
+  }
+}

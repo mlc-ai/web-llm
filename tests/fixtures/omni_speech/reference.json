@@ -1,0 +1,120 @@
+{
+  "model": {
+    "schema": "mlc.model-package",
+    "schema_version": 2,
+    "interface_id": "sha256:d7561b8cd6d52a9b8d7372eb0780d4fad0a199f99eaa81e3ea0c71d2c7751231",
+    "components": {
+      "conditioner": {
+        "kind": "encoder",
+        "contract": "qwen2_5_omni.reference_conditioner.v1",
+        "inputs": {
+          "mel": {
+            "semantic": "audio.reference_mel.v1",
+            "dtype": "float32",
+            "shape": ["frames", 80],
+            "delivery": "value"
+          }
+        },
+        "outputs": {
+          "embedding": {
+            "semantic": "audio.reference_embedding.v1",
+            "dtype": "float32",
+            "shape": [128],
+            "delivery": "value"
+          }
+        },
+        "weights": {
+          "manifest": "tensor-cache.json",
+          "parameter_schema_id": "sha256:4ad78b4e345db0e6dd57b4ba9387529930d61227175d121c4209587e77500f89"
+        },
+        "state": {
+          "kind": "none",
+          "scope": "request"
+        }
+      }
+    },
+    "tasks": {
+      "audio.condition_reference": {
+        "inputs": {
+          "mel": {
+            "spec": {
+              "semantic": "audio.reference_mel.v1",
+              "dtype": "float32",
+              "shape": ["frames", 80],
+              "delivery": "value"
+            },
+            "targets": [
+              {
+                "component": "conditioner",
+                "port": "mel"
+              }
+            ]
+          }
+        },
+        "outputs": {
+          "embedding": {
+            "spec": {
+              "semantic": "audio.reference_embedding.v1",
+              "dtype": "float32",
+              "shape": [128],
+              "delivery": "value"
+            },
+            "source": {
+              "component": "conditioner",
+              "port": "embedding"
+            },
+            "optional": false
+          }
+        },
+        "edges": []
+      }
+    }
+  },
+  "compiled": {
+    "schema": "mlc.compiled-program",
+    "schema_version": 2,
+    "interface_id": "sha256:d7561b8cd6d52a9b8d7372eb0780d4fad0a199f99eaa81e3ea0c71d2c7751231",
+    "components": {
+      "conditioner": {
+        "spec": {
+          "kind": "encoder",
+          "contract": "qwen2_5_omni.reference_conditioner.v1",
+          "inputs": {
+            "mel": {
+              "semantic": "audio.reference_mel.v1",
+              "dtype": "float32",
+              "shape": ["frames", 80],
+              "delivery": "value"
+            }
+          },
+          "outputs": {
+            "embedding": {
+              "semantic": "audio.reference_embedding.v1",
+              "dtype": "float32",
+              "shape": [128],
+              "delivery": "value"
+            }
+          },
+          "weights": {
+            "manifest": "tensor-cache.json",
+            "parameter_schema_id": "sha256:4ad78b4e345db0e6dd57b4ba9387529930d61227175d121c4209587e77500f89"
+          },
+          "state": {
+            "kind": "none",
+            "scope": "request"
+          }
+        },
+        "module": "conditioner.wasm",
+        "exports": {
+          "run": "forward",
+          "forward": "forward"
+        },
+        "resources": {
+          "required_features": [],
+          "max_storage_buffer_binding_size": 4718592,
+          "estimated_device_memory_bytes": 82414592
+        }
+      }
+    }
+  }
+}

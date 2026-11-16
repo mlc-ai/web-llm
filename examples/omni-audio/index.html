@@ -3,31 +3,40 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Audio to text with WebLLM</title>
+    <title>Text and audio to speech with WebLLM</title>
   </head>
   <body>
     <main>
-      <h1>Audio to text</h1>
+      <h1>Text and audio to speech</h1>
       <p>
-        Local Qwen2.5-Omni audio input and text output. Clips up to 30 seconds;
-        the example converts audio to mono, 16 kHz. Loading the unquantized
-        components requires several GB of memory.
+        Local Qwen2.5-Omni text and speech responses. Optional audio clips up to
+        30 seconds; the example converts audio to mono, 16 kHz. Loading the
+        unquantized FP32 components requires substantial GPU memory and buffers
+        larger than 1 GB.
       </p>
       <label
-        >Audio file <input id="audio" type="file" accept="audio/*"
+        >Audio file (optional) <input id="audio" type="file" accept="audio/*"
       /></label>
       <p>
         <label
           >Prompt
           <textarea id="prompt" rows="3" cols="60">
-Describe the sound briefly.</textarea
+Say hello in one short sentence.</textarea
           >
         </label>
       </p>
+      <label
+        >Voice
+        <select id="voice">
+          <option>Ethan</option>
+          <option>Chelsie</option>
+        </select></label
+      >
       <button id="generate">Generate</button>
       <button id="cancel" disabled>Cancel</button>
-      <p id="status" role="status">Choose an audio file.</p>
+      <p id="status" role="status">Enter a prompt, optionally attach audio.</p>
       <pre id="output" aria-live="polite" style="white-space: pre-wrap"></pre>
+      <audio id="playback" controls></audio>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>

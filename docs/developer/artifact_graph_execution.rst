@@ -252,3 +252,32 @@ experiment has RMSE 8.01e-6 and maximum absolute error 5.57e-4; nine samples exc
 the predeclared pointwise tolerance. That composed waveform gate remains failed,
 separate from the passing codec comparison. One independent ASR smoke check
 recovers the expected sentence; it is not a speech-quality benchmark.
+
+Text and audio to speech
+------------------------
+
+``createThinkerSpeechTVMFactory`` binds the opt-in FP32
+``qwen2_5_omni.thinker_audio_talker.v1`` contract. Its cached forwards return
+normalized hidden states alongside logits. The factory captures the actual
+prompt and forwarded reply embeddings, then ``alignThinkerSpeechTrace`` applies
+the pinned HF alignment. Audio-placeholder embeddings are zeroed only when
+actual audio features were supplied. The final sampled token is retained for
+EOS alignment even though it has no forwarded hidden state. An immediate EOS
+raises ``EmptyThinkerResponseError``; no missing reply state is fabricated.
+
+``createOmniSpeechGraph`` composes validated standalone factories into two tasks:
+``omni.text_to_speech`` supplies empty audio features, while
+``omni.audio_to_speech`` routes PCM through feature extraction and audio encoding.
+Both route the Thinker's prefix/reply conditioning through the Talker, reference
+conditioner, explicit-noise RK4 flow sampler and waveform decoder. The host flow
+controller retains the original component contracts and executes their validated
+standalone graphs. It owns cancellation and waits for their cleanup.
+
+Call ``execute`` with ``mode``, task inputs and an optional abort signal. Consume
+``token_ids``, ``finish_reason`` and ``pcm`` concurrently: bounded output queues
+apply backpressure if a selected output is not drained. Thinker finish reason 0
+means EOS and 1 means a token/context cap. Explicit noise, time points and sampler
+options make callers responsible for their chosen generation policy. The
+``examples/omni-audio`` application shows text or optional audio input, voice
+selection, bounded generation, cancellation and WAV playback using these public
+APIs. It requests device limits large enough for the FP32 head before loading.

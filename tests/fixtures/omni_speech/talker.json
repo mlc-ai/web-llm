@@ -1,0 +1,151 @@
+{
+  "model": {
+    "schema": "mlc.model-package",
+    "schema_version": 2,
+    "interface_id": "sha256:eff51d07f2c32e624d8da77ec409211ecad45a8f64b5bb5d9a1862e2f44f85c4",
+    "components": {
+      "talker": {
+        "kind": "autoregressive",
+        "contract": "qwen2_5_omni.talker.v1",
+        "inputs": {
+          "prefix_embeddings": {
+            "semantic": "audio.talker_prefix.v1",
+            "dtype": "float32",
+            "shape": ["prefix", 2048],
+            "delivery": "value"
+          },
+          "reply_embeddings": {
+            "semantic": "audio.talker_reply.v1",
+            "dtype": "float32",
+            "shape": ["reply", 2048],
+            "delivery": "value"
+          }
+        },
+        "outputs": {
+          "code": {
+            "semantic": "audio.codec_ids.v1",
+            "dtype": "int32",
+            "shape": ["codes"],
+            "delivery": "value"
+          }
+        },
+        "weights": {
+          "manifest": "tensor-cache.json",
+          "parameter_schema_id": "sha256:2d3b30eb1b4a51820d20ef1f0cc0395debaae0f7f4c220e62443c38794b3e878"
+        },
+        "state": {
+          "kind": "kv_cache",
+          "scope": "request"
+        }
+      }
+    },
+    "tasks": {
+      "talker.generate": {
+        "inputs": {
+          "prefix_embeddings": {
+            "spec": {
+              "semantic": "audio.talker_prefix.v1",
+              "dtype": "float32",
+              "shape": ["prefix", 2048],
+              "delivery": "value"
+            },
+            "targets": [
+              {
+                "component": "talker",
+                "port": "prefix_embeddings"
+              }
+            ]
+          },
+          "reply_embeddings": {
+            "spec": {
+              "semantic": "audio.talker_reply.v1",
+              "dtype": "float32",
+              "shape": ["reply", 2048],
+              "delivery": "value"
+            },
+            "targets": [
+              {
+                "component": "talker",
+                "port": "reply_embeddings"
+              }
+            ]
+          }
+        },
+        "outputs": {
+          "code": {
+            "spec": {
+              "semantic": "audio.codec_ids.v1",
+              "dtype": "int32",
+              "shape": ["codes"],
+              "delivery": "value"
+            },
+            "source": {
+              "component": "talker",
+              "port": "code"
+            },
+            "optional": false
+          }
+        },
+        "edges": []
+      }
+    }
+  },
+  "compiled": {
+    "schema": "mlc.compiled-program",
+    "schema_version": 2,
+    "interface_id": "sha256:eff51d07f2c32e624d8da77ec409211ecad45a8f64b5bb5d9a1862e2f44f85c4",
+    "components": {
+      "talker": {
+        "spec": {
+          "kind": "autoregressive",
+          "contract": "qwen2_5_omni.talker.v1",
+          "inputs": {
+            "prefix_embeddings": {
+              "semantic": "audio.talker_prefix.v1",
+              "dtype": "float32",
+              "shape": ["prefix", 2048],
+              "delivery": "value"
+            },
+            "reply_embeddings": {
+              "semantic": "audio.talker_reply.v1",
+              "dtype": "float32",
+              "shape": ["reply", 2048],
+              "delivery": "value"
+            }
+          },
+          "outputs": {
+            "code": {
+              "semantic": "audio.codec_ids.v1",
+              "dtype": "int32",
+              "shape": ["codes"],
+              "delivery": "value"
+            }
+          },
+          "weights": {
+            "manifest": "tensor-cache.json",
+            "parameter_schema_id": "sha256:2d3b30eb1b4a51820d20ef1f0cc0395debaae0f7f4c220e62443c38794b3e878"
+          },
+          "state": {
+            "kind": "kv_cache",
+            "scope": "request"
+          }
+        },
+        "module": "talker.wasm",
+        "exports": {
+          "run": "prefill",
+          "embed": "embed",
+          "project": "project",
+          "prefill": "prefill",
+          "decode": "decode",
+          "create_state": "create_tir_paged_kv_cache",
+          "reset_state": "reset_state"
+        },
+        "resources": {
+          "required_features": [],
+          "max_storage_buffer_binding_size": 69206016,
+          "estimated_device_memory_bytes": 1538419712
+        }
+      }
+    }
+  }
+}

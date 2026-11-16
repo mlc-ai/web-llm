@@ -1,0 +1,148 @@
+{
+  "schema": "mlc.model-package",
+  "schema_version": 2,
+  "interface_id": "sha256:07ad864a3d8f4f46562fec20a331f0a15bdf2947d36c2608f84dc18af9aa6bce",
+  "components": {
+    "thinker": {
+      "kind": "autoregressive",
+      "contract": "qwen2_5_omni.thinker_audio_talker.v1",
+      "inputs": {
+        "token_ids": {
+          "semantic": "token.ids.v1",
+          "dtype": "int32",
+          "shape": ["tokens"],
+          "delivery": "value"
+        },
+        "audio_embeddings": {
+          "semantic": "audio.embeddings.v1",
+          "dtype": "float32",
+          "shape": ["tokens", 2048],
+          "delivery": "value"
+        }
+      },
+      "outputs": {
+        "token_ids": {
+          "semantic": "token.ids.v1",
+          "dtype": "int32",
+          "shape": [1],
+          "delivery": "stream"
+        },
+        "prefix_embeddings": {
+          "semantic": "audio.talker_prefix.v1",
+          "dtype": "float32",
+          "shape": ["prefix", 2048],
+          "delivery": "value"
+        },
+        "reply_embeddings": {
+          "semantic": "audio.talker_reply.v1",
+          "dtype": "float32",
+          "shape": ["reply", 2048],
+          "delivery": "value"
+        },
+        "finish_reason": {
+          "semantic": "generation.finish_reason.v1",
+          "dtype": "int32",
+          "shape": [1],
+          "delivery": "value"
+        }
+      },
+      "weights": {
+        "manifest": "tensor-cache.json",
+        "parameter_schema_id": "sha256:23f9252c810048af939573dd4c2486cc2bc162980d88bcd2b5d817ec834ee071"
+      },
+      "state": {
+        "kind": "kv_cache",
+        "scope": "request"
+      }
+    }
+  },
+  "tasks": {
+    "thinker.generate": {
+      "inputs": {
+        "token_ids": {
+          "spec": {
+            "semantic": "token.ids.v1",
+            "dtype": "int32",
+            "shape": ["tokens"],
+            "delivery": "value"
+          },
+          "targets": [
+            {
+              "component": "thinker",
+              "port": "token_ids"
+            }
+          ]
+        },
+        "audio_embeddings": {
+          "spec": {
+            "semantic": "audio.embeddings.v1",
+            "dtype": "float32",
+            "shape": ["tokens", 2048],
+            "delivery": "value"
+          },
+          "targets": [
+            {
+              "component": "thinker",
+              "port": "audio_embeddings"
+            }
+          ]
+        }
+      },
+      "outputs": {
+        "token_ids": {
+          "spec": {
+            "semantic": "token.ids.v1",
+            "dtype": "int32",
+            "shape": [1],
+            "delivery": "stream"
+          },
+          "source": {
+            "component": "thinker",
+            "port": "token_ids"
+          },
+          "optional": false
+        },
+        "prefix_embeddings": {
+          "spec": {
+            "semantic": "audio.talker_prefix.v1",
+            "dtype": "float32",
+            "shape": ["prefix", 2048],
+            "delivery": "value"
+          },
+          "source": {
+            "component": "thinker",
+            "port": "prefix_embeddings"
+          },
+          "optional": false
+        },
+        "reply_embeddings": {
+          "spec": {
+            "semantic": "audio.talker_reply.v1",
+            "dtype": "float32",
+            "shape": ["reply", 2048],
+            "delivery": "value"
+          },
+          "source": {
+            "component": "thinker",
+            "port": "reply_embeddings"
+          },
+          "optional": false
+        },
+        "finish_reason": {
+          "spec": {
+            "semantic": "generation.finish_reason.v1",
+            "dtype": "int32",
+            "shape": [1],
+            "delivery": "value"
+          },
+          "source": {
+            "component": "thinker",
+            "port": "finish_reason"
+          },
+          "optional": false
+        }
+      },
+      "edges": []
+    }
+  }
+}

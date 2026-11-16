@@ -101,6 +101,11 @@ interface ComponentMetadata {
     max_mel_frames: number;
   };
   thinker: {
+    speech_profile?: {
+      speaker_bos_token_ids: number[];
+      text_eos_token_id: number;
+      text_pad_token_id: number;
+    };
     model_dtype: string;
     hidden_size: number;
     vocab_size: number;
