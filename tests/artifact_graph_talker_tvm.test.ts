@@ -48,17 +48,18 @@ async function setup(
   tokens = [4, 5, 8294],
   maxCodes = 4,
   sampling?: TalkerTVMOptions["sampling"],
+  embeddingSize = 2048,
 ) {
   const prefix = {
     semantic: "audio.talker_prefix.v1",
     dtype: "float32",
-    shape: ["prefix", 2048],
+    shape: ["prefix", embeddingSize],
     delivery: "value",
   };
   const reply = {
     ...prefix,
     semantic: "audio.talker_reply.v1",
-    shape: ["reply", 2048],
+    shape: ["reply", embeddingSize],
   };
   const code = {
     semantic: "audio.codec_ids.v1",
@@ -129,7 +130,7 @@ async function setup(
   };
   const config = {
     model_dtype: "float32",
-    embedding_size: 2048,
+    embedding_size: embeddingSize,
     hidden_size: 896,
     vocab_size: 8448,
     codec_bos_token_id: 8293,
@@ -154,9 +155,9 @@ async function setup(
     reset_state: () => calls.push({ name: "reset" }),
     embed: (x: Tensor) => {
       calls.push({ name: "embed", data: Array.from(x.data) });
-      const t = new Tensor([x.shape[0], 2048]);
+      const t = new Tensor([x.shape[0], embeddingSize]);
       for (let i = 0; i < x.shape[0]; i++)
-        t.data.fill(x.data[i], i * 2048, (i + 1) * 2048);
+        t.data.fill(x.data[i], i * embeddingSize, (i + 1) * embeddingSize);
       return t;
     },
     project: (x: Tensor) => {
@@ -240,6 +241,7 @@ async function setup(
 async function* input(
   prefixRows = 2,
   replyRows = 1,
+  embeddingSize = 2048,
 ): AsyncIterable<GraphInputEvent> {
   for (const [port, rows, value] of [
     ["prefix_embeddings", prefixRows, 0.25],
@@ -249,8 +251,8 @@ async function* input(
       kind: "data",
       port,
       tensor: {
-        shape: [rows, 2048],
-        data: new Float32Array(rows * 2048).fill(value),
+        shape: [rows, embeddingSize],
+        data: new Float32Array(rows * embeddingSize).fill(value),
       },
     };
     yield { kind: "end", port };
@@ -270,6 +272,16 @@ test("BOS-only suppression, pad/BOS additions, shifted reply and stripped EOS", 
   expect(projects[0].data![2048]).toBe(8293.25);
   expect(projects[1].data![0]).toBe(4.5);
   expect(projects[2].data![0]).toBe(5.5);
+});
+test("7B Talker uses the manifest width for codec alignment", async () => {
+  const embeddingSize = 3584;
+  const s = await setup([4, 5, 8294], 4, undefined, embeddingSize);
+  expect(await collect(s, input(2, 1, embeddingSize))).toEqual([4, 5]);
+  const projects = s.calls.filter((x) => x.name === "project");
+  expect(projects[0].data![0]).toBe(8292.25);
+  expect(projects[0].data![embeddingSize]).toBe(8293.25);
+  expect(projects[1].data![embeddingSize - 1]).toBe(4.5);
+  await s.b.dispose();
 });
 test("PAD terminates without entering DiT codes", async () => {
   const s = await setup([3, 8292]);

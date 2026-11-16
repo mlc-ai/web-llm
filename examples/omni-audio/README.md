@@ -48,9 +48,14 @@ releases its runtimes. Cancel interrupts downloads and generation, and cleanup
 waits for queued GPU work before disposing resources. Input audio stays local;
 only configured model artifacts are downloaded.
 
+The graph also accepts Qwen2.5-Omni-7B audio encoder, Thinker and Talker manifests
+with 3,584-wide embeddings. The three components need matching 7B weights.
+Convert the FP32 Thinker with `--encode-format raw` for direct GPU upload. Its
+largest weight buffer requires 2,179,989,504 bytes.
+
 ## Numerical scope
 
-The fixed text and synthetic-audio probes produced 125 and 166 reference codec
+The fixed 3B text and synthetic-audio probes produced 125 and 166 reference codec
 tokens respectively, both with natural EOS. Their composed waveforms exceeded
 the strict pointwise gate at 9 of 60,000 and 41 of 79,680 samples respectively
 (maximum absolute errors 0.000557 and 0.001775; RMSE 0.00000801 and 0.00001728).

@@ -19,7 +19,7 @@ const fixture = (name: string) =>
       "utf8",
     ),
   );
-async function setup(audio = false) {
+async function setup(audio = false, embeddingSize = 2048) {
   const received: { name: string; values: Record<string, GraphTensor> }[] = [];
   const disposed: string[] = [],
     created: string[] = [];
@@ -34,19 +34,25 @@ async function setup(audio = false) {
     ...(audio ? ["features", "audio"] : []),
   ]) {
     const data =
-      name === "thinker"
-        ? Object.fromEntries(
-            ["model", "compiled"].map((key) => [
-              key,
-              JSON.parse(
-                readFileSync(
-                  join(__dirname, "fixtures/thinker_speech_tvm", key + ".json"),
-                  "utf8",
+      embeddingSize === 3584 && ["thinker", "talker", "audio"].includes(name)
+        ? fixture(name + "-7b")
+        : name === "thinker"
+          ? Object.fromEntries(
+              ["model", "compiled"].map((key) => [
+                key,
+                JSON.parse(
+                  readFileSync(
+                    join(
+                      __dirname,
+                      "fixtures/thinker_speech_tvm",
+                      key + ".json",
+                    ),
+                    "utf8",
+                  ),
                 ),
-              ),
-            ]),
-          )
-        : fixture(name);
+              ]),
+            )
+          : fixture(name);
     const componentId = Object.keys(data.compiled.components)[0];
     const factory: GraphComponentFactory = {
       create(id, component, signal) {
@@ -71,11 +77,17 @@ async function setup(audio = false) {
                 };
               yield {
                 port: "prefix_embeddings",
-                tensor: { shape: [4, 2048], data: new Float32Array(4 * 2048) },
+                tensor: {
+                  shape: [4, embeddingSize],
+                  data: new Float32Array(4 * embeddingSize),
+                },
               };
               yield {
                 port: "reply_embeddings",
-                tensor: { shape: [3, 2048], data: new Float32Array(3 * 2048) },
+                tensor: {
+                  shape: [3, embeddingSize],
+                  data: new Float32Array(3 * embeddingSize),
+                },
               };
               yield {
                 port: "finish_reason",
@@ -116,7 +128,10 @@ async function setup(audio = false) {
             else if (name === "audio")
               yield {
                 port: "embeddings",
-                tensor: { shape: [1, 2048], data: new Float32Array(2048) },
+                tensor: {
+                  shape: [1, embeddingSize],
+                  data: new Float32Array(embeddingSize),
+                },
               };
           },
         };
@@ -208,6 +223,35 @@ test("audio task binds frontend and encoder outputs rather than empty embeddings
   ).toEqual([1, 2048]);
   expect(s.created).toContain("features");
   expect(s.created).toContain("audio");
+});
+test("3B and 7B manifests run concurrently with their own embedding widths", async () => {
+  const [small, large] = await Promise.all([setup(true), setup(true, 3584)]);
+  await Promise.all(
+    [small, large].map(async (s) =>
+      consume(await s.graph.execute({ mode: "audio", inputs: inputs(true) })),
+    ),
+  );
+  for (const [s, width] of [
+    [small, 2048],
+    [large, 3584],
+  ] as const) {
+    const thinker = s.received.find((x) => x.name === "thinker")!;
+    const talker = s.received.find((x) => x.name === "talker")!;
+    expect(thinker.values.audio_embeddings.shape).toEqual([1, width]);
+    expect(talker.values.prefix_embeddings.shape).toEqual([4, width]);
+    expect(talker.values.reply_embeddings.shape).toEqual([3, width]);
+  }
+});
+test("rejects mismatched Omni profile manifests before opening components", async () => {
+  const [small, large] = await Promise.all([setup(true), setup(true, 3584)]);
+  await expect(
+    createOmniSpeechGraph({
+      ...large.options,
+      parts: { ...large.parts, talker: small.parts.talker },
+    }),
+  ).rejects.toThrow(/incompatible|shape/i);
+  expect(small.created).toHaveLength(0);
+  expect(large.created).toHaveLength(0);
 });
 test("streams more text than queue capacity while speech completes", async () => {
   const s = await setup();

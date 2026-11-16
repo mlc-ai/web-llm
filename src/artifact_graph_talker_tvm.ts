@@ -75,12 +75,14 @@ export async function createTalkerTVMFactory(
   const component = compiled.components[componentId],
     inputs = component?.spec.inputs,
     output = component?.spec.outputs.code;
+  const embeddingSize = inputs?.prefix_embeddings?.shape[1];
   if (
     !component ||
     component.spec.contract !== "qwen2_5_omni.talker.v1" ||
     component.spec.kind !== "autoregressive" ||
     component.spec.state.kind !== "kv_cache" ||
     !component.spec.weights ||
+    (embeddingSize !== 2048 && embeddingSize !== 3584) ||
     Object.keys(inputs).length !== 2 ||
     Object.keys(component.spec.outputs).length !== 1 ||
     !["prefix_embeddings", "reply_embeddings"].every(
@@ -88,7 +90,7 @@ export async function createTalkerTVMFactory(
         inputs[name]?.dtype === "float32" &&
         inputs[name].delivery === "value" &&
         inputs[name].shape.length === 2 &&
-        inputs[name].shape[1] === 2048,
+        inputs[name].shape[1] === embeddingSize,
     ) ||
     inputs.prefix_embeddings.semantic !== "audio.talker_prefix.v1" ||
     inputs.reply_embeddings.semantic !== "audio.talker_reply.v1" ||
@@ -168,7 +170,7 @@ export async function createTalkerTVMFactory(
         if (
           !config ||
           config.model_dtype !== "float32" ||
-          config.embedding_size !== 2048 ||
+          config.embedding_size !== embeddingSize ||
           config.hidden_size !== 896 ||
           config.vocab_size !== 8448 ||
           config.codec_bos_token_id !== 8293 ||
@@ -266,10 +268,10 @@ export async function createTalkerTVMFactory(
               if (
                 !tensor ||
                 tensor.shape.length !== 2 ||
-                tensor.shape[1] !== 2048 ||
+                tensor.shape[1] !== embeddingSize ||
                 !Number.isSafeInteger(tensor.shape[0]) ||
                 tensor.shape[0] < 1 ||
-                tensor.data.length !== tensor.shape[0] * 2048 ||
+                tensor.data.length !== tensor.shape[0] * embeddingSize ||
                 !tensor.data.every(Number.isFinite)
               )
                 throw new Error("Invalid Talker conditioning tensors");
@@ -360,7 +362,7 @@ export async function createTalkerTVMFactory(
                       .copyFrom(new Int32Array(ids)),
                     packed,
                   ) as tvmjs.Tensor,
-                [ids.length, 2048],
+                [ids.length, embeddingSize],
               );
             const specials = await embed([8292, 8293]);
             const initial = prefix.data as Float32Array;
@@ -370,9 +372,11 @@ export async function createTalkerTVMFactory(
               host(() => {
                 if (!data.every(Number.isFinite))
                   throw new Error("Talker conditioning overflow");
-                const count = data.length / 2048;
+                const count = data.length / embeddingSize;
                 const projected = functions.project(
-                  tvm.empty([count, 2048], "float32", device).copyFrom(data),
+                  tvm
+                    .empty([count, embeddingSize], "float32", device)
+                    .copyFrom(data),
                   packed,
                 ) as tvmjs.Tensor;
                 if (
@@ -409,9 +413,9 @@ export async function createTalkerTVMFactory(
               check();
               logits = await forward(
                 initial.subarray(
-                  start * 2048,
+                  start * embeddingSize,
                   Math.min(prefix.shape[0], start + config.prefill_chunk_size) *
-                    2048,
+                    embeddingSize,
                 ),
                 false,
               );
@@ -437,7 +441,7 @@ export async function createTalkerTVMFactory(
               history.push(token);
               if (step + 1 === maxCodes) break;
               const aligned = await embed([token]);
-              const offset = Math.min(step, reply.shape[0] - 1) * 2048;
+              const offset = Math.min(step, reply.shape[0] - 1) * embeddingSize;
               for (let i = 0; i < aligned.length; i++)
                 aligned[i] += reply.data[offset + i];
               logits = await forward(aligned, true);

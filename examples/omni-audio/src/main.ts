@@ -232,7 +232,7 @@ generate.onclick = async () => {
             .max_storage_buffer_binding_size,
       ),
     );
-    const bufferLimit = Math.max(2 ** 30, 2 ** Math.ceil(Math.log2(required)));
+    const bufferLimit = Math.max(2 ** 30, required);
     if (
       bufferLimit > adapter.limits.maxBufferSize ||
       bufferLimit > adapter.limits.maxStorageBufferBindingSize
