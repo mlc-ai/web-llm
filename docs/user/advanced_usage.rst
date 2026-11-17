@@ -177,6 +177,51 @@ Additionally, we have a full Chrome extension project, `WebLLM Assistant <https:
 Additional Customization
 ------------------------
 
+Replaying Separated Reasoning
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Assistant ``reasoning_content`` can be replayed separately from ``content`` by
+selecting an explicit conversation reasoning profile:
+
+.. code-block:: typescript
+
+   await engine.reload("Ministral-3-3B-Reasoning-2512-q4f16_1-MLC", {
+       conv_config: { reasoning: "ministral3" },
+   });
+   const response = await engine.chat.completions.create({
+       messages: [
+           { role: "user", content: "What is 2 + 2?" },
+           {
+               role: "assistant",
+               reasoning_content: "Adding two and two gives four.",
+               content: "4",
+           },
+           { role: "user", content: "And 3 + 3?" },
+       ],
+   });
+
+The profile rules follow the models' templates:
+
+- `Qwen3 <https://huggingface.co/Qwen/Qwen3-4B/blob/1cfa9a7208912126459214e8b04321603b3df60c/tokenizer_config.json>`_
+  (``qwen3``) and
+  `Qwen3.5 <https://huggingface.co/Qwen/Qwen3.5-4B/blob/851bf6e806efd8d0a36b00ddf55e13ccb7b8cd0a/chat_template.jinja>`_
+  (``qwen3_5``) keep reasoning in the current user turn, including across tool replies.
+- `Ministral 3 Reasoning <https://huggingface.co/mistralai/Ministral-3-3B-Reasoning-2512/blob/4a36357c811bf511a7b625d132e12f22408aac91/chat_template.jinja>`_
+  (``ministral3``) retains historical reasoning, as in the example above.
+- `Gemma 4 <https://huggingface.co/google/gemma-4-E2B-it/blob/3e22461f65e89153144f8adb70e3b8c2cc9845a7/chat_template.jinja>`_
+  (``gemma4``) keeps current-turn reasoning. Setting
+  ``extra_body: { preserve_thinking: true }`` also keeps earlier tool-call reasoning,
+  but not reasoning from earlier final answers.
+
+Only ``gemma4`` accepts a boolean ``preserve_thinking`` option. Both ``true`` and
+``false`` raise an error with other profiles; omit the option or use ``null`` to leave it unset.
+
+Profiles format separated reasoning and its associated content using the model's
+reasoning rules. Existing content-only histories, generation settings and output
+parsing are unchanged. This does not enable native tools for additional models or
+serialize ``tool_calls``; tool histories still require their model-formatted
+content and an appropriate tool-role template.
+
 Using IndexedDB Cache
 ^^^^^^^^^^^^^^^^^^^^^
 
