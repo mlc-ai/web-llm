@@ -30,6 +30,11 @@ export interface SampledTokenReadbackRing {
     tokenCount: number,
     fromTokenOffset?: number,
   ): number;
+  submitFromPointer(
+    fromPtr: number,
+    tokenCount: number,
+    fromTokenOffset?: number,
+  ): number;
   pollReady(): Array<SampledTokenReadbackBatch>;
   waitReady(): Promise<Array<SampledTokenReadbackBatch>>;
   dispose(): void;
@@ -119,4 +124,14 @@ export function submitSampledTokenReadbackBatch(
     throw new Error(SAMPLED_TOKEN_READBACK_BATCH_RUNTIME_HINT);
   }
   return (ring as SampledTokenReadbackRingWithBatchSubmit).submitTokens(tokens);
+}
+
+/** Read raw 32-bit words, including the bits of floating-point tensors. */
+export function submitTensorReadbackWords(
+  ring: SampledTokenReadbackRing,
+  from: tvmjs.Tensor,
+  wordCount: number,
+): number {
+  const { byteOffset } = from as unknown as { readonly byteOffset: number };
+  return ring.submitFromPointer(from.getDataPtr(), wordCount, byteOffset / 4);
 }
