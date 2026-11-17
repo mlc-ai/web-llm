@@ -73,6 +73,26 @@ describe("Check generation config illegal values", () => {
   });
 });
 
+describe("Check sampled-token readback config", () => {
+  test("rejects an unknown mode and non-positive counts", () => {
+    expect(() =>
+      postInitAndCheckGenerationConfigValues({
+        sample_readback_mode: "invalid_mode" as "baseline",
+      }),
+    ).toThrow(
+      'sample_readback_mode must be "auto", "baseline" or "ring_vector".',
+    );
+    expect(() =>
+      postInitAndCheckGenerationConfigValues({ sample_readback_batch_size: 0 }),
+    ).toThrow("sample_readback_batch_size");
+    expect(() =>
+      postInitAndCheckGenerationConfigValues({
+        sample_readback_ui_yield_interval: -1,
+      }),
+    ).toThrow("sample_readback_ui_yield_interval");
+  });
+});
+
 describe("Check generation post init", () => {
   test("Only set one of presence or frequency penalty", () => {
     const genConfig: GenerationConfig = {

@@ -100,6 +100,45 @@ import {
   resolveModelPackageResourceURLs,
 } from "./artifact_manifest";
 
+interface CooperativeScheduler {
+  yield?: () => Promise<void>;
+}
+
+async function yieldToMessageChannelTask(): Promise<void> {
+  await new Promise<void>((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      channel.port2.close();
+      resolve();
+    };
+    channel.port2.postMessage(undefined);
+  });
+}
+
+/**
+ * Hand control back to the host event loop for one task. Workers without a
+ * document use scheduler.yield when available, pages use a message task, and
+ * both avoid setTimeout because browsers clamp nested timers.
+ */
+async function yieldToHostTask(): Promise<void> {
+  const scheduler = (
+    globalThis as typeof globalThis & { scheduler?: CooperativeScheduler }
+  ).scheduler;
+  if (
+    typeof document === "undefined" &&
+    typeof scheduler?.yield === "function"
+  ) {
+    await scheduler.yield();
+    return;
+  }
+  if (typeof document !== "undefined" && typeof MessageChannel === "function") {
+    await yieldToMessageChannelTask();
+    return;
+  }
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+}
+
 function getUnixTimestampSeconds(): number {
   return Math.floor(Date.now() / 1000);
 }
@@ -579,6 +618,17 @@ export class MLCEngine implements MLCEngineInterface {
   // 2. Underlying auto-regressive generation functions
   //---------------------------------------------------
 
+  private async maybeYieldToHost(
+    genConfig: GenerationConfig,
+    decodedTokens: number,
+  ): Promise<void> {
+    const interval = genConfig.sample_readback_ui_yield_interval ?? 0;
+    if (interval === 0 || decodedTokens % interval !== 0) {
+      return;
+    }
+    await yieldToHostTask();
+  }
+
   private async _generate(
     input:
       | ChatCompletionRequestNonStreaming
@@ -593,12 +643,17 @@ export class MLCEngine implements MLCEngineInterface {
     }
     await this.prefill(input, pipeline, chatConfig, genConfig);
 
+    let decodedTokens = 0;
     while (!pipeline.stopped()) {
       if (this.interruptSignal) {
         pipeline.triggerStop();
         break;
       }
       await this.decode(pipeline, genConfig);
+      decodedTokens += 1;
+      if (!pipeline.stopped()) {
+        await this.maybeYieldToHost(genConfig, decodedTokens);
+      }
     }
     return pipeline.getMessage();
   }
@@ -806,12 +861,14 @@ export class MLCEngine implements MLCEngineInterface {
       }
     }
 
+    let decodedTokens = 0;
     while (!pipeline.stopped()) {
       if (this.interruptSignal) {
         pipeline.triggerStop();
         break;
       }
       await decodeStep();
+      decodedTokens += 1;
       const chunk = this.makeStreamDeltaChunk(
         request,
         model,
@@ -821,6 +878,9 @@ export class MLCEngine implements MLCEngineInterface {
       );
       if (chunk !== undefined) {
         yield chunk;
+      }
+      if (!pipeline.stopped()) {
+        await this.maybeYieldToHost(genConfig, decodedTokens);
       }
     }
 
@@ -1005,6 +1065,15 @@ export class MLCEngine implements MLCEngineInterface {
       ignore_eos: request.ignore_eos,
       enable_thinking: request.extra_body?.enable_thinking,
       enable_latency_breakdown: request.extra_body?.enable_latency_breakdown,
+      sample_readback_mode: request.extra_body?.sample_readback_mode,
+      sample_readback_batch_size:
+        request.extra_body?.sample_readback_batch_size,
+      sample_readback_compute_submit_interval:
+        request.extra_body?.sample_readback_compute_submit_interval,
+      sample_readback_max_speculative_tokens:
+        request.extra_body?.sample_readback_max_speculative_tokens,
+      sample_readback_ui_yield_interval:
+        request.extra_body?.sample_readback_ui_yield_interval,
     };
     const resumableConfig = this.resumableCoordinator.normalizeForRequest(
       request,
@@ -1210,6 +1279,15 @@ export class MLCEngine implements MLCEngineInterface {
       top_logprobs: request.top_logprobs,
       ignore_eos: request.ignore_eos,
       enable_latency_breakdown: request.extra_body?.enable_latency_breakdown,
+      sample_readback_mode: request.extra_body?.sample_readback_mode,
+      sample_readback_batch_size:
+        request.extra_body?.sample_readback_batch_size,
+      sample_readback_compute_submit_interval:
+        request.extra_body?.sample_readback_compute_submit_interval,
+      sample_readback_max_speculative_tokens:
+        request.extra_body?.sample_readback_max_speculative_tokens,
+      sample_readback_ui_yield_interval:
+        request.extra_body?.sample_readback_ui_yield_interval,
     };
 
     // 1. If request is streaming, return an AsyncIterable (an iterable version of `_generate()`)
