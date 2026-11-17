@@ -326,19 +326,19 @@ test.each([
   },
   {
     reason: "grammar",
-    activeMode: "baseline",
+    activeMode: "lookahead",
     genConfig: {
       response_format: { type: "grammar", grammar: "root ::= WORD" },
     },
   },
   {
     reason: "logprobs",
-    activeMode: "baseline",
+    activeMode: "lookahead",
     genConfig: { logprobs: true, top_logprobs: 1 },
   },
   {
     reason: "penalties",
-    activeMode: "baseline",
+    activeMode: "lookahead",
     genConfig: { presence_penalty: 1 },
   },
 ])(
@@ -2127,3 +2127,89 @@ test("reusing a pipeline after resetting a generation does not retain prior logp
   expect(pipeline.getTokenLogprobArray()).not.toBe(previous);
   expect(previous).toHaveLength(1);
 });
+
+test.each([false, true])(
+  "lookahead decode forwards ahead and rolls back on a stop (logprobs: %p)",
+  async (withLogprobs) => {
+    const pipeline = prepareRingPipeline();
+    pipeline["outputIds"] = [1];
+    pipeline["stopTokens"] = [9];
+    pipeline["filledKVCacheLength"] = 5;
+    pipeline["fullVocabSize"] = 4;
+    pipeline["kvCache"] = { kind: "kv" } as any;
+    const popN = jest.fn();
+    pipeline["fKVStatePopN"] = popN as any;
+    const logits = { dispose: jest.fn() };
+    const aheadLogits = { dispose: jest.fn() };
+    const sampledOnDevice = {} as any;
+    const probsOnDevice = {
+      dtype: "float32",
+      byteOffset: 12,
+      getDataPtr: jest.fn(() => 41),
+    } as any;
+    const order: string[] = [];
+    pipeline["forwardDecodeToken"] = jest.fn(async () => {
+      pipeline["filledKVCacheLength"] += 1;
+      return logits;
+    }) as any;
+    pipeline["decodeFromInputTokenDevice"] = jest.fn(async () => {
+      order.push("forward");
+      pipeline["filledKVCacheLength"] += 1;
+      return aheadLogits;
+    }) as any;
+    let readProbs: Float32Array | undefined;
+    pipeline["sampleFromRawLogits"] = jest.fn(
+      async (_logits: any, _genConfig: any, read: any) => {
+        const sampled = await read(
+          sampledOnDevice,
+          withLogprobs ? probsOnDevice : undefined,
+        );
+        readProbs = sampled.probs;
+        return sampled.token;
+      },
+    ) as any;
+    const ring = {
+      submit: jest.fn<(from: any, count: number, offset: number) => number>(
+        () => order.push("token"),
+      ),
+      waitReady: jest.fn(async () => [{ tokens: Int32Array.from([9]) }]),
+    };
+    const probs = Float32Array.from([0.1, 0.2, 0.3, 0.4]);
+    const probsRing = {
+      submitFromPointer: jest.fn<
+        (from: number, count: number, offset: number) => number
+      >(() => order.push("probs")),
+      waitReady: jest.fn(async () => [
+        { tokens: new Int32Array(probs.buffer.slice(0)) },
+      ]),
+    };
+    pipeline["lookaheadRing"] = ring as any;
+    pipeline["lookaheadProbsRing"] = probsRing as any;
+    const processNextToken = jest.spyOn(pipeline as any, "processNextToken");
+
+    await pipeline["decodeStepLookahead"]({ max_tokens: 8 });
+
+    expect(ring.submit).toHaveBeenCalledWith(sampledOnDevice, 1, 0);
+    if (withLogprobs) {
+      expect(probsRing.submitFromPointer).toHaveBeenCalledWith(41, 4, 3);
+      expect(order).toEqual(["probs", "token", "forward"]);
+      expect(readProbs).toEqual(probs);
+    } else {
+      expect(probsRing.submitFromPointer).not.toHaveBeenCalled();
+      expect(readProbs).toBeUndefined();
+    }
+    expect(pipeline["decodeFromInputTokenDevice"]).toHaveBeenCalledWith(
+      sampledOnDevice,
+    );
+    expect(
+      (pipeline["device"] as any).submitPendingCommands,
+    ).toHaveBeenCalled();
+    expect(processNextToken).toHaveBeenCalledWith(9, { max_tokens: 8 }, 6);
+    expect(pipeline["finishReason"]).toBe("stop");
+    expect(popN).toHaveBeenCalledTimes(1);
+    expect(popN.mock.calls[0][2]).toMatchObject({ value: 1, dtype: "int32" });
+    expect(pipeline["filledKVCacheLength"]).toBe(6);
+    expect(aheadLogits.dispose).toHaveBeenCalledTimes(1);
+    expect(pipeline["lookaheadLogits"]).toBeUndefined();
+  },
+);

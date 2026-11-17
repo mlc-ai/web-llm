@@ -8,6 +8,7 @@ import {
   SAMPLED_TOKEN_READBACK_BATCH_RUNTIME_HINT,
   submitPendingWebGPUCommands,
   submitSampledTokenReadbackBatch,
+  submitTensorReadbackWords,
   supportsNonblockingWebGPUCommandSubmission,
   supportsSampledTokenReadbackBatchSubmit,
   supportsSampledTokenReadbackRingRuntime,
@@ -76,7 +77,7 @@ type VMFunctionAvailability = {
 
 type VMFunctionRegistry = Record<string, tvmjs.PackedFunc | undefined>;
 
-type SampleReadbackMode = "baseline" | "ring_vector";
+type SampleReadbackMode = "baseline" | "ring_vector" | "lookahead";
 // "auto" uses the ring when the runtime has it and the request allows it.
 type SampleReadbackRequestMode = "auto" | "baseline" | "ring_vector";
 type SampleReadbackFallbackReason =
@@ -818,6 +819,119 @@ export class LLMChatPipeline {
     return this.tokenizer;
   }
 
+  private canDecodeLookahead(): boolean {
+    if (!this.hasRingVectorRuntime() || this.logitProcessor !== undefined) {
+      return false;
+    }
+    // A stop discards the one forward that ran ahead.
+    return this.rnnState === undefined || this.maxHistorySize - 1 >= 1;
+  }
+
+  private ensureLookaheadRing(): SampledTokenReadbackRing {
+    if (this.lookaheadRing === undefined) {
+      this.lookaheadRing = createSampledTokenReadbackRing(this.device, {
+        slotCount: 2,
+        maxTokensPerBatch: 1,
+      });
+    }
+    return this.lookaheadRing;
+  }
+
+  private ensureLookaheadProbsRing(): SampledTokenReadbackRing {
+    if (this.lookaheadProbsRing === undefined) {
+      // The ring copies 4-byte elements, so it carries float32 as well.
+      this.lookaheadProbsRing = createSampledTokenReadbackRing(this.device, {
+        slotCount: 2,
+        maxTokensPerBatch: this.fullVocabSize,
+      });
+    }
+    return this.lookaheadProbsRing;
+  }
+
+  private disposeLookahead(): void {
+    if (this.lookaheadLogits !== undefined) {
+      this.lookaheadLogits.dispose();
+      this.lookaheadLogits = undefined;
+      // The forward that ran ahead fed the last committed token.
+      this.ringVectorPendingKVRollbackTokens += 1;
+    }
+  }
+
+  private async decodeStepLookahead(
+    genConfig?: GenerationConfig,
+  ): Promise<void> {
+    let logits = this.lookaheadLogits;
+    this.lookaheadLogits = undefined;
+    if (logits === undefined) {
+      logits = await this.forwardDecodeToken(
+        this.outputIds[this.outputIds.length - 1],
+      );
+    }
+    const maxTokens = this.getGenerationMaxTokens(genConfig);
+    let forwardedAhead = false;
+    let nextToken: number;
+    try {
+      nextToken = await this.sampleFromRawLogits(
+        logits,
+        genConfig,
+        async (sampledTokensDevice, probsDevice) => {
+          const probsRing =
+            probsDevice !== undefined
+              ? this.ensureLookaheadProbsRing()
+              : undefined;
+          if (probsRing !== undefined) {
+            submitTensorReadbackWords(
+              probsRing,
+              probsDevice!,
+              this.fullVocabSize,
+            );
+          }
+          const ring = this.ensureLookaheadRing();
+          ring.submit(sampledTokensDevice, 1, 0);
+          // Skip the forward when this token ends the reply by length.
+          if (
+            this.getGeneratedTokenCount() + 1 < maxTokens &&
+            (this.slidingWindowSize !== -1 ||
+              this.filledKVCacheLength < this.contextWindowSize)
+          ) {
+            this.lookaheadLogits =
+              await this.decodeFromInputTokenDevice(sampledTokensDevice);
+            forwardedAhead = true;
+            submitPendingWebGPUCommands(this.device);
+          }
+          const batches = await ring.waitReady();
+          const token = batches[0].tokens[0];
+          if (probsRing === undefined) {
+            return { token };
+          }
+          const bits = (await probsRing.waitReady())[0].tokens;
+          return {
+            token,
+            probs: new Float32Array(bits.buffer, bits.byteOffset, bits.length),
+          };
+        },
+      );
+    } finally {
+      logits.dispose();
+    }
+    this.commitSampledToken(
+      nextToken,
+      genConfig,
+      "decode",
+      this.filledKVCacheLength - (forwardedAhead ? 1 : 0),
+    );
+    if (this.stopTriggered) {
+      this.disposeLookahead();
+      await this.applyPendingRingVectorKVRollback();
+    }
+  }
+
+  private lookaheadLogits?: tvmjs.Tensor = undefined;
+
+  private lookaheadRing?: SampledTokenReadbackRing = undefined;
+
+  private lookaheadProbsRing?: SampledTokenReadbackRing = undefined;
+
   private ensureRingVectorReadbackRuntime(): void {
     if (!this.hasSampledTokenReadbackRingRuntimeSupport) {
       ensureSampledTokenReadbackRingRuntime(this.device);
@@ -1139,6 +1253,13 @@ export class LLMChatPipeline {
     }
 
     const fallbackReason = this.resolveRingVectorFallbackReason(genConfig);
+    if (fallbackReason !== null && this.canDecodeLookahead()) {
+      return {
+        requestedMode,
+        activeMode: "lookahead",
+        fallbackReason,
+      };
+    }
     if (fallbackReason !== null) {
       if (requestedMode === "ring_vector") {
         this.warnRingVectorFallback(fallbackReason);
@@ -1613,6 +1734,9 @@ export class LLMChatPipeline {
     // TODO: Do we need to dispose all PackedFuncs here?
     this.disposeRingVectorReadbackSession();
     this.disposeStagedLogitBias();
+    this.lookaheadLogits?.dispose();
+    this.lookaheadRing?.dispose();
+    this.lookaheadProbsRing?.dispose();
     this.grammarMatcher?.dispose();
     this.params.dispose();
     this.decoding.dispose();
@@ -1678,6 +1802,8 @@ export class LLMChatPipeline {
       fallbackReason: null,
     };
     this.disposeStagedLogitBias();
+    this.lookaheadLogits?.dispose();
+    this.lookaheadLogits = undefined;
     this.stagedSamplerInputs = undefined;
     this.activeSampleReadbackMode = "baseline";
     this.hasWarnedRingVectorFallback = false;
@@ -2274,6 +2400,17 @@ export class LLMChatPipeline {
       this.curRoundDecodingTotalTime += elapsed;
       return;
     }
+    if (this.sampleReadbackPathSelection?.activeMode === "lookahead") {
+      this.activeSampleReadbackMode = "lookahead";
+      const tstart = performance.now();
+      await this.decodeStepLookahead(genConfig);
+      const elapsed = (performance.now() - tstart) / 1e3;
+      this.decodingTotalTime += elapsed;
+      this.decodingTotalTokens += 1;
+      this.curRoundDecodingTotalTokens += 1;
+      this.curRoundDecodingTotalTime += elapsed;
+      return;
+    }
     this.resetSampleReadbackSession("baseline");
     this.activeSampleReadbackMode = "baseline";
     const step = await this.sampleDecodeStep(genConfig);
@@ -2338,6 +2475,7 @@ export class LLMChatPipeline {
         this.disposeRingVectorReadbackSession();
       }
     }
+    this.disposeLookahead();
     this.stopTriggered = true;
     this.finishReason = "abort";
     if (!this.conversation.isTextCompletion) {
@@ -3761,13 +3899,15 @@ export class LLMChatPipeline {
   }
 
   // NOTE: caller must call device.sync()
-  private updateLogitsOnCPU(logits: tvmjs.Tensor): tvmjs.Tensor {
+  private updateLogitsOnCPU(logits: tvmjs.Tensor | Float32Array): tvmjs.Tensor {
+    const shape =
+      logits instanceof Float32Array ? [1, logits.length] : logits.shape;
     if (this.logitsOnCPU == undefined) {
       this.logitsOnCPU = this.tvm.detachFromCurrentScope(
-        this.tvm.empty(logits.shape, logits.dtype, this.tvm.cpu()),
+        this.tvm.empty(shape, "float32", this.tvm.cpu()),
       );
     } else {
-      if (logits.shape[0] != this.logitsOnCPU.shape[0]) {
+      if (shape[0] != this.logitsOnCPU.shape[0]) {
         throw Error("We expect the size of logits to remain unchanged");
       }
     }
@@ -3783,6 +3923,10 @@ export class LLMChatPipeline {
   private async sampleFromRawLogits(
     logitsOnGPU: tvmjs.Tensor,
     genConfig?: GenerationConfig,
+    readSampledToken?: (
+      sampledTokensDevice: tvmjs.Tensor,
+      probsDevice?: tvmjs.Tensor,
+    ) => Promise<{ token: number; probs?: Float32Array }>,
   ): Promise<number> {
     // 0. Get value of temperature, top_p, and various penalties, possibly overridden by genConfig
     // Also load other genConfig items like logit_bias. Consume all fields of `genConfig` here.
@@ -4060,14 +4204,15 @@ export class LLMChatPipeline {
     // 4. Sample token from logits
     const sampleBegin = performance.now();
 
+    const numSeqs = 1;
+    const numProbs = 1;
+    const wantLogprobs = logprobs === true;
     // Inplace transform logitsOnCPU to a distribution
     temperature = Math.max(1e-6, temperature); // to prevent division by zero
 
-    const numSeqs = 1;
-    const numProbs = 1;
-
     const temperatures = new Float32Array([temperature]);
 
+    let sampledToken = -1;
     this.tvm.beginScope();
     const temperaturesDevice = this.tvm
       .empty([numSeqs], "float32", this.device)
@@ -4080,7 +4225,6 @@ export class LLMChatPipeline {
     probs = probs.view([numProbs, this.fullVocabSize]);
 
     const topPValue = Math.max(top_p, 1e-5);
-    let sampledToken = -1;
     const argsortResults = this.fargsortProbs(probs);
     const sortedProbsDevice = argsortResults.get(0);
     const sortedIndicesDevice = argsortResults.get(1);
@@ -4099,25 +4243,44 @@ export class LLMChatPipeline {
       this.sampleIndicesDevice,
       this.topPDevice,
     );
-    const sampledTokensHost = this.tvm.detachFromCurrentScope(
-      this.tvm
-        .empty([numSeqs], "int32", this.tvm.cpu())
-        .copyFrom(sampledTokensDevice),
-    );
-    if (logprobs) {
-      this.updateLogitsOnCPU(probs);
-    }
-    this.tvm.endScope();
-    await this.device.sync();
+    if (readSampledToken !== undefined) {
+      const deferredTokens =
+        this.tvm.detachFromCurrentScope(sampledTokensDevice);
+      const deferredProbs = wantLogprobs
+        ? this.tvm.detachFromCurrentScope(probs)
+        : undefined;
+      this.tvm.endScope();
+      try {
+        const sampled = await readSampledToken(deferredTokens, deferredProbs);
+        sampledToken = sampled.token;
+        if (sampled.probs !== undefined) {
+          this.updateLogitsOnCPU(sampled.probs);
+        }
+      } finally {
+        deferredTokens.dispose();
+        deferredProbs?.dispose();
+      }
+    } else {
+      const sampledTokensHost = this.tvm.detachFromCurrentScope(
+        this.tvm
+          .empty([numSeqs], "int32", this.tvm.cpu())
+          .copyFrom(sampledTokensDevice),
+      );
+      if (wantLogprobs) {
+        this.updateLogitsOnCPU(probs);
+      }
+      this.tvm.endScope();
+      await this.device.sync();
 
-    sampledToken = sampledTokensHost.toArray()[0];
-    sampledTokensHost.dispose();
+      sampledToken = sampledTokensHost.toArray()[0];
+      sampledTokensHost.dispose();
+    }
     if (sampledToken < 0) {
       this.pendingSampleOutputTokenBegin = undefined;
       throw new Error("InternalError: failed to sample a valid token.");
     }
 
-    if (logprobs) {
+    if (wantLogprobs) {
       this.tokenLogprobArray.push(
         this.getTokenLogprob(sampledToken, top_logprobs ?? 0),
       );
