@@ -14,6 +14,54 @@ jest.mock("../../src/llm_chat", () => {
     "../../src/conversation",
   ) as typeof import("../../src/conversation");
 
+  // Checkpoint snapshots pass their pages to the sink as soon as they are
+  // started, standing in for pages that slot maps read back.
+  function snapshot(checkpoint: any) {
+    let settle!: (done: unknown) => void;
+    const done = new Promise((resolve) => (settle = resolve));
+    return {
+      processedSeqLen: checkpoint.processedSeqLen,
+      layoutHash: checkpoint.layoutHash,
+      metadata: checkpoint.metadata,
+      pageBegin: checkpoint.pageBegin,
+      pageGroups: checkpoint.pageGroups.map((group: any) => ({
+        groupId: group.groupId,
+        layerStart: group.layerStart,
+        layerEnd: group.layerEnd,
+      })),
+      byteLength: 2,
+      stagingBytes: 2,
+      done,
+      async start(sink: (group: number, data: Uint8Array) => Promise<void>) {
+        for (const [index, group] of checkpoint.pageGroups.entries()) {
+          await sink(index, group.data);
+        }
+        settle({ nextLogits: checkpoint.nextLogits });
+      },
+      discard() {
+        settle(undefined);
+      },
+    };
+  }
+
+  function checkpointMetadata(seqLength: number, pageSize: number) {
+    return {
+      seqLength,
+      layoutHash: "mock-layout",
+      pageSize,
+      page_size: pageSize,
+      groups: [
+        {
+          groupIndex: 0,
+          layerBegin: 0,
+          layerEnd: 1,
+          shape: [1, 1, 1, 1, 1, 1],
+          dtype: "uint8",
+        },
+      ],
+    };
+  }
+
   class MockLLMChatPipeline {
     public decodeLimit = 2;
     public prefillCallCount = 0;
@@ -24,6 +72,8 @@ jest.mock("../../src/llm_chat", () => {
     public enableDecodeCheckpoint = false;
     public promptCheckpointRestoreCount = 0;
     public restoredCheckpointSeqLen = 0;
+    public restoredChainLength = 0;
+    public captureCalls: Array<[number, number | undefined]> = [];
     public checkpointPageSize = 1;
     private conversation: Conversation = getConversation(
       {
@@ -114,23 +164,14 @@ jest.mock("../../src/llm_chat", () => {
       this.finishReason = "length";
       const promptCheckpoint =
         this.enablePromptCheckpoint && opts?.capturePromptCheckpoint === true
-          ? {
+          ? snapshot({
               processedSeqLen: this.curRoundPrefillTotalTokens,
               layoutHash: "mock-layout",
-              metadata: {
-                seqLength: this.curRoundPrefillTotalTokens,
-                layoutHash: "mock-layout",
-                pageSize: this.checkpointPageSize,
-                groups: [
-                  {
-                    groupIndex: 0,
-                    layerBegin: 0,
-                    layerEnd: 1,
-                    shape: [1, 1],
-                    dtype: "uint8",
-                  },
-                ],
-              },
+              metadata: checkpointMetadata(
+                this.curRoundPrefillTotalTokens,
+                this.checkpointPageSize,
+              ),
+              pageBegin: 0,
               pageGroups: [
                 {
                   groupId: 0,
@@ -147,7 +188,7 @@ jest.mock("../../src/llm_chat", () => {
                       dtype: "uint8",
                       data: new Uint8Array([8]),
                     },
-            }
+            })
           : undefined;
       return {
         source: "prefill",
@@ -162,16 +203,10 @@ jest.mock("../../src/llm_chat", () => {
 
     async decodeStep(genConfig?: { max_tokens?: number | null }) {
       const step = await this.sampleDecodeStep(genConfig);
-      this.commitSampledStep(step);
+      return this.commitSampledStep(step);
     }
 
-    async sampleDecodeStep(
-      genConfig?: { max_tokens?: number | null },
-      opts?: {
-        captureCheckpoint?: boolean;
-        storeCheckpointLogits?: boolean;
-      },
-    ) {
+    async sampleDecodeStep(genConfig?: { max_tokens?: number | null }) {
       if (this.stopFlag) return;
       this.decodeCallCount++;
       const globalTokenPos =
@@ -190,45 +225,33 @@ jest.mock("../../src/llm_chat", () => {
         source: "decode",
         tokenId: 100 + this.decodeCallCount,
         globalTokenPos,
-        decodeCheckpoint:
-          this.enableDecodeCheckpoint && opts?.captureCheckpoint === true
-            ? {
-                processedSeqLen: globalTokenPos,
-                layoutHash: "mock-layout",
-                metadata: {
-                  seqLength: globalTokenPos,
-                  layoutHash: "mock-layout",
-                  pageSize: this.checkpointPageSize,
-                  groups: [
-                    {
-                      groupIndex: 0,
-                      layerBegin: 0,
-                      layerEnd: 1,
-                      shape: [1, 1],
-                      dtype: "uint8",
-                    },
-                  ],
-                },
-                pageGroups: [
-                  {
-                    groupId: 0,
-                    layerStart: 0,
-                    layerEnd: 1,
-                    data: new Uint8Array([7 + this.decodeCallCount]),
-                  },
-                ],
-                nextLogits:
-                  opts?.storeCheckpointLogits === false
-                    ? undefined
-                    : {
-                        shape: [1],
-                        dtype: "uint8",
-                        data: new Uint8Array([8 + this.decodeCallCount]),
-                      },
-              }
-            : undefined,
       };
     }
+
+    captureCheckpoint(processedSeqLen: number, fromSeqLen?: number) {
+      this.captureCalls.push([processedSeqLen, fromSeqLen]);
+      if (!this.enableDecodeCheckpoint) return undefined;
+      const pageBegin =
+        fromSeqLen === undefined
+          ? 0
+          : Math.floor(fromSeqLen / this.checkpointPageSize);
+      return snapshot({
+        processedSeqLen,
+        layoutHash: "mock-layout",
+        metadata: checkpointMetadata(processedSeqLen, this.checkpointPageSize),
+        pageBegin,
+        pageGroups: [
+          {
+            groupId: 0,
+            layerStart: 0,
+            layerEnd: 1,
+            data: new Uint8Array([7 + this.decodeCallCount]),
+          },
+        ],
+      });
+    }
+
+    prefetchDecodeForward() {}
 
     commitSampledStep(step: any) {
       const prevMessage = this.message;
@@ -256,6 +279,10 @@ jest.mock("../../src/llm_chat", () => {
 
     getRNGState() {
       return this.prefillCallCount * 1000 + this.decodeCallCount;
+    }
+
+    getCommittedRNGState() {
+      return this.getRNGState();
     }
 
     setRNGState(state: unknown) {
@@ -318,7 +345,7 @@ jest.mock("../../src/llm_chat", () => {
     }
 
     async replayFromPromptCheckpoint(
-      checkpoint: { processedSeqLen?: number },
+      chain: Array<{ processedSeqLen?: number }>,
       _assistantPrefixTokenIds: number[],
       coveredTokens: Array<{
         tokenId: number;
@@ -331,8 +358,10 @@ jest.mock("../../src/llm_chat", () => {
         textPrefixLength?: number;
       }>,
     ) {
+      const checkpoint = chain[chain.length - 1];
       this.promptCheckpointRestoreCount++;
       this.restoredCheckpointSeqLen = checkpoint.processedSeqLen ?? 0;
+      this.restoredChainLength = chain.length;
       this.resetChat();
       this.stopFlag = false;
       this.finishReason = "length";

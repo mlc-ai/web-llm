@@ -29,11 +29,13 @@ export interface SampledTokenReadbackRing {
     from: tvmjs.Tensor,
     tokenCount: number,
     fromTokenOffset?: number,
+    into?: Int32Array,
   ): number;
   submitFromPointer(
     fromPtr: number,
     tokenCount: number,
     fromTokenOffset?: number,
+    into?: Int32Array,
   ): number;
   pollReady(): Array<SampledTokenReadbackBatch>;
   waitReady(): Promise<Array<SampledTokenReadbackBatch>>;
@@ -131,7 +133,13 @@ export function submitTensorReadbackWords(
   ring: SampledTokenReadbackRing,
   from: tvmjs.Tensor,
   wordCount: number,
+  into?: Int32Array,
 ): number {
   const { byteOffset } = from as unknown as { readonly byteOffset: number };
-  return ring.submitFromPointer(from.getDataPtr(), wordCount, byteOffset / 4);
+  return ring.submitFromPointer(
+    from.getDataPtr(),
+    wordCount,
+    byteOffset / 4,
+    into,
+  );
 }

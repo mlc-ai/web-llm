@@ -1,4 +1,7 @@
-import { OPFSFileStore } from "../../src/resumable/opfs_file_store";
+import {
+  OPFSFileStore,
+  OPFSWritableFile,
+} from "../../src/resumable/opfs_file_store";
 
 function normalize(path: string): string {
   return path
@@ -50,6 +53,27 @@ export class MemoryFileStore implements OPFSFileStore {
       this.dirs.add(dir);
     }
     this.files.set(normalized, bytes(data));
+  }
+
+  async openWritable(path: string): Promise<OPFSWritableFile> {
+    const chunks: Uint8Array<ArrayBuffer>[] = [];
+    return {
+      write: async (data) => {
+        chunks.push(bytes(data));
+      },
+      close: async () => {
+        const file = new Uint8Array(
+          chunks.reduce((size, chunk) => size + chunk.byteLength, 0),
+        );
+        let offset = 0;
+        for (const chunk of chunks) {
+          file.set(chunk, offset);
+          offset += chunk.byteLength;
+        }
+        await this.write(path, file);
+      },
+      abort: async () => undefined,
+    };
   }
 
   async append(path: string, data: BufferSource): Promise<void> {

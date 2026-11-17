@@ -17,6 +17,7 @@ for (const checkpointPrompt of [false, true]) {
     }) => {
       await loadModel(page);
       const request = makeRequest({
+        max_tokens: 160,
         frequency_penalty: 0.2,
         presence_penalty: 0.1,
         repetition_penalty: 1.1,
@@ -26,6 +27,11 @@ for (const checkpointPrompt of [false, true]) {
       const sessionId = "browser-process-crash";
       await page.evaluate(
         async ({ request, sessionId, checkpointPrompt, durabilityMode }) => {
+          const { setResumableFaultHook } = globalThis.webllmBrowserHarness;
+          let commits = 0;
+          setResumableFaultHook((point) => {
+            if (point === "checkpoint.after_commit") commits++;
+          });
           const stream = await globalThis.gpuEngine.chatCompletion({
             ...request,
             stream: true,
@@ -41,7 +47,10 @@ for (const checkpointPrompt of [false, true]) {
             },
           });
           globalThis.gpuStream = stream[Symbol.asyncIterator]();
-          for (let i = 0; i < 10; i++) await globalThis.gpuStream.next();
+          // The prompt checkpoint is written while decoding continues.
+          for (let i = 0; i < 10 || (checkpointPrompt && commits === 0); i++) {
+            await globalThis.gpuStream.next();
+          }
         },
         { request, sessionId, checkpointPrompt, durabilityMode },
       );
