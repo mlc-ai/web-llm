@@ -512,9 +512,11 @@ export async function createWhisperAudioTVMFactory(
   const component = compiled.components[componentId],
     input = component?.spec.inputs.pcm,
     output = component?.spec.outputs.mel_features;
+  const unpadded = component?.spec.contract === "qwen3_omni.audio_features.v1";
   if (
     !component ||
-    component.spec.contract !== "qwen2_5_omni.audio_features.v1" ||
+    (!unpadded &&
+      component.spec.contract !== "qwen2_5_omni.audio_features.v1") ||
     component.spec.kind !== "transform" ||
     component.spec.state.kind !== "none" ||
     !component.spec.weights ||
@@ -593,8 +595,7 @@ export async function createWhisperAudioTVMFactory(
           processor.num_samples % 160 !== 0
         )
           throw new Error("Invalid Whisper processor metadata");
-        const capacity = processor.num_samples,
-          frames = capacity / 160;
+        const capacity = processor.num_samples;
         aborted(signal);
         let packed: tvmjs.TVMObject, forward: tvmjs.PackedFunc;
         tvm.beginScope();
@@ -641,28 +642,27 @@ export async function createWhisperAudioTVMFactory(
                 !(tensor.data instanceof Float32Array) ||
                 tensor.shape.length !== 1 ||
                 tensor.shape[0] !== tensor.data.length ||
-                tensor.data.length === 0 ||
+                tensor.data.length < (unpadded ? 201 : 1) ||
                 tensor.data.length > capacity ||
                 !tensor.data.every(Number.isFinite)
               )
-                throw new Error(
-                  "Invalid PCM samples; empty and oversized clips are unsupported",
-                );
+                throw new Error("Invalid PCM samples or clip length");
               samples = new Float32Array(tensor.data);
             }
             checkAbort();
             if (!samples || !ended)
               throw new Error("Missing PCM samples or end event");
-            const padded = new Float32Array(capacity);
-            padded.set(samples);
+            const waveform = unpadded ? samples : new Float32Array(capacity);
+            if (!unpadded) waveform.set(samples);
+            const frames = Math.floor(waveform.length / 160);
             const raw = await readTVMFloat32(
               tvm,
               drain,
               [128, frames],
               () => {
                 const arg = tvm
-                  .empty([capacity], "float32", device)
-                  .copyFrom(padded);
+                  .empty([waveform.length], "float32", device)
+                  .copyFrom(waveform);
                 const result = forward(arg, packed) as tvmjs.Tensor;
                 if (
                   result.dtype !== "float32" ||
@@ -675,13 +675,14 @@ export async function createWhisperAudioTVMFactory(
               },
               checkAbort,
             );
-            const valid = Math.ceil(samples.length / 160),
-              mel = new Float32Array(128 * valid);
-            for (let bin = 0; bin < 128; bin++)
-              mel.set(
-                raw.subarray(bin * frames, bin * frames + valid),
-                bin * valid,
-              );
+            const valid = unpadded ? frames : Math.ceil(samples.length / 160);
+            const mel = unpadded ? raw : new Float32Array(128 * valid);
+            if (!unpadded)
+              for (let bin = 0; bin < 128; bin++)
+                mel.set(
+                  raw.subarray(bin * frames, bin * frames + valid),
+                  bin * valid,
+                );
             yield {
               port: "mel_features",
               tensor: { shape: [128, valid], data: mel },

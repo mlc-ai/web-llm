@@ -20,7 +20,10 @@ beforeAll(() =>
     configurable: true,
   }),
 );
-async function fixture(processor = false, windowed = false) {
+async function fixture(
+  processor: boolean | "unpadded" = false,
+  windowed = false,
+) {
   const schema =
     "sha256:" +
     createHash("sha256")
@@ -88,7 +91,10 @@ async function fixture(processor = false, windowed = false) {
     model.components.audio = {
       ...spec,
       kind: "transform",
-      contract: "qwen2_5_omni.audio_features.v1",
+      contract:
+        processor === "unpadded"
+          ? "qwen3_omni.audio_features.v1"
+          : "qwen2_5_omni.audio_features.v1",
       inputs: { pcm },
       outputs: { mel_features: mel },
     };
@@ -158,7 +164,10 @@ class Tensor {
     this.disposed = true;
   }
 }
-async function setup(processor = false, windowed = false) {
+async function setup(
+  processor: boolean | "unpadded" = false,
+  windowed = false,
+) {
   const { model, compiled } = await fixture(processor, windowed);
   const metadata = {
     artifact: compiled,
@@ -189,8 +198,8 @@ async function setup(processor = false, windowed = false) {
     forward: (x: Tensor, p: unknown) => {
       expect(p).toBe(packed);
       calls.push({ name: "forward", shape: x.shape, data: Array.from(x.data) });
-      const out = track(new Tensor([128, 4]));
-      out.data = Float32Array.from({ length: 512 }, (_, i) => i);
+      const out = track(new Tensor([128, Math.floor(x.shape[0] / 160)]));
+      out.data = Float32Array.from({ length: out.data.length }, (_, i) => i);
       return out;
     },
     encode_chunk: (x: Tensor, valid: Tensor, p: unknown) => {
@@ -483,6 +492,39 @@ test("PCM binding zero-pads once and crops each mel row using ceiling", async ()
   ]);
   await b.dispose();
   expect(s.vm.dispose).toHaveBeenCalledTimes(1);
+});
+test("Qwen3 PCM binding uses the actual clip length and returns floor frames", async () => {
+  const s = await setup("unpadded");
+  const b = await s.factory.create(
+    "audio",
+    s.compiled.components.audio,
+    new AbortController().signal,
+  );
+  const rows = [];
+  for await (const out of b.run(pcmInput(321), new AbortController().signal))
+    rows.push(out);
+  expect(s.calls).toEqual([
+    { name: "forward", shape: [321], data: Array(321).fill(0.25) },
+  ]);
+  expect(rows[0].tensor.shape).toEqual([128, 2]);
+  expect(Array.from(rows[0].tensor.data.slice(0, 4))).toEqual([0, 1, 2, 3]);
+  await b.dispose();
+});
+test("Qwen3 PCM binding rejects a clip shorter than the reflection pad", async () => {
+  const s = await setup("unpadded");
+  const b = await s.factory.create(
+    "audio",
+    s.compiled.components.audio,
+    new AbortController().signal,
+  );
+  await expect(
+    b
+      .run(pcmInput(200), new AbortController().signal)
+      [Symbol.asyncIterator]()
+      .next(),
+  ).rejects.toThrow("Invalid PCM");
+  expect(s.calls).toHaveLength(0);
+  await b.dispose();
 });
 test.each([0, 641])(
   "PCM rejects unsupported length %i before GPU call",
