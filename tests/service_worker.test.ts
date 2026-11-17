@@ -181,6 +181,24 @@ test("reload with new parameters calls engine reload", async () => {
   expect(reloadMock).toHaveBeenCalledWith(["fresh"], []);
 });
 
+test("reload with a changed context_window_size calls engine reload", async () => {
+  const { handler, handleTaskMock } = createHandler();
+  handler.modelId = ["demo"];
+  handler.chatOpts = [{ context_window_size: 4096 }];
+  handler.onmessage({
+    data: {
+      kind: "reload",
+      uuid: "reload-ctx",
+      content: { modelId: ["demo"], chatOpts: [{ context_window_size: 8192 }] },
+    },
+  } as ServiceWorkerHandlerEvent);
+  await handleTaskMock.mock.results[0].value;
+  expect(reloadMock).toHaveBeenCalledWith(
+    ["demo"],
+    [{ context_window_size: 8192 }],
+  );
+});
+
 test("ServiceWorker client forwards onmessage handlers to navigator", () => {
   const { container } = setupNavigator();
   const client = new ServiceWorker();
