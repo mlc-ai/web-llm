@@ -292,6 +292,28 @@ export interface ChatCompletionRequestBase {
      * stages of token sampling.
      */
     enable_latency_breakdown?: boolean | null;
+    /**
+     * Sampled-token readback. "ring_vector" keeps decode on the GPU and reads
+     * tokens back through a ring, "baseline" reads each token back as it is
+     * sampled, and "auto", the default, uses the ring when the web runtime
+     * has it and the request allows it. Requests with a logit processor,
+     * grammar, logprobs or penalties use the baseline path.
+     */
+    sample_readback_mode?: "auto" | "baseline" | "ring_vector" | null;
+    /**
+     * Token ids per ring readback batch. Values above 1 decode speculatively
+     * and roll the KV cache back after an early stop.
+     */
+    sample_readback_batch_size?: number | null;
+    /** GPU decode steps recorded between nonblocking queue submissions. */
+    sample_readback_compute_submit_interval?: number | null;
+    /**
+     * Largest generated-but-uncommitted token tail (the window W); at least one
+     * batch. The ring keeps ceil(W / batch size) batches in flight.
+     */
+    sample_readback_max_speculative_tokens?: number | null;
+    /** Decoded tokens between cooperative host task yields. Zero disables yielding. */
+    sample_readback_ui_yield_interval?: number | null;
 
     /**
      * Enables WebLLM crash-resumable generation for this request.

@@ -109,6 +109,7 @@ function createPipeline(): PipelineLike {
   } as any;
   pipeline["config"] = {} as any;
   pipeline["outputIds"] = [];
+  pipeline["assistantPrefixLength"] = 0;
   pipeline["appearedTokensFreq"] = new Map<number, number>();
   pipeline["stopTokens"] = [];
   pipeline["stopStr"] = [];
@@ -270,6 +271,327 @@ for (const endpoint of ["chat", "completion"] as const) {
     },
   );
 }
+
+function prepareRingPipeline(): PipelineLike {
+  const pipeline = createPipeline();
+  pipeline["config"] = {
+    ...pipeline["config"],
+    repetition_penalty: 1.0,
+    frequency_penalty: 0.0,
+    presence_penalty: 0.0,
+    temperature: 1.0,
+    top_p: 1.0,
+  } as any;
+  pipeline["logitProcessor"] = undefined;
+  pipeline["hasWarnedRingVectorFallback"] = true;
+  pipeline["ringVectorPendingKVRollbackTokens"] = 0;
+  pipeline["curRoundCompletionTotalTokens"] = 0;
+  pipeline["hasSampledTokenReadbackRingRuntimeSupport"] = true;
+  let rngState = 100;
+  pipeline["tvm"] = {
+    ...pipeline["tvm"],
+    uniform: jest.fn(() => {
+      rngState += 1;
+      return { dispose: jest.fn() };
+    }),
+    getRNGState: jest.fn(() => rngState),
+    setRNGState: jest.fn((state: number) => {
+      rngState = state;
+    }),
+  } as any;
+  pipeline["device"] = {
+    sync: jest.fn(async () => undefined),
+    submitPendingCommands: jest.fn(() => true),
+  } as any;
+  return pipeline;
+}
+
+// Guards the ring path decision: every unsupported request feature must send
+// the request back to the baseline path with its reason.
+test.each([
+  {
+    reason: "recurrent_state",
+    activeMode: "baseline",
+    genConfig: {},
+    configure: (p: PipelineLike) => {
+      p["rnnState"] = {} as any;
+      p["maxHistorySize"] = 1;
+    },
+  },
+  {
+    reason: "logit_processor",
+    activeMode: "baseline",
+    genConfig: {},
+    configure: (p: PipelineLike) => (p["logitProcessor"] = {} as any),
+  },
+  {
+    reason: "grammar",
+    activeMode: "baseline",
+    genConfig: {
+      response_format: { type: "grammar", grammar: "root ::= WORD" },
+    },
+  },
+  {
+    reason: "logprobs",
+    activeMode: "baseline",
+    genConfig: { logprobs: true, top_logprobs: 1 },
+  },
+  {
+    reason: "penalties",
+    activeMode: "baseline",
+    genConfig: { presence_penalty: 1 },
+  },
+])(
+  "ring requests leave the ring for $reason and use the $activeMode path",
+  ({ reason, activeMode, genConfig, configure }) => {
+    const pipeline = prepareRingPipeline();
+    configure?.(pipeline);
+    expect(
+      pipeline["resolveSampleReadbackPath"]({
+        sample_readback_mode: "ring_vector",
+        ...genConfig,
+      } as any),
+    ).toEqual({
+      requestedMode: "ring_vector",
+      activeMode,
+      fallbackReason: reason,
+    });
+  },
+);
+
+// Guards the default: "auto" must quietly keep the baseline path on a web
+// runtime without the readback ring instead of failing the request.
+test("auto readback uses the baseline path when the runtime has no ring", () => {
+  const pipeline = prepareRingPipeline();
+  pipeline["hasSampledTokenReadbackRingRuntimeSupport"] = false;
+  expect(pipeline["resolveSampleReadbackPath"]({})).toEqual({
+    requestedMode: "auto",
+    activeMode: "baseline",
+    fallbackReason: "runtime",
+  });
+  pipeline["hasSampledTokenReadbackRingRuntimeSupport"] = true;
+  expect(pipeline["resolveSampleReadbackPath"]({})).toMatchObject({
+    activeMode: "ring_vector",
+  });
+});
+
+// Guards logit_bias on the ring path: the staged bias must be applied to the
+// logits before the token is sampled on the GPU.
+test("ring sampling applies the request's logit_bias before sampling", () => {
+  const pipeline = prepareRingPipeline();
+  const calls: string[] = [];
+  pipeline["fullVocabSize"] = 8;
+  pipeline["fapplyLogitBias"] = jest.fn(() => calls.push("bias")) as any;
+  pipeline["fsoftmaxWithTemperature"] = jest.fn(() => {
+    calls.push("sample");
+    return { view: () => ({}) };
+  }) as any;
+  pipeline["fargsortProbs"] = jest.fn(() => ({ get: () => ({}) })) as any;
+  pipeline["fsampleWithTopP"] = jest.fn(() => ({})) as any;
+  pipeline["tvm"].empty = jest.fn(() => {
+    const tensor: any = { dispose: jest.fn() };
+    tensor.copyFrom = jest.fn(() => tensor);
+    return tensor;
+  });
+  pipeline["temperaturesDevice"] = { copyFrom: jest.fn() } as any;
+  pipeline["topPDevice"] = { copyFrom: jest.fn() } as any;
+  const genConfig = { temperature: 0, logit_bias: { "3": 5 } };
+  pipeline["stageSamplerInputs"](genConfig);
+
+  pipeline["sampleTokenDeviceFromLogitsRingVectorPath"](
+    { view: jest.fn(() => ({})) } as any,
+    {} as any,
+    { copyFrom: jest.fn() } as any,
+    genConfig,
+  );
+
+  expect(calls).toEqual(["bias", "sample"]);
+  const [, , tokenIds, biases] = (
+    pipeline["fapplyLogitBias"] as unknown as jest.Mock
+  ).mock.calls[0] as any[];
+  expect(tokenIds.copyFrom).toHaveBeenCalledWith(Int32Array.from([3]));
+  expect(biases.copyFrom).toHaveBeenCalledWith(Float32Array.from([5]));
+});
+
+test("ring requests keep the ring path when no fallback feature is active", () => {
+  expect(
+    prepareRingPipeline()["resolveSampleReadbackPath"]({
+      sample_readback_mode: "ring_vector",
+    }),
+  ).toEqual({
+    requestedMode: "ring_vector",
+    activeMode: "ring_vector",
+    fallbackReason: null,
+  });
+});
+
+// Guards the runtime check: a batch size above one needs submitTokens on the
+// ring, and the session must not be left half created when it is missing.
+test("K > 1 fails before decode when the runtime lacks batch submit", () => {
+  const pipeline = prepareRingPipeline();
+  const ring = {
+    dispose: jest.fn(),
+    submit: jest.fn(),
+    pollReady: jest.fn(),
+    waitReady: jest.fn(),
+  };
+  pipeline["device"] = {
+    createSampledTokenReadbackRing: jest.fn(() => ring),
+  } as any;
+  expect(() =>
+    pipeline["ensureRingVectorReadbackSession"]({
+      sample_readback_batch_size: 2,
+    }),
+  ).toThrow("sample_readback_batch_size > 1 requires");
+  expect(ring.dispose).toHaveBeenCalledTimes(1);
+  expect(pipeline["ringVectorReadbackSession"]).toBeUndefined();
+});
+
+// Guards the ring's context-window stop: the KV length includes the tokens
+// fed after the one being committed, so the check must subtract that tail.
+test("ring commits do not stop early when the tail reaches the context window", async () => {
+  const pipeline = prepareRingPipeline();
+  pipeline["outputIds"] = [1];
+  pipeline["contextWindowSize"] = 8;
+  pipeline["filledKVCacheLength"] = 8;
+  const session = {
+    ring: {
+      dispose: jest.fn(),
+      pollReady: jest.fn(() => []),
+      waitReady: jest.fn(async () => []),
+    },
+    batchSize: 1,
+    computeSubmitInterval: 1,
+    decodeTokensSinceComputeSubmit: 0,
+    maxInFlightBatches: 2,
+    maxSpeculativeTokens: 4,
+    speculativeTokenLimit: 4,
+    slotCount: 2,
+    readyTokens: [5, 6],
+    pendingBatchCount: 0,
+    pendingTokenCount: 0,
+    tokenDevicePool: [],
+    stagedTokenDeviceTensors: [],
+    uniformSamplePool: [],
+    uncommittedSampleRNGStates: [101, 102],
+    committedRNGState: 100,
+  } as any;
+  pipeline["ringVectorReadbackSession"] = session;
+  pipeline["ensureRingVectorReadbackSession"] = jest.fn(() => session) as any;
+
+  await pipeline["decodeStepRingVector"]({ max_tokens: 16 });
+
+  expect(pipeline["outputIds"]).toEqual([1, 5]);
+  expect(pipeline["stopTriggered"]).toBe(false);
+});
+
+// Guards the ring's shape: the window alone sets the batches in flight. A
+// fixed slot count used to clamp K = 1 windows above 4 to W = 4.
+test.each([
+  { K: 1, W: 8, batches: 8, tail: 8 },
+  { K: 2, W: 8, batches: 4, tail: 8 },
+  { K: 4, W: 2, batches: 1, tail: 4 },
+])("ring shape for K=$K W=$W", ({ K, W, batches, tail }) => {
+  const pipeline = createPipeline();
+  const shape = pipeline["resolveRingVectorShape"]({
+    sample_readback_batch_size: K,
+    sample_readback_max_speculative_tokens: W,
+  });
+  expect(shape).toEqual({
+    maxSpeculativeTokens: tail,
+    maxInFlightBatches: batches,
+  });
+});
+
+// Guards the ring's max_tokens bound against the prefilled assistant prefix
+// (Qwen3's empty thinking block): counting it stopped scheduling before the
+// stop check ended the reply, leaving decodeStepRingVector with no token.
+test("ring keeps scheduling until max_tokens excluding the assistant prefix", () => {
+  const pipeline = prepareRingPipeline();
+  pipeline["outputIds"] = [101, 102, 103, 104, 1, 2, 3];
+  pipeline["assistantPrefixLength"] = 4;
+  const session = {
+    batchSize: 1,
+    maxInFlightBatches: 2,
+    speculativeTokenLimit: 4,
+    pendingBatchCount: 0,
+    pendingTokenCount: 0,
+    readyTokens: [],
+    stagedTokenDeviceTensors: [],
+  } as any;
+
+  expect(
+    pipeline["canScheduleMoreRingVectorDecodeTokens"](session, {
+      max_tokens: 4,
+    }),
+  ).toBe(true);
+  pipeline["outputIds"].push(4);
+  expect(
+    pipeline["canScheduleMoreRingVectorDecodeTokens"](session, {
+      max_tokens: 4,
+    }),
+  ).toBe(false);
+});
+
+// Guards the speculative tail: a stop token inside a ready batch must commit
+// nothing after it, pop exactly the uncommitted tokens from the KV cache, and
+// restore the RNG state to the last committed sample.
+test("stop inside a ready K-token batch rolls back only the tail", async () => {
+  const pipeline = prepareRingPipeline();
+  pipeline["outputIds"] = [1];
+  pipeline["stopTokens"] = [9];
+  const nextInput = { dispose: jest.fn() };
+  const unusedTokenInput = { dispose: jest.fn() };
+  const ring = {
+    dispose: jest.fn(),
+    pollReady: jest.fn(() => []),
+    waitReady: jest.fn(async () => []),
+  };
+  const session = {
+    ring,
+    batchSize: 2,
+    computeSubmitInterval: 1,
+    decodeTokensSinceComputeSubmit: 0,
+    maxInFlightBatches: 2,
+    maxSpeculativeTokens: 4,
+    speculativeTokenLimit: 2,
+    slotCount: 2,
+    readyTokens: [9, 10],
+    pendingBatchCount: 0,
+    pendingTokenCount: 0,
+    tokenDevicePool: [nextInput, unusedTokenInput],
+    stagedTokenDeviceTensors: [],
+    uniformSamplePool: [],
+    uncommittedSampleRNGStates: [101, 102],
+    committedRNGState: 100,
+    nextDecodeInputTokenDevice: nextInput,
+  } as any;
+  pipeline["ringVectorReadbackSession"] = session;
+  pipeline["ensureRingVectorReadbackSession"] = jest.fn(() => session) as any;
+  pipeline["filledKVCacheLength"] = 5;
+  pipeline["kvCache"] = { kind: "kv" } as any;
+  const popN = jest.fn();
+  pipeline["fKVStatePopN"] = popN as any;
+
+  await pipeline["decodeStepRingVector"]({ max_tokens: 8 });
+
+  expect(pipeline["stopTriggered"]).toBe(true);
+  expect(pipeline["finishReason"]).toBe("stop");
+  expect(pipeline["outputIds"]).toEqual([1]);
+  expect(pipeline["curRoundCompletionTotalTokens"]).toBe(1);
+  expect(pipeline["ringVectorPendingKVRollbackTokens"]).toBe(0);
+  expect(pipeline["filledKVCacheLength"]).toBe(4);
+  expect(pipeline["device"].sync).not.toHaveBeenCalled();
+  expect(popN).toHaveBeenCalledTimes(1);
+  const [, seqId, popCount] = popN.mock.calls[0];
+  expect(seqId).toMatchObject({ value: 0, dtype: "int64" });
+  expect(popCount).toMatchObject({ value: 1, dtype: "int32" });
+  expect(pipeline["ringVectorReadbackSession"]).toBeUndefined();
+  expect(ring.dispose).toHaveBeenCalledTimes(1);
+  expect(nextInput.dispose).toHaveBeenCalledTimes(1);
+  expect(unusedTokenInput.dispose).toHaveBeenCalledTimes(1);
+  expect(pipeline["tvm"].setRNGState).toHaveBeenCalledWith(101);
+});
 
 test("processNextToken stops on stop token and updates conversation", () => {
   const pipeline = createPipeline();
@@ -442,7 +764,11 @@ test("prefillStep samples raw prefill logits before committing token", async () 
     genConfig,
   );
   expect(rawLogits.dispose).toHaveBeenCalled();
-  expect(pipeline["processNextToken"]).toHaveBeenCalledWith(4, genConfig);
+  expect(pipeline["processNextToken"]).toHaveBeenCalledWith(
+    4,
+    genConfig,
+    pipeline["filledKVCacheLength"],
+  );
 });
 
 test("decodeStep forwards last committed token and commits sampled token", async () => {
@@ -473,7 +799,11 @@ test("decodeStep forwards last committed token and commits sampled token", async
     genConfig,
   );
   expect(rawLogits.dispose).toHaveBeenCalled();
-  expect(pipeline["processNextToken"]).toHaveBeenCalledWith(8, genConfig);
+  expect(pipeline["processNextToken"]).toHaveBeenCalledWith(
+    8,
+    genConfig,
+    pipeline["filledKVCacheLength"],
+  );
   expect(pipeline["curRoundDecodingTotalTokens"]).toBe(1);
 });
 

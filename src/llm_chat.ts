@@ -1,4 +1,17 @@
 import * as tvmjs from "@mlc-ai/web-runtime";
+import {
+  createSampledTokenReadbackRing,
+  type SampledTokenReadbackBatch,
+  type SampledTokenReadbackRing,
+  ensureNonblockingWebGPUCommandSubmission,
+  ensureSampledTokenReadbackRingRuntime,
+  SAMPLED_TOKEN_READBACK_BATCH_RUNTIME_HINT,
+  submitPendingWebGPUCommands,
+  submitSampledTokenReadbackBatch,
+  supportsNonblockingWebGPUCommandSubmission,
+  supportsSampledTokenReadbackBatchSubmit,
+  supportsSampledTokenReadbackRingRuntime,
+} from "./runtime_readback";
 import * as xgr from "@mlc-ai/web-xgrammar";
 import log from "loglevel";
 import { Tokenizer } from "@mlc-ai/web-tokenizers";
@@ -62,6 +75,61 @@ type VMFunctionAvailability = {
 };
 
 type VMFunctionRegistry = Record<string, tvmjs.PackedFunc | undefined>;
+
+type SampleReadbackMode = "baseline" | "ring_vector";
+// "auto" uses the ring when the runtime has it and the request allows it.
+type SampleReadbackRequestMode = "auto" | "baseline" | "ring_vector";
+type SampleReadbackFallbackReason =
+  | "runtime"
+  | "recurrent_state"
+  | "logit_processor"
+  | "grammar"
+  | "logprobs"
+  | "penalties";
+
+interface SampleReadbackPathSelection {
+  requestedMode: SampleReadbackRequestMode;
+  activeMode: SampleReadbackMode;
+  fallbackReason: SampleReadbackFallbackReason | null;
+}
+
+interface StagedLogitBias {
+  key: string;
+  pos2seqIds: tvmjs.Tensor;
+  tokenIds: tvmjs.Tensor;
+  biases: tvmjs.Tensor;
+}
+
+interface StagedSamplerInputs {
+  temperature: number;
+  topP: number;
+  logitBias?: StagedLogitBias;
+}
+
+interface StagedUniformSample {
+  tensor: tvmjs.Tensor;
+  rngStateAfterSample: unknown;
+}
+
+interface RingVectorReadbackSession {
+  ring: SampledTokenReadbackRing;
+  batchSize: number;
+  computeSubmitInterval: number;
+  decodeTokensSinceComputeSubmit: number;
+  maxInFlightBatches: number;
+  maxSpeculativeTokens: number;
+  speculativeTokenLimit: number;
+  slotCount: number;
+  readyTokens: number[];
+  pendingBatchCount: number;
+  pendingTokenCount: number;
+  tokenDevicePool: tvmjs.Tensor[];
+  stagedTokenDeviceTensors: tvmjs.Tensor[];
+  uniformSamplePool: StagedUniformSample[];
+  uncommittedSampleRNGStates: unknown[];
+  committedRNGState: unknown;
+  nextDecodeInputTokenDevice?: tvmjs.Tensor;
+}
 
 type ArtifactDeviceCapabilities = {
   features: { has(feature: string): boolean };
@@ -250,6 +318,7 @@ export class LLMChatPipeline {
   // states
   private outputMessage = "";
   private outputIds: Array<number> = [];
+  private assistantPrefixLength = 0;
   private stopTriggered = false;
   private finishReason: ChatCompletionFinishReason | undefined = undefined;
   // frequency of appeared token ids till now (refresh after PrefillStep); token_id mapped to freq
@@ -320,6 +389,20 @@ export class LLMChatPipeline {
   private sampleIndices: Int32Array;
   private sampleIndicesDevice: tvmjs.Tensor;
   private topPDevice: tvmjs.Tensor;
+  private temperaturesDevice: tvmjs.Tensor;
+  private fKVStatePopN: tvmjs.PackedFunc;
+  // Sampled-token readback ring (sample_readback_mode "ring_vector")
+  private stagedSamplerInputs?: StagedSamplerInputs;
+  private hasSampledTokenReadbackRingRuntimeSupport: boolean;
+  private hasWarnedRingVectorFallback = false;
+  private activeSampleReadbackMode: SampleReadbackMode = "baseline";
+  private sampleReadbackPathSelection: SampleReadbackPathSelection = {
+    requestedMode: "baseline",
+    activeMode: "baseline",
+    fallbackReason: null,
+  };
+  private ringVectorReadbackSession?: RingVectorReadbackSession = undefined;
+  private ringVectorPendingKVRollbackTokens = 0;
 
   constructor(
     tvm: tvmjs.Instance,
@@ -368,6 +451,8 @@ export class LLMChatPipeline {
     log.info("prepend_space_in_encode: ", this.prepend_space_in_encode);
 
     this.device = this.tvm.webgpu();
+    this.hasSampledTokenReadbackRingRuntimeSupport =
+      supportsSampledTokenReadbackRingRuntime(this.device);
 
     // 1. Create VM and read model metadata
     tvm.beginScope();
@@ -634,6 +719,9 @@ export class LLMChatPipeline {
 
     // 5. Create cache
     // Load cache functions and instantiate KVCache
+    this.fKVStatePopN = this.tvm.detachFromCurrentScope(
+      this.tvm.getGlobalFunc("vm.builtin.kv_state_popn"),
+    );
     this.fclearKVCaches = this.tvm.detachFromCurrentScope(
       this.tvm.getGlobalFunc("vm.builtin.kv_state_clear"),
     );
@@ -719,6 +807,9 @@ export class LLMChatPipeline {
     this.topPDevice = this.tvm.detachFromCurrentScope(
       this.tvm.empty([numProbs], "float32", this.device),
     );
+    this.temperaturesDevice = this.tvm.detachFromCurrentScope(
+      this.tvm.empty([numSamples], "float32", this.device),
+    );
 
     tvm.endScope();
   }
@@ -727,8 +818,801 @@ export class LLMChatPipeline {
     return this.tokenizer;
   }
 
+  private ensureRingVectorReadbackRuntime(): void {
+    if (!this.hasSampledTokenReadbackRingRuntimeSupport) {
+      ensureSampledTokenReadbackRingRuntime(this.device);
+    }
+  }
+
+  private warnRingVectorFallback(reason: SampleReadbackFallbackReason): void {
+    if (!this.hasWarnedRingVectorFallback) {
+      const reasonMessage: Record<SampleReadbackFallbackReason, string> = {
+        runtime: "the web runtime has no sampled-token readback ring",
+        recurrent_state:
+          "the model's recurrent state keeps too little history to roll back the speculative tail",
+        logit_processor: "logitProcessor is active",
+        grammar: "grammar-constrained sampling is active",
+        logprobs: "logprobs is requested",
+        penalties: "sampling penalties are active",
+      };
+      log.warn(
+        `sample_readback_mode="ring_vector" requested but ${reasonMessage[reason]}; falling back to baseline sampled-token readback for this request.`,
+      );
+      this.hasWarnedRingVectorFallback = true;
+    }
+  }
+
+  private resolveSampleReadbackConfig(genConfig?: GenerationConfig): {
+    mode: SampleReadbackRequestMode;
+    batchSize: number;
+    computeSubmitInterval: number;
+    maxSpeculativeTokens: number;
+  } {
+    return {
+      mode: genConfig?.sample_readback_mode ?? "auto",
+      batchSize: genConfig?.sample_readback_batch_size ?? 1,
+      computeSubmitInterval:
+        genConfig?.sample_readback_compute_submit_interval ?? 1,
+      maxSpeculativeTokens:
+        genConfig?.sample_readback_max_speculative_tokens ?? 4,
+    };
+  }
+
+  private resolveSamplerInputs(
+    genConfig?: GenerationConfig,
+  ): StagedSamplerInputs {
+    let temperature = this.config.temperature;
+    let topP = this.config.top_p;
+    if (
+      genConfig?.temperature !== undefined &&
+      genConfig.temperature !== null
+    ) {
+      temperature = genConfig.temperature;
+    }
+    if (genConfig?.top_p !== undefined && genConfig.top_p !== null) {
+      topP = genConfig.top_p;
+    }
+    if (topP === undefined || topP === null) {
+      topP = 1.0;
+    }
+    if (!(topP > 0 && topP <= 1)) {
+      throw new RangeError("top_p", 0, 1);
+    }
+    if (!(temperature >= 0)) {
+      throw new MinValueError("temperature", 0);
+    }
+    return {
+      temperature: Math.max(1e-6, temperature),
+      topP: Math.max(topP, 1e-5),
+    };
+  }
+
+  private stageSamplerInputs(
+    genConfig?: GenerationConfig,
+  ): StagedSamplerInputs {
+    const inputs = this.resolveSamplerInputs(genConfig);
+    this.temperaturesDevice.copyFrom(new Float32Array([inputs.temperature]));
+    this.topPDevice.copyFrom(new Float32Array([inputs.topP]));
+    this.disposeStagedLogitBias();
+    inputs.logitBias = this.stageLogitBias(genConfig);
+    this.stagedSamplerInputs = inputs;
+    return inputs;
+  }
+
+  private logitBiasKey(genConfig?: GenerationConfig): string {
+    const bias = genConfig?.logit_bias;
+    return bias === undefined || bias === null ? "" : JSON.stringify(bias);
+  }
+
+  /** Upload a request's logit_bias once, since it is the same for every token. */
+  private stageLogitBias(
+    genConfig?: GenerationConfig,
+  ): StagedLogitBias | undefined {
+    const key = this.logitBiasKey(genConfig);
+    const entries = Object.entries(genConfig?.logit_bias ?? {});
+    if (entries.length === 0) {
+      return undefined;
+    }
+    this.tvm.beginScope();
+    const upload = (data: Int32Array | Float32Array, dtype: string) =>
+      this.tvm.detachFromCurrentScope(
+        this.tvm.empty([data.length], dtype, this.device).copyFrom(data),
+      );
+    const staged = {
+      key,
+      pos2seqIds: upload(new Int32Array(entries.length), "int32"),
+      tokenIds: upload(
+        Int32Array.from(entries, ([token]) => parseInt(token)),
+        "int32",
+      ),
+      biases: upload(
+        Float32Array.from(entries, ([, bias]) => bias),
+        "float32",
+      ),
+    };
+    this.tvm.endScope();
+    return staged;
+  }
+
+  private disposeStagedLogitBias(): void {
+    const staged = this.stagedSamplerInputs?.logitBias;
+    if (staged === undefined) {
+      return;
+    }
+    staged.pos2seqIds.dispose();
+    staged.tokenIds.dispose();
+    staged.biases.dispose();
+    this.stagedSamplerInputs!.logitBias = undefined;
+  }
+
+  private ensureSamplerInputsStaged(
+    genConfig?: GenerationConfig,
+  ): StagedSamplerInputs {
+    const expected = this.resolveSamplerInputs(genConfig);
+    if (
+      this.stagedSamplerInputs?.temperature !== expected.temperature ||
+      this.stagedSamplerInputs.topP !== expected.topP ||
+      (this.stagedSamplerInputs.logitBias?.key ?? "") !==
+        this.logitBiasKey(genConfig)
+    ) {
+      return this.stageSamplerInputs(genConfig);
+    }
+    return this.stagedSamplerInputs;
+  }
+
+  private disposeRingVectorReadbackSession(): void {
+    const session = this.ringVectorReadbackSession;
+    if (session === undefined) {
+      return;
+    }
+    // Keep encoded speculative passes ahead of any later KV metadata rewind or
+    // buffer disposal in WebGPU queue order without waiting for completion.
+    this.submitPendingRingVectorCompute(session, true);
+    session.ring.dispose();
+    const retainedTensors = new Set(session.tokenDevicePool);
+    for (const tensor of session.stagedTokenDeviceTensors) {
+      retainedTensors.add(tensor);
+    }
+    if (session.nextDecodeInputTokenDevice !== undefined) {
+      retainedTensors.add(session.nextDecodeInputTokenDevice);
+    }
+    for (const tensor of retainedTensors) {
+      tensor.dispose();
+    }
+    for (const sample of session.uniformSamplePool) {
+      sample.tensor.dispose();
+    }
+    const discardedRNGSamples =
+      session.uncommittedSampleRNGStates.length +
+      session.uniformSamplePool.length;
+    if (discardedRNGSamples > 0) {
+      this.setRNGState(session.committedRNGState);
+    }
+    this.ringVectorReadbackSession = undefined;
+  }
+
+  private resetSampleReadbackSession(mode: SampleReadbackMode): void {
+    this.disposeRingVectorReadbackSession();
+    this.activeSampleReadbackMode = mode;
+  }
+
+  private stageRingVectorKVRollbackAndResetSession(): void {
+    const session = this.ringVectorReadbackSession;
+    if (session === undefined) {
+      return;
+    }
+    this.assertRingVectorRNGAccounting(session);
+    this.ringVectorPendingKVRollbackTokens +=
+      this.getRingVectorUncommittedTokenCount(session);
+    this.disposeRingVectorReadbackSession();
+  }
+
+  private async applyPendingRingVectorKVRollback(): Promise<void> {
+    const rollbackTokens = this.ringVectorPendingKVRollbackTokens;
+    if (!(rollbackTokens > 0)) {
+      return;
+    }
+    if (rollbackTokens > this.filledKVCacheLength) {
+      throw new Error(
+        `Cannot roll back ${rollbackTokens} speculative tokens from a KV state ` +
+          `with length ${this.filledKVCacheLength}.`,
+      );
+    }
+
+    const states = this.getActiveKVStates();
+    // PopN only rewinds CPU-side sequence/page metadata. Speculative GPU work
+    // has already been encoded, and the next BeginForward uploads the dirty
+    // auxiliary data after that work in WebGPU queue order. Waiting for the
+    // entire device here adds a stop-path bubble without protecting any GPU
+    // data that PopN mutates.
+    const seqId = new tvmjs.Scalar(0, "int64");
+    const popCount = new tvmjs.Scalar(rollbackTokens, "int32");
+    for (const state of states) {
+      this.fKVStatePopN(state, seqId, popCount);
+    }
+    this.filledKVCacheLength -= rollbackTokens;
+    this.ringVectorPendingKVRollbackTokens = 0;
+  }
+
+  private resolveEffectivePenaltyConfig(genConfig?: GenerationConfig): {
+    repetition: number;
+    frequency: number;
+    presence: number;
+  } {
+    const repetition =
+      genConfig?.repetition_penalty ?? this.config.repetition_penalty;
+    const frequency =
+      genConfig?.frequency_penalty ?? this.config.frequency_penalty;
+    const presence =
+      genConfig?.presence_penalty ?? this.config.presence_penalty;
+    return {
+      repetition,
+      frequency,
+      presence,
+    };
+  }
+
+  private resolveRingVectorFallbackReason(
+    genConfig?: GenerationConfig,
+  ): SampleReadbackFallbackReason | null {
+    if (this.logitProcessor !== undefined) {
+      return "logit_processor";
+    }
+    if (
+      genConfig?.response_format?.type === "json_object" ||
+      genConfig?.response_format?.type === "grammar" ||
+      genConfig?.response_format?.type === "structural_tag"
+    ) {
+      return "grammar";
+    }
+    if (genConfig?.logprobs || (genConfig?.top_logprobs ?? 0) > 0) {
+      return "logprobs";
+    }
+    // Recurrent state can roll back only as many tokens as its history keeps,
+    // and a stop inside the speculative tail rolls back up to the whole tail.
+    if (
+      this.rnnState !== undefined &&
+      this.maxHistorySize - 1 < this.resolveRingVectorTailBound(genConfig)
+    ) {
+      return "recurrent_state";
+    }
+    const penalties = this.resolveEffectivePenaltyConfig(genConfig);
+    if (
+      penalties.repetition !== 1.0 ||
+      penalties.frequency !== 0.0 ||
+      penalties.presence !== 0.0
+    ) {
+      return "penalties";
+    }
+    return null;
+  }
+
+  /** Largest speculative tail the ring session can hold for this request. */
+  private resolveRingVectorShape(genConfig?: GenerationConfig): {
+    maxSpeculativeTokens: number;
+    maxInFlightBatches: number;
+  } {
+    const config = this.resolveSampleReadbackConfig(genConfig);
+    const maxSpeculativeTokens = Math.max(
+      config.batchSize,
+      config.maxSpeculativeTokens,
+    );
+    return {
+      maxSpeculativeTokens,
+      maxInFlightBatches: Math.ceil(maxSpeculativeTokens / config.batchSize),
+    };
+  }
+
+  private getGeneratedTokenCount(): number {
+    return this.outputIds.length - this.assistantPrefixLength;
+  }
+
+  private resolveRingVectorTailBound(genConfig?: GenerationConfig): number {
+    return this.resolveRingVectorShape(genConfig).maxSpeculativeTokens;
+  }
+
+  private hasRingVectorRuntime(): boolean {
+    if (!this.hasSampledTokenReadbackRingRuntimeSupport) {
+      return false;
+    }
+    // Submitting decode work between readbacks needs nonblocking submission.
+    return supportsNonblockingWebGPUCommandSubmission(this.device);
+  }
+
+  private resolveSampleReadbackPath(
+    genConfig?: GenerationConfig,
+  ): SampleReadbackPathSelection {
+    const requestedMode = this.resolveSampleReadbackConfig(genConfig).mode;
+    if (requestedMode === "baseline") {
+      return {
+        requestedMode,
+        activeMode: "baseline",
+        fallbackReason: null,
+      };
+    }
+    if (requestedMode === "auto" && !this.hasRingVectorRuntime()) {
+      return {
+        requestedMode,
+        activeMode: "baseline",
+        fallbackReason: "runtime",
+      };
+    }
+
+    const fallbackReason = this.resolveRingVectorFallbackReason(genConfig);
+    if (fallbackReason !== null) {
+      if (requestedMode === "ring_vector") {
+        this.warnRingVectorFallback(fallbackReason);
+      }
+      return {
+        requestedMode,
+        activeMode: "baseline",
+        fallbackReason,
+      };
+    }
+    return {
+      requestedMode,
+      activeMode: "ring_vector",
+      fallbackReason: null,
+    };
+  }
+
+  private getGenerationMaxTokens(genConfig?: GenerationConfig): number {
+    if (genConfig?.max_tokens !== undefined && genConfig.max_tokens !== null) {
+      return genConfig.max_tokens;
+    }
+    return Infinity;
+  }
+
+  private getRingVectorUncommittedTokenCount(
+    session: RingVectorReadbackSession,
+  ): number {
+    return (
+      session.pendingTokenCount +
+      session.readyTokens.length +
+      session.stagedTokenDeviceTensors.length
+    );
+  }
+
+  private assertRingVectorRNGAccounting(
+    session: RingVectorReadbackSession,
+  ): void {
+    const uncommittedTokens = this.getRingVectorUncommittedTokenCount(session);
+    if (session.uncommittedSampleRNGStates.length !== uncommittedTokens) {
+      throw new Error(
+        "Ring-vector RNG accounting does not match the speculative token tail: " +
+          `${session.uncommittedSampleRNGStates.length} RNG states for ` +
+          `${uncommittedTokens} tokens.`,
+      );
+    }
+  }
+
+  private hasRingVectorUncommittedTokens(
+    session: RingVectorReadbackSession,
+  ): boolean {
+    return this.getRingVectorUncommittedTokenCount(session) > 0;
+  }
+
+  private ensureRingVectorReadbackSession(
+    genConfig?: GenerationConfig,
+  ): RingVectorReadbackSession {
+    const readbackConfig = this.resolveSampleReadbackConfig(genConfig);
+    const { maxSpeculativeTokens, maxInFlightBatches } =
+      this.resolveRingVectorShape(genConfig);
+    if (this.ringVectorReadbackSession !== undefined) {
+      if (
+        this.ringVectorReadbackSession.maxInFlightBatches !==
+          maxInFlightBatches ||
+        this.ringVectorReadbackSession.maxSpeculativeTokens !==
+          maxSpeculativeTokens ||
+        this.ringVectorReadbackSession.batchSize !== readbackConfig.batchSize ||
+        this.ringVectorReadbackSession.computeSubmitInterval !==
+          readbackConfig.computeSubmitInterval
+      ) {
+        this.disposeRingVectorReadbackSession();
+      } else {
+        return this.ringVectorReadbackSession;
+      }
+    }
+    const ring = createSampledTokenReadbackRing(this.device, {
+      slotCount: maxInFlightBatches,
+      maxTokensPerBatch: readbackConfig.batchSize,
+    });
+    if (
+      readbackConfig.batchSize > 1 &&
+      !supportsSampledTokenReadbackBatchSubmit(ring)
+    ) {
+      ring.dispose();
+      throw new Error(SAMPLED_TOKEN_READBACK_BATCH_RUNTIME_HINT);
+    }
+    if (
+      readbackConfig.batchSize > 1 &&
+      !supportsNonblockingWebGPUCommandSubmission(this.device)
+    ) {
+      ring.dispose();
+      ensureNonblockingWebGPUCommandSubmission(this.device);
+    }
+    this.tvm.beginScope();
+    const tokenDevicePool: tvmjs.Tensor[] = [];
+    for (let i = 0; i < readbackConfig.batchSize; ++i) {
+      tokenDevicePool.push(
+        this.tvm.detachFromCurrentScope(
+          this.tvm.empty([1], "int32", this.device),
+        ),
+      );
+    }
+    this.tvm.endScope();
+    this.ringVectorReadbackSession = {
+      ring,
+      batchSize: readbackConfig.batchSize,
+      computeSubmitInterval: readbackConfig.computeSubmitInterval,
+      decodeTokensSinceComputeSubmit: 0,
+      maxInFlightBatches,
+      maxSpeculativeTokens,
+      speculativeTokenLimit: 1,
+      slotCount: maxInFlightBatches,
+      readyTokens: [],
+      pendingBatchCount: 0,
+      pendingTokenCount: 0,
+      tokenDevicePool,
+      stagedTokenDeviceTensors: [],
+      uniformSamplePool: [],
+      uncommittedSampleRNGStates: [],
+      committedRNGState: this.getRNGState(),
+    };
+    return this.ringVectorReadbackSession;
+  }
+
+  private stageRingVectorUniformSampleBatch(
+    session: RingVectorReadbackSession,
+    genConfig?: GenerationConfig,
+  ): void {
+    if (session.uniformSamplePool.length > 0) {
+      return;
+    }
+    const uncommitted = this.getRingVectorUncommittedTokenCount(session);
+    const remainingSpeculativeTokens =
+      session.speculativeTokenLimit - uncommitted;
+    const remainingGenerationTokens =
+      this.getGenerationMaxTokens(genConfig) -
+      this.getGeneratedTokenCount() -
+      uncommitted;
+    const sampleCount = Math.min(
+      session.batchSize,
+      remainingSpeculativeTokens,
+      remainingGenerationTokens,
+    );
+    if (sampleCount <= 0) {
+      return;
+    }
+    this.tvm.beginScope();
+    for (let i = 0; i < sampleCount; ++i) {
+      const tensor = this.tvm.detachFromCurrentScope(
+        this.tvm.uniform([1], 0.0, 1.0, this.device),
+      );
+      session.uniformSamplePool.push({
+        tensor,
+        rngStateAfterSample: this.getRNGState(),
+      });
+    }
+    this.tvm.endScope();
+  }
+
+  private drainRingVectorReadbackReadyTokens(
+    session: RingVectorReadbackSession,
+    readyBatches: Array<SampledTokenReadbackBatch>,
+  ): void {
+    for (const batch of readyBatches) {
+      session.pendingBatchCount = Math.max(0, session.pendingBatchCount - 1);
+      session.pendingTokenCount = Math.max(
+        0,
+        session.pendingTokenCount - batch.tokenCount,
+      );
+      for (let i = 0; i < batch.tokenCount; ++i) {
+        session.readyTokens.push(batch.tokens[i]);
+      }
+    }
+  }
+
+  private async waitRingVectorReadbackReadyTokens(
+    session: RingVectorReadbackSession,
+  ): Promise<void> {
+    this.drainRingVectorReadbackReadyTokens(
+      session,
+      await session.ring.waitReady(),
+    );
+  }
+
+  private getOrCreateRingVectorDecodeInputTokenDevice(
+    session: RingVectorReadbackSession,
+  ): tvmjs.Tensor {
+    if (session.nextDecodeInputTokenDevice !== undefined) {
+      return session.nextDecodeInputTokenDevice;
+    }
+    const lastToken = this.outputIds[this.outputIds.length - 1];
+    const inputTokenDevice = session.tokenDevicePool[session.batchSize - 1];
+    inputTokenDevice.copyFrom([lastToken]);
+    session.nextDecodeInputTokenDevice = inputTokenDevice;
+    return inputTokenDevice;
+  }
+
+  private async decodeFromInputTokenDevice(
+    inputTokenDevice: tvmjs.Tensor,
+  ): Promise<tvmjs.Tensor> {
+    if (this.artifact !== undefined) {
+      return this.artifactDecodeFromInputTokenDevice(inputTokenDevice);
+    }
+    this.tvm.beginScope();
+    const embeddings = this.embed(inputTokenDevice, this.params);
+    const allEmbeddings = embeddings.view([1].concat(embeddings.shape));
+    const inputLenShape = this.tvm.makeShapeTuple([1]);
+    const seqIdsTuple = this.tvm.makeShapeTuple([0]);
+    const forwardStates = this.getActiveKVStates();
+    for (const state of forwardStates) {
+      this.fKVCacheBeginForward(state, seqIdsTuple, inputLenShape);
+    }
+    const retValue = this.invokeDecode(allEmbeddings);
+    for (let i = forwardStates.length - 1; i >= 0; --i) {
+      this.fKVCacheEndForward(forwardStates[i]);
+    }
+    this.filledKVCacheLength += 1;
+    const logits = this.tvm.detachFromCurrentScope(retValue.get(0));
+    this.tvm.endScope();
+    return logits;
+  }
+
+  private sampleTokenDeviceFromLogitsRingVectorPath(
+    logitsOnGPU: tvmjs.Tensor,
+    uniformSamplesDevice: tvmjs.Tensor,
+    destination: tvmjs.Tensor,
+    genConfig?: GenerationConfig,
+  ): tvmjs.Tensor {
+    const samplerInputs = this.ensureSamplerInputsStaged(genConfig);
+
+    const sampleBegin = performance.now();
+
+    const numSeqs = 1;
+    const numProbs = 1;
+    this.tvm.beginScope();
+    const logits = logitsOnGPU.view([numSeqs, numProbs, this.fullVocabSize]);
+    const logitBias = samplerInputs.logitBias;
+    if (logitBias !== undefined) {
+      this.fapplyLogitBias(
+        logitsOnGPU.view([1, this.fullVocabSize]),
+        logitBias.pos2seqIds,
+        logitBias.tokenIds,
+        logitBias.biases,
+      );
+    }
+    let probs = this.fsoftmaxWithTemperature(logits, this.temperaturesDevice);
+    probs = probs.view([numProbs, this.fullVocabSize]);
+    const argsortResults = this.fargsortProbs(probs);
+    const sampledTokensDevice = this.fsampleWithTopP(
+      argsortResults.get(0),
+      argsortResults.get(1),
+      uniformSamplesDevice,
+      this.sampleIndicesDevice,
+      this.topPDevice,
+    );
+    destination.copyFrom(sampledTokensDevice);
+    this.tvm.endScope();
+
+    if (genConfig?.enable_latency_breakdown) {
+      const sampleEnd = performance.now();
+      const sampleTimeSpent = (sampleEnd - sampleBegin) / 1e3;
+      this.curRoundLatencyBreakdown.sampleTime.push(sampleTimeSpent);
+    }
+    return destination;
+  }
+
+  private canScheduleMoreRingVectorDecodeTokens(
+    session: RingVectorReadbackSession,
+    genConfig?: GenerationConfig,
+  ): boolean {
+    const maxTokens = this.getGenerationMaxTokens(genConfig);
+    const uncommitted = this.getRingVectorUncommittedTokenCount(session);
+    if (this.getGeneratedTokenCount() + uncommitted >= maxTokens) {
+      return false;
+    }
+    if (uncommitted >= session.speculativeTokenLimit) {
+      return false;
+    }
+    if (
+      this.slidingWindowSize === -1 &&
+      this.filledKVCacheLength >= this.contextWindowSize
+    ) {
+      return false;
+    }
+    if (session.stagedTokenDeviceTensors.length >= session.batchSize) {
+      return false;
+    }
+    return (
+      session.stagedTokenDeviceTensors.length > 0 ||
+      session.pendingBatchCount < session.maxInFlightBatches
+    );
+  }
+
+  private growRingVectorSpeculativeTokenLimit(
+    session: RingVectorReadbackSession,
+  ): void {
+    const previousLimit = session.speculativeTokenLimit;
+    const activeLimit = Math.min(
+      session.maxSpeculativeTokens,
+      previousLimit * 2,
+    );
+    if (activeLimit === previousLimit) {
+      return;
+    }
+    session.speculativeTokenLimit = activeLimit;
+  }
+
+  private submitPendingRingVectorCompute(
+    session: RingVectorReadbackSession,
+    force = false,
+  ): void {
+    const decodedTokens = session.decodeTokensSinceComputeSubmit ?? 0;
+    if (decodedTokens === 0) {
+      return;
+    }
+    const computeSubmitInterval = session.computeSubmitInterval ?? 1;
+    if (!force && decodedTokens < computeSubmitInterval) {
+      return;
+    }
+    submitPendingWebGPUCommands(this.device);
+    session.decodeTokensSinceComputeSubmit = 0;
+  }
+
+  private async submitStagedRingVectorBatch(
+    session: RingVectorReadbackSession,
+  ): Promise<void> {
+    const tokenTensors = session.stagedTokenDeviceTensors.slice();
+    if (tokenTensors.length === 0) {
+      return;
+    }
+    try {
+      submitSampledTokenReadbackBatch(session.ring, tokenTensors);
+    } catch (err: any) {
+      const msg = String(err ?? "");
+      if (!msg.includes("ring") || !msg.includes("full")) {
+        throw err;
+      }
+      this.drainRingVectorReadbackReadyTokens(
+        session,
+        session.ring.pollReady(),
+      );
+      if (session.readyTokens.length === 0 && session.pendingBatchCount > 0) {
+        await this.waitRingVectorReadbackReadyTokens(session);
+      }
+      submitSampledTokenReadbackBatch(session.ring, tokenTensors);
+    }
+
+    session.decodeTokensSinceComputeSubmit = 0;
+    session.stagedTokenDeviceTensors = [];
+    session.pendingBatchCount += 1;
+    session.pendingTokenCount += tokenTensors.length;
+  }
+
+  private async scheduleRingVectorDecodeToken(
+    session: RingVectorReadbackSession,
+    genConfig?: GenerationConfig,
+  ): Promise<void> {
+    this.stageRingVectorUniformSampleBatch(session, genConfig);
+    const uniformSample = session.uniformSamplePool[0];
+    if (uniformSample === undefined) {
+      throw new Error("Ring-vector sampling has no staged uniform sample.");
+    }
+    const inputTokenDevice =
+      this.getOrCreateRingVectorDecodeInputTokenDevice(session);
+    const logits = await this.decodeFromInputTokenDevice(inputTokenDevice);
+    const destination =
+      session.tokenDevicePool[session.stagedTokenDeviceTensors.length];
+    const sampledTokenDevice = this.sampleTokenDeviceFromLogitsRingVectorPath(
+      logits,
+      uniformSample.tensor,
+      destination,
+      genConfig,
+    );
+    session.uniformSamplePool.shift();
+    uniformSample.tensor.dispose();
+    logits.dispose();
+    session.stagedTokenDeviceTensors.push(sampledTokenDevice);
+    session.uncommittedSampleRNGStates.push(uniformSample.rngStateAfterSample);
+    session.decodeTokensSinceComputeSubmit =
+      (session.decodeTokensSinceComputeSubmit ?? 0) + 1;
+    session.nextDecodeInputTokenDevice = sampledTokenDevice;
+    const readbackRequiredForProgress =
+      session.readyTokens.length === 0 &&
+      session.pendingTokenCount === 0 &&
+      !this.canScheduleMoreRingVectorDecodeTokens(session, genConfig);
+    if (
+      session.stagedTokenDeviceTensors.length === session.batchSize ||
+      readbackRequiredForProgress
+    ) {
+      await this.submitStagedRingVectorBatch(session);
+    } else {
+      const readbackBacklogLow =
+        session.computeSubmitInterval > 1 &&
+        session.pendingTokenCount < session.batchSize;
+      this.submitPendingRingVectorCompute(session, readbackBacklogLow);
+    }
+  }
+
+  private async refillRingVectorSpeculativeWindow(
+    session: RingVectorReadbackSession,
+    genConfig?: GenerationConfig,
+  ): Promise<void> {
+    let scheduledTokens = 0;
+    while (this.canScheduleMoreRingVectorDecodeTokens(session, genConfig)) {
+      await this.scheduleRingVectorDecodeToken(session, genConfig);
+      scheduledTokens += 1;
+    }
+    if (
+      session.readyTokens.length === 0 &&
+      session.pendingTokenCount === 0 &&
+      session.stagedTokenDeviceTensors.length > 0
+    ) {
+      await this.submitStagedRingVectorBatch(session);
+    }
+    if (scheduledTokens === 0) {
+      return;
+    }
+  }
+
+  private async decodeStepRingVector(
+    genConfig?: GenerationConfig,
+  ): Promise<void> {
+    const outputTokenBegin = performance.now();
+    const session = this.ensureRingVectorReadbackSession(genConfig);
+
+    this.drainRingVectorReadbackReadyTokens(session, session.ring.pollReady());
+    if (session.readyTokens.length === 0) {
+      await this.refillRingVectorSpeculativeWindow(session, genConfig);
+      this.drainRingVectorReadbackReadyTokens(
+        session,
+        session.ring.pollReady(),
+      );
+    }
+    if (session.readyTokens.length === 0 && session.pendingTokenCount > 0) {
+      await this.waitRingVectorReadbackReadyTokens(session);
+    }
+    if (session.readyTokens.length === 0) {
+      throw new Error("Ring-vector sampling did not produce a readable token.");
+    }
+
+    this.assertRingVectorRNGAccounting(session);
+    const nextToken = session.readyTokens.shift()!;
+    session.committedRNGState = session.uncommittedSampleRNGStates.shift()!;
+    // Forwards for the remaining tail have fed one token each beyond this one,
+    // so the context-window check must see the length before them.
+    this.commitSampledToken(
+      nextToken,
+      genConfig,
+      "decode",
+      this.filledKVCacheLength -
+        this.getRingVectorUncommittedTokenCount(session),
+    );
+    if (!this.stopTriggered) {
+      this.growRingVectorSpeculativeTokenLimit(session);
+      await this.refillRingVectorSpeculativeWindow(session, genConfig);
+    }
+    if (genConfig?.enable_latency_breakdown) {
+      const outputTokenEnd = performance.now();
+      const outputTokenTimeSpent = (outputTokenEnd - outputTokenBegin) / 1e3;
+      this.curRoundLatencyBreakdown.totalTime.push(outputTokenTimeSpent);
+    }
+    if (this.stopTriggered) {
+      if (this.hasRingVectorUncommittedTokens(session)) {
+        this.stageRingVectorKVRollbackAndResetSession();
+        await this.applyPendingRingVectorKVRollback();
+      } else {
+        this.disposeRingVectorReadbackSession();
+      }
+    }
+  }
+
   dispose() {
     // TODO: Do we need to dispose all PackedFuncs here?
+    this.disposeRingVectorReadbackSession();
+    this.disposeStagedLogitBias();
     this.grammarMatcher?.dispose();
     this.params.dispose();
     this.decoding.dispose();
@@ -749,8 +1633,10 @@ export class LLMChatPipeline {
     this.kvCheckpointFuncs.clear();
     this.sampleIndicesDevice?.dispose();
     this.topPDevice?.dispose();
+    this.temperaturesDevice?.dispose();
     this.vm.dispose();
     this.fclearKVCaches.dispose();
+    this.fKVStatePopN.dispose();
     this.logitsOnCPU?.dispose();
     this.tvm.dispose();
     this.tokenizer.dispose();
@@ -785,6 +1671,17 @@ export class LLMChatPipeline {
     if (!keepStats) {
       this.resetRuntimeStats();
     }
+    this.disposeRingVectorReadbackSession();
+    this.sampleReadbackPathSelection = {
+      requestedMode: "baseline",
+      activeMode: "baseline",
+      fallbackReason: null,
+    };
+    this.disposeStagedLogitBias();
+    this.stagedSamplerInputs = undefined;
+    this.activeSampleReadbackMode = "baseline";
+    this.hasWarnedRingVectorFallback = false;
+    this.ringVectorPendingKVRollbackTokens = 0;
     this.resetKVCache();
     this.filledKVCacheLength = 0;
     this.logitProcessor?.resetState();
@@ -969,6 +1866,7 @@ export class LLMChatPipeline {
 
   private resetGenerationRoundState(): void {
     this.outputIds = [];
+    this.assistantPrefixLength = 0;
     this.appearedTokensFreq.clear();
     this.outputMessage = "";
     this.tokenLogprobArray = [];
@@ -1165,8 +2063,21 @@ export class LLMChatPipeline {
     }
 
     const tstart = performance.now();
+    await this.applyPendingRingVectorKVRollback();
     this.resetGenerationRoundState();
     this.stopTriggered = false;
+    this.hasWarnedRingVectorFallback = false;
+    if (this.resolveSampleReadbackConfig(genConfig).mode === "ring_vector") {
+      this.ensureRingVectorReadbackRuntime();
+    }
+    this.sampleReadbackPathSelection =
+      this.resolveSampleReadbackPath(genConfig);
+    this.resetSampleReadbackSession(
+      this.sampleReadbackPathSelection.activeMode,
+    );
+    if (this.sampleReadbackPathSelection.activeMode === "ring_vector") {
+      this.stageSamplerInputs(genConfig);
+    }
 
     // -1. Instantiate grammar matcher according to generation config. This step is overlapped
     // with prefilling the prompt to hide overhead by using this promise.
@@ -1236,6 +2147,7 @@ export class LLMChatPipeline {
           this.tokenizer.encode(emptyThinkingBlockStr),
         );
         this.outputIds.push(...encoded);
+        this.assistantPrefixLength = encoded.length;
         assistantPrefixTokenIds.push(...encoded);
         conversation.appendEmptyThinkingReplyHeader(
           Role.assistant,
@@ -1351,6 +2263,19 @@ export class LLMChatPipeline {
       throw Error("Cannot run decode when stopped");
     }
 
+    if (this.sampleReadbackPathSelection?.activeMode === "ring_vector") {
+      this.activeSampleReadbackMode = "ring_vector";
+      const tstart = performance.now();
+      await this.decodeStepRingVector(genConfig);
+      const elapsed = (performance.now() - tstart) / 1e3;
+      this.decodingTotalTime += elapsed;
+      this.decodingTotalTokens += 1;
+      this.curRoundDecodingTotalTokens += 1;
+      this.curRoundDecodingTotalTime += elapsed;
+      return;
+    }
+    this.resetSampleReadbackSession("baseline");
+    this.activeSampleReadbackMode = "baseline";
     const step = await this.sampleDecodeStep(genConfig);
     this.commitSampledStep(step, genConfig);
   }
@@ -1405,6 +2330,13 @@ export class LLMChatPipeline {
   triggerStop() {
     if (this.stopTriggered) {
       return;
+    }
+    if (this.ringVectorReadbackSession !== undefined) {
+      if (this.hasRingVectorUncommittedTokens(this.ringVectorReadbackSession)) {
+        this.stageRingVectorKVRollbackAndResetSession();
+      } else {
+        this.disposeRingVectorReadbackSession();
+      }
     }
     this.stopTriggered = true;
     this.finishReason = "abort";
@@ -1474,7 +2406,9 @@ export class LLMChatPipeline {
     }
 
     // Stop condition 2: stop string; update `this.outputMessage` subsequently
-    let outputMessage = this.tokenizer.decode(new Int32Array(this.outputIds));
+    let outputMessage = this.tokenizer.decode(
+      new Int32Array(this.outputIds.slice(this.assistantPrefixLength)),
+    );
     let stopPos = -1;
     for (const stopStr of stopStrs) {
       // Stop at the first stopStr we find
@@ -1489,7 +2423,7 @@ export class LLMChatPipeline {
     this.outputMessage = outputMessage;
 
     // Stop condition 3: exceed max_tokens
-    if (this.outputIds.length >= max_tokens) {
+    if (this.getGeneratedTokenCount() >= max_tokens) {
       this.stopTriggered = true;
       this.finishReason = "length";
       log.info("Generation stopped due to exceeding max_tokens.");
@@ -1517,12 +2451,13 @@ export class LLMChatPipeline {
     nextToken: number,
     genConfig: GenerationConfig | undefined,
     source: CommitTokenSource,
+    processedSeqLen = this.filledKVCacheLength,
   ): void {
     switch (source) {
       case "prefill":
       case "decode":
         this.commitSamplerState(nextToken, genConfig);
-        this.processNextToken(nextToken, genConfig);
+        this.processNextToken(nextToken, genConfig, processedSeqLen);
         this.curRoundCompletionTotalTokens += 1;
         return;
     }
@@ -1812,6 +2747,7 @@ export class LLMChatPipeline {
     }
 
     this.outputIds.push(...assistantPrefixTokenIds);
+    this.assistantPrefixLength = assistantPrefixTokenIds.length;
     for (const token of coveredGeneratedTokens) {
       // The imported cache already covers these tokens. Rebuild output and
       // penalties using each token's original position for the context limit.
@@ -2221,6 +3157,30 @@ export class LLMChatPipeline {
     const logits = this.tvm.detachFromCurrentScope(result.get(0));
     this.tvm.endScope();
     this.tvm.attachToCurrentScope(logits);
+    return logits;
+  }
+
+  /** Manifest decode from a token id that is already on the GPU. */
+  private artifactDecodeFromInputTokenDevice(
+    inputTokenDevice: tvmjs.Tensor,
+  ): tvmjs.Tensor {
+    this.tvm.beginScope();
+    let input: tvmjs.Tensor;
+    if (this.artifact?.generation.inputs === "embeds") {
+      const embedding = this.embed(
+        inputTokenDevice,
+        this.params,
+      ) as tvmjs.Tensor;
+      input = embedding.view([1, 1, embedding.shape[1]]);
+    } else {
+      input = inputTokenDevice.view([1, 1]);
+    }
+    const states = this.beginArtifactForward(1);
+    const result = this.decoding(input, ...states, this.params);
+    this.endArtifactForward(states);
+    this.filledKVCacheLength += 1;
+    const logits = this.tvm.detachFromCurrentScope(result.get(0));
+    this.tvm.endScope();
     return logits;
   }
 
@@ -2815,6 +3775,11 @@ export class LLMChatPipeline {
     return this.logitsOnCPU;
   }
 
+  /**
+   * @param readSampledToken Reads the sampled token from the GPU tensor instead
+   * of a blocking copy, so the caller can queue more GPU work first. Not used
+   * when logprobs are requested, since those read the probabilities as well.
+   */
   private async sampleFromRawLogits(
     logitsOnGPU: tvmjs.Tensor,
     genConfig?: GenerationConfig,
@@ -3489,6 +4454,7 @@ export class LLMChatPipeline {
       await Promise.all([this.device.sync(), grammarMatcherInitPromise]);
 
       this.outputIds.push(...assistantPrefixTokenIds);
+      this.assistantPrefixLength = assistantPrefixTokenIds.length;
       if (generatedTokens.length === 0) {
         if (promptLogits === undefined) {
           throw new Error("Cannot resume from an empty prompt token record.");

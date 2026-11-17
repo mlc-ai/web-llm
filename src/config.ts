@@ -164,6 +164,14 @@ export interface GenerationConfig {
   // extra_body in ChatCompletionsRequest
   enable_thinking?: boolean | null;
   enable_latency_breakdown?: boolean | null;
+  /** Sampled-token readback: "baseline" reads each token back as it is sampled, "ring_vector" keeps decode on the GPU and reads tokens back through a ring, and "auto" (the default) uses the ring when the runtime has it and the request allows it. */
+  sample_readback_mode?: "auto" | "baseline" | "ring_vector" | null;
+  sample_readback_batch_size?: number | null;
+  /** Decoded tokens held before compute submission. A low readback backlog can submit earlier. */
+  sample_readback_compute_submit_interval?: number | null;
+  sample_readback_max_speculative_tokens?: number | null;
+  /** Decoded tokens between cooperative host task yields. Zero disables yielding. */
+  sample_readback_ui_yield_interval?: number | null;
 }
 
 export function postInitAndCheckGenerationConfigValues(
@@ -249,6 +257,45 @@ export function postInitAndCheckGenerationConfigValues(
   if (config.logprobs) {
     if (!_hasValue(config.top_logprobs)) {
       config.top_logprobs = 0;
+    }
+  }
+
+  // sampled-token readback: values are validated when given, and defaults are
+  // resolved where they are used so an unset field stays unset here.
+  if (
+    _hasValue(config.sample_readback_mode) &&
+    config.sample_readback_mode !== "auto" &&
+    config.sample_readback_mode !== "baseline" &&
+    config.sample_readback_mode !== "ring_vector"
+  ) {
+    throw new Error(
+      `sample_readback_mode must be "auto", "baseline" or "ring_vector". Got ${config.sample_readback_mode}.`,
+    );
+  }
+  const positiveIntegerFields = [
+    "sample_readback_batch_size",
+    "sample_readback_compute_submit_interval",
+    "sample_readback_max_speculative_tokens",
+  ] as const;
+  for (const field of positiveIntegerFields) {
+    if (!_hasValue(config[field])) {
+      continue;
+    }
+    if (!Number.isInteger(config[field])) {
+      throw new Error(`${field} must be an integer. Got ${config[field]}.`);
+    }
+    if (config[field]! <= 0) {
+      throw new MinValueError(field, 0);
+    }
+  }
+  if (_hasValue(config.sample_readback_ui_yield_interval)) {
+    if (!Number.isInteger(config.sample_readback_ui_yield_interval)) {
+      throw new Error(
+        `sample_readback_ui_yield_interval must be an integer. Got ${config.sample_readback_ui_yield_interval}.`,
+      );
+    }
+    if (config.sample_readback_ui_yield_interval! < 0) {
+      throw new NonNegativeError("sample_readback_ui_yield_interval");
     }
   }
 }

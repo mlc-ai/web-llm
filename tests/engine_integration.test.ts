@@ -124,6 +124,65 @@ describe("MLCEngine deterministic integration", () => {
     },
   );
 
+  // Guards the cooperative yield: the loop must hand control to the host at
+  // the configured interval, after the consumer has received the token, and
+  // through a task mechanism that the browser does not clamp.
+  test("generation yields to the host at the configured token interval", async () => {
+    const setTimeoutSpy = jest.spyOn(globalThis, "setTimeout");
+    const { engine } = createEngineWithPipeline(5);
+    const response = (await engine.chatCompletion({
+      model: MODEL_ID,
+      messages: [{ role: "user", content: "Continue" }],
+      extra_body: { sample_readback_ui_yield_interval: 2 },
+    })) as ChatCompletion;
+    expect(response.usage?.completion_tokens).toBe(6);
+    expect(setTimeoutSpy).toHaveBeenCalledTimes(2);
+    setTimeoutSpy.mockRestore();
+  });
+
+  test("streaming yields host control after the consumer receives a token", async () => {
+    const setTimeoutSpy = jest.spyOn(globalThis, "setTimeout");
+    const { engine } = createEngineWithPipeline(2);
+    const iterable = (await engine.chatCompletion({
+      model: MODEL_ID,
+      messages: [{ role: "user", content: "Stream please" }],
+      stream: true,
+      extra_body: { sample_readback_ui_yield_interval: 1 },
+    })) as AsyncIterable<ChatCompletionChunk>;
+    const iterator = iterable[Symbol.asyncIterator]();
+    await iterator.next(); // prefill chunk
+    await iterator.next(); // first decoded-token chunk
+    expect(setTimeoutSpy).not.toHaveBeenCalled();
+    await iterator.next(); // yield, then second decoded-token chunk
+    expect(setTimeoutSpy).toHaveBeenCalledTimes(1);
+    while (!(await iterator.next()).done) {
+      // drain
+    }
+    setTimeoutSpy.mockRestore();
+  });
+
+  test("workers use scheduler.yield and pages use a message task instead of timers", async () => {
+    const schedulerYield = jest.fn(async () => {});
+    (globalThis as any).scheduler = { yield: schedulerYield };
+    const setTimeoutSpy = jest.spyOn(globalThis, "setTimeout");
+    const request = {
+      model: MODEL_ID,
+      messages: [{ role: "user" as const, content: "Continue" }],
+      extra_body: { sample_readback_ui_yield_interval: 1 },
+    };
+    await createEngineWithPipeline(3).engine.chatCompletion(request);
+    expect(schedulerYield).toHaveBeenCalledTimes(2);
+    expect(setTimeoutSpy).not.toHaveBeenCalled();
+
+    (globalThis as any).document = {};
+    await createEngineWithPipeline(3).engine.chatCompletion(request);
+    expect(schedulerYield).toHaveBeenCalledTimes(2);
+    expect(setTimeoutSpy).not.toHaveBeenCalled();
+    delete (globalThis as any).document;
+    delete (globalThis as any).scheduler;
+    setTimeoutSpy.mockRestore();
+  });
+
   test("completion echoes prompt when requested", async () => {
     jest.useFakeTimers().setSystemTime(FIXED_CREATED_DATE);
     const { engine } = createEngineWithPipeline(1);
