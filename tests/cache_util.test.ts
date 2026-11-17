@@ -107,6 +107,41 @@ test("cache option helpers include scope only for tensor cache access", () => {
   });
 });
 
+test("cache lookup and deletion use the self-hosted model directory", async () => {
+  const appConfig: AppConfig = {
+    model_list: [{ ...baseAppConfig.model_list[0], model: "./models/demo" }],
+  };
+  const modelDir = "https://example.org/chat/models/demo/";
+  const originalDocument = Object.getOwnPropertyDescriptor(
+    globalThis,
+    "document",
+  );
+  Object.defineProperty(globalThis, "document", {
+    value: { URL: "https://example.org/chat/index.html" },
+    configurable: true,
+  });
+  try {
+    await hasModelInCache("demo-model", appConfig);
+    await deleteModelInCache("demo-model", appConfig);
+    expect(tvmMock.__cacheState.hasTensorInCache).toHaveBeenCalledWith(
+      modelDir,
+      expect.anything(),
+    );
+    expect(tvmMock.__cacheState.deleteTensorCache).toHaveBeenCalledWith(
+      modelDir,
+      expect.anything(),
+    );
+    expect(tvmMock.__cacheState.deletes).toContainEqual({
+      cache: "webllm/model",
+      url: modelDir + "tokenizer.json",
+    });
+  } finally {
+    if (originalDocument)
+      Object.defineProperty(globalThis, "document", originalDocument);
+    else Reflect.deleteProperty(globalThis, "document");
+  }
+});
+
 test("deleteModelInCache clears tensors and tokenizer assets for indexeddb cache", async () => {
   const indexedConfig: AppConfig = {
     ...baseAppConfig,

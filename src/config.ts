@@ -261,7 +261,7 @@ export enum ModelType {
 
 /**
  * Information for a model.
- * @param model: the huggingface link to download the model weights, accepting four formats:
+ * @param model: a local model directory (e.g. `/models/demo/`) or a Hugging Face repository URL:
  *    - https://huggingface.co/{USERNAME}/{MODEL}, which we automatically use the main branch
  *    - https://huggingface.co/{USERNAME}/{MODEL}/, which we automatically use the main branch
  *    - https://huggingface.co/{USERNAME}/{MODEL}/resolve/{BRANCH}
