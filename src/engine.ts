@@ -14,8 +14,8 @@ import {
   ModelType,
 } from "./config";
 import {
+  CommittedGenerationStep,
   LLMChatPipeline,
-  SampleDecodeOptions,
   SamplePrefillOptions,
   SampledGenerationStep,
 } from "./llm_chat";
@@ -269,7 +269,7 @@ export class MLCEngine implements MLCEngineInterface {
         },
         isInterrupted: () => this.interruptSignal,
         samplePrefill: (...args) => this.samplePrefill(...args),
-        sampleDecode: (...args) => this.sampleDecode(...args),
+        decode: (...args) => this.decode(...args),
         streamCurrentGeneration: (...args) =>
           this.streamCurrentGeneration(...args),
       },
@@ -845,7 +845,7 @@ export class MLCEngine implements MLCEngineInterface {
     genConfig: GenerationConfig,
     timeReceived: number,
     state: StreamGenerationState,
-    decodeStep: () => Promise<void>,
+    decodeStep: () => Promise<unknown>,
     opts: StreamContinuationOptions = {},
   ): AsyncGenerator<ChatCompletionChunk | Completion, void, void> {
     if (opts.emitCurrent === true) {
@@ -1796,15 +1796,10 @@ export class MLCEngine implements MLCEngineInterface {
   /**
    * Run a decode step to decode the next token.
    */
-  async decode(pipeline: LLMChatPipeline, genConfig?: GenerationConfig) {
-    return pipeline.decodeStep(genConfig);
-  }
-
-  async sampleDecode(
+  async decode(
     pipeline: LLMChatPipeline,
     genConfig?: GenerationConfig,
-    opts?: SampleDecodeOptions,
-  ): Promise<SampledGenerationStep> {
-    return pipeline.sampleDecodeStep(genConfig, opts);
+  ): Promise<CommittedGenerationStep> {
+    return pipeline.decodeStep(genConfig);
   }
 }

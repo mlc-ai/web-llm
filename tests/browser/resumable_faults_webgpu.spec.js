@@ -9,6 +9,9 @@ import {
 
 // Pause production writes at a known boundary, then destroy the page without
 // unwinding the generator. Inference and all writes before the pause are real.
+// The prompt checkpoint is written while decoding continues, so a pause in the
+// checkpoint writer leaves journaled tokens behind; a paused token append
+// leaves none. Tokens after a committed checkpoint make its logits unneeded.
 for (const [point, storeCheckpointLogits, recoveryMode] of [
   ["journal.before_append", true, "token_replay"],
   ["checkpoint.after_page_group", true, "token_replay"],
@@ -17,13 +20,15 @@ for (const [point, storeCheckpointLogits, recoveryMode] of [
   ["checkpoint.after_complete", true, "token_replay"],
   ["checkpoint.before_commit", true, "token_replay"],
   ["checkpoint.after_commit", true, "kv"],
-  ["checkpoint.after_commit", false, "token_replay"],
+  ["checkpoint.after_commit", false, "kv"],
 ]) {
-  test(`real WebGPU zero-token recovery at ${point}, logits=${storeCheckpointLogits}`, async ({
+  test(`real WebGPU recovery paused at ${point}, logits=${storeCheckpointLogits}`, async ({
     page,
   }) => {
     await loadModel(page);
-    const request = makeRequest();
+    // Long enough that the prompt checkpoint's writes, which run while the
+    // ring decodes, reach every pause point before the reply ends.
+    const request = makeRequest({ max_tokens: 160 });
     const baseline = await baselineText(page, request);
     const sessionId = "zero-token";
     await page.evaluate(
@@ -65,9 +70,9 @@ for (const [point, storeCheckpointLogits, recoveryMode] of [
       await page.evaluate(() => globalThis.generationError),
     ).toBeUndefined();
     const before = await inspectSession(page, sessionId);
-    expect(before.records.filter((record) => record.type === 5)).toHaveLength(
-      0,
-    );
+    const tokens = before.records.filter((record) => record.type === 5);
+    if (point === "journal.before_append") expect(tokens).toHaveLength(0);
+    else expect(tokens.length).toBeGreaterThan(0);
     expect(before.records.some((record) => record.type === 4)).toBe(true);
 
     await loadModel(page);
@@ -93,7 +98,7 @@ for (const corruption of ["none", "newest", "all"]) {
     page,
   }) => {
     await loadModel(page);
-    const request = makeRequest({ max_tokens: 80 });
+    const request = makeRequest({ max_tokens: 240 });
     const baseline = await baselineText(page, request);
     const sessionId = "decode-retention";
     const commits = await page.evaluate(

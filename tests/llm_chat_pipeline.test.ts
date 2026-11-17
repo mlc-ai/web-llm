@@ -142,6 +142,12 @@ function createPipeline(): PipelineLike {
     detachFromCurrentScope: jest.fn((x: any) => x),
   } as any;
   pipeline["kvCheckpointFuncs"] = new Map();
+  pipeline["kvCheckpointHostBuffers"] = [];
+  pipeline["sampleReadbackPathSelection"] = {
+    requestedMode: "baseline",
+    activeMode: "baseline",
+    fallbackReason: null,
+  };
   pipeline["device"] = {
     sync: jest.fn(async () => undefined),
   } as any;
@@ -1001,18 +1007,25 @@ test.each([false, true])(
     const pipeline = prepareReplayPipeline() as any;
     pipeline["conversation"].isTextCompletion = true;
     pipeline["contextWindowSize"] = 4;
-    pipeline["importPromptCheckpoint"] = jest.fn(async () => {
+    pipeline["importCheckpointChain"] = jest.fn(async () => {
       pipeline["filledKVCacheLength"] = 4;
     });
     pipeline["tvm"].empty = jest.fn(() => ({ copyFromRawBytes: jest.fn() }));
     pipeline["sampleFromRawLogits"] = jest.fn(async () => 12);
     const result = await pipeline.replayFromPromptCheckpoint(
-      {
-        processedSeqLen: 4,
-        metadata: {},
-        pageGroups: [],
-        nextLogits: { shape: [1], dtype: "float32", data: new Uint8Array(4) },
-      },
+      [
+        {
+          processedSeqLen: 4,
+          metadata: {},
+          pageBegin: 0,
+          pageGroups: [],
+          nextLogits: {
+            shape: [1],
+            dtype: "float32",
+            data: new Uint8Array(4),
+          },
+        },
+      ],
       [],
       [
         { globalTokenPos: 2, tokenId: 10, textDelta: "t10" },
@@ -1037,7 +1050,7 @@ test("checkpoint replay exposes the token sampled from persisted logits", async 
     copyFromRawBytes: jest.fn(),
   } as any;
   pipeline["kvCache"] = {} as any;
-  pipeline["importPromptCheckpoint"] = jest.fn(async () => {
+  pipeline["importCheckpointChain"] = jest.fn(async () => {
     pipeline["filledKVCacheLength"] = 4;
   });
   pipeline["tvm"].empty = jest.fn(() => logits);
@@ -1051,16 +1064,19 @@ test("checkpoint replay exposes the token sampled from persisted logits", async 
   }));
 
   const result = await pipeline.replayFromPromptCheckpoint(
-    {
-      processedSeqLen: 4,
-      metadata: {},
-      pageGroups: [],
-      nextLogits: {
-        shape: [1, 4],
-        dtype: "float32",
-        data: new Uint8Array([1, 2, 3, 4]),
+    [
+      {
+        processedSeqLen: 4,
+        metadata: {},
+        pageBegin: 0,
+        pageGroups: [],
+        nextLogits: {
+          shape: [1, 4],
+          dtype: "float32",
+          data: new Uint8Array([1, 2, 3, 4]),
+        },
       },
-    },
+    ],
     [],
     [],
     [],
@@ -1079,49 +1095,57 @@ test("checkpoint replay exposes the token sampled from persisted logits", async 
   expect(result.sampledFromCheckpointLogits).toBe(true);
 });
 
-test.each(["copy", "export", "import", "logits replay"])(
+test.each(["readback", "import", "logits replay"])(
   "checkpoint %s closes its scope when allocation fails",
   async (operation) => {
     const pipeline = prepareReplayPipeline() as any;
     pipeline.kvCache = {};
     pipeline.kvStateKind = "kv_cache";
-    pipeline.tvm.cpu = jest.fn();
     pipeline.tvm.empty = jest.fn(() => {
       throw new Error("allocation failed");
     });
+    const metadata = {
+      page_size: 16,
+      groups: [
+        {
+          group_index: 0,
+          layer_begin: 0,
+          layer_end: 1,
+          shape: [1, 1, 2, 1, 16, 1],
+          dtype: "float32",
+        },
+      ],
+    };
     const checkpoint = {
       processedSeqLen: 4,
-      metadata: {
-        groups: [
-          {
-            group_index: 0,
-            layer_begin: 0,
-            layer_end: 1,
-            shape: [1],
-            dtype: "float32",
-          },
-        ],
-      },
+      metadata,
+      pageBegin: 0,
       pageGroups: [
-        { groupId: 0, layerStart: 0, layerEnd: 1, data: new Uint8Array(4) },
+        { groupId: 0, layerStart: 0, layerEnd: 1, data: new Uint8Array(128) },
       ],
       nextLogits: { shape: [1], dtype: "float32", data: new Uint8Array(4) },
     };
     pipeline.getKVCheckpointFunc = jest.fn(
-      () => () => JSON.stringify(checkpoint.metadata),
+      () => () => JSON.stringify(metadata),
     );
     let promise;
-    if (operation === "copy")
-      promise = pipeline.copyTensorToCPUBytes({ shape: [1], dtype: "float32" });
-    if (operation === "export")
-      promise = pipeline.exportPromptCheckpoint({}, false);
+    if (operation === "readback") {
+      const ring = { dispose: jest.fn(), pollReady: jest.fn(() => []) };
+      pipeline.device.createSampledTokenReadbackRing = jest.fn(() => ring);
+      const snapshot = pipeline.captureCheckpoint(4);
+      promise = snapshot.done;
+      snapshot.start(jest.fn());
+      await expect(promise).rejects.toThrow("allocation failed");
+      expect(ring.dispose).toHaveBeenCalledTimes(1);
+      expect(pipeline.kvCheckpointReadback).toBeUndefined();
+    }
     if (operation === "import")
-      promise = pipeline.importPromptCheckpoint(checkpoint);
+      promise = pipeline.importCheckpointChain([checkpoint]);
     if (operation === "logits replay") {
-      pipeline.importPromptCheckpoint = jest.fn(async () => {
+      pipeline.importCheckpointChain = jest.fn(async () => {
         pipeline.filledKVCacheLength = 4;
       });
-      promise = pipeline.replayFromPromptCheckpoint(checkpoint, [], [], []);
+      promise = pipeline.replayFromPromptCheckpoint([checkpoint], [], [], []);
     }
     await expect(promise).rejects.toThrow("allocation failed");
     expect(pipeline.tvm.beginScope).toHaveBeenCalledTimes(1);
@@ -1129,11 +1153,133 @@ test.each(["copy", "export", "import", "logits replay"])(
   },
 );
 
+// Guards incremental readback at the committed length: a delta copies only
+// the pages from its parent's last page on, exports them at the committed
+// length although the ring has fed tokens past it, never syncs the device,
+// completes on slot maps alone, without decode steps, and passes each group's
+// bytes to the sink in order.
+test("checkpoint readback copies the delta pages at the committed length", async () => {
+  const pipeline = createPipeline() as any;
+  pipeline.kvCache = {};
+  pipeline.kvStateKind = "kv_cache";
+  pipeline.filledKVCacheLength = 44;
+  // Page bytes: 2 * 1 head * 16 positions * 1 dim * 4 bytes = 128.
+  const metadata = {
+    page_size: 16,
+    seq_length: 40,
+    layout_hash: "layout",
+    groups: [0, 1].map((group) => ({
+      group_index: group,
+      layer_begin: group,
+      layer_end: group + 1,
+      shape: [1, 3, 2, 1, 16, 1],
+      dtype: "float32",
+    })),
+  };
+  const exports: number[][] = [];
+  const funcs: Record<string, any> = {
+    "vm.builtin.attention_kv_cache_get_checkpoint_metadata_at": jest.fn(
+      (_kv: any, _seq: any, seqLen: any) => {
+        expect(seqLen.value).toBe(40);
+        return JSON.stringify(metadata);
+      },
+    ),
+    "vm.builtin.attention_kv_cache_export_page_range": jest.fn(
+      (...args: any[]) =>
+        exports.push([2, 3, 4, 5, 7].map((index) => args[index].value)),
+    ),
+  };
+  pipeline.getKVCheckpointFunc = jest.fn(
+    (name: string) => funcs[name] ?? jest.fn(),
+  );
+  let deliver!: (batches: any[]) => void;
+  const ring = {
+    submitFromPointer: jest.fn(),
+    waitReady: jest.fn(() => new Promise((resolve) => (deliver = resolve))),
+    dispose: jest.fn(),
+  };
+  pipeline.device.createSampledTokenReadbackRing = jest.fn(() => ring);
+  pipeline.tvm.empty = jest.fn((shape: number[]) => ({
+    shape,
+    byteOffset: 0,
+    getDataPtr: () => 41,
+    dispose: jest.fn(),
+  }));
+
+  const snapshot = pipeline.captureCheckpoint(40, 32);
+  expect(snapshot).toMatchObject({
+    processedSeqLen: 40,
+    pageBegin: 2,
+    byteLength: 256,
+  });
+  const written: Array<[number, Uint8Array]> = [];
+  snapshot.start(async (group: number, data: Uint8Array) => {
+    written.push([group, data]);
+  });
+  expect(exports).toEqual([
+    [0, 40, 2, 3, 0],
+    [1, 40, 2, 3, 1],
+  ]);
+  expect(ring.submitFromPointer).toHaveBeenCalledWith(
+    41,
+    64,
+    0,
+    expect.any(Int32Array),
+  );
+
+  // The mapped batch completes the readback; no decode step runs.
+  const tokens = Int32Array.from({ length: 64 }, (_, index) => index);
+  deliver([{ batchSeq: 1, tokenCount: 64, tokens }]);
+  await expect(snapshot.done).resolves.toEqual({ nextLogits: undefined });
+  const bytes = new Uint8Array(tokens.buffer);
+  expect(written).toEqual([
+    [0, bytes.subarray(0, 128)],
+    [1, bytes.subarray(128, 256)],
+  ]);
+  expect(ring.dispose).toHaveBeenCalledTimes(1);
+  expect(pipeline.device.sync).not.toHaveBeenCalled();
+});
+
+// Guards the prefetch for resumable requests: the ring path never prefetches,
+// since it has already fed speculative tokens past the last committed one.
+test("prefetch runs on the baseline path only", async () => {
+  const pipeline = createPipeline() as any;
+  pipeline.kvCache = {};
+  pipeline.kvStateKind = "kv_cache";
+  pipeline.outputIds = [3];
+  pipeline.getKVCheckpointFunc = jest.fn(() => jest.fn());
+  pipeline.tvm.empty = jest.fn();
+  const logits = { dispose: jest.fn() };
+  pipeline.forwardDecodeToken = jest.fn(async () => logits);
+  pipeline.sampleFromRawLogits = jest.fn(async () => 5);
+  pipeline.sampleReadbackPathSelection = { activeMode: "ring_vector" };
+  pipeline.prefetchDecodeForward();
+  expect(pipeline.forwardDecodeToken).not.toHaveBeenCalled();
+
+  pipeline.sampleReadbackPathSelection = { activeMode: "baseline" };
+  pipeline.prefetchDecodeForward();
+  await pipeline.sampleDecodeStep();
+  expect(pipeline.forwardDecodeToken).toHaveBeenCalledTimes(1);
+});
+
+// Guards exact recovery on the ring: the journaled RNG state must be the one
+// after the committed token, not after the speculative samples drawn ahead.
+test("committed RNG state excludes the ring's speculative samples", () => {
+  const pipeline = prepareRingPipeline();
+  pipeline["ringVectorReadbackSession"] = { committedRNGState: 101 } as any;
+  pipeline["tvm"].uniform([1], 0, 1, pipeline["device"]);
+  pipeline["tvm"].uniform([1], 0, 1, pipeline["device"]);
+  expect(pipeline.getRNGState()).toBe(102);
+  expect(pipeline.getCommittedRNGState()).toBe(101);
+  pipeline["ringVectorReadbackSession"] = undefined;
+  expect(pipeline.getCommittedRNGState()).toBe(102);
+});
+
 test("KV checkpoint import refuses hybrid state", async () => {
   const pipeline = createPipeline() as any;
   pipeline.kvCache = {};
   pipeline.kvStateKind = "hybrid";
-  await expect(pipeline.importPromptCheckpoint({})).rejects.toThrow(
+  await expect(pipeline.importCheckpointChain([])).rejects.toThrow(
     "requires a pure KV cache",
   );
   expect(pipeline.tvm.beginScope).not.toHaveBeenCalled();
@@ -1173,12 +1319,8 @@ test("checkpoint capture disables itself when runtime globals are missing", asyn
     throw new Error("checkpoint global is missing");
   });
 
-  await expect(
-    pipeline["tryExportPromptCheckpoint"](logits, true),
-  ).resolves.toBeUndefined();
-  await expect(
-    pipeline["tryExportPromptCheckpoint"](logits, true),
-  ).resolves.toBeUndefined();
+  expect(pipeline.captureCheckpoint(4, 0, logits)).toBeUndefined();
+  expect(pipeline.captureCheckpoint(4, 0, logits)).toBeUndefined();
 
   expect(pipeline["tvm"].getGlobalFunc).toHaveBeenCalledTimes(1);
   expect(pipeline["kvCheckpointUnavailableReason"]).toBe(
@@ -1198,7 +1340,7 @@ test("checkpoint capture disables itself when the runtime rejects the cache layo
   pipeline["kvStateKind"] = "kv_cache";
   pipeline["tvm"].getGlobalFunc = jest.fn((name: string) => {
     const func = jest.fn(() => {
-      if (name === "vm.builtin.attention_kv_cache_get_checkpoint_metadata") {
+      if (name === "vm.builtin.attention_kv_cache_get_checkpoint_metadata_at") {
         throw new Error("cache layout does not support checkpoint export");
       }
     }) as any;
@@ -1206,12 +1348,8 @@ test("checkpoint capture disables itself when the runtime rejects the cache layo
     return func;
   });
 
-  await expect(
-    pipeline["tryExportPromptCheckpoint"](logits, true),
-  ).resolves.toBeUndefined();
-  await expect(
-    pipeline["tryExportPromptCheckpoint"](logits, true),
-  ).resolves.toBeUndefined();
+  expect(pipeline.captureCheckpoint(4, 0, logits)).toBeUndefined();
+  expect(pipeline.captureCheckpoint(4, 0, logits)).toBeUndefined();
 
   expect(pipeline["tvm"].getGlobalFunc).toHaveBeenCalledTimes(6);
   expect(pipeline["kvCheckpointUnavailableReason"]).toBe(
@@ -2177,7 +2315,12 @@ test.each([false, true])(
     const probs = Float32Array.from([0.1, 0.2, 0.3, 0.4]);
     const probsRing = {
       submitFromPointer: jest.fn<
-        (from: number, count: number, offset: number) => number
+        (
+          from: number,
+          count: number,
+          offset: number,
+          into?: Int32Array,
+        ) => number
       >(() => order.push("probs")),
       waitReady: jest.fn(async () => [
         { tokens: new Int32Array(probs.buffer.slice(0)) },
@@ -2191,7 +2334,12 @@ test.each([false, true])(
 
     expect(ring.submit).toHaveBeenCalledWith(sampledOnDevice, 1, 0);
     if (withLogprobs) {
-      expect(probsRing.submitFromPointer).toHaveBeenCalledWith(41, 4, 3);
+      expect(probsRing.submitFromPointer).toHaveBeenCalledWith(
+        41,
+        4,
+        3,
+        undefined,
+      );
       expect(order).toEqual(["probs", "token", "forward"]);
       expect(readProbs).toEqual(probs);
     } else {

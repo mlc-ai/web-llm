@@ -18,11 +18,11 @@ import { CustomLock } from "../support";
 import {
   CommittedGenerationStep,
   KVCheckpointData,
+  KVCheckpointSnapshot,
   LLMChatPipeline,
   ReplayedGenerationToken,
   SampledGenerationStep,
   SamplePrefillOptions,
-  SampleDecodeOptions,
 } from "../llm_chat";
 import {
   ChatCompletionRequest,
@@ -43,6 +43,7 @@ import {
   ResumableCheckpointPayload,
   ResumableCheckpointWriter,
   readResumableCheckpointPayload,
+  resolveCommittedCheckpointChains,
 } from "./checkpoint_writer";
 import { isResumableInjectedFault } from "./fault_injection";
 import {
@@ -62,17 +63,29 @@ import { ResumableSessionHandle } from "./types";
 
 const MIN_FREE_SPACE_BEFORE_KV_CHECKPOINT_BYTES = 512 * 1024 * 1024;
 const CHECKPOINT_RETENTION_COUNT = 2;
-const checkpointMetadataEncoder = new TextEncoder();
+
+/** A captured checkpoint whose readback and write overlap later decoding. */
+interface PendingKVCheckpoint {
+  snapshot: KVCheckpointSnapshot;
+  abort: AbortController;
+  done: Promise<void>;
+}
+
+/** The committed checkpoint the next one extends with a delta. */
+interface CheckpointChainTip {
+  checkpointId: string;
+  processedSeqLen: number;
+}
 
 interface DecodeCheckpointScheduler {
   intervalTokens: number;
   lastCheckpointSeqLen: number;
   pageSize?: number;
-}
-
-interface JournaledGenerationStep {
-  sampled: SampledGenerationStep;
-  committed: CommittedGenerationStep;
+  /** Undefined until a checkpoint of this KV cache is committed or restored. */
+  chainTip?: CheckpointChainTip;
+  pending?: PendingKVCheckpoint;
+  /** A strict-persistence checkpoint failure, rethrown on the decode path. */
+  failure?: unknown;
 }
 
 interface ResumeContinuationState {
@@ -82,7 +95,9 @@ interface ResumeContinuationState {
   firstTokenRecorded: boolean;
   lastCheckpointSeqLen: number;
   checkpointPageSize?: number;
-  pendingJournaledToken?: JournaledGenerationStep;
+  /** The restored checkpoint, which later checkpoints extend. */
+  chainTip?: CheckpointChainTip;
+  pendingJournaledToken?: CommittedGenerationStep;
   /** Message offset preceding a newly sampled recovery token. */
   streamDeltaStart?: number;
 }
@@ -97,6 +112,8 @@ export interface ResumableEngineMetrics {
 
 interface KVResumeCheckpoint {
   checkpoint: KVCheckpointData;
+  chain: KVCheckpointData[];
+  checkpointId: string;
   coveredGeneratedTokens: ReplayedGenerationToken[];
   tailGeneratedTokens: ReplayedGenerationToken[];
 }
@@ -127,11 +144,10 @@ export interface ResumableGenerationHost {
     genConfig: GenerationConfig,
     options: SamplePrefillOptions & { reuseKVCache?: boolean },
   ): Promise<SampledGenerationStep>;
-  sampleDecode(
+  decode(
     pipeline: LLMChatPipeline,
     genConfig: GenerationConfig,
-    options: SampleDecodeOptions,
-  ): Promise<SampledGenerationStep>;
+  ): Promise<CommittedGenerationStep>;
   streamCurrentGeneration(
     request: ChatCompletionRequestStreaming | CompletionCreateParamsStreaming,
     model: string,
@@ -235,23 +251,13 @@ function metadataInteger(
     : undefined;
 }
 
-function checkpointPageSize(checkpoint: KVCheckpointData): number | undefined {
+function checkpointPageSize(
+  checkpoint: Pick<KVCheckpointData, "metadata">,
+): number | undefined {
   return (
     metadataInteger(checkpoint.metadata, "pageSize") ??
     metadataInteger(checkpoint.metadata, "page_size")
   );
-}
-
-function checkpointByteLength(checkpoint: KVCheckpointData): number {
-  const pageGroupBytes = checkpoint.pageGroups.reduce(
-    (sum, group) => sum + group.data.byteLength,
-    0,
-  );
-  const logitsBytes = checkpoint.nextLogits?.data.byteLength ?? 0;
-  const metadataBytes = checkpointMetadataEncoder.encode(
-    JSON.stringify(checkpoint.metadata),
-  ).byteLength;
-  return pageGroupBytes + logitsBytes + metadataBytes;
 }
 
 function normalizeCheckpointInterval(
@@ -283,10 +289,45 @@ function shouldCaptureDecodeCheckpoint(
 
 function noteCommittedCheckpoint(
   scheduler: DecodeCheckpointScheduler,
-  checkpoint: KVCheckpointData,
+  checkpointId: string,
+  checkpoint: Pick<KVCheckpointData, "processedSeqLen" | "metadata">,
 ): void {
   scheduler.lastCheckpointSeqLen = checkpoint.processedSeqLen;
   scheduler.pageSize = checkpointPageSize(checkpoint) ?? scheduler.pageSize;
+  scheduler.chainTip = {
+    checkpointId,
+    processedSeqLen: checkpoint.processedSeqLen,
+  };
+}
+
+// The journal append for a committed token is awaited before the token is
+// exposed. On the baseline readback path, starting the next forward pass
+// first lets the GPU overlap it; the ring and lookahead paths already have.
+function prefetchDecodeForward(
+  journal: ResumableGenerationJournal,
+  pipeline: LLMChatPipeline,
+): void {
+  if (journal.active && !pipeline.stopped()) {
+    pipeline.prefetchDecodeForward();
+  }
+}
+
+function createCheckpointScheduler(
+  journal: ResumableGenerationJournal,
+  prefillStep: SampledGenerationStep,
+): DecodeCheckpointScheduler {
+  return {
+    intervalTokens: journal.checkpointIntervalTokens,
+    lastCheckpointSeqLen: prefillStep.globalTokenPos,
+  };
+}
+
+function throwCheckpointFailure(
+  scheduler: DecodeCheckpointScheduler | undefined,
+): void {
+  if (scheduler?.failure !== undefined) {
+    throw scheduler.failure;
+  }
 }
 
 function replayPromptSeqLen(state: ResumableReplayState): number {
@@ -313,30 +354,40 @@ export class ResumableGenerationCoordinator {
 
   constructor(private readonly options: ResumableCoordinatorOptions) {}
 
+  /**
+   * Decode on the request's readback path and journal the committed token
+   * before the caller exposes it. A checkpoint is taken at the committed
+   * token's position, never past it: the ring may already have fed
+   * speculative tokens that a stop will pop.
+   */
   private async decodeGenerationStep(
     journal: ResumableGenerationJournal,
     scheduler: DecodeCheckpointScheduler,
-    promptSeqLen: number,
     pipeline: LLMChatPipeline,
     genConfig: GenerationConfig,
   ): Promise<void> {
-    const captureCheckpoint =
+    throwCheckpointFailure(scheduler);
+    const committed = await this.options.host.decode(pipeline, genConfig);
+    prefetchDecodeForward(journal, pipeline);
+    await this.recordGeneratedToken(journal, pipeline, committed);
+    if (
       journal.active &&
+      !pipeline.stopped() &&
+      scheduler.pending === undefined &&
       (await this.shouldCaptureDecodeCheckpoint(
         scheduler,
-        promptSeqLen + journal.emittedTokenCount,
-      ));
-    const decodeStep = await this.options.host.sampleDecode(
-      pipeline,
-      genConfig,
-      {
-        captureCheckpoint,
-        storeCheckpointLogits: journal.storeCheckpointLogits,
-      },
-    );
-    const committed = pipeline.commitSampledStep(decodeStep, genConfig);
-    await this.recordGeneratedToken(journal, pipeline, decodeStep, committed);
-    await this.writeDecodeCheckpoint(journal, scheduler, decodeStep);
+        committed.globalTokenPos,
+      ))
+    ) {
+      this.startKVCheckpoint(
+        journal,
+        scheduler,
+        pipeline.captureCheckpoint(
+          committed.globalTokenPos,
+          scheduler.chainTip?.processedSeqLen,
+        ),
+      );
+    }
   }
 
   private finalizeResumedConversation(
@@ -380,7 +431,6 @@ export class ResumableGenerationCoordinator {
         await this.decodeGenerationStep(
           journal,
           checkpointScheduler,
-          promptSeqLen,
           pipeline,
           genConfig,
         );
@@ -390,7 +440,11 @@ export class ResumableGenerationCoordinator {
           recordedFirstToken = true;
         }
       }
-      await this.finishJournal(journal, pipeline.getFinishReason());
+      await this.finishJournal(
+        journal,
+        checkpointScheduler,
+        pipeline.getFinishReason(),
+      );
       this.finalizeResumedConversation(state, pipeline, chatConfig);
       return {
         sessionId: state.sessionId,
@@ -401,10 +455,10 @@ export class ResumableGenerationCoordinator {
         recoveryMode: restored.recoveryMode,
       };
     } catch (err) {
-      await this.recordEngineError(journal, err);
+      await this.recordEngineError(journal, checkpointScheduler, err);
       throw err;
     } finally {
-      await journal.close();
+      await this.closeJournal(journal, checkpointScheduler);
     }
   }
 
@@ -450,7 +504,6 @@ export class ResumableGenerationCoordinator {
           await this.decodeGenerationStep(
             journal,
             checkpointScheduler,
-            promptSeqLen,
             pipeline,
             genConfig,
           );
@@ -465,7 +518,11 @@ export class ResumableGenerationCoordinator {
           skipEmptyDelta: true,
           completionTokenOffset: restored.extraEmittedTokens,
           beforeFinalChunk: async () => {
-            await this.finishJournal(journal, pipeline.getFinishReason());
+            await this.finishJournal(
+              journal,
+              checkpointScheduler,
+              pipeline.getFinishReason(),
+            );
             journalEnded = true;
             this.finalizeResumedConversation(state, pipeline, chatConfig);
           },
@@ -476,12 +533,13 @@ export class ResumableGenerationCoordinator {
       }
     } catch (err) {
       failure = err;
-      await this.recordEngineError(journal, err);
+      await this.recordEngineError(journal, checkpointScheduler, err);
       throw err;
     } finally {
       try {
         await this.closeStreamJournal(
           journal,
+          checkpointScheduler,
           pipeline,
           !journalEnded,
           failure,
@@ -518,41 +576,45 @@ export class ResumableGenerationCoordinator {
         reuseKVCache: false,
       },
     );
-    if (prefillStep.promptTokenIds === undefined) {
-      throw new Error(
-        "Resumable generation currently supports text-only prompts.",
-      );
+    try {
+      if (prefillStep.promptTokenIds === undefined) {
+        throw new Error(
+          "Resumable generation currently supports text-only prompts.",
+        );
+      }
+      await journal.begin({
+        modelId,
+        request: input,
+        promptTokenIds: prefillStep.promptTokenIds,
+        assistantPrefixTokenIds: prefillStep.assistantPrefixTokenIds ?? [],
+        generationConfig: genConfig,
+      });
+    } catch (err) {
+      // Free the prompt snapshot's readback buffers now, not at the next reset.
+      prefillStep.promptCheckpoint?.discard();
+      throw err;
     }
-    await journal.begin({
-      modelId,
-      request: input,
-      promptTokenIds: prefillStep.promptTokenIds,
-      assistantPrefixTokenIds: prefillStep.assistantPrefixTokenIds ?? [],
-      generationConfig: genConfig,
-    });
     return prefillStep;
   }
 
   private async commitPrefill(
     journal: ResumableGenerationJournal,
+    scheduler: DecodeCheckpointScheduler,
     pipeline: LLMChatPipeline,
     genConfig: GenerationConfig,
     prefillStep: SampledGenerationStep,
-  ): Promise<DecodeCheckpointScheduler> {
-    const checkpointScheduler: DecodeCheckpointScheduler = {
-      intervalTokens: journal.checkpointIntervalTokens,
-      lastCheckpointSeqLen: prefillStep.globalTokenPos,
-    };
-    await this.writePromptCheckpoint(journal, prefillStep, checkpointScheduler);
+  ): Promise<void> {
     const committedPrefill = pipeline.commitSampledStep(prefillStep, genConfig);
-    await this.recordGeneratedToken(
-      journal,
-      pipeline,
-      prefillStep,
-      committedPrefill,
-    );
-
-    return checkpointScheduler;
+    prefetchDecodeForward(journal, pipeline);
+    try {
+      await this.recordGeneratedToken(journal, pipeline, committedPrefill);
+    } catch (err) {
+      prefillStep.promptCheckpoint?.discard();
+      throw err;
+    }
+    // Read the prompt checkpoint back once the first token is durable, so its
+    // copies stay out of the time to first token.
+    this.startKVCheckpoint(journal, scheduler, prefillStep.promptCheckpoint);
   }
 
   async *streamGeneration(
@@ -569,6 +631,7 @@ export class ResumableGenerationCoordinator {
     let journalStarted = false;
     let journalEnded = false;
     let failure: unknown;
+    let scheduler: DecodeCheckpointScheduler | undefined;
     try {
       const prefillStep = await this.prefillGeneration(
         request,
@@ -579,8 +642,11 @@ export class ResumableGenerationCoordinator {
         journal,
       );
       journalStarted = journal.active;
-      const scheduler = await this.commitPrefill(
+      const checkpoints = createCheckpointScheduler(journal, prefillStep);
+      scheduler = checkpoints;
+      await this.commitPrefill(
         journal,
+        checkpoints,
         pipeline,
         genConfig,
         prefillStep,
@@ -593,28 +659,27 @@ export class ResumableGenerationCoordinator {
         timeReceived,
         streamState,
         () =>
-          this.decodeGenerationStep(
-            journal,
-            scheduler,
-            prefillStep.globalTokenPos,
-            pipeline,
-            genConfig,
-          ),
+          this.decodeGenerationStep(journal, checkpoints, pipeline, genConfig),
         {
           emitCurrent: true,
           beforeFinalChunk: async () => {
-            await this.finishJournal(journal, pipeline.getFinishReason());
+            await this.finishJournal(
+              journal,
+              scheduler,
+              pipeline.getFinishReason(),
+            );
             journalEnded = true;
           },
         },
       );
     } catch (err) {
       failure = err;
-      if (journalStarted) await this.recordEngineError(journal, err);
+      if (journalStarted) await this.recordEngineError(journal, scheduler, err);
       throw err;
     } finally {
       await this.closeStreamJournal(
         journal,
+        scheduler,
         pipeline,
         journalStarted && !journalEnded,
         failure,
@@ -639,6 +704,7 @@ export class ResumableGenerationCoordinator {
     }
 
     let journalStarted = false;
+    let scheduler: DecodeCheckpointScheduler | undefined;
     try {
       const prefillStep = await this.prefillGeneration(
         input,
@@ -649,8 +715,10 @@ export class ResumableGenerationCoordinator {
         journal,
       );
       journalStarted = journal.active;
-      const checkpointScheduler = await this.commitPrefill(
+      scheduler = createCheckpointScheduler(journal, prefillStep);
+      await this.commitPrefill(
         journal,
+        scheduler,
         pipeline,
         genConfig,
         prefillStep,
@@ -663,21 +731,20 @@ export class ResumableGenerationCoordinator {
         }
         await this.decodeGenerationStep(
           journal,
-          checkpointScheduler,
-          prefillStep.globalTokenPos,
+          scheduler,
           pipeline,
           genConfig,
         );
       }
-      await this.finishJournal(journal, pipeline.getFinishReason());
+      await this.finishJournal(journal, scheduler, pipeline.getFinishReason());
       return pipeline.getMessage();
     } catch (err) {
       if (journalStarted) {
-        await this.recordEngineError(journal, err);
+        await this.recordEngineError(journal, scheduler, err);
       }
       throw err;
     } finally {
-      await journal.close();
+      await this.closeJournal(journal, scheduler);
     }
   }
 
@@ -754,7 +821,6 @@ export class ResumableGenerationCoordinator {
   private async recordGeneratedToken(
     journal: ResumableGenerationJournal | undefined,
     pipeline: LLMChatPipeline,
-    sampled: SampledGenerationStep,
     committed: CommittedGenerationStep,
   ): Promise<void> {
     if (journal === undefined) {
@@ -763,12 +829,12 @@ export class ResumableGenerationCoordinator {
     const start = performance.now();
     try {
       await journal.recordGeneratedToken({
-        globalTokenPos: sampled.globalTokenPos,
-        tokenId: sampled.tokenId,
+        globalTokenPos: committed.globalTokenPos,
+        tokenId: committed.tokenId,
         textDelta: committed.textDelta,
         textPrefixLength: committed.textPrefixLength,
-        rngState: pipeline.getRNGState(),
-        logprob: sampled.logprob,
+        rngState: pipeline.getCommittedRNGState(),
+        logprob: committed.logprob,
       });
     } finally {
       this.metrics().journalAppendMs += performance.now() - start;
@@ -791,30 +857,13 @@ export class ResumableGenerationCoordinator {
     return journal.checkpointPrompt && (await hasKVCheckpointQuota());
   }
 
-  private async writePromptCheckpoint(
-    journal: ResumableGenerationJournal,
-    sampled: SampledGenerationStep,
-    scheduler: DecodeCheckpointScheduler,
-  ): Promise<void> {
-    if (await this.writeKVCheckpoint(journal, sampled.promptCheckpoint)) {
-      noteCommittedCheckpoint(scheduler, sampled.promptCheckpoint!);
-    }
-  }
-
-  private async writeDecodeCheckpoint(
-    journal: ResumableGenerationJournal,
-    scheduler: DecodeCheckpointScheduler,
-    sampled: SampledGenerationStep,
-  ): Promise<void> {
-    if (await this.writeKVCheckpoint(journal, sampled.decodeCheckpoint)) {
-      noteCommittedCheckpoint(scheduler, sampled.decodeCheckpoint!);
-    }
-  }
-
   private async finishJournal(
     journal: ResumableGenerationJournal,
+    scheduler: DecodeCheckpointScheduler | undefined,
     finishReason: string | undefined,
   ): Promise<void> {
+    await this.settleKVCheckpoint(scheduler, finishReason === "abort");
+    if (finishReason !== "abort") throwCheckpointFailure(scheduler);
     await journal.recordGenerationEnd({
       finishReason,
       emittedTokens: journal.emittedTokenCount,
@@ -826,15 +875,26 @@ export class ResumableGenerationCoordinator {
 
   private async recordEngineError(
     journal: ResumableGenerationJournal,
+    scheduler: DecodeCheckpointScheduler | undefined,
     err: unknown,
   ): Promise<void> {
+    await this.settleKVCheckpoint(scheduler);
     if (!isResumableInjectedFault(err)) {
       await journal.recordEngineError({ err }).catch(() => undefined);
     }
   }
 
+  private async closeJournal(
+    journal: ResumableGenerationJournal,
+    scheduler: DecodeCheckpointScheduler | undefined,
+  ): Promise<void> {
+    await this.settleKVCheckpoint(scheduler);
+    await journal.close();
+  }
+
   private async closeStreamJournal(
     journal: ResumableGenerationJournal,
+    scheduler: DecodeCheckpointScheduler | undefined,
     pipeline: LLMChatPipeline,
     unfinished: boolean,
     failure: unknown,
@@ -843,10 +903,10 @@ export class ResumableGenerationCoordinator {
       try {
         if (unfinished && !isResumableInjectedFault(failure)) {
           pipeline.triggerStop();
-          await this.finishJournal(journal, "abort");
+          await this.finishJournal(journal, scheduler, "abort");
         }
       } finally {
-        await journal.close();
+        await this.closeJournal(journal, scheduler);
       }
     } catch (err) {
       // Preserve an existing generation error. Otherwise, let cancellation
@@ -863,6 +923,7 @@ export class ResumableGenerationCoordinator {
       intervalTokens: journal.checkpointIntervalTokens,
       lastCheckpointSeqLen: restored.lastCheckpointSeqLen,
       pageSize: restored.checkpointPageSize,
+      chainTip: restored.chainTip,
     };
   }
 
@@ -895,8 +956,7 @@ export class ResumableGenerationCoordinator {
     await this.recordGeneratedToken(
       journal,
       pipeline,
-      restored.pendingJournaledToken.sampled,
-      restored.pendingJournaledToken.committed,
+      restored.pendingJournaledToken,
     );
     restored.pendingJournaledToken = undefined;
   }
@@ -1212,7 +1272,7 @@ export class ResumableGenerationCoordinator {
       }
       const restoreStart = performance.now();
       const replay = await pipeline.replayFromPromptCheckpoint(
-        resume.checkpoint,
+        resume.chain,
         state.assistantPrefixTokenIds,
         resume.coveredGeneratedTokens,
         resume.tailGeneratedTokens,
@@ -1236,15 +1296,13 @@ export class ResumableGenerationCoordinator {
         firstTokenRecorded: replay.sampledToken !== undefined,
         lastCheckpointSeqLen: resume.checkpoint.processedSeqLen,
         checkpointPageSize: checkpointPageSize(resume.checkpoint),
+        chainTip: {
+          checkpointId: resume.checkpointId,
+          processedSeqLen: resume.checkpoint.processedSeqLen,
+        },
         streamDeltaStart: replay.committedToken?.textPrefixLength,
         pendingJournaledToken:
-          replay.sampledToken !== undefined &&
-          replay.committedToken !== undefined
-            ? {
-                sampled: replay.sampledToken,
-                committed: replay.committedToken,
-              }
-            : undefined,
+          replay.sampledToken !== undefined ? replay.committedToken : undefined,
       };
     } catch (err) {
       log.warn("KV checkpoint restore failed; falling back:", err);
@@ -1303,12 +1361,7 @@ export class ResumableGenerationCoordinator {
       lastCheckpointSeqLen: replayPromptSeqLen(state),
       streamDeltaStart: replay.committedToken?.textPrefixLength,
       pendingJournaledToken:
-        replay.sampledToken !== undefined && replay.committedToken !== undefined
-          ? {
-              sampled: replay.sampledToken,
-              committed: replay.committedToken,
-            }
-          : undefined,
+        replay.sampledToken !== undefined ? replay.committedToken : undefined,
     };
   }
 
@@ -1323,63 +1376,142 @@ export class ResumableGenerationCoordinator {
     };
   }
 
+  /** Read back and write a captured checkpoint while decoding continues. */
+  private startKVCheckpoint(
+    journal: ResumableGenerationJournal,
+    scheduler: DecodeCheckpointScheduler,
+    snapshot: KVCheckpointSnapshot | undefined,
+  ): void {
+    if (snapshot === undefined) {
+      return;
+    }
+    if (!journal.active || scheduler.pending !== undefined) {
+      snapshot.discard();
+      return;
+    }
+    const abort = new AbortController();
+    const parent = snapshot.pageBegin > 0 ? scheduler.chainTip : undefined;
+    const done = this.writeKVCheckpoint(
+      journal,
+      scheduler,
+      snapshot,
+      parent,
+      abort.signal,
+    ).finally(() => {
+      scheduler.pending = undefined;
+    });
+    scheduler.pending = { snapshot, abort, done };
+  }
+
+  /**
+   * End an unfinished checkpoint with its generation. An aborted generation
+   * stays resumable, so its checkpoint is completed and committed first.
+   * Otherwise it is stopped: a finished generation deletes its KV directory,
+   * and an error ends the generation at once. A stopped checkpoint's
+   * directory was never committed and is removed; earlier commits stay usable.
+   */
+  private async settleKVCheckpoint(
+    scheduler: DecodeCheckpointScheduler | undefined,
+    complete = false,
+  ): Promise<void> {
+    const pending = scheduler?.pending;
+    if (pending === undefined) {
+      return;
+    }
+    if (!complete) {
+      pending.abort.abort();
+      pending.snapshot.discard();
+    }
+    await pending.done;
+  }
+
+  // Never rejects: a strict-persistence failure is stored on the scheduler and
+  // rethrown by the next decode step or by the end of the generation.
   private async writeKVCheckpoint(
     journal: ResumableGenerationJournal,
-    checkpoint: KVCheckpointData | undefined,
-  ): Promise<boolean> {
-    if (checkpoint === undefined || !journal.active) {
-      return false;
-    }
-    if (!(await hasKVCheckpointQuota(checkpointByteLength(checkpoint)))) {
-      return false;
+    scheduler: DecodeCheckpointScheduler,
+    snapshot: KVCheckpointSnapshot,
+    parent: CheckpointChainTip | undefined,
+    signal: AbortSignal,
+  ): Promise<void> {
+    if (
+      !(await hasKVCheckpointQuota(snapshot.byteLength)) ||
+      signal.aborted ||
+      !journal.active
+    ) {
+      snapshot.discard();
+      return;
     }
     const sessions = this.options.getSessionStore();
+    const start = performance.now();
+    // Batches are written as the readback delivers them; the readback waits
+    // for each write, so a checkpoint is never buffered whole in memory.
+    const stream = new ResumableCheckpointWriter(
+      this.options.getFileStore(),
+      sessions,
+    ).beginCheckpoint(
+      {
+        sessionId: journal.sessionId,
+        checkpointId: promptCheckpointId(snapshot.processedSeqLen),
+        processedSeqLen: snapshot.processedSeqLen,
+        layoutHash: snapshot.layoutHash,
+        parentCheckpointId: parent?.checkpointId,
+        pageBegin: snapshot.pageBegin,
+        pageGroups: snapshot.pageGroups,
+      },
+      signal,
+    );
+    stream.catch(() => undefined);
     try {
-      const writer = new ResumableCheckpointWriter(
-        this.options.getFileStore(),
-        sessions,
-      );
-      const start = performance.now();
-      let ref;
-      try {
-        ref = await writer.writeCheckpoint({
-          sessionId: journal.sessionId,
-          checkpointId: promptCheckpointId(checkpoint.processedSeqLen),
-          processedSeqLen: checkpoint.processedSeqLen,
-          layoutHash: checkpoint.layoutHash,
-          metadata: {
-            ...checkpoint.metadata,
-            nextLogitsShape: checkpoint.nextLogits?.shape,
-            nextLogitsDtype: checkpoint.nextLogits?.dtype,
-          },
-          pageGroups: checkpoint.pageGroups,
-          nextLogits: checkpoint.nextLogits?.data,
-        });
-        await journal.recordCheckpointCommit({
-          checkpointId: ref.checkpointId,
-          processedSeqLen: checkpoint.processedSeqLen,
-          path: ref.path,
-          layoutHash: checkpoint.layoutHash,
-        });
-      } finally {
-        this.metrics().checkpointWriteMs += performance.now() - start;
+      snapshot.start(async (group, data) => (await stream).write(group, data));
+      const done = await snapshot.done;
+      if (done === undefined || signal.aborted || !journal.active) {
+        await (await stream).abort();
+        await sessions.reconcileCheckpoints(journal.sessionId);
+        return;
       }
+      const ref = await (
+        await stream
+      ).finish(done.nextLogits?.data, {
+        ...snapshot.metadata,
+        nextLogitsShape: done.nextLogits?.shape,
+        nextLogitsDtype: done.nextLogits?.dtype,
+      });
+      await journal.recordCheckpointCommit({
+        checkpointId: ref.checkpointId,
+        processedSeqLen: snapshot.processedSeqLen,
+        path: ref.path,
+        layoutHash: snapshot.layoutHash,
+      });
       if (!journal.active) {
         await sessions.reconcileCheckpoints(journal.sessionId);
-        return false;
+        return;
       }
       await sessions.pruneCommittedCheckpoints(
         journal.sessionId,
         CHECKPOINT_RETENTION_COUNT,
       );
-      return true;
+      noteCommittedCheckpoint(scheduler, ref.checkpointId, snapshot);
     } catch (err) {
+      await stream.then((open) => open.abort()).catch(() => undefined);
       await sessions.reconcileCheckpoints(journal.sessionId).catch(() => []);
-      if (journal.strictPersistence) {
-        throw err;
+      if (!signal.aborted) {
+        this.noteCheckpointFailure(journal, scheduler, err);
       }
+    } finally {
+      this.metrics().checkpointWriteMs += performance.now() - start;
+    }
+  }
+
+  private noteCheckpointFailure(
+    journal: ResumableGenerationJournal,
+    scheduler: DecodeCheckpointScheduler,
+    err: unknown,
+  ): void {
+    if (journal.strictPersistence) {
+      scheduler.failure ??= err;
+    } else {
       log.warn("KV checkpoint disabled:", err);
-      return false;
     }
   }
 
@@ -1408,6 +1540,7 @@ export class ResumableGenerationCoordinator {
       processedSeqLen: payload.meta.processedSeqLen,
       layoutHash: payload.meta.layoutHash,
       metadata,
+      pageBegin: payload.meta.pageBegin ?? 0,
       pageGroups: payload.pageGroups.map((group) => ({
         groupId: group.groupId,
         layerStart: group.layerStart,
@@ -1438,40 +1571,47 @@ export class ResumableGenerationCoordinator {
   ): Promise<KVResumeCheckpoint | undefined> {
     const promptSeqLen = state.promptTokenIds.length;
     const refs = await sessions.listCommittedCheckpoints(session.sessionId);
-    let best: KVCheckpointData | undefined;
-    for (const ref of refs) {
+    const chains = await resolveCommittedCheckpointChains(files, refs);
+    chains.sort(
+      (a, b) => b.at(-1)!.meta.processedSeqLen - a.at(-1)!.meta.processedSeqLen,
+    );
+    for (const chain of chains) {
+      const tip = chain.at(-1)!;
+      if (
+        tip.meta.processedSeqLen < promptSeqLen ||
+        tip.meta.processedSeqLen > state.processedSeqLen
+      ) {
+        continue;
+      }
       try {
-        const payload = await readResumableCheckpointPayload(files, ref);
-        if (payload === undefined) {
-          log.warn(
-            `Ignoring invalid KV checkpoint ${ref.checkpointId}: checkpoint payload is incomplete.`,
-          );
-          continue;
+        const checkpoints: KVCheckpointData[] = [];
+        for (const { ref } of chain) {
+          const payload = await readResumableCheckpointPayload(files, ref);
+          if (payload === undefined) break;
+          checkpoints.push(this.checkpointPayloadToKVData(payload));
         }
-        if (
-          payload.meta.processedSeqLen >= promptSeqLen &&
-          payload.meta.processedSeqLen <= state.processedSeqLen &&
-          (best === undefined ||
-            payload.meta.processedSeqLen > best.processedSeqLen)
-        ) {
-          best = this.checkpointPayloadToKVData(payload);
+        if (checkpoints.length === chain.length) {
+          const checkpoint = checkpoints.at(-1)!;
+          return {
+            checkpoint,
+            chain: checkpoints,
+            checkpointId: tip.ref.checkpointId,
+            coveredGeneratedTokens: state.generatedTokens.filter(
+              (token) => token.globalTokenPos < checkpoint.processedSeqLen,
+            ),
+            tailGeneratedTokens: state.generatedTokens.filter(
+              (token) => token.globalTokenPos >= checkpoint.processedSeqLen,
+            ),
+          };
         }
       } catch (err) {
-        log.warn(`Ignoring invalid KV checkpoint ${ref.checkpointId}:`, err);
+        log.warn(
+          `Ignoring invalid KV checkpoint ${tip.ref.checkpointId}:`,
+          err,
+        );
       }
     }
-    if (best === undefined) {
-      return undefined;
-    }
-    return {
-      checkpoint: best,
-      coveredGeneratedTokens: state.generatedTokens.filter(
-        (token) => token.globalTokenPos < best!.processedSeqLen,
-      ),
-      tailGeneratedTokens: state.generatedTokens.filter(
-        (token) => token.globalTokenPos >= best!.processedSeqLen,
-      ),
-    };
+    return undefined;
   }
 
   private getContinuationBlockReason(

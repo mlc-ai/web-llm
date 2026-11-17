@@ -38,13 +38,18 @@ for (const [durabilityMode, strictPersistence] of [
             ],
             seed: 17,
             temperature: 0.7,
-            max_tokens: 24,
+            max_tokens: 160,
             ignore_eos: true,
           };
           const response = await Promise.race([
             globalThis.gpuEngine.chatCompletion(request),
             globalThis.gpuFailure,
           ]);
+          const { setResumableFaultHook } = globalThis.webllmBrowserHarness;
+          let commits = 0;
+          setResumableFaultHook((point) => {
+            if (point === "checkpoint.after_commit") commits++;
+          });
           const stream = await globalThis.gpuEngine.chatCompletion({
             ...request,
             stream: true,
@@ -60,8 +65,10 @@ for (const [durabilityMode, strictPersistence] of [
             },
           });
           globalThis.gpuStream = stream[Symbol.asyncIterator]();
-          await globalThis.gpuStream.next();
-          await globalThis.gpuStream.next();
+          // The prompt checkpoint is written while decoding continues.
+          for (let i = 0; i < 2 || (checkpointPrompt && commits === 0); i++) {
+            await globalThis.gpuStream.next();
+          }
           return {
             request,
             text: response.choices[0].message.content,
@@ -100,6 +107,12 @@ for (const [durabilityMode, strictPersistence] of [
       await loadModel(page);
       const result = await page.evaluate(
         async ({ sessionId, request }) => {
+          // The first restore calibrated the cost model, which can prefer
+          // replaying this short prompt. Forget it to exercise the restore.
+          const { BrowserOPFSFileStore } = globalThis.webllmBrowserHarness;
+          await new BrowserOPFSFileStore().remove(
+            "webllm-resume/calibration.json",
+          );
           const resumed = await globalThis.gpuEngine.resumeChatCompletion(
             sessionId,
             { continueGeneration: true },

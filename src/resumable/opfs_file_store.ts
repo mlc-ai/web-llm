@@ -1,6 +1,16 @@
+/** A file written in pieces. Its new contents replace the old on close. */
+export interface OPFSWritableFile {
+  write(data: BufferSource): Promise<void>;
+  close(): Promise<void>;
+  /** Discard what was written; the file keeps its previous contents. */
+  abort(): Promise<void>;
+}
+
 export interface OPFSFileStore {
   read(path: string): Promise<ArrayBuffer | undefined>;
   write(path: string, data: BufferSource): Promise<void>;
+  /** Write a file without holding all of its bytes at once. */
+  openWritable(path: string): Promise<OPFSWritableFile>;
   append(path: string, data: BufferSource): Promise<void>;
   remove(path: string, opts?: { recursive?: boolean }): Promise<void>;
   list(path: string): Promise<string[]>;
@@ -246,6 +256,19 @@ export class BrowserOPFSFileStore implements OPFSFileStore {
       throw err;
     }
     await writable.close();
+  }
+
+  async openWritable(path: string): Promise<OPFSWritableFile> {
+    const file = (await this.getFile(path, true))!;
+    const writable = await this.createWritable(file);
+    if (writable === undefined) {
+      throw new Error("OPFS write requires createWritable");
+    }
+    return {
+      write: (data) => writable.write(data),
+      close: () => writable.close(),
+      abort: () => writable.abort(),
+    };
   }
 
   async append(path: string, data: BufferSource): Promise<void> {

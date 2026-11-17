@@ -16,6 +16,7 @@ import {
   readJournalRecords,
   appendJournalRecord,
   decodeJournalRecordAt,
+  encodeJournalRecord,
   JournalRecordType,
 } from "../src/resumable/journal";
 import {
@@ -54,6 +55,12 @@ async function readSessionJournal(files: MemoryFileStore, sessionId: string) {
     files,
     `resume-root/sessions/${sessionId}/journal.bin`,
   );
+}
+
+// Checkpoints are written while generation continues. The memory store
+// resolves in microtasks, so one macrotask turn completes pending writes.
+function flushBackgroundWrites(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 let restoreResumableFaultHook: (() => void) | undefined;
@@ -159,9 +166,11 @@ describe("MLCEngine resumable integration", () => {
   );
 
   test.each([false, true])(
-    "shared startup journals prompt/checkpoint/token in order (stream=%s)",
+    "shared startup journals the prompt before its checkpoint and tokens (stream=%s)",
     async (stream) => {
-      const { engine, pipeline } = createEngineWithPipeline(2);
+      // The prompt checkpoint commits while decoding continues; a longer
+      // non-streaming generation leaves it time to land before the finish.
+      const { engine, pipeline } = createEngineWithPipeline(stream ? 2 : 64);
       pipeline.enablePromptCheckpoint = true;
       const files = new MemoryFileStore();
       attachResumableStore(engine, files);
@@ -178,15 +187,24 @@ describe("MLCEngine resumable integration", () => {
           },
         },
       });
-      if (Symbol.asyncIterator in result)
-        for await (const chunk of result) expect(chunk.model).toBe(MODEL_ID);
+      if (Symbol.asyncIterator in result) {
+        const iterator = result[Symbol.asyncIterator]();
+        await iterator.next();
+        await flushBackgroundWrites();
+        while (!(await iterator.next()).done) {
+          // drain to the final chunk
+        }
+      }
       const { records } = await readSessionJournal(files, "shared-start");
       const kinds = records.map((record) => record.type);
       expect(kinds.indexOf(JournalRecordType.PromptTokens)).toBeLessThan(
         kinds.indexOf(JournalRecordType.CheckpointCommit),
       );
-      expect(kinds.indexOf(JournalRecordType.CheckpointCommit)).toBeLessThan(
+      expect(kinds.indexOf(JournalRecordType.PromptTokens)).toBeLessThan(
         kinds.indexOf(JournalRecordType.GeneratedToken),
+      );
+      expect(kinds.indexOf(JournalRecordType.CheckpointCommit)).toBeLessThan(
+        kinds.indexOf(JournalRecordType.GenerationFinished),
       );
       expect(
         kinds.filter((kind) => kind === JournalRecordType.SessionBegin),
@@ -207,7 +225,9 @@ describe("MLCEngine resumable integration", () => {
   test.each([false, true])(
     "first checkpoint failure releases session/model ownership (stream=%s)",
     async (stream) => {
-      const { engine, pipeline } = createEngineWithPipeline(2);
+      // A failed checkpoint write surfaces on a later decode step, so the
+      // generation must still be decoding when the write fails.
+      const { engine, pipeline } = createEngineWithPipeline(64);
       pipeline.enablePromptCheckpoint = true;
       const files = new MemoryFileStore();
       attachResumableStore(engine, files);
@@ -239,9 +259,12 @@ describe("MLCEngine resumable integration", () => {
       ).toBe(true);
       expect(
         records.some(
-          (record) => record.type === JournalRecordType.GeneratedToken,
+          (record) => record.type === JournalRecordType.CheckpointCommit,
         ),
       ).toBe(false);
+      await expect(
+        files.list("resume-root/sessions/failed-start/kv"),
+      ).resolves.toEqual([]);
       await expect(
         engine.deleteResumableSession("failed-start"),
       ).resolves.toBeUndefined();
@@ -447,7 +470,7 @@ describe("MLCEngine resumable integration", () => {
 
   test("strictPersistence false keeps generating after an asynchronous token write failure", async () => {
     const { engine, pipeline } = createEngineWithPipeline(3);
-    const sampleDecode = jest.spyOn(pipeline, "sampleDecodeStep");
+    const decode = jest.spyOn(pipeline, "decodeStep");
     const files = new MemoryFileStore();
     const originalAppend = files.append.bind(files);
     let failedGeneratedTokenWrite = false;
@@ -481,10 +504,8 @@ describe("MLCEngine resumable integration", () => {
     expect(response.choices[0].message.content).toBe(
       "user:Write fallback|token1||token2||token3|",
     );
-    expect(sampleDecode).toHaveBeenCalled();
-    for (const [, options] of sampleDecode.mock.calls) {
-      expect(options).toMatchObject({ captureCheckpoint: false });
-    }
+    expect(decode).toHaveBeenCalled();
+    expect(pipeline.captureCalls).toEqual([]);
     await expect(engine.listResumableSessions()).resolves.toEqual([
       expect.objectContaining({
         sessionId: "session-write-fallback",
@@ -843,7 +864,6 @@ describe("MLCEngine resumable integration", () => {
     pipeline.enablePromptCheckpoint = true;
     const files = new MemoryFileStore();
     attachResumableStore(engine, files);
-    injectResumableFaultOnce("checkpoint.after_commit");
     const initial = (await engine.chatCompletion({
       model: MODEL_ID,
       seed: 13,
@@ -857,10 +877,38 @@ describe("MLCEngine resumable integration", () => {
         },
       },
     })) as AsyncIterable<ChatCompletionChunk>;
-    await expect(initial[Symbol.asyncIterator]().next()).rejects.toThrow(
+    const initialIterator = initial[Symbol.asyncIterator]();
+    await initialIterator.next();
+    await flushBackgroundWrites();
+    injectResumableFaultOnce(
+      "journal.before_append",
+      (context) => context.recordType === JournalRecordType.GeneratedToken,
+    );
+    await expect(initialIterator.next()).rejects.toThrow(
       "Injected resumable fault",
     );
     clearResumableFaultHook();
+    // A commit always follows the first journaled token now; drop the tokens
+    // to reproduce a session saved with only a prompt checkpoint.
+    const journalPath =
+      "resume-root/sessions/session-checkpoint-first-token/journal.bin";
+    const { records } = await readJournalRecords(files, journalPath);
+    expect(
+      records.some(
+        (record) => record.type === JournalRecordType.CheckpointCommit,
+      ),
+    ).toBe(true);
+    const kept = records.filter(
+      (record) => record.type !== JournalRecordType.GeneratedToken,
+    );
+    await files.write(
+      journalPath,
+      new Uint8Array(
+        kept.flatMap((record) => [
+          ...new Uint8Array(encodeJournalRecord(record)),
+        ]),
+      ),
+    );
 
     const resumed = (await engine.resumeChatCompletion(
       "session-checkpoint-first-token",
@@ -1317,6 +1365,64 @@ describe("MLCEngine resumable integration", () => {
     expect(pipeline.resetCount).toBe(resetCountAfterResume);
   });
 
+  // Guards the abort path: a prompt checkpoint still reading back when the
+  // stream is interrupted is completed and committed rather than discarded,
+  // so the aborted session restores from KV.
+  test("an interrupted stream commits its unfinished prompt checkpoint", async () => {
+    const { engine, pipeline } = createEngineWithPipeline(3);
+    pipeline.enablePromptCheckpoint = true;
+    const files = new MemoryFileStore();
+    attachResumableStore(engine, files);
+    const sessionId = "session-abort-checkpoint";
+    let release!: () => void;
+    const discard = jest.fn();
+    const samplePrefillStep = pipeline.samplePrefillStep.bind(pipeline);
+    pipeline.samplePrefillStep = async (...args: any[]) => {
+      const step = await samplePrefillStep(...args);
+      const { start, discard: stop } = step.promptCheckpoint;
+      // Read back only when released, or empty if discarded first.
+      const released = new Promise<void>((resolve) => (release = resolve));
+      step.promptCheckpoint.start = (sink: any) =>
+        released.then(() => start(sink));
+      step.promptCheckpoint.discard = () => {
+        discard();
+        stop();
+      };
+      return step;
+    };
+    const iterable = (await engine.chatCompletion({
+      model: MODEL_ID,
+      seed: 1234,
+      messages: [{ role: "user", content: "Abort KV" }],
+      stream: true,
+      extra_body: { resumable: { enabled: true, sessionId } },
+    })) as AsyncIterable<ChatCompletionChunk>;
+    const iterator = iterable[Symbol.asyncIterator]();
+
+    await iterator.next();
+    await engine.interruptGenerate();
+    const drained = (async () => {
+      while (!(await iterator.next()).done) {
+        // drain the generator so asyncGenerate records the abort and releases the lock
+      }
+    })();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    release();
+    await drained;
+
+    expect(discard).not.toHaveBeenCalled();
+    const records = (await readSessionJournal(files, sessionId)).records;
+    const types = records.map((record) => record.type);
+    expect(types.indexOf(JournalRecordType.CheckpointCommit)).toBeLessThan(
+      types.indexOf(JournalRecordType.GenerationAborted),
+    );
+    const result = (await engine.resumeChatCompletion(sessionId, {
+      continueGeneration: true,
+    })) as import("../src/types").ResumeResult;
+    expect(result.recoveryMode).toBe("kv");
+    expect(pipeline.promptCheckpointRestoreCount).toBe(1);
+  });
+
   test("resumeChatCompletion falls back to token replay when its only checkpoint is corrupt", async () => {
     const { engine, pipeline } = createEngineWithPipeline(3);
     pipeline.enablePromptCheckpoint = true;
@@ -1451,6 +1557,12 @@ describe("MLCEngine resumable integration", () => {
       await expect(iterator.next()).resolves.toMatchObject({
         done: false,
       });
+      // The first decode step captures a checkpoint; its write fails in the
+      // background and the following step reports the failure.
+      await expect(iterator.next()).resolves.toMatchObject({
+        done: false,
+      });
+      await flushBackgroundWrites();
       await expect(iterator.next()).rejects.toThrow("Injected resumable fault");
       clearResumableFaultHook();
 
@@ -1510,11 +1622,17 @@ describe("MLCEngine resumable integration", () => {
     }
 
     injectResumableFaultOnce("checkpoint.after_commit");
-    await expect(
-      engine.resumeChatCompletion("session-resume-checkpoint", {
-        continueGeneration: true,
-      }),
-    ).rejects.toThrow("Injected resumable fault");
+    const resumedStream = (await engine.resumeChatCompletion(
+      "session-resume-checkpoint",
+      { continueGeneration: true, stream: true },
+    )) as AsyncIterable<ChatCompletionChunk>;
+    const resumedIterator = resumedStream[Symbol.asyncIterator]();
+    await resumedIterator.next();
+    await resumedIterator.next();
+    await flushBackgroundWrites();
+    await expect(resumedIterator.next()).rejects.toThrow(
+      "Injected resumable fault",
+    );
     clearResumableFaultHook();
 
     const crashedJournal = await readSessionJournal(
@@ -1682,6 +1800,7 @@ describe("MLCEngine resumable integration", () => {
     await iterator.next();
     await iterator.next();
     await iterator.next();
+    await flushBackgroundWrites();
     await engine.interruptGenerate();
     while (!(await iterator.next()).done) {
       // drain the generator so asyncGenerate records the abort and releases the lock
@@ -1747,6 +1866,7 @@ describe("MLCEngine resumable integration", () => {
 
     for (let i = 0; i < 5; i++) {
       await iterator.next();
+      await flushBackgroundWrites();
     }
     await engine.interruptGenerate();
     while (!(await iterator.next()).done) {
@@ -1791,6 +1911,80 @@ describe("MLCEngine resumable integration", () => {
       }),
     );
     warn.mockRestore();
+  });
+
+  // Guards incremental checkpoints: each decode checkpoint stores only the
+  // pages from its parent's last page on, retention keeps the whole chain,
+  // and a restore imports the chain from the full checkpoint up.
+  test("decode checkpoints form a delta chain that a restore imports", async () => {
+    const { engine, pipeline } = createEngineWithPipeline(9);
+    pipeline.enableDecodeCheckpoint = true;
+    pipeline.checkpointPageSize = 2;
+    const files = new MemoryFileStore();
+    attachResumableStore(engine, files);
+    const sessionId = "session-checkpoint-chain";
+    const iterable = (await engine.chatCompletion({
+      model: MODEL_ID,
+      seed: 1234,
+      messages: [{ role: "user", content: "KVdecode" }],
+      stream: true,
+      extra_body: {
+        resumable: {
+          enabled: true,
+          sessionId,
+          checkpointPrompt: false,
+          checkpointIntervalTokens: 2,
+        },
+      },
+    })) as AsyncIterable<ChatCompletionChunk>;
+    const iterator = iterable[Symbol.asyncIterator]();
+    for (let i = 0; i < 7; i++) {
+      await iterator.next();
+      await flushBackgroundWrites();
+    }
+    await engine.interruptGenerate();
+    while (!(await iterator.next()).done) {
+      // drain the generator so asyncGenerate records the abort and releases the lock
+    }
+
+    expect(pipeline.captureCalls).toEqual([
+      [10, undefined],
+      [12, 10],
+      [14, 12],
+    ]);
+    const kvRoot = `resume-root/sessions/${sessionId}/kv`;
+    const ids = await files.list(kvRoot);
+    expect(ids).toEqual([
+      "checkpoint_00000000_00000010",
+      "checkpoint_00000000_00000012",
+      "checkpoint_00000000_00000014",
+    ]);
+    const metas = await Promise.all(
+      ids.map(async (id) =>
+        JSON.parse(
+          new TextDecoder().decode(
+            (await files.read(`${kvRoot}/${id}/meta.json`))!,
+          ),
+        ),
+      ),
+    );
+    expect(
+      metas.map(({ parentCheckpointId, pageBegin }) => ({
+        parentCheckpointId,
+        pageBegin,
+      })),
+    ).toEqual([
+      { parentCheckpointId: undefined, pageBegin: 0 },
+      { parentCheckpointId: ids[0], pageBegin: 5 },
+      { parentCheckpointId: ids[1], pageBegin: 6 },
+    ]);
+
+    const result = (await engine.resumeChatCompletion(sessionId, {
+      continueGeneration: true,
+    })) as import("../src/types").ResumeResult;
+    expect(result).toMatchObject({ recoveryMode: "kv", replayedTokens: 1 });
+    expect(pipeline.restoredCheckpointSeqLen).toBe(14);
+    expect(pipeline.restoredChainLength).toBe(3);
   });
 
   test("resumeChatCompletion falls back to text-only when model is unavailable", async () => {

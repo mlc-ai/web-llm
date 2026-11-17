@@ -156,13 +156,26 @@ type ResolvedModelABI = {
 type CommitTokenSource = "prefill" | "decode";
 
 const KV_CHECKPOINT_FUNC_NAMES = [
-  "vm.builtin.attention_kv_cache_get_checkpoint_metadata",
-  "vm.builtin.attention_kv_cache_export_page_group",
+  "vm.builtin.attention_kv_cache_get_checkpoint_metadata_at",
+  "vm.builtin.attention_kv_cache_export_page_range",
   "vm.builtin.attention_kv_cache_prepare_import",
-  "vm.builtin.attention_kv_cache_import_page_group",
+  "vm.builtin.attention_kv_cache_import_page_range",
   "vm.builtin.attention_kv_cache_finish_import",
   "vm.builtin.attention_kv_cache_get_sequence_length",
 ] as const;
+
+// Checkpoint pages are copied into mappable readback slots of up to this many
+// bytes. The slots map asynchronously in queue order.
+const KV_CHECKPOINT_READBACK_BATCH_BYTES = 8 * 1024 * 1024;
+const KV_CHECKPOINT_READBACK_SLOTS = 2;
+
+function byteLength(shape: number[], dtype: string): number {
+  const bits = Number(/\d+$/.exec(dtype)?.[0]);
+  if (!Number.isInteger(bits) || bits % 8 !== 0) {
+    throw new Error(`Unsupported KV checkpoint dtype: ${dtype}`);
+  }
+  return shape.reduce((size, dim) => size * dim, bits / 8);
+}
 
 type ForwardPrefillResult = {
   logits: tvmjs.Tensor;
@@ -184,12 +197,63 @@ export interface KVCheckpointLogitsData {
   data: Uint8Array;
 }
 
+/**
+ * KV pages [pageBegin, ceil(processedSeqLen / page_size)) of every page group.
+ * A checkpoint with pageBegin > 0 is a delta: the pages before it come from
+ * the checkpoints it extends.
+ */
 export interface KVCheckpointData {
   processedSeqLen: number;
   layoutHash?: string;
   metadata: Record<string, unknown>;
+  pageBegin: number;
   pageGroups: KVCheckpointPageGroupData[];
   nextLogits?: KVCheckpointLogitsData;
+}
+
+/**
+ * Receives a checkpoint's page bytes as they are read back: each page group's
+ * bytes in file order, one group after another. The readback waits for each
+ * call before it reuses the slot, so at most two batches are held in memory.
+ */
+export type KVCheckpointSink = (
+  group: number,
+  data: Uint8Array,
+) => Promise<void>;
+
+/**
+ * A KV checkpoint being read back while decoding continues. Pages below
+ * processedSeqLen do not change until the sequence is reset, so they are
+ * copied straight from the live KV cache into mappable readback slots, a batch
+ * whenever a slot frees up, and passed to the sink. There is no copy of the
+ * whole checkpoint on the GPU or in memory: the sequence must not be reset
+ * before the readback ends.
+ */
+export interface KVCheckpointSnapshot {
+  processedSeqLen: number;
+  layoutHash?: string;
+  metadata: Record<string, unknown>;
+  pageBegin: number;
+  /** The page groups, in the order their bytes reach the sink. */
+  pageGroups: Array<Omit<KVCheckpointPageGroupData, "data">>;
+  /** Size of the page ranges and logits once read back. */
+  byteLength: number;
+  /** GPU memory the readback holds: the copy buffer and readback slots. */
+  stagingBytes: number;
+  /**
+   * Resolves once every page has reached the sink, with the logits copied at
+   * capture if any, or with undefined if the snapshot was discarded first.
+   * Map completions advance the readback, so it does not wait for decode
+   * steps.
+   */
+  done: Promise<{ nextLogits?: KVCheckpointLogitsData } | undefined>;
+  /**
+   * Start copying the pages into `sink`; logits are copied at capture. The
+   * caller picks the moment, to keep the copies off a latency-critical step.
+   */
+  start(sink: KVCheckpointSink): void;
+  /** Stop the readback. Resetting the sequence discards it. */
+  discard(): void;
 }
 
 export interface KVCheckpointReplayResult {
@@ -204,17 +268,47 @@ export interface SamplePrefillOptions {
   storeCheckpointLogits?: boolean;
 }
 
-export interface SampleDecodeOptions {
-  captureCheckpoint?: boolean;
-  storeCheckpointLogits?: boolean;
-}
-
 interface KVCheckpointGroupInfo {
   groupId: number;
   layerStart: number;
   layerEnd: number;
   shape: number[];
   dtype: string;
+}
+
+/** Pages of one group copied into a readback batch. */
+interface KVCheckpointPageSegment {
+  group: number;
+  page: number;
+  count: number;
+}
+
+interface KVCheckpointReadback {
+  snapshot: KVCheckpointSnapshot;
+  groups: KVCheckpointGroupInfo[];
+  pageEnd: number;
+  pageBytes: number;
+  /** Next page to copy: an index into groups and a logical page. */
+  nextGroup: number;
+  nextPage: number;
+  ring: SampledTokenReadbackRing;
+  staging?: tvmjs.Tensor;
+  stagingPages: number;
+  /** Host arrays page batches are read into, taken from the pipeline's pool. */
+  hostBuffers?: Int32Array[];
+  pageBatches: number;
+  /** Submitted batches in ring order: page segments, or the logits. */
+  inflight: Array<KVCheckpointPageSegment[] | KVCheckpointLogitsData>;
+  sink?: KVCheckpointSink;
+  nextLogits?: KVCheckpointLogitsData;
+  resolve: (done: { nextLogits?: KVCheckpointLogitsData } | undefined) => void;
+  reject: (err: unknown) => void;
+  /**
+   * Settles when the readback is discarded so pending mappings cannot delay
+   * its cleanup.
+   */
+  disposed: Promise<SampledTokenReadbackBatch[]>;
+  markDisposed: () => void;
 }
 
 export interface SampledGenerationStep {
@@ -224,8 +318,8 @@ export interface SampledGenerationStep {
   promptLen?: number;
   promptTokenIds?: number[];
   assistantPrefixTokenIds?: number[];
-  promptCheckpoint?: KVCheckpointData;
-  decodeCheckpoint?: KVCheckpointData;
+  promptCheckpoint?: KVCheckpointSnapshot;
+  decodeCheckpoint?: KVCheckpointSnapshot;
   logprob?: ChatCompletionTokenLogprob;
 }
 
@@ -238,6 +332,7 @@ export interface CommittedGenerationStep {
   outputMessage: string;
   stopped: boolean;
   finishReason?: ChatCompletionFinishReason;
+  logprob?: ChatCompletionTokenLogprob;
 }
 
 export interface ReplayedGenerationToken {
@@ -300,6 +395,13 @@ export class LLMChatPipeline {
   private rnnState?: tvmjs.TVMObject = undefined;
   private kvCheckpointFuncs = new Map<string, tvmjs.PackedFunc>();
   private kvCheckpointUnavailableReason?: string;
+  private kvCheckpointReadback?: KVCheckpointReadback;
+  // Host arrays for checkpoint page batches, reused across checkpoints: a new
+  // array per 8 MiB batch is freed only by garbage collection, which pauses
+  // decoding.
+  private kvCheckpointHostBuffers: Int32Array[] = [];
+  private prefetchedDecodeLogits?: Promise<tvmjs.Tensor>;
+  private decodePrefetchUnavailable = false;
   private prefillLogitPositions?: tvmjs.Tensor = undefined;
   private prefillLogitPositionHost = new Int32Array(1);
   private maxHistorySize = 1;
@@ -859,7 +961,7 @@ export class LLMChatPipeline {
 
   private async decodeStepLookahead(
     genConfig?: GenerationConfig,
-  ): Promise<void> {
+  ): Promise<CommittedGenerationStep> {
     let logits = this.lookaheadLogits;
     this.lookaheadLogits = undefined;
     if (logits === undefined) {
@@ -914,7 +1016,7 @@ export class LLMChatPipeline {
     } finally {
       logits.dispose();
     }
-    this.commitSampledToken(
+    const committed = this.commitToken(
       nextToken,
       genConfig,
       "decode",
@@ -924,6 +1026,7 @@ export class LLMChatPipeline {
       this.disposeLookahead();
       await this.applyPendingRingVectorKVRollback();
     }
+    return committed;
   }
 
   private lookaheadLogits?: tvmjs.Tensor = undefined;
@@ -1275,6 +1378,21 @@ export class LLMChatPipeline {
       activeMode: "ring_vector",
       fallbackReason: null,
     };
+  }
+
+  private selectSampleReadbackPath(genConfig?: GenerationConfig): void {
+    this.hasWarnedRingVectorFallback = false;
+    if (this.resolveSampleReadbackConfig(genConfig).mode === "ring_vector") {
+      this.ensureRingVectorReadbackRuntime();
+    }
+    this.sampleReadbackPathSelection =
+      this.resolveSampleReadbackPath(genConfig);
+    this.resetSampleReadbackSession(
+      this.sampleReadbackPathSelection.activeMode,
+    );
+    if (this.sampleReadbackPathSelection.activeMode === "ring_vector") {
+      this.stageSamplerInputs(genConfig);
+    }
   }
 
   private getGenerationMaxTokens(genConfig?: GenerationConfig): number {
@@ -1680,7 +1798,7 @@ export class LLMChatPipeline {
 
   private async decodeStepRingVector(
     genConfig?: GenerationConfig,
-  ): Promise<void> {
+  ): Promise<CommittedGenerationStep> {
     const outputTokenBegin = performance.now();
     const session = this.ensureRingVectorReadbackSession(genConfig);
 
@@ -1704,7 +1822,7 @@ export class LLMChatPipeline {
     session.committedRNGState = session.uncommittedSampleRNGStates.shift()!;
     // Forwards for the remaining tail have fed one token each beyond this one,
     // so the context-window check must see the length before them.
-    this.commitSampledToken(
+    const committed = this.commitToken(
       nextToken,
       genConfig,
       "decode",
@@ -1728,6 +1846,7 @@ export class LLMChatPipeline {
         this.disposeRingVectorReadbackSession();
       }
     }
+    return committed;
   }
 
   dispose() {
@@ -1754,6 +1873,8 @@ export class LLMChatPipeline {
     for (const func of this.kvCheckpointFuncs.values()) {
       func.dispose();
     }
+    this.prefetchedDecodeLogits = undefined;
+    this.discardCheckpointReadback();
     this.kvCheckpointFuncs.clear();
     this.sampleIndicesDevice?.dispose();
     this.topPDevice?.dispose();
@@ -1789,6 +1910,8 @@ export class LLMChatPipeline {
    * Reset the chat history
    */
   resetChat(keepStats = false) {
+    this.discardPrefetchedDecode();
+    this.discardCheckpointReadback();
     this.tvm.beginScope();
     this.conversation.reset();
     this.finishReason = undefined;
@@ -2189,21 +2312,11 @@ export class LLMChatPipeline {
     }
 
     const tstart = performance.now();
+    this.discardPrefetchedDecode();
     await this.applyPendingRingVectorKVRollback();
     this.resetGenerationRoundState();
     this.stopTriggered = false;
-    this.hasWarnedRingVectorFallback = false;
-    if (this.resolveSampleReadbackConfig(genConfig).mode === "ring_vector") {
-      this.ensureRingVectorReadbackRuntime();
-    }
-    this.sampleReadbackPathSelection =
-      this.resolveSampleReadbackPath(genConfig);
-    this.resetSampleReadbackSession(
-      this.sampleReadbackPathSelection.activeMode,
-    );
-    if (this.sampleReadbackPathSelection.activeMode === "ring_vector") {
-      this.stageSamplerInputs(genConfig);
-    }
+    this.selectSampleReadbackPath(genConfig);
 
     // -1. Instantiate grammar matcher according to generation config. This step is overlapped
     // with prefilling the prompt to hide overhead by using this promise.
@@ -2211,14 +2324,15 @@ export class LLMChatPipeline {
       this.prepareGrammarMatcherForSampling(genConfig);
     const { logits, promptLen, promptTokenIds, assistantPrefixTokenIds } =
       await this.forwardPrefill(inp, msgRole, inp_role_str, genConfig);
-    let promptCheckpoint: KVCheckpointData | undefined;
+    let promptCheckpoint: KVCheckpointSnapshot | undefined;
     let nextToken: number;
     try {
       promptCheckpoint =
         opts.capturePromptCheckpoint === true
-          ? await this.tryExportPromptCheckpoint(
-              logits,
-              opts.storeCheckpointLogits !== false,
+          ? this.captureCheckpoint(
+              this.filledKVCacheLength,
+              0,
+              opts.storeCheckpointLogits !== false ? logits : undefined,
             )
           : undefined;
 
@@ -2384,42 +2498,37 @@ export class LLMChatPipeline {
     }
   }
 
-  async decodeStep(genConfig?: GenerationConfig): Promise<void> {
+  /** Decode and commit the next token, on the readback path chosen at prefill. */
+  async decodeStep(
+    genConfig?: GenerationConfig,
+  ): Promise<CommittedGenerationStep> {
     if (this.stopTriggered) {
       throw Error("Cannot run decode when stopped");
     }
 
-    if (this.sampleReadbackPathSelection?.activeMode === "ring_vector") {
-      this.activeSampleReadbackMode = "ring_vector";
+    const mode = this.sampleReadbackPathSelection?.activeMode;
+    if (mode === "ring_vector" || mode === "lookahead") {
+      this.activeSampleReadbackMode = mode;
       const tstart = performance.now();
-      await this.decodeStepRingVector(genConfig);
+      const committed =
+        mode === "ring_vector"
+          ? await this.decodeStepRingVector(genConfig)
+          : await this.decodeStepLookahead(genConfig);
       const elapsed = (performance.now() - tstart) / 1e3;
       this.decodingTotalTime += elapsed;
       this.decodingTotalTokens += 1;
       this.curRoundDecodingTotalTokens += 1;
       this.curRoundDecodingTotalTime += elapsed;
-      return;
-    }
-    if (this.sampleReadbackPathSelection?.activeMode === "lookahead") {
-      this.activeSampleReadbackMode = "lookahead";
-      const tstart = performance.now();
-      await this.decodeStepLookahead(genConfig);
-      const elapsed = (performance.now() - tstart) / 1e3;
-      this.decodingTotalTime += elapsed;
-      this.decodingTotalTokens += 1;
-      this.curRoundDecodingTotalTokens += 1;
-      this.curRoundDecodingTotalTime += elapsed;
-      return;
+      return committed;
     }
     this.resetSampleReadbackSession("baseline");
     this.activeSampleReadbackMode = "baseline";
     const step = await this.sampleDecodeStep(genConfig);
-    this.commitSampledStep(step, genConfig);
+    return this.commitSampledStep(step, genConfig);
   }
 
   async sampleDecodeStep(
     genConfig?: GenerationConfig,
-    opts: SampleDecodeOptions = {},
   ): Promise<SampledGenerationStep> {
     if (this.stopTriggered) {
       throw Error("Cannot run decode when stopped");
@@ -2428,19 +2537,11 @@ export class LLMChatPipeline {
     const tstart = performance.now();
 
     const lastToken = this.outputIds[this.outputIds.length - 1];
-    const logits = await this.forwardDecodeToken(lastToken);
-    let decodeCheckpoint: KVCheckpointData | undefined;
+    const prefetched = this.prefetchedDecodeLogits;
+    this.prefetchedDecodeLogits = undefined;
+    const logits = await (prefetched ?? this.forwardDecodeToken(lastToken));
     let nextToken: number;
     try {
-      decodeCheckpoint =
-        opts.captureCheckpoint === true
-          ? await this.tryExportPromptCheckpoint(
-              logits,
-              opts.storeCheckpointLogits !== false,
-            )
-          : undefined;
-
-      // sample from logits
       nextToken = await this.sampleFromRawLogits(logits, genConfig);
     } finally {
       logits.dispose();
@@ -2456,15 +2557,70 @@ export class LLMChatPipeline {
       source: "decode",
       tokenId: nextToken,
       globalTokenPos: this.filledKVCacheLength,
-      decodeCheckpoint,
       logprob: this.tokenLogprobArray.at(-1),
     };
+  }
+
+  /**
+   * Forward the last committed token now, before the caller awaits other work
+   * such as a durable journal append, so the GPU runs the pass meanwhile. The
+   * next sampleDecodeStep samples from it. Only a pure KV cache can undo the
+   * pass (by popping one entry) if generation stops instead.
+   */
+  prefetchDecodeForward(): void {
+    if (
+      this.stopTriggered ||
+      // The ring and lookahead paths already run the next forward ahead.
+      this.sampleReadbackPathSelection.activeMode !== "baseline" ||
+      this.prefetchedDecodeLogits !== undefined ||
+      this.decodePrefetchUnavailable ||
+      this.kvCache === undefined ||
+      this.kvStateKind !== "kv_cache" ||
+      this.artifact !== undefined
+    ) {
+      return;
+    }
+    try {
+      this.getKVCheckpointFunc("vm.builtin.kv_state_popn");
+    } catch {
+      this.decodePrefetchUnavailable = true;
+      return;
+    }
+    const logits = this.forwardDecodeToken(this.outputIds.at(-1)!);
+    // sampleDecodeStep awaits the pass and surfaces its error.
+    logits.catch(() => undefined);
+    this.prefetchedDecodeLogits = logits;
+    // tvmjs submits batched dispatches at the next readback, CPU write, or
+    // buffer free. Freeing a 4-byte buffer submits the pass without waiting.
+    this.tvm.beginScope();
+    this.tvm.empty([1], "int32", this.device);
+    this.tvm.endScope();
+  }
+
+  private discardPrefetchedDecode(): void {
+    const logits = this.prefetchedDecodeLogits;
+    if (logits === undefined) {
+      return;
+    }
+    this.prefetchedDecodeLogits = undefined;
+    void logits.then(
+      (tensor) => tensor.dispose(),
+      () => undefined,
+    );
+    const popN = this.getKVCheckpointFunc("vm.builtin.kv_state_popn");
+    popN(
+      this.kvCache,
+      new tvmjs.Scalar(0, "int64"),
+      new tvmjs.Scalar(1, "int32"),
+    );
+    this.filledKVCacheLength -= 1;
   }
 
   /**
    * Manually trigger stop if it is not stopped.
    */
   triggerStop() {
+    this.discardPrefetchedDecode();
     if (this.stopTriggered) {
       return;
     }
@@ -2605,27 +2761,53 @@ export class LLMChatPipeline {
     step: SampledGenerationStep,
     genConfig?: GenerationConfig,
   ): CommittedGenerationStep {
+    return this.commitToken(
+      step.tokenId,
+      genConfig,
+      step.source,
+      step.globalTokenPos,
+    );
+  }
+
+  /** Commit a token fed at globalTokenPos and describe the text it added. */
+  private commitToken(
+    tokenId: number,
+    genConfig: GenerationConfig | undefined,
+    source: CommitTokenSource,
+    globalTokenPos: number,
+  ): CommittedGenerationStep {
     const prevOutputMessage = this.outputMessage;
-    this.commitSampledToken(step.tokenId, genConfig, step.source);
+    this.commitSampledToken(tokenId, genConfig, source, globalTokenPos);
     const textPrefixLength = commonPrefixLength(
       prevOutputMessage,
       this.outputMessage,
     );
-    const textDelta = this.outputMessage.slice(textPrefixLength);
     return {
-      source: step.source,
-      tokenId: step.tokenId,
-      globalTokenPos: step.globalTokenPos,
-      textDelta,
+      source,
+      tokenId,
+      globalTokenPos,
+      textDelta: this.outputMessage.slice(textPrefixLength),
       textPrefixLength,
       outputMessage: this.outputMessage,
       stopped: this.stopTriggered,
       finishReason: this.finishReason,
+      logprob: this.tokenLogprobArray.at(-1),
     };
   }
 
   getRNGState(): unknown {
     return (this.tvm as any).getRNGState?.();
+  }
+
+  /**
+   * RNG state after the last committed token. The ring draws the uniform
+   * samples of its speculative tail ahead of time; replaying from this state
+   * draws them again.
+   */
+  getCommittedRNGState(): unknown {
+    return (
+      this.ringVectorReadbackSession?.committedRNGState ?? this.getRNGState()
+    );
   }
 
   setRNGState(state: unknown): boolean {
@@ -2660,47 +2842,35 @@ export class LLMChatPipeline {
     }
   }
 
-  private async tryExportPromptCheckpoint(
-    logits: tvmjs.Tensor,
-    storeCheckpointLogits: boolean,
-  ): Promise<KVCheckpointData | undefined> {
-    if (this.kvCache === undefined || this.kvStateKind !== "kv_cache") {
-      return undefined;
-    }
-    if (this.kvCheckpointUnavailableReason !== undefined) {
+  /**
+   * Start reading back the KV cache's first processedSeqLen positions as a
+   * checkpoint. Only pages from the one holding position fromSeqLen onward are
+   * copied: a delta over the checkpoint taken at fromSeqLen (0 for a full
+   * checkpoint). Logits, if given, are copied now, behind the forward that
+   * produced them; the pages after the snapshot is started, as readback slots
+   * free up. Returns undefined if the model cannot checkpoint.
+   */
+  captureCheckpoint(
+    processedSeqLen: number,
+    fromSeqLen = 0,
+    logits?: tvmjs.Tensor,
+  ): KVCheckpointSnapshot | undefined {
+    if (
+      this.kvCache === undefined ||
+      this.kvStateKind !== "kv_cache" ||
+      this.kvCheckpointUnavailableReason !== undefined
+    ) {
       return undefined;
     }
     try {
       this.resolveKVCheckpointFuncs();
-      return await this.exportPromptCheckpoint(logits, storeCheckpointLogits);
+      return this.startCheckpointReadback(processedSeqLen, fromSeqLen, logits);
     } catch (err) {
       this.kvCheckpointUnavailableReason = errorMessage(err);
       log.warn(
         `KV checkpoint capture disabled for this model: ${this.kvCheckpointUnavailableReason}`,
       );
       return undefined;
-    }
-  }
-
-  private copyTensorRawBytes(tensor: tvmjs.Tensor): Uint8Array {
-    return tensor.toRawBytes();
-  }
-
-  private async copyTensorToCPUBytes(
-    tensor: tvmjs.Tensor,
-  ): Promise<Uint8Array> {
-    this.tvm.beginScope();
-    try {
-      const cpuTensor = this.tvm.empty(
-        tensor.shape,
-        tensor.dtype,
-        this.tvm.cpu(),
-      );
-      cpuTensor.copyFrom(tensor);
-      await this.device.sync();
-      return this.copyTensorRawBytes(cpuTensor);
-    } finally {
-      this.tvm.endScope();
     }
   }
 
@@ -2719,6 +2889,7 @@ export class LLMChatPipeline {
       typeof layerEnd !== "number" ||
       !Number.isInteger(layerEnd) ||
       !Array.isArray(shape) ||
+      shape.length !== 6 ||
       !shape.every(Number.isInteger) ||
       typeof dtype !== "string"
     ) {
@@ -2733,116 +2904,349 @@ export class LLMChatPipeline {
     };
   }
 
-  async exportPromptCheckpoint(
-    logits: tvmjs.Tensor,
-    storeCheckpointLogits: boolean,
-  ): Promise<KVCheckpointData | undefined> {
-    if (this.kvCache === undefined || this.kvStateKind !== "kv_cache") {
-      return undefined;
-    }
-
-    const seqId = new tvmjs.Scalar(0, "int64");
-    const getMetadata = this.getKVCheckpointFunc(
-      "vm.builtin.attention_kv_cache_get_checkpoint_metadata",
-    );
-    const metadata = JSON.parse(
-      String(getMetadata(this.kvCache, seqId)),
-    ) as Record<string, unknown>;
-    const groups = metadata.groups;
-    if (!Array.isArray(groups)) {
+  private checkpointGroups(
+    metadata: Record<string, unknown>,
+  ): KVCheckpointGroupInfo[] {
+    if (!Array.isArray(metadata.groups)) {
       throw new Error("KV checkpoint metadata is missing page groups.");
     }
+    return metadata.groups.map((group) => this.checkpointGroupInfo(group));
+  }
 
-    const exportPageGroup = this.getKVCheckpointFunc(
-      "vm.builtin.attention_kv_cache_export_page_group",
+  private startCheckpointReadback(
+    processedSeqLen: number,
+    fromSeqLen: number,
+    logits?: tvmjs.Tensor,
+  ): KVCheckpointSnapshot {
+    this.discardCheckpointReadback();
+    const seqLen = new tvmjs.Scalar(processedSeqLen, "int64");
+    const getMetadata = this.getKVCheckpointFunc(
+      "vm.builtin.attention_kv_cache_get_checkpoint_metadata_at",
     );
-    const pageGroups: KVCheckpointPageGroupData[] = [];
-    for (const group of groups) {
-      const info = this.checkpointGroupInfo(group);
+    const metadata = JSON.parse(
+      String(getMetadata(this.kvCache, new tvmjs.Scalar(0, "int64"), seqLen)),
+    ) as Record<string, unknown>;
+    const groups = this.checkpointGroups(metadata);
+    const pageSize = Number(metadata.page_size);
+    // Page group layout: (1, num_logical_pages, 2, kv_heads, page_size, dim).
+    const [, pageEnd, ...pageShape] = groups[0].shape;
+    const pageBytes = byteLength(pageShape, groups[0].dtype);
+    const pageBegin =
+      fromSeqLen > 0 && fromSeqLen < processedSeqLen
+        ? Math.floor(fromSeqLen / pageSize)
+        : 0;
+    const totalPages = groups.length * (pageEnd - pageBegin);
+    const stagingPages = Math.min(
+      totalPages,
+      Math.max(1, Math.floor(KV_CHECKPOINT_READBACK_BATCH_BYTES / pageBytes)),
+    );
+    const logitsBytes =
+      logits === undefined ? 0 : byteLength(logits.shape, logits.dtype);
+    // The ring reads 4-byte elements; float32 logits always qualify.
+    const readLogits = logitsBytes > 0 && logitsBytes % 4 === 0;
+    const slotBytes = Math.max(stagingPages * pageBytes, logitsBytes);
+    const ring = createSampledTokenReadbackRing(this.device, {
+      slotCount: KV_CHECKPOINT_READBACK_SLOTS,
+      maxTokensPerBatch: slotBytes / 4,
+    });
+
+    let resolve!: KVCheckpointReadback["resolve"];
+    let reject!: KVCheckpointReadback["reject"];
+    const done = new Promise<
+      { nextLogits?: KVCheckpointLogitsData } | undefined
+    >((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    // A failure can settle the readback before its owner awaits it.
+    done.catch(() => undefined);
+    let markDisposed!: () => void;
+    const disposed = new Promise<SampledTokenReadbackBatch[]>((res) => {
+      markDisposed = () => res([]);
+    });
+    let started = false;
+    const seqLength = metadata.seq_length ?? metadata.seqLength;
+    const layoutHash = metadata.layout_hash ?? metadata.layoutHash;
+    const readback: KVCheckpointReadback = {
+      snapshot: {
+        processedSeqLen:
+          typeof seqLength === "number" ? seqLength : processedSeqLen,
+        layoutHash: typeof layoutHash === "string" ? layoutHash : undefined,
+        metadata,
+        pageBegin,
+        pageGroups: groups.map((group) => ({
+          groupId: group.groupId,
+          layerStart: group.layerStart,
+          layerEnd: group.layerEnd,
+        })),
+        byteLength: totalPages * pageBytes + (readLogits ? logitsBytes : 0),
+        stagingBytes:
+          stagingPages * pageBytes + KV_CHECKPOINT_READBACK_SLOTS * slotBytes,
+        done,
+        start: (sink) => {
+          if (this.kvCheckpointReadback === readback && !started) {
+            started = true;
+            readback.sink = sink;
+            void this.readBackCheckpoint(readback);
+          }
+        },
+        discard: () => {
+          if (this.kvCheckpointReadback === readback) {
+            this.discardCheckpointReadback();
+          }
+        },
+      },
+      groups,
+      pageEnd,
+      pageBytes,
+      nextGroup: 0,
+      nextPage: pageBegin,
+      ring,
+      stagingPages,
+      pageBatches: 0,
+      inflight: [],
+      resolve,
+      reject,
+      disposed,
+      markDisposed,
+    };
+    this.kvCheckpointReadback = readback;
+    if (readLogits) {
+      // Copied now, behind the forward that produced them.
+      submitTensorReadbackWords(ring, logits!, logitsBytes / 4);
+      readback.inflight.push({
+        shape: [...logits!.shape],
+        dtype: logits!.dtype,
+        data: new Uint8Array(),
+      });
+    }
+    return readback.snapshot;
+  }
+
+  /**
+   * Keep both readback slots busy with pages and pass each batch to the sink
+   * as its slot maps, until every page is read back or the readback is
+   * discarded. Slot maps drive it, not decode steps, so it also finishes
+   * after the reply ends and while a stream is paused. A slot is refilled
+   * only after the sink has taken its batch.
+   */
+  private async readBackCheckpoint(
+    readback: KVCheckpointReadback,
+  ): Promise<void> {
+    try {
+      for (;;) {
+        while (
+          readback.nextGroup < readback.groups.length &&
+          readback.inflight.length < KV_CHECKPOINT_READBACK_SLOTS
+        ) {
+          this.submitCheckpointPages(readback);
+        }
+        if (readback.inflight.length === 0) {
+          break;
+        }
+        const batches = await Promise.race([
+          readback.ring.waitReady(),
+          readback.disposed,
+        ]);
+        if (this.kvCheckpointReadback !== readback) {
+          return;
+        }
+        for (const batch of batches) {
+          await this.collectCheckpointBatch(readback, batch);
+          if (this.kvCheckpointReadback !== readback) {
+            return;
+          }
+        }
+      }
+    } catch (err) {
+      if (this.kvCheckpointReadback === readback) {
+        this.disposeCheckpointReadback(readback);
+        readback.reject(err);
+      }
+      return;
+    } finally {
+      // No sink call holds the arrays now, and a disposed ring no longer
+      // writes into them.
+      if (readback.hostBuffers !== undefined) {
+        this.kvCheckpointHostBuffers = readback.hostBuffers;
+      }
+    }
+    this.disposeCheckpointReadback(readback);
+    readback.resolve({ nextLogits: readback.nextLogits });
+  }
+
+  /** Export the next pages into the copy buffer and queue one readback. */
+  private submitCheckpointPages(readback: KVCheckpointReadback): void {
+    const { groups, pageEnd, pageBytes, stagingPages } = readback;
+    if (readback.staging === undefined) {
       this.tvm.beginScope();
       try {
-        const dst = this.tvm.empty(info.shape, info.dtype, this.device);
-        exportPageGroup(
-          this.kvCache,
-          seqId,
-          new tvmjs.Scalar(info.groupId, "int64"),
-          dst,
+        readback.staging = this.tvm.detachFromCurrentScope(
+          this.tvm.empty(
+            [1, stagingPages, ...groups[0].shape.slice(2)],
+            groups[0].dtype,
+            this.device,
+          ),
         );
-        pageGroups.push({
-          groupId: info.groupId,
-          layerStart: info.layerStart,
-          layerEnd: info.layerEnd,
-          data: await this.copyTensorToCPUBytes(dst),
-        });
       } finally {
         this.tvm.endScope();
       }
     }
-
-    const seqLength = metadata.seq_length ?? metadata.seqLength;
-    const metadataLayoutHash = metadata.layout_hash ?? metadata.layoutHash;
-    const processedSeqLen =
-      typeof seqLength === "number" ? seqLength : this.filledKVCacheLength;
-    return {
-      processedSeqLen,
-      layoutHash:
-        typeof metadataLayoutHash === "string" ? metadataLayoutHash : undefined,
-      metadata,
-      pageGroups,
-      nextLogits: storeCheckpointLogits
-        ? {
-            shape: [...logits.shape],
-            dtype: logits.dtype,
-            data: await this.copyTensorToCPUBytes(logits),
-          }
-        : undefined,
-    };
+    const exportPageRange = this.getKVCheckpointFunc(
+      "vm.builtin.attention_kv_cache_export_page_range",
+    );
+    const seqId = new tvmjs.Scalar(0, "int64");
+    const seqLen = new tvmjs.Scalar(readback.snapshot.processedSeqLen, "int64");
+    const segments: KVCheckpointPageSegment[] = [];
+    let pages = 0;
+    while (pages < stagingPages && readback.nextGroup < groups.length) {
+      const count = Math.min(stagingPages - pages, pageEnd - readback.nextPage);
+      exportPageRange(
+        this.kvCache,
+        seqId,
+        new tvmjs.Scalar(groups[readback.nextGroup].groupId, "int64"),
+        seqLen,
+        new tvmjs.Scalar(readback.nextPage, "int64"),
+        new tvmjs.Scalar(readback.nextPage + count, "int64"),
+        readback.staging,
+        new tvmjs.Scalar(pages, "int64"),
+      );
+      segments.push({
+        group: readback.nextGroup,
+        page: readback.nextPage,
+        count,
+      });
+      pages += count;
+      readback.nextPage += count;
+      if (readback.nextPage === pageEnd) {
+        readback.nextGroup += 1;
+        readback.nextPage = readback.snapshot.pageBegin;
+      }
+    }
+    // Batches complete in submission order and a slot is refilled only after
+    // the sink has taken its batch, so alternating arrays never overlap.
+    readback.hostBuffers ??= this.kvCheckpointHostBuffers.splice(0);
+    const index = readback.pageBatches++ % KV_CHECKPOINT_READBACK_SLOTS;
+    const tokenCount = (pages * pageBytes) / 4;
+    if ((readback.hostBuffers[index]?.length ?? 0) < tokenCount) {
+      readback.hostBuffers[index] = new Int32Array(
+        (stagingPages * pageBytes) / 4,
+      );
+    }
+    // The slot copy is queued before the next export reuses the buffer.
+    submitTensorReadbackWords(
+      readback.ring,
+      readback.staging,
+      tokenCount,
+      readback.hostBuffers[index],
+    );
+    readback.inflight.push(segments);
   }
 
-  private async importPromptCheckpoint(
-    checkpoint: KVCheckpointData,
+  private async collectCheckpointBatch(
+    readback: KVCheckpointReadback,
+    batch: SampledTokenReadbackBatch,
+  ): Promise<void> {
+    const bytes = new Uint8Array(
+      batch.tokens.buffer,
+      batch.tokens.byteOffset,
+      batch.tokenCount * 4,
+    );
+    const entry = readback.inflight.shift();
+    if (entry === undefined) {
+      throw new Error("KV checkpoint readback received an unexpected batch.");
+    }
+    if (!Array.isArray(entry)) {
+      readback.nextLogits = { ...entry, data: bytes };
+      return;
+    }
+    // Segments follow group order and page order, so each group's bytes
+    // reach the sink in file order.
+    let offset = 0;
+    for (const { group, count } of entry) {
+      const length = count * readback.pageBytes;
+      await readback.sink!(group, bytes.subarray(offset, offset + length));
+      offset += length;
+    }
+  }
+
+  // Slots still mapping are destroyed by the runtime once their map settles.
+  private disposeCheckpointReadback(readback: KVCheckpointReadback): void {
+    if (this.kvCheckpointReadback === readback) {
+      this.kvCheckpointReadback = undefined;
+    }
+    readback.ring.dispose();
+    readback.staging?.dispose();
+    readback.staging = undefined;
+    readback.markDisposed();
+  }
+
+  private discardCheckpointReadback(): void {
+    const readback = this.kvCheckpointReadback;
+    if (readback === undefined) {
+      return;
+    }
+    this.disposeCheckpointReadback(readback);
+    readback.resolve(undefined);
+  }
+
+  /**
+   * Import a checkpoint chain: a full checkpoint followed by the deltas that
+   * extend it, oldest first. Each delta overwrites the partial last page of
+   * the checkpoint before it.
+   */
+  private async importCheckpointChain(
+    chain: KVCheckpointData[],
   ): Promise<void> {
     if (this.kvCache === undefined || this.kvStateKind !== "kv_cache") {
       throw new Error("KV checkpoint import requires a pure KV cache.");
+    }
+    const tip = chain.at(-1);
+    if (tip === undefined || chain[0].pageBegin !== 0) {
+      throw new Error("KV checkpoint chain does not start at page 0.");
     }
     const seqId = new tvmjs.Scalar(0, "int64");
     const prepareImport = this.getKVCheckpointFunc(
       "vm.builtin.attention_kv_cache_prepare_import",
     );
-    prepareImport(this.kvCache, seqId, JSON.stringify(checkpoint.metadata));
+    prepareImport(this.kvCache, seqId, JSON.stringify(tip.metadata));
 
-    const groups = checkpoint.metadata.groups;
-    if (!Array.isArray(groups)) {
-      throw new Error("KV checkpoint metadata is missing page groups.");
-    }
-    const groupInfo = new Map<number, KVCheckpointGroupInfo>();
-    for (const group of groups) {
-      const info = this.checkpointGroupInfo(group);
-      groupInfo.set(info.groupId, info);
-    }
-
-    const importPageGroup = this.getKVCheckpointFunc(
-      "vm.builtin.attention_kv_cache_import_page_group",
+    const groups = new Map(
+      this.checkpointGroups(tip.metadata).map((info) => [info.groupId, info]),
     );
-    for (const group of checkpoint.pageGroups) {
-      const info = groupInfo.get(group.groupId);
-      if (info === undefined) {
-        throw new Error(
-          `Missing metadata for KV checkpoint group ${group.groupId}.`,
-        );
-      }
-      this.tvm.beginScope();
-      try {
-        const src = this.tvm.empty(info.shape, info.dtype, this.device);
-        src.copyFromRawBytes(group.data);
-        importPageGroup(
-          this.kvCache,
-          seqId,
-          new tvmjs.Scalar(group.groupId, "int64"),
-          src,
-        );
-      } finally {
-        this.tvm.endScope();
+    const pageSize = Number(tip.metadata.page_size);
+    const importPageRange = this.getKVCheckpointFunc(
+      "vm.builtin.attention_kv_cache_import_page_range",
+    );
+    for (const checkpoint of chain) {
+      const pageEnd = Math.ceil(checkpoint.processedSeqLen / pageSize);
+      for (const group of checkpoint.pageGroups) {
+        const info = groups.get(group.groupId);
+        if (info === undefined) {
+          throw new Error(
+            `Missing metadata for KV checkpoint group ${group.groupId}.`,
+          );
+        }
+        this.tvm.beginScope();
+        try {
+          const src = this.tvm.empty(
+            [1, pageEnd - checkpoint.pageBegin, ...info.shape.slice(2)],
+            info.dtype,
+            this.device,
+          );
+          src.copyFromRawBytes(group.data);
+          importPageRange(
+            this.kvCache,
+            seqId,
+            new tvmjs.Scalar(group.groupId, "int64"),
+            new tvmjs.Scalar(checkpoint.pageBegin, "int64"),
+            new tvmjs.Scalar(pageEnd, "int64"),
+            src,
+            new tvmjs.Scalar(0, "int64"),
+          );
+        } finally {
+          this.tvm.endScope();
+        }
       }
     }
     const finishImport = this.getKVCheckpointFunc(
@@ -2856,8 +3260,12 @@ export class LLMChatPipeline {
     await this.device.sync();
   }
 
+  /**
+   * Restore a checkpoint chain (full checkpoint, then deltas; see
+   * importCheckpointChain) and replay the journaled tokens after its tip.
+   */
   async replayFromPromptCheckpoint(
-    checkpoint: KVCheckpointData,
+    chain: KVCheckpointData[],
     assistantPrefixTokenIds: number[],
     coveredGeneratedTokens: ReplayedGenerationToken[],
     tailGeneratedTokens: ReplayedGenerationToken[],
@@ -2873,10 +3281,12 @@ export class LLMChatPipeline {
     this.resetGenerationRoundState();
     this.stopTriggered = false;
     this.finishReason = undefined;
+    this.selectSampleReadbackPath(genConfig);
 
+    const checkpoint = chain[chain.length - 1];
     const grammarMatcherInitPromise =
       this.prepareGrammarMatcherForSampling(genConfig);
-    await this.importPromptCheckpoint(checkpoint);
+    await this.importCheckpointChain(chain);
     await Promise.all([this.device.sync(), grammarMatcherInitPromise]);
     if (this.filledKVCacheLength !== checkpoint.processedSeqLen) {
       throw new Error(
@@ -4609,6 +5019,7 @@ export class LLMChatPipeline {
     this.resetGenerationRoundState();
     this.stopTriggered = false;
     this.finishReason = undefined;
+    this.selectSampleReadbackPath(genConfig);
 
     const grammarMatcherInitPromise =
       this.prepareGrammarMatcherForSampling(genConfig);

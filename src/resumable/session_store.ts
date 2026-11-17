@@ -14,6 +14,7 @@ import {
 import {
   InvalidCheckpointError,
   readResumableCheckpointPayload,
+  resolveCommittedCheckpointChains,
 } from "./checkpoint_writer";
 import {
   RESUMABLE_STORE_ROOT,
@@ -360,7 +361,12 @@ export class ResumableSessionStore {
     return removed;
   }
 
-  /** Under the session lock, retain the newest valid commits and remove all other directories. */
+  /**
+   * Under the session lock, retain the newest commits whose checkpoint chain
+   * resolves (see resolveCommittedCheckpointChains), with every checkpoint in
+   * their chains, and remove all other directories. Every retained chain's
+   * payloads must pass size and CRC checks.
+   */
   async pruneCommittedCheckpoints(
     sessionId: string,
     retain = 2,
@@ -370,25 +376,46 @@ export class ResumableSessionStore {
     }
     const { commits, checkpointIds } =
       await this.readCheckpointIndex(sessionId);
+    const newestFirst = [...commits.values()]
+      .reverse()
+      .filter((commit) => checkpointIds.includes(commit.checkpointId));
+    // An I/O failure rejects here, so a transient error deletes nothing.
+    const chains = await resolveCommittedCheckpointChains(
+      this.files,
+      newestFirst.map((commit) =>
+        this.getCheckpointRef(sessionId, commit.checkpointId),
+      ),
+    );
     const keep = new Set<string>();
-    for (const commit of [...commits.values()].reverse()) {
-      if (keep.size === retain) break;
-      if (!checkpointIds.includes(commit.checkpointId)) continue;
-      const ref = this.getCheckpointRef(sessionId, commit.checkpointId);
+    let retained = 0;
+    for (const chain of chains) {
+      if (retained === retain) break;
+      const tip = chain[chain.length - 1].meta;
+      const commit = commits.get(tip.checkpointId)!;
+      let valid = true;
       try {
-        const payload = await readResumableCheckpointPayload(this.files, ref);
-        if (
-          payload !== undefined &&
-          payload.meta.processedSeqLen === commit.processedSeqLen &&
-          (commit.layoutHash === undefined ||
-            payload.meta.layoutHash === commit.layoutHash)
-        ) {
-          keep.add(commit.checkpointId);
+        for (const { ref } of chain) {
+          if (
+            (await readResumableCheckpointPayload(this.files, ref)) ===
+            undefined
+          ) {
+            valid = false;
+            break;
+          }
         }
       } catch (err) {
-        // Do not delete checkpoints on a transient I/O failure.
         if (!(err instanceof InvalidCheckpointError)) throw err;
-        log.warn(`Ignoring invalid KV checkpoint ${commit.checkpointId}:`, err);
+        log.warn(`Ignoring invalid KV checkpoint ${tip.checkpointId}:`, err);
+        valid = false;
+      }
+      if (
+        valid &&
+        tip.processedSeqLen === commit.processedSeqLen &&
+        (commit.layoutHash === undefined ||
+          tip.layoutHash === commit.layoutHash)
+      ) {
+        for (const { ref } of chain) keep.add(ref.checkpointId);
+        retained++;
       }
     }
     const removed: ResumableCheckpointRef[] = [];
