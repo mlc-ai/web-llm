@@ -826,6 +826,9 @@ export interface ChatCompletionUserMessageParam {
 }
 
 export interface ChatCompletionAssistantMessageParam {
+  /** Structured reasoning: Qwen3.8 preserves it; Qwen3.6 omits historical reasoning. */
+  reasoning_content?: string;
+
   /**
    * The role of the messages author, in this case `assistant`.
    */
