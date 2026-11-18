@@ -31,6 +31,14 @@ export type ArtifactPromptSegment =
   | ChatCompletionContentPartImage
   | ChatCompletionContentPartInputAudio;
 
+// The pinned template uses Python's Unicode whitespace set.
+function trimGemma4Text(text: string): string {
+  const whitespace =
+    // eslint-disable-next-line no-control-regex -- Python trims these control characters.
+    /^[\u0009-\u000d\u001c-\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+|[\u0009-\u000d\u001c-\u0020\u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+$/gu;
+  return text.replace(whitespace, "");
+}
+
 /**
  * Helper to keep track of history conversations.
  */
@@ -83,12 +91,90 @@ export class Conversation {
     );
   }
 
+  private getGemma4Prompt(addSystem: boolean, startPos: number): string[] {
+    const { roles, seps, role_templates, role_content_sep, role_empty_sep } =
+      this.config;
+    const header = this.messages.at(-1);
+    if (
+      header?.[0] !== Role.assistant ||
+      header[2] !== undefined ||
+      this.messages.at(-2)?.[0] !== Role.user ||
+      this.use_function_calling ||
+      seps.length === 0
+    ) {
+      throw new Error(
+        "Gemma 4 text chat requires a final user turn and reply header.",
+      );
+    }
+    let result = "";
+    if (addSystem) {
+      const system = trimGemma4Text(
+        this.override_system_message ?? this.config.system_message,
+      );
+      if (
+        system !== "" ||
+        this.override_system_message !== undefined ||
+        this.config.render_empty_system_message !== false
+      ) {
+        result += this.config.system_template.replace(
+          MessagePlaceholders.system,
+          () => system,
+        );
+      }
+    }
+    for (let i = startPos; i < this.messages.length - 1; ++i) {
+      const [role, , content] = this.messages[i];
+      if (
+        (role !== Role.user && role !== Role.assistant) ||
+        typeof content !== "string"
+      ) {
+        throw new Error(
+          "Gemma 4 large templates support plain text chat only.",
+        );
+      }
+      const assistant = role === Role.assistant;
+      if (
+        !assistant ||
+        i === startPos ||
+        this.messages[i - 1][0] !== Role.assistant
+      ) {
+        result += roles[role] + (role_content_sep ?? "");
+      }
+      const text = trimGemma4Text(
+        assistant
+          ? content
+              .split("<channel|>")
+              .map((part) => part.split("<|channel>")[0])
+              .join("")
+          : content,
+      );
+      const placeholder = assistant
+        ? MessagePlaceholders.assistant
+        : MessagePlaceholders.user;
+      result += (role_templates?.[role] ?? placeholder).replace(
+        placeholder,
+        () => text,
+      );
+      if (
+        !assistant ||
+        i === this.messages.length - 2 ||
+        this.messages[i + 1][0] !== Role.assistant
+      ) {
+        result += seps[assistant && seps.length === 2 ? 1 : 0];
+      }
+    }
+    return [result + roles.assistant + (role_empty_sep ?? "")];
+  }
+
   // TODO: Consider rewriting this method, a bit messy.
   private getPromptArrayInternal(
     addSystem: boolean,
     startPos: number,
     config?: ChatConfig,
   ): Array<string | Array<string | ImageURL>> {
+    if (this.config.reasoning_history_style === "gemma4") {
+      return this.getGemma4Prompt(addSystem, startPos);
+    }
     if (this.config.seps.length == 0) {
       throw Error("Need seps to work");
     }
@@ -282,6 +368,9 @@ export class Conversation {
     addSystem: boolean,
     startPos: number,
   ): ArtifactPromptSegment[] {
+    if (this.config.reasoning_history_style === "gemma4") {
+      return this.getGemma4Prompt(addSystem, startPos);
+    }
     if (this.config.seps.length === 0) {
       throw new Error("Need seps to work");
     }
@@ -546,6 +635,15 @@ export function compareConversationObject(
   convA: Conversation,
   convB: Conversation,
 ): boolean {
+  // The previous prefill used a reply header and may contain raw reasoning.
+  // Rebuild Gemma 4 history with the canonical rendering on the next request.
+  if (
+    convA.config.reasoning_history_style === "gemma4" ||
+    convB.config.reasoning_history_style === "gemma4"
+  ) {
+    return false;
+  }
+
   // NOTE: Update this function whenever a new state is introduced to `Conversation`.
   // Check the easy ones first
   if (
@@ -670,6 +768,25 @@ export function getConversationFromChatCompletionRequest(
     config.conv_template,
     config.conv_config,
   );
+
+  if (conversation.config.reasoning_history_style === "gemma4") {
+    if (
+      request.tools != null ||
+      (request.tool_choice != null && request.tool_choice !== "auto") ||
+      request.extra_body?.enable_thinking != null ||
+      request.messages.at(-1)?.role !== "user" ||
+      request.messages.some(
+        (message) =>
+          typeof message.content !== "string" ||
+          message.role === "tool" ||
+          ("tool_calls" in message && message.tool_calls != null),
+      )
+    ) {
+      throw new Error(
+        "Gemma 4 large templates support plain text chat and use a static thinking mode.",
+      );
+    }
+  }
 
   // 1. Populate function-calling-related fields
   // TODO: either remove these or support gorilla-like function calling models.
