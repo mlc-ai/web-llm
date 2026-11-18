@@ -9,6 +9,7 @@ import {
   ArtifactPromptSegment,
 } from "./conversation";
 import { decodeAudioInput } from "./audio";
+import { IncrementalDetokenizer } from "./detokenizer";
 import {
   ModelPackageManifest,
   parseCompiledProgramArtifact,
@@ -179,9 +180,9 @@ export interface ReplayedGenerationToken {
   rngState?: unknown;
 }
 
-function commonPrefixLength(lhs: string, rhs: string): number {
+function commonPrefixLength(lhs: string, rhs: string, from = 0): number {
   const limit = Math.min(lhs.length, rhs.length);
-  let prefixLength = 0;
+  let prefixLength = Math.min(from, limit);
   while (prefixLength < limit && lhs[prefixLength] === rhs[prefixLength]) {
     prefixLength++;
   }
@@ -250,6 +251,9 @@ export class LLMChatPipeline {
   // states
   private outputMessage = "";
   private outputIds: Array<number> = [];
+  private detokenizer = new IncrementalDetokenizer((ids) =>
+    this.tokenizer.decode(ids),
+  );
   private stopTriggered = false;
   private finishReason: ChatCompletionFinishReason | undefined = undefined;
   // frequency of appeared token ids till now (refresh after PrefillStep); token_id mapped to freq
@@ -969,6 +973,7 @@ export class LLMChatPipeline {
 
   private resetGenerationRoundState(): void {
     this.outputIds = [];
+    this.detokenizer.reset();
     this.appearedTokensFreq.clear();
     this.outputMessage = "";
     this.tokenLogprobArray = [];
@@ -1236,6 +1241,7 @@ export class LLMChatPipeline {
           this.tokenizer.encode(emptyThinkingBlockStr),
         );
         this.outputIds.push(...encoded);
+        for (const token of encoded) this.detokenizer.push(token);
         assistantPrefixTokenIds.push(...encoded);
         conversation.appendEmptyThinkingReplyHeader(
           Role.assistant,
@@ -1471,15 +1477,25 @@ export class LLMChatPipeline {
       } else {
         this.appearedTokensFreq.set(nextToken, 1);
       }
+      this.detokenizer.push(nextToken);
     }
 
-    // Stop condition 2: stop string; update `this.outputMessage` subsequently
-    let outputMessage = this.tokenizer.decode(new Int32Array(this.outputIds));
+    // Stop condition 2: stop string; update `this.outputMessage` subsequently.
+    // Earlier steps found no stop string, so one can only end in the text this
+    // token changed.
+    let outputMessage = this.detokenizer.text;
+    const searchFrom = Math.max(
+      0,
+      this.detokenizer.unchangedLength -
+        Math.max(0, ...stopStrs.map((stopStr) => stopStr.length)),
+    );
+
     let stopPos = -1;
     for (const stopStr of stopStrs) {
       // Stop at the first stopStr we find
-      stopPos = outputMessage.lastIndexOf(stopStr);
+      stopPos = outputMessage.slice(searchFrom).lastIndexOf(stopStr);
       if (stopPos != -1) {
+        stopPos += searchFrom;
         outputMessage = outputMessage.substring(0, stopPos);
         this.stopTriggered = true;
         this.finishReason = "stop";
@@ -1537,6 +1553,7 @@ export class LLMChatPipeline {
     const textPrefixLength = commonPrefixLength(
       prevOutputMessage,
       this.outputMessage,
+      this.detokenizer.unchangedLength,
     );
     const textDelta = this.outputMessage.slice(textPrefixLength);
     return {
@@ -1812,6 +1829,7 @@ export class LLMChatPipeline {
     }
 
     this.outputIds.push(...assistantPrefixTokenIds);
+    for (const token of assistantPrefixTokenIds) this.detokenizer.push(token);
     for (const token of coveredGeneratedTokens) {
       // The imported cache already covers these tokens. Rebuild output and
       // penalties using each token's original position for the context limit.
@@ -3489,6 +3507,7 @@ export class LLMChatPipeline {
       await Promise.all([this.device.sync(), grammarMatcherInitPromise]);
 
       this.outputIds.push(...assistantPrefixTokenIds);
+      for (const token of assistantPrefixTokenIds) this.detokenizer.push(token);
       if (generatedTokens.length === 0) {
         if (promptLogits === undefined) {
           throw new Error("Cannot resume from an empty prompt token record.");
