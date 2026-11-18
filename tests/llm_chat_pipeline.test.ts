@@ -477,6 +477,31 @@ test("decodeStep forwards last committed token and commits sampled token", async
   expect(pipeline["curRoundDecodingTotalTokens"]).toBe(1);
 });
 
+test("warmUp hides its forwards from the logit processor and the RNG", async () => {
+  const pipeline = createPipeline();
+  const logitProcessor = {} as any;
+  const events: string[] = [];
+  pipeline["logitProcessor"] = logitProcessor;
+  pipeline.getRNGState = jest.fn(() => "before");
+  pipeline.setRNGState = jest.fn((state: unknown) => {
+    events.push(`rng:${state}`);
+    return true;
+  });
+  pipeline.forwardTokensAndSample = jest.fn(
+    async (ids: number[], isPrefill: boolean) => {
+      expect(pipeline["logitProcessor"]).toBeUndefined();
+      events.push(`${isPrefill ? "prefill" : "decode"}:${ids.length}`);
+      return 5;
+    },
+  );
+  pipeline.resetChat = jest.fn(() => events.push("reset"));
+
+  await pipeline.warmUp();
+
+  expect(events).toEqual(["prefill:8", "decode:1", "reset", "rng:before"]);
+  expect(pipeline["logitProcessor"]).toBe(logitProcessor);
+});
+
 function prepareReplayPipeline(): PipelineLike {
   const pipeline = createPipeline();
   pipeline.resetChat = jest.fn();
@@ -1797,3 +1822,34 @@ test("reusing a pipeline after resetting a generation does not retain prior logp
   expect(pipeline.getTokenLogprobArray()).not.toBe(previous);
   expect(previous).toHaveLength(1);
 });
+
+test.each(["prefill", "decode", "reset"])(
+  "warmUp restores the processor and RNG after %s fails",
+  async (failure) => {
+    const pipeline = createPipeline();
+    const processor = {
+      resetState: jest.fn(),
+      processLogits: (logits: Float32Array) => logits,
+      processSampledToken: jest.fn(),
+    };
+    pipeline["logitProcessor"] = processor;
+    pipeline.getRNGState = jest.fn(() => "original");
+    pipeline.setRNGState = jest.fn(() => true);
+    pipeline.forwardTokensAndSample = jest.fn(
+      async (_ids: number[], prefill: boolean) => {
+        expect(pipeline["logitProcessor"]).toBeUndefined();
+        if ((prefill ? "prefill" : "decode") === failure)
+          throw new Error("warmup failed");
+        return 5;
+      },
+    );
+    pipeline.resetChat = jest.fn(() => {
+      expect(pipeline["logitProcessor"]).toBeUndefined();
+      if (failure === "reset") throw new Error("warmup failed");
+    });
+    await expect(pipeline.warmUp()).rejects.toThrow("warmup failed");
+    expect(pipeline["logitProcessor"]).toBe(processor);
+    expect(processor.resetState).not.toHaveBeenCalled();
+    expect(pipeline.setRNGState).toHaveBeenCalledWith("original");
+  },
+);

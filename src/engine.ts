@@ -535,7 +535,18 @@ export class MLCEngine implements MLCEngineInterface {
         },
       );
     }
-    await newPipeline.asyncLoadWebGPUPipelines();
+    try {
+      await newPipeline.asyncLoadWebGPUPipelines();
+      if (
+        modelRecord.model_type !== ModelType.embedding &&
+        curModelConfig.warmup_on_load !== false
+      ) {
+        await (newPipeline as LLMChatPipeline).warmUp();
+      }
+    } catch (error) {
+      newPipeline.dispose();
+      throw error;
+    }
     this.loadedModelIdToPipeline.set(modelId, newPipeline);
     this.loadedModelIdToLock.set(modelId, new CustomLock());
 

@@ -97,6 +97,8 @@ export interface ChatConfig {
   attention_sink_size: number;
   // RNNState settings (for hybrid/recurrent models). If unspecified, runtime picks a safe default.
   max_history_size?: number;
+  /** Run a short prefill and decode during load to initialize GPU workspace. Defaults to true. */
+  warmup_on_load?: boolean;
   // Fields below can be swapped per-generation via `GenerationConfig`
   // Fields only used in MLC
   repetition_penalty: number;
