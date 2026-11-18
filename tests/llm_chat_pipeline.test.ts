@@ -1,3 +1,4 @@
+import { IncrementalDetokenizer } from "../src/detokenizer";
 import { LLMChatPipeline } from "../src/llm_chat";
 import { MinValueError } from "../src/error";
 import { MLCEngine } from "../src/engine";
@@ -109,6 +110,9 @@ function createPipeline(): PipelineLike {
   } as any;
   pipeline["config"] = {} as any;
   pipeline["outputIds"] = [];
+  pipeline["detokenizer"] = new IncrementalDetokenizer((ids) =>
+    pipeline["tokenizer"].decode(ids),
+  );
   pipeline["appearedTokensFreq"] = new Map<number, number>();
   pipeline["stopTokens"] = [];
   pipeline["stopStr"] = [];
@@ -122,6 +126,9 @@ function createPipeline(): PipelineLike {
     getVocabSize: jest.fn(() => 1),
     idToToken: jest.fn(() => "<tok>"),
   } as any;
+  pipeline["detokenizer"] = new IncrementalDetokenizer((ids) =>
+    pipeline["tokenizer"].decode(ids),
+  );
   pipeline["contextWindowSize"] = 16;
   pipeline["slidingWindowSize"] = -1;
   pipeline["filledKVCacheLength"] = 0;
@@ -283,20 +290,79 @@ test("processNextToken stops on stop token and updates conversation", () => {
 test("processNextToken appends tokens until stop string reached", () => {
   const pipeline = createPipeline();
   pipeline["stopStr"] = ["<stop>"];
-  pipeline["tokenizer"].decode = jest
-    .fn<(ids: Int32Array) => string>()
-    .mockReturnValueOnce("partial")
-    .mockReturnValueOnce("partial<stop>");
-  (pipeline as any).processNextToken(1, {
-    max_tokens: 5,
-  });
-  expect(pipeline["stopTriggered"]).toBe(false);
-  (pipeline as any).processNextToken(2, {
-    max_tokens: 5,
-  });
+  const vocab = ["", "partial", "<st", "op> more"];
+  pipeline["tokenizer"].decode = jest.fn((ids: Int32Array) =>
+    Array.from(ids, (id) => vocab[id]).join(""),
+  );
+  for (const token of [1, 2]) {
+    (pipeline as any).processNextToken(token, { max_tokens: 5 });
+    expect(pipeline["stopTriggered"]).toBe(false);
+  }
+  (pipeline as any).processNextToken(3, { max_tokens: 5 });
   expect(pipeline["stopTriggered"]).toBe(true);
   expect(pipeline["finishReason"]).toBe("stop");
   expect(pipeline["outputMessage"]).toBe("partial");
+});
+
+// processNextToken decodes the reply incrementally and searches for stop
+// strings only in the text a token changed. Text, deltas and stop decisions
+// must match decoding the whole reply and searching all of it every token.
+test("commitSampledStep matches full decoding of the reply", () => {
+  const utf8 = (text: string) => Array.from(new TextEncoder().encode(text));
+  const pieces = [
+    ...["<think>", "\n\n", "</think>", "he", "llo", " <", "st", "op", ">"],
+    ...["<|", "im_end", "|>", "a", " ", "中", "🎉"],
+  ].map(utf8);
+  // Tokens that split 中 and 🎉 across token boundaries.
+  pieces.push([0xe4, 0xb8], [0xad], [0xf0], [0x9f, 0x8e], [0x89]);
+  const decode = (ids: Int32Array) =>
+    new TextDecoder().decode(
+      Uint8Array.from(Array.from(ids).flatMap((id) => pieces[id])),
+    );
+  const stopStrs = ["<|im_end|>", "<stop>", "中<"];
+  const assistantPrefix = [0, 1, 2];
+  let seed = 7;
+  const next = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
+  for (let round = 0; round < 300; round++) {
+    const pipeline = createPipeline();
+    pipeline["tokenizer"].decode = decode;
+    pipeline["stopStr"] = [stopStrs[0]];
+    pipeline["outputIds"] = [...assistantPrefix];
+    for (const token of assistantPrefix) pipeline["detokenizer"].push(token);
+    const genConfig = { stop: stopStrs.slice(1) };
+    const ids: number[] = [];
+    let expected = "";
+    let stopped = false;
+    while (!stopped && ids.length < 60) {
+      const tokenId = 3 + Math.floor(next() * (pieces.length - 3));
+      ids.push(tokenId);
+      const previous = expected;
+      expected = decode(Int32Array.from([...assistantPrefix, ...ids]));
+      for (const stopStr of stopStrs) {
+        const stopPos = expected.lastIndexOf(stopStr);
+        if (stopPos !== -1) {
+          expected = expected.slice(0, stopPos);
+          stopped = true;
+          break;
+        }
+      }
+      let prefixLength = 0;
+      while (
+        prefixLength < Math.min(previous.length, expected.length) &&
+        previous[prefixLength] === expected[prefixLength]
+      ) {
+        prefixLength++;
+      }
+      const committed = pipeline.commitSampledStep(
+        { source: "decode", tokenId, globalTokenPos: 0 },
+        genConfig,
+      );
+      expect(committed.outputMessage).toBe(expected);
+      expect(committed.stopped).toBe(stopped);
+      expect(committed.textPrefixLength).toBe(prefixLength);
+      expect(committed.textDelta).toBe(expected.slice(prefixLength));
+    }
+  }
 });
 
 test("commitSampledStep records a reversible text rewrite", () => {
@@ -484,6 +550,9 @@ function prepareReplayPipeline(): PipelineLike {
   pipeline["resetGenerationRoundState"] = jest.fn();
   pipeline["prepareGrammarMatcherForSampling"] = jest.fn(async () => undefined);
   pipeline["outputIds"] = [];
+  pipeline["detokenizer"] = new IncrementalDetokenizer((ids) =>
+    pipeline["tokenizer"].decode(ids),
+  );
   return pipeline;
 }
 
