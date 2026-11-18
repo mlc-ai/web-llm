@@ -3409,6 +3409,35 @@ export class LLMChatPipeline {
     return nextToken;
   }
 
+  /** Initialize prefill/decode workspace without changing request state. */
+  async warmUp(): Promise<void> {
+    const rngState = this.getRNGState();
+    const logitProcessor = this.logitProcessor;
+    this.logitProcessor = undefined;
+    try {
+      this.tokenizer.encode("Hello");
+      const length = Math.min(
+        16,
+        this.prefillChunkSize,
+        this.contextWindowSize - 1,
+      );
+      if (length > 0) {
+        const token = await this.forwardTokensAndSample(
+          new Array(length).fill(0),
+          true,
+        );
+        await this.forwardTokensAndSample([token], false);
+      }
+    } finally {
+      try {
+        this.resetChat();
+      } finally {
+        this.logitProcessor = logitProcessor;
+        this.setRNGState(rngState);
+      }
+    }
+  }
+
   private async forwardKnownTokens(
     inputIds: Array<number>,
     isPrefill: boolean,
