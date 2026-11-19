@@ -5,6 +5,7 @@ import {
   Role,
 } from "./config";
 import {
+  ChatCompletionAssistantMessageParam,
   ChatCompletionContentPart,
   ChatCompletionContentPartImage,
   ChatCompletionContentPartInputAudio,
@@ -652,6 +653,24 @@ export function compareConversationObject(
   return true;
 }
 
+/** Reconstruct the JSON array emitted by WebLLM's function-calling grammar. */
+function assistantContentForPrompt(
+  message: ChatCompletionAssistantMessageParam,
+): string {
+  if (typeof message.content === "string") {
+    return message.content;
+  }
+  if (message.tool_calls === undefined || message.tool_calls.length === 0) {
+    throw new ContentTypeError(message.role + "'s message");
+  }
+  return JSON.stringify(
+    message.tool_calls.map((call) => ({
+      arguments: JSON.parse(call.function.arguments),
+      name: call.function.name,
+    })),
+  );
+}
+
 /**
  * Get a new Conversation object based on the chat completion request.
  *
@@ -698,10 +717,11 @@ export function getConversationFromChatCompletionRequest(
     } else if (message.role === "user") {
       conversation.appendMessage(Role.user, message.content, message.name);
     } else if (message.role === "assistant") {
-      if (typeof message.content !== "string") {
-        throw new ContentTypeError(message.role + "'s message");
-      }
-      conversation.appendMessage(Role.assistant, message.content, message.name);
+      conversation.appendMessage(
+        Role.assistant,
+        assistantContentForPrompt(message),
+        message.name,
+      );
     } else if (message.role === "tool") {
       conversation.appendMessage(Role.tool, message.content);
     } else {
