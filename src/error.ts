@@ -434,6 +434,15 @@ export class InvalidResponseFormatError extends Error {
   }
 }
 
+export class InvalidResponseFormatWhitespaceError extends Error {
+  constructor() {
+    super(
+      "ResponseFormat.whitespace must be `any` or `compact`, and is only supported with the `json_object` response format.",
+    );
+    this.name = "InvalidResponseFormatWhitespaceError";
+  }
+}
+
 export class InvalidResponseFormatGrammarError extends Error {
   constructor() {
     super(

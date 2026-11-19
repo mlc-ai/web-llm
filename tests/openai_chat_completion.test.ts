@@ -221,6 +221,55 @@ describe("Check chat completion unsupported requests", () => {
     );
   });
 
+  test("Whitespace compact with json_object is valid", () => {
+    const request: ChatCompletionRequest = {
+      messages: [{ role: "user", content: "Hello! " }],
+      response_format: {
+        type: "json_object",
+        schema: "{}",
+        whitespace: "compact",
+      },
+    };
+    expect(() => {
+      postInitAndCheckFields(
+        request,
+        "Llama-3.1-8B-Instruct-q4f32_1-MLC",
+        ModelType.LLM,
+      );
+    }).not.toThrow();
+  });
+
+  test("Whitespace without type json_object", () => {
+    expect(() => {
+      const request: ChatCompletionRequest = {
+        messages: [{ role: "user", content: "Hello! " }],
+        response_format: { type: "grammar", grammar: "g", whitespace: "any" },
+      };
+      postInitAndCheckFields(
+        request,
+        "Llama-3.1-8B-Instruct-q4f32_1-MLC",
+        ModelType.LLM,
+      );
+    }).toThrow("ResponseFormat.whitespace must be `any` or `compact`");
+  });
+
+  test("Invalid whitespace value", () => {
+    expect(() => {
+      const request: ChatCompletionRequest = {
+        messages: [{ role: "user", content: "Hello! " }],
+        response_format: {
+          type: "json_object",
+          whitespace: "tight" as any,
+        },
+      };
+      postInitAndCheckFields(
+        request,
+        "Llama-3.1-8B-Instruct-q4f32_1-MLC",
+        ModelType.LLM,
+      );
+    }).toThrow("ResponseFormat.whitespace must be `any` or `compact`");
+  });
+
   test("Grammar string without grammar type", () => {
     expect(() => {
       const request: ChatCompletionRequest = {
