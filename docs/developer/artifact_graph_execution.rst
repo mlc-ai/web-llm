@@ -76,7 +76,7 @@ inputs feeding both text and audio outputs.  They do not verify any real model's
 processors, logits, codec output, waveform quality or browser memory fit.
 
 Qwen2.5 Omni audio component binding
-----------------------------------
+------------------------------------
 
 ``createAudioEncoderTVMFactory`` binds the
 ``qwen2_5_omni.audio_encoder.v1`` contract to actual TVM VM exports. The caller
@@ -137,7 +137,7 @@ The initial graph copies mel features through host memory; it is not a zero-copy
 multimodal pipeline or complete Omni chat integration.
 
 Text/audio Thinker binding
-~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ``createThinkerTVMFactory`` binds the restricted
 ``qwen2_5_omni.thinker_audio.v1`` contract to a preloaded TVM runtime. It accepts
@@ -195,7 +195,7 @@ it does not replace the output with zeros. The factory checks the artifact,
 parameter schema, input/output shapes and cancellation like the audio bindings.
 
 Explicit flow prediction and integration
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ``createFlowPredictorTVMFactory`` binds
 ``qwen2_5_omni.flow_predictor.v1`` to a preloaded runtime. Its five value inputs
@@ -225,13 +225,15 @@ Cached codec generation
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 ``createTalkerTVMFactory`` binds ``qwen2_5_omni.talker.v1`` to a preloaded FP32
-Talker runtime. Inputs are value tensors ``prefix_embeddings[prefix, 2048]`` and
-``reply_embeddings[reply, 2048]``; the value output is int32 ``code[codes]``. The
-caller prepares Thinker hidden-state/token-embedding alignment, speaker BOS and
-text EOS/PAD conditioning using the pinned HF generation contract. The factory
-adds codec PAD/BOS embeddings to the final two prefix rows and advances through
-reply conditioning as it decodes, repeating the last row when needed. This
-component does not infer alignment from text or implement vision/video input.
+Talker runtime. Inputs are value tensors ``prefix_embeddings[prefix, width]``
+and ``reply_embeddings[reply, width]``. Their width must match the compiled
+``_metadata.talker.embedding_size``, which is 2048 for 3B and 3584 for 7B. The
+value output is int32 ``code[codes]``. The caller prepares Thinker
+hidden-state/token-embedding alignment, speaker BOS and text EOS/PAD conditioning
+using the pinned HF generation contract. The factory adds codec PAD/BOS
+embeddings to the final two prefix rows and advances through reply conditioning
+as it decodes, repeating the last row when needed. This component does not infer
+alignment from text or implement vision/video input.
 
 Options require ``contextWindowSize`` and ``maxCodes`` (at most 256 for the
 current 512-frame flow predictor). Neutral greedy decoding is the default.
@@ -281,3 +283,27 @@ options make callers responsible for their chosen generation policy. The
 ``examples/omni-audio`` application shows text or optional audio input, voice
 selection, bounded generation, cancellation and WAV playback using these public
 APIs. It requests device limits large enough for the FP32 head before loading.
+
+Qwen3-Omni text and audio bindings
+----------------------------------
+
+The Instruct, Thinking and Captioner checkpoints use the same factories with
+distinct Qwen3-Omni contracts.
+
+- ``createWhisperAudioTVMFactory`` binds ``qwen3_omni.audio_features.v1``. It
+  accepts finite float32 mono PCM at 16 kHz, with at least 201 samples and within
+  the compiled capacity. It reflects at the actual clip boundary and returns
+  ``[128, floor(samples / 160)]`` mel features.
+- ``createAudioEncoderTVMFactory`` binds ``qwen3_omni.audio_encoder.v1``. It
+  calls ``stem`` on chunks of at most 100 mel frames, right-pads a short last
+  chunk to the longest chunk in the clip, and retains only the valid rows.
+  It calls ``encode_window`` on attention windows of at most 104 rows and
+  concatenates the resulting embeddings.
+- ``createThinkerTVMFactory`` binds ``qwen3_omni.thinker_audio.v1``. The caller
+  applies the checkpoint's chat template and supplies one embedding per audio
+  placeholder (token ID 151675). A text-only prompt supplies an embedding tensor
+  shaped ``[0, width]``. The factory streams greedy token IDs until EOS (151645)
+  or the generation or context limit and excludes EOS from the stream.
+
+These bindings cover text and standalone audio input with text output. Vision,
+video and Qwen3 speech generation require additional components.
