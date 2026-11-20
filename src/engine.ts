@@ -95,10 +95,8 @@ import {
   ResumableEngineMetrics,
   ResumableGenerationCoordinator,
 } from "./resumable/coordinator";
-import {
-  loadModelPackageManifest,
-  resolveModelPackageResourceURLs,
-} from "./artifact_manifest";
+import { resolveModelPackageResourceURLs } from "./artifact_manifest";
+import { loadExecutableModelPackageManifest } from "./artifact_manifest_v2";
 
 function getUnixTimestampSeconds(): number {
   return Math.floor(Date.now() / 1000);
@@ -377,7 +375,7 @@ export class MLCEngine implements MLCEngineInterface {
     const modelPackage =
       modelRecord.model_manifest === undefined
         ? undefined
-        : await loadModelPackageManifest(
+        : await loadExecutableModelPackageManifest(
             (await configCache.fetchWithCache(
               new URL(modelRecord.model_manifest, modelUrl).href,
               "arraybuffer",

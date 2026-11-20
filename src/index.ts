@@ -76,3 +76,62 @@ export {
 } from "./extension_service_worker";
 
 export * from "./openai_api_protocols/index";
+
+export * from "./artifact_manifest_v2";
+
+export * from "./artifact_graph_executor";
+
+export {
+  createAudioEncoderTVMFactory,
+  createWhisperAudioTVMFactory,
+  type WhisperAudioTVMOptions,
+  type AudioEncoderTVMOptions,
+} from "./artifact_graph_tvm";
+
+export {
+  createThinkerTVMFactory,
+  type ThinkerTVMOptions,
+} from "./artifact_graph_thinker_tvm";
+
+export {
+  createWaveformDecoderTVMFactory,
+  WaveformDecoderTVMOptions,
+} from "./artifact_graph_waveform_tvm";
+
+export {
+  createReferenceConditionerTVMFactory,
+  ReferenceConditionerTVMOptions,
+} from "./artifact_graph_reference_tvm";
+
+export {
+  createFlowPredictorTVMFactory,
+  integrateFlowRK4,
+  FlowPredictorTVMOptions,
+  FlowSamplingOptions,
+  FlowInputs,
+  FlowPrediction,
+  FlowLimits,
+} from "./artifact_graph_flow_tvm";
+
+export {
+  createTalkerTVMFactory,
+  TalkerTVMOptions,
+} from "./artifact_graph_talker_tvm";
+
+export {
+  createThinkerSpeechTVMFactory,
+  EmptyThinkerResponseError,
+  type ThinkerSpeechTVMOptions,
+} from "./artifact_graph_thinker_speech_tvm";
+export {
+  alignThinkerSpeechTrace,
+  type ThinkerSpeechTrace,
+} from "./omni_thinker_alignment";
+export {
+  createOmniSpeechGraph,
+  type OmniSpeechGraph,
+  type OmniSpeechOptions,
+  type OmniSpeechParts,
+  type OmniSpeechPart,
+} from "./omni_speech";
+export { renderOmniPrompt } from "./omni_prompt";

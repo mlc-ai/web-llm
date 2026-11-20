@@ -1,0 +1,120 @@
+{
+  "model": {
+    "schema": "mlc.model-package",
+    "schema_version": 2,
+    "interface_id": "sha256:0ead9ab5ff15497a975768bedbeefc8d873b77c65207d80c99c58dc9f9d05431",
+    "components": {
+      "vocoder": {
+        "kind": "waveform_decoder",
+        "contract": "qwen2_5_omni.waveform_decoder.v1",
+        "inputs": {
+          "log_mel": {
+            "semantic": "audio.synthesis_log_mel.v1",
+            "dtype": "float32",
+            "shape": [80, "frames"],
+            "delivery": "value"
+          }
+        },
+        "outputs": {
+          "pcm": {
+            "semantic": "audio.pcm_24khz.v1",
+            "dtype": "float32",
+            "shape": ["samples"],
+            "delivery": "value"
+          }
+        },
+        "weights": {
+          "manifest": "tensor-cache.json",
+          "parameter_schema_id": "sha256:e17bfdf80d2e21fd2740c3af64ea9e25af1491f61561a03125a8b80bf2ce553c"
+        },
+        "state": {
+          "kind": "none",
+          "scope": "request"
+        }
+      }
+    },
+    "tasks": {
+      "audio.decode_waveform": {
+        "inputs": {
+          "log_mel": {
+            "spec": {
+              "semantic": "audio.synthesis_log_mel.v1",
+              "dtype": "float32",
+              "shape": [80, "frames"],
+              "delivery": "value"
+            },
+            "targets": [
+              {
+                "component": "vocoder",
+                "port": "log_mel"
+              }
+            ]
+          }
+        },
+        "outputs": {
+          "pcm": {
+            "spec": {
+              "semantic": "audio.pcm_24khz.v1",
+              "dtype": "float32",
+              "shape": ["samples"],
+              "delivery": "value"
+            },
+            "source": {
+              "component": "vocoder",
+              "port": "pcm"
+            },
+            "optional": false
+          }
+        },
+        "edges": []
+      }
+    }
+  },
+  "compiled": {
+    "schema": "mlc.compiled-program",
+    "schema_version": 2,
+    "interface_id": "sha256:0ead9ab5ff15497a975768bedbeefc8d873b77c65207d80c99c58dc9f9d05431",
+    "components": {
+      "vocoder": {
+        "spec": {
+          "kind": "waveform_decoder",
+          "contract": "qwen2_5_omni.waveform_decoder.v1",
+          "inputs": {
+            "log_mel": {
+              "semantic": "audio.synthesis_log_mel.v1",
+              "dtype": "float32",
+              "shape": [80, "frames"],
+              "delivery": "value"
+            }
+          },
+          "outputs": {
+            "pcm": {
+              "semantic": "audio.pcm_24khz.v1",
+              "dtype": "float32",
+              "shape": ["samples"],
+              "delivery": "value"
+            }
+          },
+          "weights": {
+            "manifest": "tensor-cache.json",
+            "parameter_schema_id": "sha256:e17bfdf80d2e21fd2740c3af64ea9e25af1491f61561a03125a8b80bf2ce553c"
+          },
+          "state": {
+            "kind": "none",
+            "scope": "request"
+          }
+        },
+        "module": "vocoder.wasm",
+        "exports": {
+          "run": "forward",
+          "forward": "forward"
+        },
+        "resources": {
+          "required_features": [],
+          "max_storage_buffer_binding_size": 51904512,
+          "estimated_device_memory_bytes": 651825216
+        }
+      }
+    }
+  }
+}

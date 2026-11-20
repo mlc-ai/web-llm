@@ -34,3 +34,4 @@ Start exploring WebLLM by `chatting with WebLLM Chat <https://chat.webllm.ai/>`_
 
    developer/building_from_source.rst
    developer/add_models.rst
+   developer/artifact_graph_execution.rst

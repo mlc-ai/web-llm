@@ -1,0 +1,121 @@
+{
+  "model": {
+    "schema": "mlc.model-package",
+    "schema_version": 2,
+    "interface_id": "sha256:64a0dd9f51df6a7b48edee7661a454682c8bd6eeedd8d489c0d0ca22abad45c8",
+    "components": {
+      "audio": {
+        "kind": "encoder",
+        "contract": "qwen2_5_omni.audio_encoder.v1",
+        "inputs": {
+          "mel_features": {
+            "semantic": "audio.log_mel.v1",
+            "dtype": "float32",
+            "shape": [128, "frames"],
+            "delivery": "value"
+          }
+        },
+        "outputs": {
+          "embeddings": {
+            "semantic": "audio.embeddings.v1",
+            "dtype": "float32",
+            "shape": ["tokens", 2048],
+            "delivery": "value"
+          }
+        },
+        "weights": {
+          "manifest": "tensor-cache.json",
+          "parameter_schema_id": "sha256:308e3ff80455617506fc0d7b52dcf792d32b271f99834b6dde96550037f47c6f"
+        },
+        "state": {
+          "kind": "none",
+          "scope": "request"
+        }
+      }
+    },
+    "tasks": {
+      "audio.encode": {
+        "inputs": {
+          "mel_features": {
+            "spec": {
+              "semantic": "audio.log_mel.v1",
+              "dtype": "float32",
+              "shape": [128, "frames"],
+              "delivery": "value"
+            },
+            "targets": [
+              {
+                "component": "audio",
+                "port": "mel_features"
+              }
+            ]
+          }
+        },
+        "outputs": {
+          "embeddings": {
+            "spec": {
+              "semantic": "audio.embeddings.v1",
+              "dtype": "float32",
+              "shape": ["tokens", 2048],
+              "delivery": "value"
+            },
+            "source": {
+              "component": "audio",
+              "port": "embeddings"
+            },
+            "optional": false
+          }
+        },
+        "edges": []
+      }
+    }
+  },
+  "compiled": {
+    "schema": "mlc.compiled-program",
+    "schema_version": 2,
+    "interface_id": "sha256:64a0dd9f51df6a7b48edee7661a454682c8bd6eeedd8d489c0d0ca22abad45c8",
+    "components": {
+      "audio": {
+        "spec": {
+          "kind": "encoder",
+          "contract": "qwen2_5_omni.audio_encoder.v1",
+          "inputs": {
+            "mel_features": {
+              "semantic": "audio.log_mel.v1",
+              "dtype": "float32",
+              "shape": [128, "frames"],
+              "delivery": "value"
+            }
+          },
+          "outputs": {
+            "embeddings": {
+              "semantic": "audio.embeddings.v1",
+              "dtype": "float32",
+              "shape": ["tokens", 2048],
+              "delivery": "value"
+            }
+          },
+          "weights": {
+            "manifest": "tensor-cache.json",
+            "parameter_schema_id": "sha256:308e3ff80455617506fc0d7b52dcf792d32b271f99834b6dde96550037f47c6f"
+          },
+          "state": {
+            "kind": "none",
+            "scope": "request"
+          }
+        },
+        "module": "audio.wasm",
+        "exports": {
+          "run": "encode_chunk",
+          "encode_chunk": "encode_chunk",
+          "project": "project"
+        },
+        "resources": {
+          "required_features": [],
+          "max_storage_buffer_binding_size": 26214400,
+          "estimated_device_memory_bytes": 2551201792
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "schema": "mlc.model-package",
+  "schema_version": 2,
+  "interface_id": "sha256:3e90e5df8a5b729111b28d619c4e05bc1b57c7af8fbea480dc611374244367f8",
+  "components": {
+    "thinker": {
+      "kind": "autoregressive",
+      "contract": "qwen2_5_omni.thinker_audio.v1",
+      "inputs": {
+        "token_ids": {
+          "semantic": "token.ids.v1",
+          "dtype": "int32",
+          "shape": ["tokens"],
+          "delivery": "value"
+        },
+        "audio_embeddings": {
+          "semantic": "audio.embeddings.v1",
+          "dtype": "float32",
+          "shape": ["tokens", 128],
+          "delivery": "value"
+        }
+      },
+      "outputs": {
+        "token_ids": {
+          "semantic": "token.ids.v1",
+          "dtype": "int32",
+          "shape": [1],
+          "delivery": "stream"
+        }
+      },
+      "weights": {
+        "manifest": "tensor-cache.json",
+        "parameter_schema_id": "sha256:0bc0d91eec2f3917493d9990cd28a84eb58d09b7678aa7d9518132760dd152ec"
+      },
+      "state": {
+        "kind": "kv_cache",
+        "scope": "request"
+      }
+    }
+  },
+  "tasks": {
+    "thinker.generate": {
+      "inputs": {
+        "token_ids": {
+          "spec": {
+            "semantic": "token.ids.v1",
+            "dtype": "int32",
+            "shape": ["tokens"],
+            "delivery": "value"
+          },
+          "targets": [
+            {
+              "component": "thinker",
+              "port": "token_ids"
+            }
+          ]
+        },
+        "audio_embeddings": {
+          "spec": {
+            "semantic": "audio.embeddings.v1",
+            "dtype": "float32",
+            "shape": ["tokens", 128],
+            "delivery": "value"
+          },
+          "targets": [
+            {
+              "component": "thinker",
+              "port": "audio_embeddings"
+            }
+          ]
+        }
+      },
+      "outputs": {
+        "token_ids": {
+          "spec": {
+            "semantic": "token.ids.v1",
+            "dtype": "int32",
+            "shape": [1],
+            "delivery": "stream"
+          },
+          "source": {
+            "component": "thinker",
+            "port": "token_ids"
+          },
+          "optional": false
+        }
+      },
+      "edges": []
+    }
+  }
+}
