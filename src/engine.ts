@@ -1,4 +1,5 @@
 import * as tvmjs from "@mlc-ai/web-runtime";
+import { detectGPUDeviceForModel } from "./gpu_device";
 import log from "loglevel";
 import { StreamGenerationState, StreamContinuationOptions } from "./streaming";
 import {
@@ -68,9 +69,7 @@ import {
   ConfigurationNotInitializedError,
   DeviceLostError,
   EmbeddingUnsupportedModelError,
-  FeatureSupportError,
   MissingModelWasmError,
-  ShaderF16SupportError,
   WebGPUNotAvailableError,
   ReloadArgumentSizeUnmatchedError,
   IncorrectPipelineLoadedError,
@@ -325,7 +324,8 @@ export class MLCEngine implements MLCEngineInterface {
     }
     // 4. Sequentially load each model
     // Single abort should stop all to-be-loaded models
-    this.reloadController = new AbortController();
+    const reloadController = new AbortController();
+    this.reloadController = reloadController;
     try {
       for (let i = 0; i < modelId.length; i++) {
         await this.reloadInternal(
@@ -340,7 +340,9 @@ export class MLCEngine implements MLCEngineInterface {
       }
       throw error;
     } finally {
-      this.reloadController = undefined;
+      if (this.reloadController === reloadController) {
+        this.reloadController = undefined;
+      }
     }
   }
 
@@ -350,6 +352,12 @@ export class MLCEngine implements MLCEngineInterface {
   ): Promise<void> {
     const logitProcessor = this.logitProcessorRegistry?.get(modelId);
     const tstart = performance.now();
+    const reloadSignal = this.reloadController?.signal;
+    const checkAborted = () => {
+      if (reloadSignal?.aborted) {
+        throw new DOMException("Reload was aborted.", "AbortError");
+      }
+    };
 
     // look up and parse model record, record model type
     const modelRecord = findModelRecord(modelId, this.appConfig);
@@ -365,7 +373,6 @@ export class MLCEngine implements MLCEngineInterface {
       modelRecord.model_type === undefined || modelRecord.model_type === null
         ? ModelType.LLM
         : modelRecord.model_type;
-    this.loadedModelIdToModelType.set(modelId, modelType);
 
     // instantiate cache
     const configCache = tvmjs.createArtifactCache(
@@ -381,7 +388,7 @@ export class MLCEngine implements MLCEngineInterface {
             (await configCache.fetchWithCache(
               new URL(modelRecord.model_manifest, modelUrl).href,
               "arraybuffer",
-              this.reloadController?.signal,
+              reloadSignal,
             )) as ArrayBuffer,
           );
     const packageResources = resolveModelPackageResourceURLs(
@@ -394,7 +401,7 @@ export class MLCEngine implements MLCEngineInterface {
     const configData = (await configCache.fetchWithCache(
       configUrl,
       "arraybuffer",
-      this.reloadController?.signal,
+      reloadSignal,
     )) as ArrayBuffer;
     if (modelRecord.integrity?.config) {
       await verifyIntegrity(
@@ -409,7 +416,6 @@ export class MLCEngine implements MLCEngineInterface {
       ...modelRecord.overrides,
       ...chatOpts,
     } as ChatConfig;
-    this.loadedModelIdToChatConfig.set(modelId, curModelConfig);
 
     // load tvm wasm
     const wasmCache = tvmjs.createArtifactCache(
@@ -433,7 +439,7 @@ export class MLCEngine implements MLCEngineInterface {
         return await wasmCache.fetchWithCache(
           wasmUrl,
           "arraybuffer",
-          this.reloadController?.signal,
+          reloadSignal,
         );
       }
     };
@@ -448,6 +454,7 @@ export class MLCEngine implements MLCEngineInterface {
       );
     }
 
+    checkAborted();
     const wasm = new Uint8Array(wasmSource);
     const tvm = await tvmjs.instantiate(
       wasm.buffer,
@@ -455,89 +462,121 @@ export class MLCEngine implements MLCEngineInterface {
       this.logger,
     );
 
-    if (this.initProgressCallback !== undefined) {
-      tvm.registerInitProgressCallback(this.initProgressCallback);
-    }
-
-    // detect GPU
-    const gpuDetectOutput = await tvmjs.detectGPUDevice();
-    if (gpuDetectOutput == undefined) {
-      throw new WebGPUNotAvailableError();
-    }
-    let gpuLabel = "WebGPU";
-    if (gpuDetectOutput.adapterInfo.description.length != 0) {
-      gpuLabel += " - " + gpuDetectOutput.adapterInfo.description;
-    } else {
-      gpuLabel += " - " + gpuDetectOutput.adapterInfo.vendor;
-    }
-    if (modelRecord.required_features !== undefined) {
-      for (const feature of modelRecord.required_features) {
-        if (!gpuDetectOutput.device.features.has(feature)) {
-          if (feature == "shader-f16") {
-            throw new ShaderF16SupportError();
-          }
-          throw new FeatureSupportError(feature);
-        }
-      }
-    }
-
-    // Most device lost happens in `reload()` since we allocate memory ahead of time. So we can
-    // use this flag at the end of `reload()` to make the error handling synchronous.
-    // This `.then()` exists throughout the lifetime of the device. Though we have not
-    // experienced device error outside of `reload()`, it is still possible this `.then()` is
-    // triggered outside of `reload()`. TODO: does this cause unexpected behavior?
+    let gpuDetectOutput: tvmjs.GPUDeviceDetectOutput | undefined;
+    let tokenizer: Awaited<ReturnType<typeof asyncLoadTokenizer>> | undefined;
+    let newPipeline: LLMChatPipeline | EmbeddingPipeline | undefined;
+    let gpuInitialized = false;
+    let loadFailed = false;
     let deviceLostInReload = false;
-    gpuDetectOutput.device.lost.then((info: any) => {
-      if (this.deviceLostIsError) {
-        log.error(
-          `Device was lost. This can happen due to insufficient memory or other GPU constraints. ` +
-            `Detailed error: ${info}. Please try to reload WebLLM with a less resource-intensive model.`,
-        );
-        this.unload();
-        deviceLostInReload = true;
+    let gpuLabel = "WebGPU";
+    try {
+      checkAborted();
+      if (this.initProgressCallback !== undefined) {
+        tvm.registerInitProgressCallback(this.initProgressCallback);
       }
-    });
-    tvm.initWebGPU(gpuDetectOutput.device);
-
-    const tokenizer = await asyncLoadTokenizer(
-      modelUrl,
-      curModelConfig,
-      this.appConfig,
-      this.logger,
-      modelRecord.integrity,
-    );
-    await tvm.fetchTensorCache(
-      packageResources.tensorCacheBaseUrl,
-      tvm.webgpu(),
-      {
-        ...getTensorCacheAccessOptions("webllm/model", this.appConfig),
-        signal: this.reloadController?.signal,
-      },
-    );
-
-    // Instantiate pipeline
-    // TODO: would be good to somehow check for error when LLMChatPipeline is loaded for an
-    // embedding model, and prompt user to use ModelRecord.model_type
-    let newPipeline: LLMChatPipeline | EmbeddingPipeline;
-    if (modelRecord.model_type === ModelType.embedding) {
-      newPipeline = new EmbeddingPipeline(tvm, tokenizer, curModelConfig);
-    } else {
-      newPipeline = new LLMChatPipeline(
-        tvm,
-        tokenizer,
+      gpuDetectOutput = await detectGPUDeviceForModel(
+        modelRecord,
+        reloadSignal,
+      );
+      checkAborted();
+      gpuLabel +=
+        " - " +
+        (gpuDetectOutput.adapterInfo.description ||
+          gpuDetectOutput.adapterInfo.vendor);
+      gpuDetectOutput.device.lost.then((info: GPUDeviceLostInfo) => {
+        if (
+          !loadFailed &&
+          info.reason !== "destroyed" &&
+          this.deviceLostIsError
+        ) {
+          log.error(
+            `Device was lost while loading or running the model: ${info.message}`,
+          );
+          deviceLostInReload = true;
+          void this.unload();
+        }
+      });
+      tvm.initWebGPU(gpuDetectOutput.device);
+      gpuInitialized = true;
+      tokenizer = await asyncLoadTokenizer(
+        modelUrl,
         curModelConfig,
-        logitProcessor,
-        modelPackage,
+        this.appConfig,
+        this.logger,
+        modelRecord.integrity,
+      );
+      checkAborted();
+      await tvm.fetchTensorCache(
+        packageResources.tensorCacheBaseUrl,
+        tvm.webgpu(),
         {
-          features: gpuDetectOutput.device.features,
-          maxStorageBufferBindingSize:
-            gpuDetectOutput.device.limits.maxStorageBufferBindingSize,
+          ...getTensorCacheAccessOptions("webllm/model", this.appConfig),
+          signal: reloadSignal,
         },
       );
+      checkAborted();
+      if (modelRecord.model_type === ModelType.embedding) {
+        newPipeline = new EmbeddingPipeline(tvm, tokenizer, curModelConfig);
+      } else {
+        newPipeline = new LLMChatPipeline(
+          tvm,
+          tokenizer,
+          curModelConfig,
+          logitProcessor,
+          modelPackage,
+          {
+            features: gpuDetectOutput.device.features,
+            maxStorageBufferBindingSize:
+              gpuDetectOutput.device.limits.maxStorageBufferBindingSize,
+          },
+        );
+      }
+      await newPipeline.asyncLoadWebGPUPipelines();
+      checkAborted();
+      if (deviceLostInReload) throw new DeviceLostError();
+      // Transfer ownership only after every asynchronous initialization step succeeds.
+      this.loadedModelIdToPipeline.set(modelId, newPipeline);
+      this.loadedModelIdToLock.set(modelId, new CustomLock());
+      this.loadedModelIdToChatConfig.set(modelId, curModelConfig);
+      this.loadedModelIdToModelType.set(modelId, modelType);
+    } catch (error) {
+      loadFailed = true;
+      let runtimeDisposed = false;
+      let tokenizerDisposed = false;
+      if (newPipeline !== undefined) {
+        try {
+          newPipeline.dispose();
+          runtimeDisposed = true;
+          tokenizerDisposed = true;
+        } catch {
+          // Continue releasing resources if pipeline cleanup fails partway through.
+        }
+      }
+      if (!tokenizerDisposed) {
+        try {
+          tokenizer?.dispose();
+        } catch {
+          /* Preserve the initialization error. */
+        }
+      }
+      if (!runtimeDisposed) {
+        try {
+          tvm.dispose();
+          runtimeDisposed = true;
+        } catch {
+          /* Preserve the initialization error. */
+        }
+      }
+      // Successful initWebGPU transfers the device to TVM. A partial init does not.
+      if (!gpuInitialized || !runtimeDisposed) {
+        try {
+          gpuDetectOutput?.device.destroy();
+        } catch {
+          /* Preserve the initialization error. */
+        }
+      }
+      throw error;
     }
-    await newPipeline.asyncLoadWebGPUPipelines();
-    this.loadedModelIdToPipeline.set(modelId, newPipeline);
-    this.loadedModelIdToLock.set(modelId, new CustomLock());
 
     // Clean up
     const tend = performance.now();

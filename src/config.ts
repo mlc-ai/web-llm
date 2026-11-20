@@ -272,7 +272,8 @@ export enum ModelType {
  * @param vram_required_MB: amount of vram in MB required to run the model (can use
  *    `utils/vram_requirements` to calculate).
  * @param low_resource_required: whether the model can run on limited devices (e.g. Android phone).
- * @param buffer_size_required_bytes: required `maxStorageBufferBindingSize`, different for each device.
+ * @param buffer_size_required_bytes: minimum `maxBufferSize` and `maxStorageBufferBindingSize`
+ * requested for this model. Must be a positive safe integer supported by the adapter.
  * @param required_features: feature needed to run this model (e.g. shader-f16).
  * @param model_type: the intended usecase for the model, if unspecified, default to LLM.
  * @param integrity: optional SRI hashes to verify downloaded artifacts. See {@link ModelIntegrity}.
