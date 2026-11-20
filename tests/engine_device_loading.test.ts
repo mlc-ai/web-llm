@@ -85,6 +85,7 @@ function fixture() {
       .mockResolvedValue(undefined),
   };
   const pipeline = {
+    warmUp: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     asyncLoadWebGPUPipelines: jest
       .fn<() => Promise<void>>()
       .mockResolvedValue(undefined),
