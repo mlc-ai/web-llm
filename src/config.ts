@@ -26,6 +26,7 @@ export interface ConvTemplateConfig {
   stop_token_ids: Array<number>;
   add_role_after_system_message?: boolean;
   render_empty_system_message?: boolean;
+  reasoning_history_style?: "default" | "lfm3";
 }
 
 /**
@@ -362,6 +363,65 @@ export const functionCallingModelIds = [
 export const prebuiltAppConfig: AppConfig = {
   cacheBackend: "cache",
   model_list: [
+    // LFM3
+    {
+      model:
+        "https://huggingface.co/mlc-ai/LFM3-1.7B-q4f16_1-MLC/resolve/074e7321aa0dc70440396d9c31e145c9e51de12a/",
+      model_id: "LFM3-1.7B-q4f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/LFM3-1.7B-q4f16_1_cs256-webgpu.wasm",
+      vram_required_MB: 2304,
+      low_resource_required: false,
+      required_features: ["shader-f16"],
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model:
+        "https://huggingface.co/mlc-ai/LFM3-1.7B-q4f32_1-MLC/resolve/e7f24c15eb24d2c21418067a39f87961f05fd992/",
+      model_id: "LFM3-1.7B-q4f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/LFM3-1.7B-q4f32_1_cs256-webgpu.wasm",
+      vram_required_MB: 2560,
+      low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model:
+        "https://huggingface.co/mlc-ai/LFM3-1.7B-q8f16_1-MLC/resolve/da27f38fd202a66dcba74a3ac74d0f6c2be0ad5a/",
+      model_id: "LFM3-1.7B-q8f16_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/LFM3-1.7B-q8f16_1_cs256-webgpu.wasm",
+      vram_required_MB: 2304,
+      low_resource_required: false,
+      required_features: ["shader-f16"],
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
+    {
+      model:
+        "https://huggingface.co/mlc-ai/LFM3-1.7B-q8f32_1-MLC/resolve/513805f25bc1a9219a58fd78a655944acf5f7570/",
+      model_id: "LFM3-1.7B-q8f32_1-MLC",
+      model_lib:
+        modelLibURLPrefix +
+        modelVersion +
+        "/LFM3-1.7B-q8f32_1_cs256-webgpu.wasm",
+      vram_required_MB: 2560,
+      low_resource_required: false,
+      overrides: {
+        context_window_size: 4096,
+      },
+    },
     // Llama-3.2
     {
       model: "https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q4f32_1-MLC",

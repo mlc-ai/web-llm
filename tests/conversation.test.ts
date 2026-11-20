@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { ChatConfig, Role } from "../src/config";
 import {
   compareConversationObject,
@@ -510,4 +512,124 @@ describe("Manifest prompt segments preserve modality order", () => {
     expect(compareConversationObject(first, equal)).toBe(true);
     expect(compareConversationObject(first, different)).toBe(false);
   });
+});
+
+const lfm3Conversation = JSON.parse(
+  readFileSync(join(__dirname, "fixtures/lfm3-conversation.json"), "utf8"),
+) as ChatConfig["conv_template"];
+
+describe("LFM3 history", () => {
+  const config = JSON.parse(qwen3ChatConfigJSONString) as ChatConfig;
+  config.conv_template = lfm3Conversation;
+
+  test.each([
+    ["answer", "<think></think>answer"],
+    ["  answer  ", "<think></think>  answer  "],
+    ["<think>private</think>\u0085answer\u001c", "<think></think>answer"],
+    ["old</think>new</think>\u2003final\u00a0", "<think></think>final"],
+    ["x</think>\ufeffanswer\ufeff", "<think></think>\ufeffanswer\ufeff"],
+  ])("normalizes %s without mutating the request", (content, expected) => {
+    const request: ChatCompletionRequest = {
+      messages: [
+        { role: "user", content: "first" },
+        { role: "assistant", content },
+        { role: "user", content: "next" },
+      ],
+    };
+    const conv = getConversationFromChatCompletionRequest(request, config);
+    expect(conv.messages[1][2]).toBe(expected);
+    expect(request.messages[1].content).toBe(content);
+  });
+
+  test.each(["<think>", "<think></think>"])(
+    "renders exact LFM3 prefix %s",
+    (suffix) => {
+      const lfm3Config: ChatConfig = {
+        ...config,
+        conv_template: {
+          system_template: "<|im_start|>system\n{system_message}<|im_end|>\n",
+          system_message: "",
+          render_empty_system_message: false,
+          roles: {
+            user: "<|im_start|>user",
+            assistant: "<|im_start|>assistant",
+            tool: "",
+          },
+          seps: ["<|im_end|>\n"],
+          role_content_sep: "\n",
+          role_empty_sep: "\n" + suffix,
+          stop_str: ["<|im_end|>"],
+          stop_token_ids: [124900],
+          system_prefix_token_ids: [124894],
+          reasoning_history_style: "lfm3",
+        },
+      };
+      const conv = getConversationFromChatCompletionRequest(
+        {
+          messages: [
+            { role: "user", content: "first" },
+            { role: "assistant", content: "<think>secret</think> answer " },
+            { role: "user", content: "next" },
+          ],
+        },
+        lfm3Config,
+        true,
+      );
+      conv.appendReplyHeader(Role.assistant);
+      expect(conv.getPromptArray().join("")).toBe(
+        "<|im_start|>user\nfirst<|im_end|>\n" +
+          "<|im_start|>assistant\n<think></think>answer<|im_end|>\n" +
+          "<|im_start|>user\nnext<|im_end|>\n<|im_start|>assistant\n" +
+          suffix,
+      );
+      expect(conv.config.system_prefix_token_ids).toEqual([124894]);
+    },
+  );
+
+  test("rejects dynamic thinking override and nontext last messages", () => {
+    expect(() =>
+      getConversationFromChatCompletionRequest(
+        {
+          messages: [{ role: "user", content: "hi" }],
+          extra_body: { enable_thinking: false },
+        },
+        config,
+      ),
+    ).toThrow("template");
+    expect(() =>
+      getConversationFromChatCompletionRequest(
+        {
+          messages: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
+        },
+        config,
+      ),
+    ).toThrow("plain text");
+  });
+});
+
+test("LFM3 serialized template preserves literal replacement syntax", () => {
+  const literal =
+    "$& $` $' $$ {system_message} {user_message} {assistant_message} {tool_message} {function_string}";
+  const config = JSON.parse(qwen3ChatConfigJSONString) as ChatConfig;
+  config.conv_template = lfm3Conversation;
+  const conv = getConversationFromChatCompletionRequest(
+    {
+      messages: [
+        { role: "system", content: literal },
+        { role: "user", content: literal },
+        { role: "assistant", content: literal },
+        { role: "user", content: literal },
+      ],
+    },
+    config,
+    true,
+  );
+  conv.appendReplyHeader(Role.assistant);
+  expect(conv.getPromptArray().join("")).toBe(
+    `<|im_start|>system\n${literal}<|im_end|>\n` +
+      `<|im_start|>user\n${literal}<|im_end|>\n` +
+      `<|im_start|>assistant\n<think></think>${literal}<|im_end|>\n` +
+      `<|im_start|>user\n${literal}<|im_end|>\n` +
+      "<|im_start|>assistant\n<think>",
+  );
 });

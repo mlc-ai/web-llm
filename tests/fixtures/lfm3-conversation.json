@@ -1,0 +1,28 @@
+{
+  "name": "lfm3",
+  "system_template": "<|im_start|>system\n{system_message}<|im_end|>\n",
+  "system_message": "",
+  "render_empty_system_message": false,
+  "system_prefix_token_ids": [124894],
+  "add_role_after_system_message": true,
+  "roles": {
+    "user": "<|im_start|>user",
+    "assistant": "<|im_start|>assistant"
+  },
+  "role_templates": {
+    "user": "{user_message}",
+    "assistant": "{assistant_message}",
+    "tool": "{tool_message}"
+  },
+  "messages": [],
+  "seps": ["<|im_end|>\n"],
+  "role_content_sep": "\n",
+  "role_empty_sep": "\n<think>",
+  "stop_str": ["<|im_end|>"],
+  "stop_token_ids": [124900],
+  "strip_reasoning_in_history": false,
+  "reasoning_history_style": "lfm3",
+  "qwen3_8_reasoning_effort": null,
+  "function_string": "",
+  "use_function_calling": false
+}
