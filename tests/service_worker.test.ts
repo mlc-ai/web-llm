@@ -181,6 +181,59 @@ test("reload with new parameters calls engine reload", async () => {
   expect(reloadMock).toHaveBeenCalledWith(["fresh"], []);
 });
 
+test("a closed page releases its stream while another page keeps streaming", async () => {
+  const addEventListener = setupWorkerScope();
+  const handler = new ServiceWorkerMLCEngineHandler();
+  const [, listener] = addEventListener.mock.calls[0];
+  const pages = new Set(["first", "second"]);
+  (globalThis as any).self.clients = {
+    get: async (id: string) => (pages.has(id) ? { id } : undefined),
+  };
+  const closed: string[] = [];
+  async function* generate(id: string) {
+    try {
+      yield { id };
+      yield { id };
+    } finally {
+      closed.push(id);
+    }
+  }
+  handler.modelId = ["demo"];
+  handler.chatOpts = [];
+  (handler.engine.chatCompletion as jest.Mock).mockImplementation(
+    (request: any) => generate(request.user),
+  );
+
+  async function send(page: string, kind: string, content?: object) {
+    const pending: Promise<unknown>[] = [];
+    listener({
+      data: { kind, uuid: crypto.randomUUID(), content },
+      source: { id: page, postMessage: jest.fn() },
+      waitUntil: (task: Promise<unknown>) => pending.push(task),
+    });
+    await Promise.all(pending);
+  }
+
+  for (const page of pages) {
+    await send(page, "chatCompletionStreamInit", {
+      request: { user: page, stream: true },
+      modelId: ["demo"],
+      chatOpts: [],
+      streamId: page,
+    });
+    await send(page, "completionStreamNextChunk", { streamId: page });
+  }
+  await send("second", "keepAlive");
+  expect(closed).toEqual([]);
+  pages.delete("first");
+  await send("second", "keepAlive");
+  expect(closed).toEqual(["first"]);
+  await send("second", "completionStreamNextChunk", { streamId: "second" });
+  expect(closed).toEqual(["first"]);
+  await send("second", "completionStreamReturn", { streamId: "second" });
+  expect(closed).toEqual(["first", "second"]);
+});
+
 test("ServiceWorker client forwards onmessage handlers to navigator", () => {
   const { container } = setupNavigator();
   const client = new ServiceWorker();

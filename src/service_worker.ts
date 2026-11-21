@@ -39,6 +39,7 @@ export class ServiceWorkerMLCEngineHandler extends WebWorkerMLCEngineHandler {
     string,
     IServiceWorker | Client | MessagePort
   >();
+  private streamOwners = new WeakMap<AsyncIterator<unknown>, string>();
   private initRequestUuid?: string;
 
   constructor() {
@@ -59,15 +60,54 @@ export class ServiceWorkerMLCEngineHandler extends WebWorkerMLCEngineHandler {
 
     self.addEventListener("message", (event) => {
       const message = event as unknown as ExtendableMessageEvent;
-      if (message.source) {
-        this.clientRegistry.set(message.data.uuid, message.source);
+      const request = message.data as WorkerRequest;
+      const source = message.source;
+      const clientId = source && "id" in source ? source.id : undefined;
+      if (source) {
+        this.clientRegistry.set(request.uuid, source);
       }
+      if (
+        this.streamIdToAsyncGenerator.size &&
+        request.kind !== "completionStreamNextChunk" &&
+        request.kind !== "completionStreamReturn"
+      ) {
+        message.waitUntil(this.closeDisconnectedStreams(clientId));
+      }
+      const task = new Promise((resolve, reject) =>
+        onmessage(message, resolve, reject),
+      );
       message.waitUntil(
-        new Promise((resolve, reject) => {
-          onmessage(message, resolve, reject);
+        task.then((result) => {
+          if (clientId && request.kind?.endsWith("StreamInit")) {
+            const { streamId } = request.content as { streamId?: string };
+            const stream =
+              streamId && this.streamIdToAsyncGenerator.get(streamId);
+            if (stream) this.streamOwners.set(stream, clientId);
+          }
+          return result;
         }),
       );
     });
+  }
+
+  private async closeDisconnectedStreams(
+    currentClientId?: string,
+  ): Promise<void> {
+    const clients = (self as unknown as ServiceWorkerGlobalScope).clients;
+    await Promise.all(
+      Array.from(this.streamIdToAsyncGenerator, async ([id, stream]) => {
+        const owner = this.streamOwners.get(stream);
+        if (
+          owner &&
+          owner !== currentClientId &&
+          !(await clients.get(owner)) &&
+          this.streamIdToAsyncGenerator.get(id) === stream
+        ) {
+          this.streamIdToAsyncGenerator.delete(id);
+          await stream.return?.();
+        }
+      }),
+    );
   }
 
   postMessage(message: WorkerResponse) {
